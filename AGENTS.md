@@ -121,6 +121,13 @@ cd ../C:\Git\Horix && node server.js
 - Botón "Probar conexión" que ejecuta `ssh user@host pm2 --version` para verificar
 - El launcher usa SSH como tercer fallback en `pm2Exec()`: primero intenta `pm2`, luego `sudo pm2`, luego `ssh user@host sudo pm2`
 
+## Pendientes
+- [ ] Configurar llaves SSH desde Windows hacia servidor Linux para que los reinicios remotos funcionen desde el launcher
+  - En Windows: `ssh-keygen -t ed25519`
+  - En servidor: agregar la clave pública a `~/.ssh/authorized_keys`
+  - Probar: `ssh root@host sudo pm2 list`
+  - Luego configurar Host y Usuario en el admin del launcher (Seguridad → Conexión SSH)
+
 # Launcher - Servicios MCP (pestaña admin)
 - Pestaña "Servicios MCP" en el admin del Launcher
 - Muestra todos los módulos con MCP habilitado registrados en la plataforma
