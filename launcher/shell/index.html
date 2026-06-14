@@ -441,6 +441,19 @@
       </div>
       <div id="rl-result" style="margin-top:12px;"></div>
     </div>
+    <div class="perm-rol-section" style="margin-top:20px;">
+      <div class="perm-rol-titulo">Conexión SSH (para reinicios remotos)</div>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Si PM2 no está disponible localmente, el launcher intentará conectarse vía SSH para reiniciar servicios. Requiere llaves SSH configuradas sin contraseña.</p>
+      <label>Host del servidor</label>
+      <input type="text" id="ssh-host" placeholder="ej: 192.168.1.100 o vitamar.com.co" style="width:100%;">
+      <label>Usuario SSH</label>
+      <input type="text" id="ssh-user" placeholder="root" style="width:200px;">
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="btn" onclick="saveSshConfig()">💾 Guardar</button>
+        <button class="btn btn-sm" onclick="testSshConnection()">🔌 Probar conexión</button>
+      </div>
+      <div id="ssh-result" style="margin-top:12px;"></div>
+    </div>
     <div style="display:flex;justify-content:space-between;align-items:center;margin:20px 0 12px;">
       <div style="font-size:var(--fs);font-weight:600;">Registro de accesos</div>
       <button class="btn btn-sm" onclick="loadLoginLogs()">🔄 Recargar</button>

@@ -638,7 +638,7 @@ function showAdminTab(tab) {
    else if (tab === 'mcp') { loadMcpConfig(); loadMcpUrl(); }
    else if (tab === 'smtp') loadSmtpConfig();
    else if (tab === 'apariencia') loadGradConfig();
-   else if (tab === 'seguridad') { loadRateLimitConfig(); loadLoginLogs(); }
+   else if (tab === 'seguridad') { loadRateLimitConfig(); loadSshConfig(); loadLoginLogs(); }
    else if (tab === 'nginx') loadNginx();
    else if (tab === 'actualizar') { loadUpdaterStatus(); loadUpdaterLogs(); }
    else if (tab === 'mcp-modules') { loadMcpModulesStatus(); }
@@ -827,6 +827,61 @@ async function saveRateLimitConfig() {
   } finally {
     btn.textContent = '\uD83D\uDCBE Guardar';
     btn.disabled = false;
+  }
+}
+
+// ── SSH Config ──
+async function loadSshConfig() {
+  try {
+    var res = await fetch('/api/admin/config', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) return;
+    var data = await res.json(), cfg = data.config || {};
+    document.getElementById('ssh-host').value = cfg.ssh_host || '';
+    document.getElementById('ssh-user').value = cfg.ssh_user || 'root';
+  } catch (e) {}
+}
+
+async function saveSshConfig() {
+  var btn = document.querySelector('#tab-seguridad .perm-rol-section:last-child .btn');
+  btn.textContent = 'Guardando...';
+  btn.disabled = true;
+  try {
+    var body = { ssh_host: document.getElementById('ssh-host').value, ssh_user: document.getElementById('ssh-user').value };
+    var res = await fetch('/api/admin/config', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
+      body: JSON.stringify(body)
+    });
+    var data = await res.json();
+    document.getElementById('ssh-result').innerHTML = data.ok
+      ? '<span style="color:var(--success);">\u2705 Guardado</span>'
+      : '<span style="color:var(--danger);">\u274c Error</span>';
+  } catch (e) {
+    document.getElementById('ssh-result').innerHTML = '<span style="color:var(--danger);">\u274c ' + e.message + '</span>';
+  } finally {
+    btn.textContent = '\uD83D\uDCBE Guardar';
+    btn.disabled = false;
+  }
+}
+
+async function testSshConnection() {
+  var resultEl = document.getElementById('ssh-result');
+  var host = document.getElementById('ssh-host').value;
+  var user = document.getElementById('ssh-user').value || 'root';
+  if (!host) { resultEl.innerHTML = '<span style="color:var(--danger);">\u274c Ingresa un host primero</span>'; return; }
+  resultEl.innerHTML = '<span style="color:var(--muted);">Probando conexión SSH...</span>';
+  try {
+    var res = await fetch('/api/admin/config/test-ssh', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
+      body: JSON.stringify({ host: host, user: user })
+    });
+    var data = await res.json();
+    resultEl.innerHTML = data.ok
+      ? '<span style="color:var(--success);">\u2705 ' + esc(data.message) + ' (PM2 ' + esc(data.version) + ')</span>'
+      : '<span style="color:var(--danger);">\u274c ' + esc(data.error) + '</span>';
+  } catch (e) {
+    resultEl.innerHTML = '<span style="color:var(--danger);">\u274c ' + e.message + '</span>';
   }
 }
 

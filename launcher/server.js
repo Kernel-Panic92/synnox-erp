@@ -52,7 +52,8 @@ db.exec(`CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT NOT
 // Seed defaults
 const defaults = { smtp_host:'', smtp_port:'587', smtp_secure:'false', smtp_user:'', smtp_pass:'', smtp_from:'', smtp_from_name:'Horix Platform', smtp_allow_self_signed:'false', mcp_oauth_enabled:'false',
   grad_c1:'230,126,34', grad_c2:'247,148,79', grad_c3:'196,98,16',
-  rate_limit_max:'5', rate_limit_window:'60' };
+  rate_limit_max:'5', rate_limit_window:'60',
+  ssh_host:'', ssh_user:'root' };
 for (const [k, v] of Object.entries(defaults)) {
   db.prepare("INSERT OR IGNORE INTO config (key, value) VALUES (?, ?)").run(k, v);
 }
@@ -227,7 +228,7 @@ app.get('/api/config', (req, res) => {
 });
 
 app.put('/api/admin/config', verificarToken, soloAdmin, (req, res) => {
-  const allowed = ['grad_c1','grad_c2','grad_c3','rate_limit_max','rate_limit_window'];
+  const allowed = ['grad_c1','grad_c2','grad_c3','rate_limit_max','rate_limit_window','ssh_host','ssh_user'];
   const upsert = db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)');
   for (const [k, v] of Object.entries(req.body)) {
     if (allowed.includes(k)) upsert.run(k, String(v ?? ''));
@@ -235,9 +236,20 @@ app.put('/api/admin/config', verificarToken, soloAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-// Admin GET: returns allowed config keys (grad + rate_limit)
+app.post('/api/admin/config/test-ssh', verificarToken, soloAdmin, (req, res) => {
+  const { host, user } = req.body;
+  if (!host) return res.json({ ok: false, error: 'Host requerido' });
+  try {
+    const out = execSync('ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 ' + (user || 'root') + '@' + host + ' "pm2 --version"', { stdio: 'pipe', timeout: 15000 }).toString().trim();
+    res.json({ ok: true, version: out, message: 'Conexión SSH exitosa' });
+  } catch (e) {
+    res.json({ ok: false, error: 'No se pudo conectar vía SSH: ' + (e.message || 'error') });
+  }
+});
+
+// Admin GET: returns allowed config keys (grad + rate_limit + ssh)
 app.get('/api/admin/config', verificarToken, soloAdmin, (req, res) => {
-  const allowed = ['grad_c1','grad_c2','grad_c3','rate_limit_max','rate_limit_window'];
+  const allowed = ['grad_c1','grad_c2','grad_c3','rate_limit_max','rate_limit_window','ssh_host','ssh_user'];
   const placeholders = allowed.map(function() { return '?'; }).join(',');
   const rows = db.prepare("SELECT key, value FROM config WHERE key IN (" + placeholders + ")").all(...allowed);
   const cfg = {};
@@ -918,9 +930,18 @@ app.get('/.well-known/oauth-protected-resource', requireOauth, (req, res) => {
 const LAUNCHER_DIR = path.resolve(__dirname, '..');
 
 function pm2Exec(args) {
-  try { return execSync('pm2 ' + args, { stdio: 'pipe' }); } catch {
-    try { return execSync('sudo pm2 ' + args, { stdio: 'pipe' }); } catch (e) { throw e; }
+  // 1) Try local pm2
+  try { return execSync('pm2 ' + args, { stdio: 'pipe' }); } catch {}
+  // 2) Try local sudo pm2
+  try { return execSync('sudo pm2 ' + args, { stdio: 'pipe' }); } catch {}
+  // 3) Try remote via SSH if configured
+  const sshHost = db.prepare("SELECT value FROM config WHERE key = 'ssh_host'").get()?.value;
+  const sshUser = db.prepare("SELECT value FROM config WHERE key = 'ssh_user'").get()?.value || 'root';
+  if (sshHost) {
+    const cmd = 'ssh -o StrictHostKeyChecking=no -o BatchMode=yes ' + sshUser + '@' + sshHost + ' "sudo pm2 ' + args + '"';
+    return execSync(cmd, { stdio: 'pipe', timeout: 10000 });
   }
+  throw new Error('PM2 no disponible localmente ni vía SSH');
 }
 const UPDATER_LOG = path.join(__dirname, 'logs', 'updater.log');
 if (!fs.existsSync(path.join(__dirname, 'logs'))) fs.mkdirSync(path.join(__dirname, 'logs'), { recursive: true });

@@ -115,6 +115,12 @@ cd ../C:\Git\Horix && node server.js
 - Los tool names usan snake_case en español
 - Errores MCP: código `-32001` = sesión inválida
 
+# Launcher - SSH (pestaña Seguridad)
+- Configuración SSH para reinicios remotos (Host + usuario)
+- Guarda en DB de config del launcher (`ssh_host`, `ssh_user`)
+- Botón "Probar conexión" que ejecuta `ssh user@host pm2 --version` para verificar
+- El launcher usa SSH como tercer fallback en `pm2Exec()`: primero intenta `pm2`, luego `sudo pm2`, luego `ssh user@host sudo pm2`
+
 # Launcher - Servicios MCP (pestaña admin)
 - Pestaña "Servicios MCP" en el admin del Launcher
 - Muestra todos los módulos con MCP habilitado registrados en la plataforma
