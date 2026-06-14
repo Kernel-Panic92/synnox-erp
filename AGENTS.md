@@ -1,5 +1,7 @@
 # Horix Platform — Contexto del proyecto
 
+> **Propósito de este archivo**: Mantener el contexto de la conversación entre sesiones de opencode. Al iniciar una nueva sesión, opencode lee este archivo para retomar el estado del proyecto sin perder el hilo. Debe reflejar siempre la realidad actual del código.
+
 ## ¿Qué es?
 Plataforma de orquestación de módulos ERP independientes. Cada módulo (DocFlow, Horix, WordPress, etc.) tiene su propio backend, frontend y MCP server. El Launcher orquesta todo: registro de módulos, health checks, generación de nginx y MCP Gateway unificado.
 
