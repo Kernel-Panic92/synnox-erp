@@ -106,7 +106,7 @@ cd ../C:\Git\Horix && node server.js
 
 ### Admin UI
 - `http://localhost:3002` → Login: admin@horix.com / admin123
-- Pestañas: Usuarios, Módulos, MCP, SMTP, Apariencia, Seguridad, Nginx, Actualizar, WordPress
+- Pestañas: Usuarios, Módulos, MCP, SMTP, Apariencia, Seguridad, Nginx, Actualizar, Servicios MCP
 
 ## Convenciones
 - Los módulos NO deben requerir auth para su endpoint `/mcp` — la confianza es local
@@ -115,8 +115,15 @@ cd ../C:\Git\Horix && node server.js
 - Los tool names usan snake_case en español
 - Errores MCP: código `-32001` = sesión inválida
 
+# Launcher - Servicios MCP (pestaña admin)
+- Pestaña "Servicios MCP" en el admin del Launcher
+- Muestra todos los módulos con MCP habilitado registrados en la plataforma
+- Por cada módulo: health check (HTTP GET /health o /mcp), estado PM2, botón reiniciar, detalle con logs
+- Rutas backend: `GET /api/admin/mcp-modules/status`, `POST /api/admin/mcp-modules/:id/restart`, `GET /api/admin/mcp-modules/:id/logs`
+- Es genérica: funciona con cualquier módulo MCP registrado (WordPress, Horix, DocFlow, etc.)
+
 # Launcher - Updater (desde UI)
-- Tab "Actualizar" en el admin del Launcher (pestañas: Usuarios, Módulos, MCP, SMTP, Apariencia, Seguridad, Nginx, **Actualizar**, WordPress)
+- Tab "Actualizar" en el admin del Launcher (pestañas: Usuarios, Módulos, MCP, SMTP, Apariencia, Seguridad, Nginx, **Actualizar**, Servicios MCP)
 - Rutas backend: `GET /api/admin/updater/status`, `POST /api/admin/updater/check`, `POST /api/admin/updater/update`, `POST /api/admin/updater/restart`, `GET /api/admin/updater/logs`
 - Ejecuta: `git fetch origin && git reset --hard origin/main` sobre `C:\Git\Horix-Platform`, `npm install --production` en `launcher/`
 - Intenta `pm2 restart horix-launcher` (fallback a `pm2 restart horix-erp`)

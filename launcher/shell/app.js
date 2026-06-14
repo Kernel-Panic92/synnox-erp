@@ -641,7 +641,7 @@ function showAdminTab(tab) {
    else if (tab === 'seguridad') { loadRateLimitConfig(); loadLoginLogs(); }
    else if (tab === 'nginx') loadNginx();
    else if (tab === 'actualizar') { loadUpdaterStatus(); loadUpdaterLogs(); }
-   else if (tab === 'wordpress') { loadWpStatus(); }
+   else if (tab === 'mcp-modules') { loadMcpModulesStatus(); }
 }
 
 // ── Nginx ──
@@ -1007,51 +1007,73 @@ function resetGradConfig() {
   setInterval(checkVersion, 15000);
 })();
 
-// ── WordPress MCP ──
-async function loadWpStatus() {
-  const statusEl = document.getElementById('wp-status');
-  const logEl = document.getElementById('wp-log');
-  logEl.style.display = 'none';
-  statusEl.innerHTML = '<span style="color:var(--muted);font-size:13px;">Cargando estado...</span>';
+// ── MCP Modules management (generic) ──
+async function loadMcpModulesStatus() {
+  const listEl = document.getElementById('mcp-modules-list');
+  const detailEl = document.getElementById('mcp-module-detail');
+  detailEl.style.display = 'none';
+  listEl.style.display = 'block';
+  listEl.innerHTML = '<span style="color:var(--muted);font-size:13px;">Cargando servicios MCP...</span>';
   try {
-    const res = await fetch('/api/admin/wordpress/status', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const res = await fetch('/api/admin/mcp-modules/status', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
     const data = await res.json();
-    if (data.running) {
-      statusEl.innerHTML = '<span style="color:var(--success);font-size:14px;">✓ wordpress-mcp está <b>ejecutándose</b></span>';
-    } else {
-      statusEl.innerHTML = '<span style="color:var(--danger);font-size:14px;">✗ wordpress-mcp está <b>detenido</b></span>';
+    if (!data.ok) { listEl.innerHTML = '<span style="color:var(--danger);">Error: ' + data.error + '</span>'; return; }
+    if (!data.modules.length) { listEl.innerHTML = '<span style="color:var(--muted);">No hay módulos MCP registrados</span>'; return; }
+    let html = '<div style="display:grid;gap:12px;">';
+    for (const m of data.modules) {
+      const statusIcon = m.status === 'online' ? '🟢' : m.status === 'offline' ? '🔴' : '🟡';
+      const pm2Icon = m.pm2 === 'running' ? '🟢' : '🔴';
+      html += '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;cursor:pointer;" onclick="showMcpModuleDetail(\'' + esc(m.id) + '\')">';
+      html += '<div style="display:flex;align-items:center;gap:12px;flex:1;min-width:200px;">';
+      html += '<span style="font-size:24px;">' + statusIcon + '</span>';
+      html += '<div><div style="font-weight:600;">' + esc(m.nombre) + '</div>';
+      html += '<div style="font-size:12px;color:var(--muted);">' + esc(m.url) + '</div></div></div>';
+      html += '<div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;">';
+      html += '<span style="font-size:12px;color:var(--muted);">PM2: ' + pm2Icon + '</span>';
+      html += '<span style="font-size:12px;color:var(--muted);">HTTP: ' + m.status + '</span>';
+      html += '<button class="btn btn-sm" onclick="event.stopPropagation();restartMcpModule(\'' + esc(m.id) + '\')">🔁 Reiniciar</button>';
+      html += '<button class="btn btn-sm" onclick="event.stopPropagation();showMcpModuleDetail(\'' + esc(m.id) + '\')">📋 Detalle</button>';
+      html += '</div></div>';
     }
-  } catch (e) { statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">Error: ' + e.message + '</span>'; }
+    html += '</div>';
+    listEl.innerHTML = html;
+  } catch (e) { listEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">Error: ' + e.message + '</span>'; }
 }
 
-async function restartWp() {
-  const statusEl = document.getElementById('wp-status');
-  const logEl = document.getElementById('wp-log');
-  if (!confirm('¿Reiniciar wordpress-mcp?')) return;
-  logEl.style.display = 'none';
-  statusEl.innerHTML = '<span style="color:var(--muted);font-size:13px;">Reiniciando...</span>';
+async function showMcpModuleDetail(moduleId) {
+  const listEl = document.getElementById('mcp-modules-list');
+  const detailEl = document.getElementById('mcp-module-detail');
+  const contentEl = document.getElementById('mcp-module-detail-content');
+  listEl.style.display = 'none';
+  detailEl.style.display = 'block';
+  contentEl.innerHTML = '<span style="color:var(--muted);font-size:13px;">Cargando detalle...</span>';
   try {
-    const res = await fetch('/api/admin/wordpress/restart', {
+    const res = await fetch('/api/admin/mcp-modules/' + encodeURIComponent(moduleId) + '/logs', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const data = await res.json();
+    contentEl.innerHTML = '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:16px;margin-bottom:12px;"><div style="font-weight:600;margin-bottom:8px;">' + esc(moduleId) + '</div><button class="btn btn-sm" onclick="restartMcpModule(\'' + esc(moduleId) + '\')">🔁 Reiniciar servicio</button></div><pre style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:16px;font-size:13px;overflow-x:auto;white-space:pre-wrap;max-height:400px;color:var(--text);">' + esc(data.log || '(sin registros)') + '</pre>';
+  } catch (e) { contentEl.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>'; }
+}
+
+function closeMcpModuleDetail() {
+  document.getElementById('mcp-module-detail').style.display = 'none';
+  document.getElementById('mcp-modules-list').style.display = 'block';
+  loadMcpModulesStatus();
+}
+
+async function restartMcpModule(moduleId) {
+  if (!confirm('¿Reiniciar ' + moduleId + '?')) return;
+  try {
+    const res = await fetch('/api/admin/mcp-modules/' + encodeURIComponent(moduleId) + '/restart', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + jwtToken }
     });
     const data = await res.json();
+    const listEl = document.getElementById('mcp-modules-list');
     if (data.ok) {
-      statusEl.innerHTML = '<span style="color:var(--success);font-size:13px;">✓ ' + esc(data.message || 'Reiniciado') + '</span>';
+      listEl.innerHTML = '<span style="color:var(--success);font-size:13px;">✓ ' + esc(data.message) + '</span>';
     } else {
-      statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + (data.error || data.message || 'Error') + '</span>';
+      listEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + (data.error || data.message || 'Error') + '</span>';
     }
-  } catch (e) { statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + e.message + '</span>'; }
-}
-
-async function loadWpLogs() {
-  const logEl = document.getElementById('wp-log');
-  const statusEl = document.getElementById('wp-status');
-  statusEl.innerHTML = '';
-  try {
-    const res = await fetch('/api/admin/wordpress/logs', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
-    const data = await res.json();
-    logEl.textContent = data.log || '(sin registros)';
-    logEl.style.display = 'block';
-  } catch (e) { logEl.textContent = 'Error: ' + e.message; logEl.style.display = 'block'; }
+    setTimeout(loadMcpModulesStatus, 2000);
+  } catch (e) { listEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + e.message + '</span>'; }
 }

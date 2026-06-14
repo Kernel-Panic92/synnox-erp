@@ -991,44 +991,53 @@ app.get('/api/admin/updater/logs', verificarToken, soloAdmin, (req, res) => {
   res.json({ log: getUpdaterLog() });
 });
 
-// ── WordPress MCP management ──
-const WP_MCP_DIR = path.resolve(__dirname, '..', 'wordpress-mcp');
-const WP_LOG = path.join(WP_MCP_DIR, 'logs', 'wordpress-mcp.log');
-
-function logWp(msg) {
-  const line = `[${new Date().toISOString()}] ${msg}`;
-  console.log(line);
-  if (!fs.existsSync(path.join(WP_MCP_DIR, 'logs'))) fs.mkdirSync(path.join(WP_MCP_DIR, 'logs'), { recursive: true });
-  fs.appendFileSync(WP_LOG, line + '\n');
-}
-
-app.get('/api/admin/wordpress/status', verificarToken, soloAdmin, (req, res) => {
-  try {
-    const isRunning = execSync('pm2 pid wordpress-mcp', { stdio: 'pipe' }).toString().trim();
-    res.json({ ok: true, running: isRunning.length > 0 && parseInt(isRunning) > 0 });
-  } catch {
-    res.json({ ok: true, running: false });
+// ── MCP Modules management (generic) ──
+app.get('/api/admin/mcp-modules/status', verificarToken, soloAdmin, async (req, res) => {
+  const modules = getModulos(true);
+  const results = [];
+  for (const m of modules) {
+    const entry = { id: m.id, nombre: m.nombre, url: m.public_url || m.url };
+    try {
+      const ctrl = new AbortController();
+      setTimeout(() => ctrl.abort(), 3000);
+      const r = await fetch(m.url + '/health', { signal: ctrl.signal });
+      if (r.ok) { entry.status = 'online'; const body = await r.json(); entry.health = body; }
+      else { entry.status = 'error'; entry.code = r.status; }
+    } catch {
+      try {
+        const ctrl = new AbortController();
+        setTimeout(() => ctrl.abort(), 3000);
+        const r = await fetch(m.url + '/mcp', { signal: ctrl.signal });
+        entry.status = r.ok ? 'online' : 'error';
+      } catch { entry.status = 'offline'; }
+    }
+    try {
+      const pid = execSync('pm2 pid ' + m.id, { stdio: 'pipe' }).toString().trim();
+      entry.pm2 = pid.length > 0 && parseInt(pid) > 0 ? 'running' : 'stopped';
+    } catch { entry.pm2 = 'stopped'; }
+    results.push(entry);
   }
+  res.json({ ok: true, modules: results });
 });
 
-app.post('/api/admin/wordpress/restart', verificarToken, soloAdmin, async (req, res) => {
+app.post('/api/admin/mcp-modules/:id/restart', verificarToken, soloAdmin, async (req, res) => {
+  const modId = req.params.id;
   try {
-    logWp('Reiniciando wordpress-mcp...');
     try {
-      execSync('pm2 restart wordpress-mcp', { stdio: 'pipe' });
+      execSync('pm2 restart ' + modId, { stdio: 'pipe' });
+      res.json({ ok: true, message: modId + ' reiniciado' });
     } catch {
-      logWp('PM2 no disponible — wordpress-mcp no reiniciado');
-      res.json({ ok: false, message: 'PM2 no disponible. Debes reiniciar wordpress-mcp manualmente.' });
-      return;
+      res.json({ ok: false, message: 'PM2 no disponible. Debes reiniciar ' + modId + ' manualmente.' });
     }
-    logWp('wordpress-mcp reiniciado');
-    res.json({ ok: true, message: 'wordpress-mcp reiniciado' });
   } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
-app.get('/api/admin/wordpress/logs', verificarToken, soloAdmin, (req, res) => {
+app.get('/api/admin/mcp-modules/:id/logs', verificarToken, soloAdmin, async (req, res) => {
+  const modId = req.params.id;
+  const logDir = path.resolve(__dirname, '..', modId === 'wordpress' ? 'wordpress-mcp' : modId, 'logs');
+  const logFile = path.join(logDir, modId + '.log');
   try {
-    const logData = fs.existsSync(WP_LOG) ? fs.readFileSync(WP_LOG, 'utf8') : '';
+    const logData = fs.existsSync(logFile) ? fs.readFileSync(logFile, 'utf8') : '';
     res.json({ log: logData });
   } catch { res.json({ log: '' }); }
 });
