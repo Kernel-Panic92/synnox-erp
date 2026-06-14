@@ -1017,7 +1017,9 @@ async function loadMcpModulesStatus() {
   listEl.innerHTML = '<span style="color:var(--muted);font-size:13px;">Cargando servicios MCP...</span>';
   try {
     const res = await fetch('/api/admin/mcp-modules/status', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch (e) { listEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">Respuesta no JSON (status ' + res.status + '): <pre style="max-height:200px;overflow:auto;background:var(--surface);padding:8px;border-radius:6px;margin-top:8px;">' + esc(text.slice(0, 1000)) + '</pre></span>'; return; }
     if (!data.ok) { listEl.innerHTML = '<span style="color:var(--danger);">Error: ' + data.error + '</span>'; return; }
     if (!data.modules.length) { listEl.innerHTML = '<span style="color:var(--muted);">No hay módulos MCP registrados</span>'; return; }
     let html = '<div style="display:grid;gap:12px;">';
