@@ -106,7 +106,7 @@ cd ../C:\Git\Horix && node server.js
 
 ### Admin UI
 - `http://localhost:3002` → Login: admin@horix.com / admin123
-- Pestañas: Usuarios, Módulos, MCP, SMTP, Apariencia, Seguridad, Nginx, Actualizar
+- Pestañas: Usuarios, Módulos, MCP, SMTP, Apariencia, Seguridad, Nginx, Actualizar, WordPress
 
 ## Convenciones
 - Los módulos NO deben requerir auth para su endpoint `/mcp` — la confianza es local
@@ -116,7 +116,7 @@ cd ../C:\Git\Horix && node server.js
 - Errores MCP: código `-32001` = sesión inválida
 
 # Launcher - Updater (desde UI)
-- Tab "Actualizar" en el admin del Launcher (pestañas: Usuarios, Módulos, MCP, SMTP, Apariencia, Seguridad, Nginx, **Actualizar**)
+- Tab "Actualizar" en el admin del Launcher (pestañas: Usuarios, Módulos, MCP, SMTP, Apariencia, Seguridad, Nginx, **Actualizar**, WordPress)
 - Rutas backend: `GET /api/admin/updater/status`, `POST /api/admin/updater/check`, `POST /api/admin/updater/update`, `POST /api/admin/updater/restart`, `GET /api/admin/updater/logs`
 - Ejecuta: `git fetch origin && git reset --hard origin/main` sobre `C:\Git\Horix-Platform`, `npm install --production` en `launcher/`
 - Intenta `pm2 restart horix-launcher` (fallback a `pm2 restart horix-erp`)

@@ -641,6 +641,7 @@ function showAdminTab(tab) {
    else if (tab === 'seguridad') { loadRateLimitConfig(); loadLoginLogs(); }
    else if (tab === 'nginx') loadNginx();
    else if (tab === 'actualizar') { loadUpdaterStatus(); loadUpdaterLogs(); }
+   else if (tab === 'wordpress') { loadWpStatus(); }
 }
 
 // ── Nginx ──
@@ -1005,3 +1006,52 @@ function resetGradConfig() {
   checkVersion();
   setInterval(checkVersion, 15000);
 })();
+
+// ── WordPress MCP ──
+async function loadWpStatus() {
+  const statusEl = document.getElementById('wp-status');
+  const logEl = document.getElementById('wp-log');
+  logEl.style.display = 'none';
+  statusEl.innerHTML = '<span style="color:var(--muted);font-size:13px;">Cargando estado...</span>';
+  try {
+    const res = await fetch('/api/admin/wordpress/status', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const data = await res.json();
+    if (data.running) {
+      statusEl.innerHTML = '<span style="color:var(--success);font-size:14px;">✓ wordpress-mcp está <b>ejecutándose</b></span>';
+    } else {
+      statusEl.innerHTML = '<span style="color:var(--danger);font-size:14px;">✗ wordpress-mcp está <b>detenido</b></span>';
+    }
+  } catch (e) { statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">Error: ' + e.message + '</span>'; }
+}
+
+async function restartWp() {
+  const statusEl = document.getElementById('wp-status');
+  const logEl = document.getElementById('wp-log');
+  if (!confirm('¿Reiniciar wordpress-mcp?')) return;
+  logEl.style.display = 'none';
+  statusEl.innerHTML = '<span style="color:var(--muted);font-size:13px;">Reiniciando...</span>';
+  try {
+    const res = await fetch('/api/admin/wordpress/restart', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + jwtToken }
+    });
+    const data = await res.json();
+    if (data.ok) {
+      statusEl.innerHTML = '<span style="color:var(--success);font-size:13px;">✓ ' + esc(data.message || 'Reiniciado') + '</span>';
+    } else {
+      statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + (data.error || data.message || 'Error') + '</span>';
+    }
+  } catch (e) { statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + e.message + '</span>'; }
+}
+
+async function loadWpLogs() {
+  const logEl = document.getElementById('wp-log');
+  const statusEl = document.getElementById('wp-status');
+  statusEl.innerHTML = '';
+  try {
+    const res = await fetch('/api/admin/wordpress/logs', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const data = await res.json();
+    logEl.textContent = data.log || '(sin registros)';
+    logEl.style.display = 'block';
+  } catch (e) { logEl.textContent = 'Error: ' + e.message; logEl.style.display = 'block'; }
+}

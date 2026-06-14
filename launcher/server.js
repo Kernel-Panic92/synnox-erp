@@ -991,6 +991,48 @@ app.get('/api/admin/updater/logs', verificarToken, soloAdmin, (req, res) => {
   res.json({ log: getUpdaterLog() });
 });
 
+// ── WordPress MCP management ──
+const WP_MCP_DIR = path.resolve(__dirname, '..', 'wordpress-mcp');
+const WP_LOG = path.join(WP_MCP_DIR, 'logs', 'wordpress-mcp.log');
+
+function logWp(msg) {
+  const line = `[${new Date().toISOString()}] ${msg}`;
+  console.log(line);
+  if (!fs.existsSync(path.join(WP_MCP_DIR, 'logs'))) fs.mkdirSync(path.join(WP_MCP_DIR, 'logs'), { recursive: true });
+  fs.appendFileSync(WP_LOG, line + '\n');
+}
+
+app.get('/api/admin/wordpress/status', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const isRunning = execSync('pm2 pid wordpress-mcp', { stdio: 'pipe' }).toString().trim();
+    res.json({ ok: true, running: isRunning.length > 0 && parseInt(isRunning) > 0 });
+  } catch {
+    res.json({ ok: true, running: false });
+  }
+});
+
+app.post('/api/admin/wordpress/restart', verificarToken, soloAdmin, async (req, res) => {
+  try {
+    logWp('Reiniciando wordpress-mcp...');
+    try {
+      execSync('pm2 restart wordpress-mcp', { stdio: 'pipe' });
+    } catch {
+      logWp('PM2 no disponible — wordpress-mcp no reiniciado');
+      res.json({ ok: false, message: 'PM2 no disponible. Debes reiniciar wordpress-mcp manualmente.' });
+      return;
+    }
+    logWp('wordpress-mcp reiniciado');
+    res.json({ ok: true, message: 'wordpress-mcp reiniciado' });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+app.get('/api/admin/wordpress/logs', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const logData = fs.existsSync(WP_LOG) ? fs.readFileSync(WP_LOG, 'utf8') : '';
+    res.json({ log: logData });
+  } catch { res.json({ log: '' }); }
+});
+
 app.use(express.static(path.join(__dirname, 'shell')));
 app.get('*', (req, res) => {
   const htmlPath = path.join(__dirname, 'shell', 'index.html');
