@@ -767,9 +767,14 @@ async function doUpdate() {
     });
     const data = await res.json();
     if (data.ok) {
-      statusEl.innerHTML = '<span style="color:var(--success);font-size:13px;">✓ ' + esc(data.message || 'Actualización completada') + '</span>';
-      loadUpdaterLogs();
-      setTimeout(function(){ location.reload(); }, 2000);
+      if (data.restarting) {
+        statusEl.innerHTML = '<span style="color:var(--success);font-size:13px;">✓ ' + esc(data.message) + '</span><div style="font-size:13px;color:var(--muted);margin-top:8px;">Reiniciando servicios... La página se recargará automáticamente.</div>';
+        loadUpdaterLogs();
+        setTimeout(function(){ location.reload(); }, 5000);
+      } else {
+        statusEl.innerHTML = '<span style="color:var(--success);font-size:13px;">✓ ' + esc(data.message || 'Actualización completada') + '</span>';
+        loadUpdaterLogs();
+      }
     } else {
       statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + (data.error || 'Error') + '</span>';
     }

@@ -964,7 +964,19 @@ app.post('/api/admin/updater/update', verificarToken, soloAdmin, async (req, res
     const newCommit = execSync('git rev-parse --short HEAD', { cwd: LAUNCHER_DIR }).toString().trim();
     logUpdater('ACTUALIZACION COMPLETADA - Commit: ' + newCommit);
     fs.writeFileSync(path.join(__dirname, '.last-update'), new Date().toISOString());
-    res.json({ ok: true, message: 'Actualización completada. Reinicia el servicio para aplicar los cambios.', newCommit });
+
+    // Restart wordpress-mcp (separate process, safe)
+    try { execSync('pm2 restart wordpress-mcp', { stdio: 'pipe' }); logUpdater('wordpress-mcp reiniciado'); } catch { logUpdater('wordpress-mcp no disponible para reiniciar'); }
+
+    // Respond first, then restart self after a brief delay
+    res.json({ ok: true, message: 'Actualización aplicada. Reiniciando servicios...', newCommit, restarting: true });
+    res.on('finish', () => {
+      setTimeout(() => {
+        try { execSync('pm2 restart horix-launcher', { stdio: 'pipe' }); } catch {
+          try { execSync('pm2 restart horix-erp', { stdio: 'pipe' }); } catch { logUpdater('PM2 no disponible — reinicio manual requerido'); }
+        }
+      }, 1500);
+    });
   } catch (err) { logUpdater('ERROR: ' + err.message); res.json({ ok: false, error: err.message }); }
 });
 
