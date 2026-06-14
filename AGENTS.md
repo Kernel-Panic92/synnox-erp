@@ -113,6 +113,14 @@ cd ../C:\Git\Horix && node server.js
 - Los tool names usan snake_case en español
 - Errores MCP: código `-32001` = sesión inválida
 
+# Launcher - Updater (desde UI)
+- Tab "Actualizar" en el admin del Launcher (pestañas: Usuarios, Módulos, MCP, SMTP, Apariencia, Seguridad, Nginx, **Actualizar**)
+- Rutas backend: `GET /api/admin/updater/status`, `POST /api/admin/updater/check`, `POST /api/admin/updater/update`, `POST /api/admin/updater/restart`, `GET /api/admin/updater/logs`
+- Ejecuta: `git fetch origin && git reset --hard origin/main` sobre `C:\Git\Horix-Platform`, `npm install --production` en `launcher/`
+- Intenta `pm2 restart horix-launcher` (fallback a `pm2 restart horix-erp`)
+- Log en `launcher/logs/updater.log`
+- Frontend: `shell/app.js` (funciones `loadUpdaterStatus`, `checkUpdate`, `doUpdate`, `loadUpdaterLogs`) y `shell/index.html` (`#tab-actualizar`)
+
 ## Recordatorio post-cambio
 - Después de cada cambio significativo en cualquier módulo (Horix, DocFlow, Platform, etc.), actualizar:
   - `C:\Git\Kernel-Panic92\README.md` (perfil personal — sección "Últimas features")

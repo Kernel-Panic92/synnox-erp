@@ -283,6 +283,7 @@
       <div class="tab" data-tab="apariencia" onclick="showAdminTab('apariencia')">Apariencia</div>
       <div class="tab" data-tab="seguridad" onclick="showAdminTab('seguridad')">Seguridad</div>
       <div class="tab" data-tab="nginx" onclick="showAdminTab('nginx')">Nginx</div>
+      <div class="tab" data-tab="actualizar" onclick="showAdminTab('actualizar')">Actualizar</div>
     </div>
   <div class="tab-content active" id="tab-usuarios">
     <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
@@ -459,6 +460,19 @@
     </div>
     <div id="nginx-status"></div>
     <pre id="nginx-config" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:16px;font-size:13px;overflow-x:auto;white-space:pre;max-height:400px;color:var(--text);margin-top:8px;"></pre>
+  </div>
+  <div class="tab-content" id="tab-actualizar">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
+      <div style="font-size:var(--fs);font-weight:600;">Actualización del Launcher</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm" id="upd-check-btn" onclick="checkUpdate()">🔍 Buscar actualizaciones</button>
+        <button class="btn btn-sm" id="upd-update-btn" onclick="doUpdate()" disabled style="opacity:0.5">⬇ Aplicar actualización</button>
+        <button class="btn btn-sm" onclick="loadUpdaterLogs()">📋 Ver logs</button>
+      </div>
+    </div>
+    <div id="upd-status"></div>
+    <div id="upd-info" style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin:12px 0;"></div>
+    <pre id="upd-log" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:16px;font-size:13px;overflow-x:auto;white-space:pre-wrap;max-height:300px;color:var(--text);margin-top:8px;display:none;"></pre>
   </div>
 </div>
 

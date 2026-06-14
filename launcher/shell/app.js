@@ -1,6 +1,8 @@
 let jwtToken = localStorage.getItem('platform_jwt');
 let user = null;
 
+function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s||'')); return d.innerHTML; }
+
 function show(id) {
   ['login-screen', 'launcher-screen', 'admin-screen', 'admin-form-overlay', 'modulo-form-overlay'].forEach(s => {
     const el = document.getElementById(s);
@@ -638,6 +640,7 @@ function showAdminTab(tab) {
    else if (tab === 'apariencia') loadGradConfig();
    else if (tab === 'seguridad') { loadRateLimitConfig(); loadLoginLogs(); }
    else if (tab === 'nginx') loadNginx();
+   else if (tab === 'actualizar') { loadUpdaterStatus(); loadUpdaterLogs(); }
 }
 
 // ── Nginx ──
@@ -689,6 +692,101 @@ async function generarNginx() {
     btn.disabled = false;
     btn.textContent = '⚡ Generar y recargar';
   }
+}
+
+// ── Updater ──
+async function loadUpdaterStatus() {
+  const infoEl = document.getElementById('upd-info');
+  const statusEl = document.getElementById('upd-status');
+  const checkBtn = document.getElementById('upd-check-btn');
+  const updateBtn = document.getElementById('upd-update-btn');
+  infoEl.innerHTML = '<span style="color:var(--muted);">Cargando estado...</span>';
+  try {
+    const res = await fetch('/api/admin/updater/status', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const data = await res.json();
+    if (!data.ok) { infoEl.innerHTML = '<span style="color:var(--danger);">Error: ' + data.error + '</span>'; return; }
+    infoEl.innerHTML = `
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:16px;">
+        <div style="font-size:12px;color:var(--muted);text-transform:uppercase;font-weight:600;">Rama</div>
+        <div style="font-size:20px;font-weight:700;">${esc(data.branch)}</div>
+      </div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:16px;">
+        <div style="font-size:12px;color:var(--muted);text-transform:uppercase;font-weight:600;">Commit actual</div>
+        <div style="font-size:20px;font-weight:700;font-family:monospace;">${esc(data.currentCommit)}</div>
+      </div>`;
+    checkBtn.disabled = false;
+    checkBtn.textContent = '🔍 Buscar actualizaciones';
+    updateBtn.disabled = true;
+    updateBtn.style.opacity = '0.5';
+  } catch (e) { infoEl.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>'; }
+}
+
+async function checkUpdate() {
+  const statusEl = document.getElementById('upd-status');
+  const checkBtn = document.getElementById('upd-check-btn');
+  const updateBtn = document.getElementById('upd-update-btn');
+  checkBtn.disabled = true;
+  checkBtn.textContent = 'Verificando...';
+  statusEl.innerHTML = '<span style="color:var(--muted);font-size:13px;">🔍 Buscando actualizaciones...</span>';
+  try {
+    const res = await fetch('/api/admin/updater/check', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + jwtToken }
+    });
+    const data = await res.json();
+    if (!data.ok) { statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + data.error + '</span>'; return; }
+    if (data.hasUpdates) {
+      statusEl.innerHTML = '<span style="color:var(--warning);font-size:13px;">⬇ Nueva versión disponible: ' + esc(data.remoteCommit) + '</span>';
+      updateBtn.disabled = false;
+      updateBtn.style.opacity = '1';
+    } else {
+      statusEl.innerHTML = '<span style="color:var(--success);font-size:13px;">✓ Sistema actualizado (' + esc(data.currentCommit) + ')</span>';
+      updateBtn.disabled = true;
+      updateBtn.style.opacity = '0.5';
+    }
+  } catch (e) { statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + e.message + '</span>'; }
+  checkBtn.disabled = false;
+  checkBtn.textContent = '🔍 Buscar actualizaciones';
+}
+
+async function doUpdate() {
+  const statusEl = document.getElementById('upd-status');
+  const updateBtn = document.getElementById('upd-update-btn');
+  const checkBtn = document.getElementById('upd-check-btn');
+  if (!confirm('¿Aplicar actualización? Se descargarán los cambios, se instalarán dependencias y deberás reiniciar el servicio.')) return;
+  updateBtn.disabled = true;
+  updateBtn.textContent = 'Actualizando...';
+  checkBtn.disabled = true;
+  statusEl.innerHTML = '<span style="color:var(--muted);font-size:13px;">⬇ Actualizando...</span>';
+  try {
+    const res = await fetch('/api/admin/updater/update', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + jwtToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ branch: 'main' })
+    });
+    const data = await res.json();
+    if (data.ok) {
+      statusEl.innerHTML = '<span style="color:var(--success);font-size:13px;">✓ ' + esc(data.message || 'Actualización completada') + '</span>';
+      loadUpdaterLogs();
+    } else {
+      statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + (data.error || 'Error') + '</span>';
+    }
+  } catch (e) { statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + e.message + '</span>'; }
+  updateBtn.disabled = true;
+  updateBtn.style.opacity = '0.5';
+  updateBtn.textContent = '⬇ Aplicar actualización';
+  checkBtn.disabled = false;
+  checkBtn.textContent = '🔍 Buscar actualizaciones';
+}
+
+async function loadUpdaterLogs() {
+  const logEl = document.getElementById('upd-log');
+  try {
+    const res = await fetch('/api/admin/updater/logs', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const data = await res.json();
+    logEl.textContent = data.log || '(sin registros)';
+    logEl.style.display = 'block';
+  } catch (e) { logEl.textContent = 'Error: ' + e.message; logEl.style.display = 'block'; }
 }
 
 // ── Rate limit config + login logs ──

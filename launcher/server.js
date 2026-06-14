@@ -6,6 +6,7 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
+const { execSync } = require('child_process');
 const mail = require('./mail');
 
 const app = express();
@@ -911,6 +912,83 @@ app.get('/.well-known/oauth-protected-resource', requireOauth, (req, res) => {
     resource: base + '/mcp',
     authorization_servers: [base]
   });
+});
+
+// ── Updater ──
+const LAUNCHER_DIR = path.resolve(__dirname, '..');
+const UPDATER_LOG = path.join(__dirname, 'logs', 'updater.log');
+if (!fs.existsSync(path.join(__dirname, 'logs'))) fs.mkdirSync(path.join(__dirname, 'logs'), { recursive: true });
+function logUpdater(msg) {
+  const line = `[${new Date().toISOString()}] ${msg}`;
+  console.log(line);
+  fs.appendFileSync(UPDATER_LOG, line + '\n');
+}
+function getUpdaterLog() {
+  try { return fs.readFileSync(UPDATER_LOG, 'utf8'); } catch { return ''; }
+}
+
+app.get('/api/admin/updater/status', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: LAUNCHER_DIR }).toString().trim();
+    const currentCommit = execSync('git rev-parse --short HEAD', { cwd: LAUNCHER_DIR }).toString().trim();
+    res.json({ ok: true, branch, currentCommit });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+app.post('/api/admin/updater/check', verificarToken, soloAdmin, (req, res) => {
+  try {
+    logUpdater('Verificando actualizaciones...');
+    execSync('git fetch origin --prune', { cwd: LAUNCHER_DIR, stdio: 'pipe' });
+    const currentCommit = execSync('git rev-parse --short HEAD', { cwd: LAUNCHER_DIR }).toString().trim();
+    const remoteCommit = execSync('git rev-parse --short origin/main', { cwd: LAUNCHER_DIR }).toString().trim();
+    logUpdater(`Local: ${currentCommit} | Remote: ${remoteCommit}`);
+    const behind = currentCommit !== remoteCommit ? 1 : 0;
+    let changes = [];
+    if (behind > 0) { logUpdater(`Nueva versión disponible: ${remoteCommit}`); changes = [remoteCommit]; }
+    else { logUpdater('Sistema actualizado'); }
+    res.json({ ok: true, hasUpdates: behind > 0, commitsBehind: behind, currentCommit, remoteCommit, changes });
+  } catch (err) { logUpdater(`Error verificando: ${err.message}`); res.json({ ok: false, error: err.message }); }
+});
+
+app.post('/api/admin/updater/update', verificarToken, soloAdmin, async (req, res) => {
+  let branch = req.body?.branch || 'main';
+  const allowedBranches = ['main', 'master', 'release'];
+  if (!allowedBranches.includes(branch)) branch = 'main';
+  try {
+    logUpdater('INICIANDO ACTUALIZACION (rama: ' + branch + ')');
+    logUpdater('Fetch y reset a origin/' + branch + '...');
+    execSync('git fetch origin && git reset --hard origin/' + branch, { cwd: LAUNCHER_DIR, stdio: 'pipe' });
+    logUpdater('Reset hard completado');
+    logUpdater('Instalando dependencias...');
+    try { execSync('npm install --production', { cwd: __dirname, stdio: 'pipe' }); logUpdater('Dependencias instaladas'); } catch (e) { logUpdater('npm install: ' + e.message); }
+    const newCommit = execSync('git rev-parse --short HEAD', { cwd: LAUNCHER_DIR }).toString().trim();
+    logUpdater('ACTUALIZACION COMPLETADA - Commit: ' + newCommit);
+    fs.writeFileSync(path.join(__dirname, '.last-update'), new Date().toISOString());
+    res.json({ ok: true, message: 'Actualización completada. Reinicia el servicio para aplicar los cambios.', newCommit });
+  } catch (err) { logUpdater('ERROR: ' + err.message); res.json({ ok: false, error: err.message }); }
+});
+
+app.post('/api/admin/updater/restart', verificarToken, soloAdmin, async (req, res) => {
+  try {
+    logUpdater('Reiniciando servicio...');
+    try {
+      execSync('pm2 restart horix-launcher', { stdio: 'pipe' });
+    } catch {
+      try {
+        execSync('pm2 restart horix-erp', { stdio: 'pipe' });
+      } catch {
+        logUpdater('PM2 no disponible — reinicio manual requerido');
+        res.json({ ok: false, message: 'PM2 no disponible. Debes reiniciar el servidor manualmente.' });
+        return;
+      }
+    }
+    logUpdater('Servicio reiniciado');
+    res.json({ ok: true, message: 'Servicio reiniciado' });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
+app.get('/api/admin/updater/logs', verificarToken, soloAdmin, (req, res) => {
+  res.json({ log: getUpdaterLog() });
 });
 
 app.use(express.static(path.join(__dirname, 'shell')));
