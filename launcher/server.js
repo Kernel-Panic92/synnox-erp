@@ -916,6 +916,12 @@ app.get('/.well-known/oauth-protected-resource', requireOauth, (req, res) => {
 
 // ── Updater ──
 const LAUNCHER_DIR = path.resolve(__dirname, '..');
+
+function pm2Exec(args) {
+  try { return execSync('pm2 ' + args, { stdio: 'pipe' }); } catch {
+    try { return execSync('sudo pm2 ' + args, { stdio: 'pipe' }); } catch (e) { throw e; }
+  }
+}
 const UPDATER_LOG = path.join(__dirname, 'logs', 'updater.log');
 if (!fs.existsSync(path.join(__dirname, 'logs'))) fs.mkdirSync(path.join(__dirname, 'logs'), { recursive: true });
 function logUpdater(msg) {
@@ -966,14 +972,14 @@ app.post('/api/admin/updater/update', verificarToken, soloAdmin, async (req, res
     fs.writeFileSync(path.join(__dirname, '.last-update'), new Date().toISOString());
 
     // Restart wordpress-mcp (separate process, safe)
-    try { execSync('pm2 restart wordpress-mcp', { stdio: 'pipe' }); logUpdater('wordpress-mcp reiniciado'); } catch { logUpdater('wordpress-mcp no disponible para reiniciar'); }
+    try { pm2Exec('restart wordpress-mcp'); logUpdater('wordpress-mcp reiniciado'); } catch { logUpdater('wordpress-mcp no disponible para reiniciar'); }
 
     // Respond first, then restart self after a brief delay
     res.json({ ok: true, message: 'Actualización aplicada. Reiniciando servicios...', newCommit, restarting: true });
     res.on('finish', () => {
       setTimeout(() => {
-        try { execSync('pm2 restart horix-launcher', { stdio: 'pipe' }); } catch {
-          try { execSync('pm2 restart horix-erp', { stdio: 'pipe' }); } catch { logUpdater('PM2 no disponible — reinicio manual requerido'); }
+        try { pm2Exec('restart horix-launcher'); } catch {
+          try { pm2Exec('restart horix-erp'); } catch { logUpdater('PM2 no disponible — reinicio manual requerido'); }
         }
       }, 1500);
     });
@@ -984,10 +990,10 @@ app.post('/api/admin/updater/restart', verificarToken, soloAdmin, async (req, re
   try {
     logUpdater('Reiniciando servicio...');
     try {
-      execSync('pm2 restart horix-launcher', { stdio: 'pipe' });
+      pm2Exec('restart horix-launcher');
     } catch {
       try {
-        execSync('pm2 restart horix-erp', { stdio: 'pipe' });
+        pm2Exec('restart horix-erp');
       } catch {
         logUpdater('PM2 no disponible — reinicio manual requerido');
         res.json({ ok: false, message: 'PM2 no disponible. Debes reiniciar el servidor manualmente.' });
@@ -1027,7 +1033,7 @@ app.get('/api/admin/mcp-modules/status', verificarToken, soloAdmin, async (req, 
         } catch { entry.status = 'offline'; }
       }
       try {
-        const pid = execSync('pm2 pid ' + m.id, { stdio: 'pipe' }).toString().trim();
+        const pid = pm2Exec('pid ' + m.id).toString().trim();
         entry.pm2 = pid.length > 0 && parseInt(pid) > 0 ? 'running' : 'stopped';
       } catch { entry.pm2 = 'stopped'; }
       results.push(entry);
@@ -1043,7 +1049,7 @@ app.post('/api/admin/mcp-modules/:id/restart', verificarToken, soloAdmin, async 
   try {
     const modId = req.params.id;
     try {
-      execSync('pm2 restart ' + modId, { stdio: 'pipe' });
+      pm2Exec('restart ' + modId);
       res.json({ ok: true, message: modId + ' reiniciado' });
     } catch {
       res.json({ ok: false, message: 'PM2 no disponible. Debes reiniciar ' + modId + ' manualmente.' });
