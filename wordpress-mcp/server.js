@@ -51,6 +51,12 @@ async function wcPost(path, data) { const r = await apiFetch('POST', '/wp-json/w
 async function wcPut(path, data) { const r = await apiFetch('PUT', '/wp-json/wc/v3', path, data); return r.json(); }
 async function wcDelete(path) { const r = await apiFetch('DELETE', '/wp-json/wc/v3', path); return r.json(); }
 
+// ── Google Site Kit helpers ──
+async function skPost(module, dataEndpoint, body) {
+  const r = await apiFetch('POST', '/wp-json/google-site-kit/v1', '/modules/' + module + '/data/' + dataEndpoint, body);
+  return r.json();
+}
+
 // Tools definition
 const tools = [
   {
@@ -322,6 +328,59 @@ const tools = [
       type: 'object',
       properties: {}
     }
+  },
+  // ── Google Site Kit (Analytics + Search Console) ──
+  {
+    name: 'analytics_visitas',
+    description: 'Obtiene datos de visitas (usuarios, sesiones, paginas vistas) de Google Analytics via Site Kit.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dias: { type: 'number', default: 28, description: 'Cantidad de dias hacia atras' }
+      }
+    }
+  },
+  {
+    name: 'analytics_paginas_populares',
+    description: 'Obtiene las paginas mas visitadas del sitio desde Google Analytics.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dias: { type: 'number', default: 28 },
+        limite: { type: 'number', default: 10 }
+      }
+    }
+  },
+  {
+    name: 'analytics_trafico_fuentes',
+    description: 'Obtiene el trafico agrupado por fuente (organic, direct, social, referral, etc).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dias: { type: 'number', default: 28 }
+      }
+    }
+  },
+  {
+    name: 'search_console_rendimiento',
+    description: 'Obtiene datos de rendimiento en Google Search (clics, impresiones, CTR, posicion).',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dias: { type: 'number', default: 28, description: 'Cantidad de dias hacia atras' }
+      }
+    }
+  },
+  {
+    name: 'search_console_consultas',
+    description: 'Obtiene las consultas de busqueda que generaron clics/impresiones.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        dias: { type: 'number', default: 28 },
+        limite: { type: 'number', default: 15 }
+      }
+    }
   }
 ];
 
@@ -538,6 +597,106 @@ async function handleToolCall(name, args) {
         pedidos: orderStats,
         clientes: Array.isArray(customers) ? (customers._total || customers.length) : 0
       };
+    }
+
+    // ── Google Site Kit ──
+    case 'analytics_visitas': {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - (args.dias || 28));
+      const fmt = (d) => d.toISOString().split('T')[0];
+      try {
+        const data = await skPost('analytics-4', 'report', {
+          metrics: [{ name: 'totalUsers' }, { name: 'sessions' }, { name: 'screenPageViews' }],
+          dimensions: [{ name: 'date' }],
+          startDate: fmt(startDate),
+          endDate: fmt(endDate),
+          limit: (args.dias || 28)
+        });
+        return data;
+      } catch (e) {
+        if (e.message.includes('404')) throw new Error('Site Kit Analytics-4 no configurado o API no disponible');
+        throw e;
+      }
+    }
+
+    case 'analytics_paginas_populares': {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - (args.dias || 28));
+      const fmt = (d) => d.toISOString().split('T')[0];
+      try {
+        const data = await skPost('analytics-4', 'report', {
+          metrics: [{ name: 'screenPageViews' }, { name: 'totalUsers' }],
+          dimensions: [{ name: 'pagePath' }, { name: 'pageTitle' }],
+          startDate: fmt(startDate),
+          endDate: fmt(endDate),
+          limit: args.limite || 10,
+          orderBy: { metric: { metricName: 'screenPageViews' }, desc: true }
+        });
+        return data;
+      } catch (e) {
+        if (e.message.includes('404')) throw new Error('Site Kit Analytics-4 no configurado o API no disponible');
+        throw e;
+      }
+    }
+
+    case 'analytics_trafico_fuentes': {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - (args.dias || 28));
+      const fmt = (d) => d.toISOString().split('T')[0];
+      try {
+        const data = await skPost('analytics-4', 'report', {
+          metrics: [{ name: 'sessions' }, { name: 'totalUsers' }],
+          dimensions: [{ name: 'sessionDefaultChannelGroup' }],
+          startDate: fmt(startDate),
+          endDate: fmt(endDate),
+          limit: 20
+        });
+        return data;
+      } catch (e) {
+        if (e.message.includes('404')) throw new Error('Site Kit Analytics-4 no configurado o API no disponible');
+        throw e;
+      }
+    }
+
+    case 'search_console_rendimiento': {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - (args.dias || 28));
+      const fmt = (d) => d.toISOString().split('T')[0];
+      try {
+        const data = await skPost('search-console', 'searchanalytics', {
+          startDate: fmt(startDate),
+          endDate: fmt(endDate),
+          dimensions: ['date'],
+          limit: (args.dias || 28)
+        });
+        return data;
+      } catch (e) {
+        if (e.message.includes('404')) throw new Error('Site Kit Search Console no configurado o API no disponible');
+        throw e;
+      }
+    }
+
+    case 'search_console_consultas': {
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - (args.dias || 28));
+      const fmt = (d) => d.toISOString().split('T')[0];
+      try {
+        const data = await skPost('search-console', 'searchanalytics', {
+          startDate: fmt(startDate),
+          endDate: fmt(endDate),
+          dimensions: ['query'],
+          limit: args.limite || 15
+        });
+        return data;
+      } catch (e) {
+        if (e.message.includes('404')) throw new Error('Site Kit Search Console no configurado o API no disponible');
+        throw e;
+      }
     }
 
     default:

@@ -40,7 +40,7 @@ horix-platform/
 │   ├── platform-test.conf   ← Puerto 8445
 │   └── platform-prod.conf   ← Puerto 443
 ├── wordpress-mcp/      ← Módulo WordPress (independiente)
-│   └── server.js       ← 25 herramientas MCP para WordPress
+│   └── server.js       ← 31 herramientas MCP (WordPress + WooCommerce + Site Kit Analytics)
 ├── AGENTS.md           ← Este archivo
 ├── config.env.example
 ├── install.sh
@@ -88,7 +88,7 @@ horix-platform/
 |----|--------|--------|------|
 | `docflow` | DocFlow | 3100 | `C:\Git\docflow` |
 | `horix` | Horix | 3000 | `C:\Git\Horix` |
-| `wordpress` | WordPress | 3006 | `wordpress-mcp/` |
+| `wordpress` | WordPress | 3006 | `wordpress-mcp/` | 31 tools (+ Site Kit Analytics) |
 
 ## Desarrollo local
 
