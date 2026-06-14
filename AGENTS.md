@@ -121,10 +121,12 @@ cd ../C:\Git\Horix && node server.js
 - Log en `launcher/logs/updater.log`
 - Frontend: `shell/app.js` (funciones `loadUpdaterStatus`, `checkUpdate`, `doUpdate`, `loadUpdaterLogs`) y `shell/index.html` (`#tab-actualizar`)
 
-## Recordatorio post-cambio
-- Después de cada cambio significativo en cualquier módulo (Horix, DocFlow, Platform, etc.), actualizar:
-  - `C:\Git\Kernel-Panic92\README.md` (perfil personal — sección "Últimas features")
-  - `C:\Git\Horix-Platform\AGENTS.md` (contexto del proyecto)
+## Regla obligatoria: mantener contexto sincronizado
+En **cada sesión de opencode**, antes de finalizar, verificar y actualizar:
+1. `C:\Git\Horix-Platform\AGENTS.md` — reflejar cualquier cambio significativo en la arquitectura, rutas, módulos, puertos, etc.
+2. `C:\Git\Kernel-Panic92\README.md` — mantener actualizada la sección "Últimas features" del perfil personal
+
+Esto permite trabajar en múltiples instancias de opencode simultáneamente sin perder contexto.
 
 # Horix - Detalles del Módulo
 
