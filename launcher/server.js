@@ -993,50 +993,58 @@ app.get('/api/admin/updater/logs', verificarToken, soloAdmin, (req, res) => {
 
 // ── MCP Modules management (generic) ──
 app.get('/api/admin/mcp-modules/status', verificarToken, soloAdmin, async (req, res) => {
-  const modules = getModulos(true);
-  const results = [];
-  for (const m of modules) {
-    const entry = { id: m.id, nombre: m.nombre, url: m.public_url || m.url };
-    try {
-      const ctrl = new AbortController();
-      setTimeout(() => ctrl.abort(), 3000);
-      const r = await fetch(m.url + '/health', { signal: ctrl.signal });
-      if (r.ok) { entry.status = 'online'; const body = await r.json(); entry.health = body; }
-      else { entry.status = 'error'; entry.code = r.status; }
-    } catch {
+  try {
+    const modules = getModulos(true);
+    const results = [];
+    for (const m of modules) {
+      const entry = { id: m.id, nombre: m.nombre, url: m.public_url || m.url };
       try {
         const ctrl = new AbortController();
-        setTimeout(() => ctrl.abort(), 3000);
-        const r = await fetch(m.url + '/mcp', { signal: ctrl.signal });
-        entry.status = r.ok ? 'online' : 'error';
-      } catch { entry.status = 'offline'; }
+        const t = setTimeout(() => ctrl.abort(), 3000);
+        const r = await fetch(m.url + '/health', { signal: ctrl.signal });
+        clearTimeout(t);
+        if (r.ok) { entry.status = 'online'; const body = await r.json(); entry.health = body; }
+        else { entry.status = 'error'; entry.code = r.status; }
+      } catch {
+        try {
+          const ctrl = new AbortController();
+          const t = setTimeout(() => ctrl.abort(), 3000);
+          const r = await fetch(m.url + '/mcp', { signal: ctrl.signal });
+          clearTimeout(t);
+          entry.status = r.ok ? 'online' : 'error';
+        } catch { entry.status = 'offline'; }
+      }
+      try {
+        const pid = execSync('pm2 pid ' + m.id, { stdio: 'pipe' }).toString().trim();
+        entry.pm2 = pid.length > 0 && parseInt(pid) > 0 ? 'running' : 'stopped';
+      } catch { entry.pm2 = 'stopped'; }
+      results.push(entry);
     }
-    try {
-      const pid = execSync('pm2 pid ' + m.id, { stdio: 'pipe' }).toString().trim();
-      entry.pm2 = pid.length > 0 && parseInt(pid) > 0 ? 'running' : 'stopped';
-    } catch { entry.pm2 = 'stopped'; }
-    results.push(entry);
+    res.json({ ok: true, modules: results });
+  } catch (err) {
+    console.error('[MCP Modules] Error:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
   }
-  res.json({ ok: true, modules: results });
 });
 
 app.post('/api/admin/mcp-modules/:id/restart', verificarToken, soloAdmin, async (req, res) => {
-  const modId = req.params.id;
   try {
+    const modId = req.params.id;
     try {
       execSync('pm2 restart ' + modId, { stdio: 'pipe' });
       res.json({ ok: true, message: modId + ' reiniciado' });
     } catch {
       res.json({ ok: false, message: 'PM2 no disponible. Debes reiniciar ' + modId + ' manualmente.' });
     }
-  } catch (err) { res.json({ ok: false, error: err.message }); }
+  } catch (err) { console.error('[MCP Modules]', err.message); res.json({ ok: false, error: err.message }); }
 });
 
 app.get('/api/admin/mcp-modules/:id/logs', verificarToken, soloAdmin, async (req, res) => {
-  const modId = req.params.id;
-  const logDir = path.resolve(__dirname, '..', modId === 'wordpress' ? 'wordpress-mcp' : modId, 'logs');
-  const logFile = path.join(logDir, modId + '.log');
   try {
+    const modId = req.params.id;
+    const modDir = modId === 'wordpress' ? 'wordpress-mcp' : modId;
+    const logDir = path.resolve(__dirname, '..', modDir, 'logs');
+    const logFile = path.join(logDir, modDir + '.log');
     const logData = fs.existsSync(logFile) ? fs.readFileSync(logFile, 'utf8') : '';
     res.json({ log: logData });
   } catch { res.json({ log: '' }); }
