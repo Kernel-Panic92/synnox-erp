@@ -126,7 +126,7 @@ cd ../C:\Git\Horix && node server.js
 ## Regla obligatoria: mantener contexto sincronizado
 En **cada sesión de opencode**, antes de finalizar, verificar y actualizar:
 1. `C:\Git\Horix-Platform\AGENTS.md` — reflejar cualquier cambio significativo en la arquitectura, rutas, módulos, puertos, etc.
-2. `C:\Git\Kernel-Panic92\README.md` — mantener actualizada la sección "Últimas features" del perfil personal
+2. `C:\Git\Kernel-Panic92\README.md` — funciona como **bitácora personal**: agregar entrada con fecha y descripción de los cambios realizados en todos los repos (Horix-Platform, Horix, DocFlow, etc.)
 
 Esto permite trabajar en múltiples instancias de opencode simultáneamente sin perder contexto.
 
