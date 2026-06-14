@@ -113,6 +113,11 @@ cd ../C:\Git\Horix && node server.js
 - Los tool names usan snake_case en español
 - Errores MCP: código `-32001` = sesión inválida
 
+## Recordatorio post-cambio
+- Después de cada cambio significativo en cualquier módulo (Horix, DocFlow, Platform, etc.), actualizar:
+  - `C:\Git\Kernel-Panic92\README.md` (perfil personal — sección "Últimas features")
+  - `C:\Git\Horix-Platform\AGENTS.md` (contexto del proyecto)
+
 # Horix - Detalles del Módulo
 
 ## Configuración (UI)
