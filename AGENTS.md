@@ -30,7 +30,7 @@ Claude Web / Desktop
 ```
 horix-platform/
 ├── launcher/           ← Servidor principal Express + SQLite
-│   ├── server.js       ← 923 líneas: auth, módulos CRUD, MCP gateway, nginx gen
+│   ├── server.js       ← 1001 líneas: auth, módulos CRUD, MCP gateway, nginx gen
 │   ├── mail.js         ← Helper SMTP (nodemailer)
 │   ├── modules.json    ← Seed/backup de módulos
 │   └── shell/          ← Frontend SPA (shell + app.js + config)
@@ -46,7 +46,7 @@ horix-platform/
 └── ROADMAP.md
 ```
 
-## MCP Gateway (server.js ~línea 628-775)
+## MCP Gateway (server.js ~línea 684-776)
 
 ### Cómo funciona
 - Unifica todas las herramientas MCP de los módulos registrados
@@ -104,7 +104,7 @@ cd ../C:\Git\Horix && node server.js
 
 ### Admin UI
 - `http://localhost:3002` → Login: admin@horix.com / admin123
-- Pestañas: Dashboard, Módulos, Nginx, SMTP, Seguridad
+- Pestañas: Usuarios, Módulos, MCP, SMTP, Apariencia, Seguridad, Nginx, Actualizar
 
 ## Convenciones
 - Los módulos NO deben requerir auth para su endpoint `/mcp` — la confianza es local
@@ -141,16 +141,4 @@ cd ../C:\Git\Horix && node server.js
 - Ejecuta: `git fetch origin && git reset --hard origin/main`, `npm install --production`, `pm2 restart horix`
 - Log en `logs/updater.log`
 
-## MCP Gateway
-- `C:\Git\Horix-Platform\launcher\server.js` — MCP Gateway en líneas ~628-775
-- Prefija tools con ID del módulo (ej: `horix_listar_registros`)
-- Comunicación JSON-RPC 2.0 vía HTTP POST a `{module.url}/mcp`
-- Header `mcp-session-id` para sesiones individuales por módulo
-- Timeouts: 5s list, 30s call. Auto-retry en -32001
 
-## Módulos registrados en Platform (C:\Git\Horix-Platform)
-| ID | Nombre | Puerto | Repo |
-|----|--------|--------|------|
-| `docflow` | DocFlow | 3100 | `C:\Git\docflow` |
-| `horix` | Horix | 3000 | `C:\Git\Horix` |
-| `wordpress` | WordPress | 3006 | `wordpress-mcp/` |
