@@ -14,8 +14,10 @@ app.set('trust proxy', true);
 app.use(express.json());
 
 // Used by client to detect server restarts (soft reload)
+const APP_VER = require('./package.json').version;
+
 app.get('/api/version', (req, res) => {
-  res.json({ v: SERVER_START });
+  res.json({ v: SERVER_START, version: APP_VER });
 });
 
 const PORT = parseInt(process.env.PORT || '3002', 10);

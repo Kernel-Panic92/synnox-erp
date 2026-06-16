@@ -60,8 +60,10 @@ async function login() {
   }
 }
 
+let launcherVersion = '';
+
 async function showLauncher() {
-  document.getElementById('launcher-user').textContent = user?.nombre || '';
+  document.getElementById('launcher-user').innerHTML = (user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
   document.getElementById('launcher-role').textContent = user?.rol || '';
 
   const grid = document.getElementById('module-grid');
@@ -126,7 +128,7 @@ function logout() {
 
 // ── Admin ──
 function showAdmin() {
-  document.getElementById('admin-header-user').textContent = user?.nombre || '';
+  document.getElementById('admin-header-user').innerHTML = (user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
   show('admin-screen');
   showAdminTab('usuarios');
 }
@@ -1028,6 +1030,7 @@ function resetGradConfig() {
 
 // ── Session check ──
 (async () => {
+  try { const r = await fetch('/api/version'); const d = await r.json(); launcherVersion = d.version || ''; } catch {}
   await loadGradConfig();
   if (jwtToken) {
     try {
