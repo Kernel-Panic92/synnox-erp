@@ -1043,7 +1043,7 @@ app.get('/api/admin/mcp-modules/status', verificarToken, soloAdmin, async (req, 
         const r = await fetch(m.url + '/health', { signal: ctrl.signal });
         clearTimeout(t);
         if (r.ok) { entry.status = 'online'; const body = await r.json(); entry.health = body; }
-        else { entry.status = 'error'; entry.code = r.status; }
+        else { throw new Error('status ' + r.status); }
       } catch {
         try {
           const ctrl = new AbortController();
