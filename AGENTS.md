@@ -153,6 +153,7 @@ cd ../C:\Git\Horix && node server.js
 - Cada tarjeta tiene borde de color según estado MCP: 🟢 verde (online), 🟡 amarillo (error), 🔴 rojo (offline)
 - La tarjeta de Admin no tiene borde de estado
 - Consulta `/api/admin/mcp-modules/status` en paralelo con `/api/modulos`
+- Widget **Servidor** visible solo para admin: CPU (núcleos + carga %), RAM (usado/total + barra), disco (df -h), hostname, plataforma, Node.js, uptime
 
 # Launcher - Updater (desde UI)
 - Tab "Actualizar" en el admin del Launcher (pestañas: Usuarios, Módulos, MCP, SMTP, Apariencia, Seguridad, Nginx, **Actualizar**, Servicios MCP)
