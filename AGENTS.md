@@ -133,7 +133,9 @@ cd ../C:\Git\Horix && node server.js
 - Muestra todos los módulos con MCP habilitado registrados en la plataforma
 - Por cada módulo: health check (HTTP GET /health o /mcp), estado PM2, botón reiniciar, detalle con logs
 - Rutas backend: `GET /api/admin/mcp-modules/status`, `POST /api/admin/mcp-modules/:id/restart`, `GET /api/admin/mcp-modules/:id/logs`
-- Es genérica: funciona con cualquier módulo MCP registrado (WordPress, Horix, DocFlow, etc.)
+- Health check: primero intenta `/health`; si no responde OK, fallback a `/mcp`
+- PM2 name mapping: `pm2Name()` traduce IDs de módulo a nombres PM2 (ej: `wordpress` → `wordpress-mcp`)
+- URLs: `url` se usa para health check interno, `public_url` para mostrar en UI (evitar trailing slash en url)
 
 # Launcher - Updater (desde UI)
 - Tab "Actualizar" en el admin del Launcher (pestañas: Usuarios, Módulos, MCP, SMTP, Apariencia, Seguridad, Nginx, **Actualizar**, Servicios MCP)
@@ -156,14 +158,19 @@ Esto permite trabajar en múltiples instancias de opencode simultáneamente sin 
 ## Configuración (UI)
 - Sidebar tiene un solo item "Configuración" que navega a `#configuracion`
 - Layout tipo DocFlow: tabs con botones `.fb` (activo tiene clase `.active`)
-- Tabs: Correo, Backup, Seguridad, Auditoría, Permisos, Actualizar
+- Tabs: Correo, Backup, Seguridad, Auditoría, Permisos, **Telemetría**, Actualizar
 - Módulo frontend: `public/js/modules/configuracion.js` — reemplaza smtp.js, backup.js, security.js, auditoria.js, permisos.js, telemetry.js
 - Backend: `src/routes/configuracion.js` montado en `/api/configuracion`
 - Admin default: admin@horix.com / admin123
 
 ## Updater (desde UI)
 - Rutas backend: `/api/configuracion/updater/{status,check,update,restart,logs}`
-- Ejecuta: `git fetch origin && git reset --hard origin/main`, `npm install --production`, `pm2 restart horix`
+- Ejecuta: `git fetch origin && git reset --hard origin/main`, `npm install --production`, `sudo pm2 restart horix`
 - Log en `logs/updater.log`
+
+## Telemetría
+- Tab en configuración que muestra dashboard con: totales de eventos, páginas más visitadas (30d), errores JS, eventos recientes, errores backend
+- Backend: `GET /api/telemetry/dashboard` (solo admin), `POST /api/telemetry`
+- Frontend: `public/js/modules/telemetry.js` con `cargarDiagnostico()` y `renderDiagnostico()`
 
 
