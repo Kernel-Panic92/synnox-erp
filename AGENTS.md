@@ -143,6 +143,11 @@ cd ../C:\Git\Horix && node server.js
 - PM2 name mapping: `pm2Name()` traduce IDs de módulo a nombres PM2 (ej: `wordpress` → `wordpress-mcp`)
 - URLs: `url` se usa para health check interno, `public_url` para mostrar en UI (evitar trailing slash en url)
 
+# Launcher - Versión
+- Versión actual: `1.0.0` (definida en `launcher/package.json`)
+- Mostrada junto al nombre de usuario en el header del launcher y admin
+- Endpoint: `GET /api/version` devuelve `{ v: SERVER_START, version: "1.0.0" }`
+
 # Launcher - Dashboard
 - Pantalla principal muestra tarjetas de todos los módulos registrados
 - Cada tarjeta tiene borde de color según estado MCP: 🟢 verde (online), 🟡 amarillo (error), 🔴 rojo (offline)
