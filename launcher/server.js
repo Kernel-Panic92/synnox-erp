@@ -1095,6 +1095,31 @@ app.get('/api/admin/mcp-modules/:id/logs', verificarToken, soloAdmin, async (req
   } catch { res.json({ log: '' }); }
 });
 
+// ── Server Stats ──
+const os = require('os');
+
+app.get('/api/admin/server/stats', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const cpus = os.cpus();
+    const loadAvg = os.loadavg();
+    const totalMem = os.totalmem();
+    const freeMem = os.freemem();
+    let disk = '';
+    try { disk = execSync('df -h / | tail -1', { stdio: 'pipe', timeout: 3000 }).toString().trim().split(/\s+/); } catch {}
+    res.json({
+      hostname: os.hostname(),
+      platform: os.platform(),
+      uptime: os.uptime(),
+      cpus: cpus.length,
+      cpuModel: cpus[0]?.model || '',
+      cpuLoad: loadAvg,
+      memory: { total: totalMem, free: freeMem, used: totalMem - freeMem },
+      disk: disk.length >= 6 ? { size: disk[1], used: disk[2], avail: disk[3], usePct: disk[4], mount: disk[5] } : null,
+      node: process.version
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── Export / Import ──
 app.get('/api/admin/export', verificarToken, soloAdmin, (req, res) => {
   try {

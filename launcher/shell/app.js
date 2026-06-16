@@ -114,7 +114,51 @@ async function showLauncher() {
     grid.appendChild(adminCard);
   }
 
+  if (user?.rol === 'admin') cargarServerStats();
   show('launcher-screen');
+}
+
+async function cargarServerStats() {
+  const w = document.getElementById('server-stats-widget');
+  try {
+    const res = await fetch('/api/admin/server/stats', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) { w.style.display = 'none'; return; }
+    const s = await res.json();
+    const memPct = s.memory ? ((s.memory.used / s.memory.total) * 100).toFixed(1) : '—';
+    const memUsed = s.memory ? (s.memory.used / 1073741824).toFixed(1) : '—';
+    const memTotal = s.memory ? (s.memory.total / 1073741824).toFixed(1) : '—';
+    const loadPct = s.cpuLoad ? (s.cpuLoad[0] / s.cpus * 100).toFixed(1) : '—';
+    const uptime = s.uptime ? Math.floor(s.uptime / 86400) + 'd ' + Math.floor((s.uptime % 86400) / 3600) + 'h' : '—';
+    const diskPct = s.disk ? parseInt(s.disk.usePct) : 0;
+    w.style.display = 'block';
+    w.innerHTML = `
+      <h2 style="margin-bottom:12px;">🖥️ Servidor</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
+        <div class="card" style="cursor:default;padding:16px;">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">CPU</div>
+          <div style="font-size:20px;font-weight:700;margin:4px 0;">${s.cpus} núcleos</div>
+          <div style="font-size:12px;color:var(--muted);">Carga: ${loadPct}%</div>
+          <div style="margin-top:8px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
+            <div style="height:100%;width:${Math.min(loadPct, 100)}%;background:${loadPct > 80 ? 'var(--danger)' : loadPct > 50 ? 'var(--warning)' : 'var(--success)'};border-radius:2px;"></div>
+          </div>
+        </div>
+        <div class="card" style="cursor:default;padding:16px;">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Memoria</div>
+          <div style="font-size:20px;font-weight:700;margin:4px 0;">${memUsed} / ${memTotal} GB</div>
+          <div style="font-size:12px;color:var(--muted);">Uso: ${memPct}%</div>
+          <div style="margin-top:8px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;">
+            <div style="height:100%;width:${Math.min(memPct, 100)}%;background:${memPct > 80 ? 'var(--danger)' : memPct > 50 ? 'var(--warning)' : 'var(--success)'};border-radius:2px;"></div>
+          </div>
+        </div>
+        ${s.disk ? '<div class="card" style="cursor:default;padding:16px;"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Disco</div><div style="font-size:20px;font-weight:700;margin:4px 0;">' + s.disk.used + ' / ' + s.disk.size + '</div><div style="font-size:12px;color:var(--muted);">Uso: ' + s.disk.usePct + '</div><div style="margin-top:8px;height:4px;background:var(--border);border-radius:2px;overflow:hidden;"><div style="height:100%;width:' + diskPct + '%;background:' + (diskPct > 80 ? 'var(--danger)' : diskPct > 50 ? 'var(--warning)' : 'var(--success)') + ';border-radius:2px;"></div></div></div>' : ''}
+        <div class="card" style="cursor:default;padding:16px;">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;">Sistema</div>
+          <div style="font-size:16px;font-weight:700;margin:4px 0;">${s.hostname || '—'}</div>
+          <div style="font-size:12px;color:var(--muted);">${s.platform || '—'} · Node ${s.node || '—'}</div>
+          <div style="font-size:12px;color:var(--muted);">Uptime: ${uptime}</div>
+        </div>
+      </div>`;
+  } catch { w.style.display = 'none'; }
 }
 
 function logout() {
