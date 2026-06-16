@@ -68,11 +68,17 @@ async function showLauncher() {
   grid.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px;grid-column:1/-1;">Cargando...</div>';
 
   try {
-    const res = await fetch('/api/modulos', {
-      headers: { 'Authorization': 'Bearer ' + jwtToken }
-    });
-    if (!res.ok) throw new Error('Error al cargar módulos');
-    const modulos = await res.json();
+    const [resMod, resStatus] = await Promise.all([
+      fetch('/api/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } }),
+      fetch('/api/admin/mcp-modules/status', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).catch(() => null)
+    ]);
+    if (!resMod.ok) throw new Error('Error al cargar módulos');
+    const modulos = await resMod.json();
+    const estados = {};
+    if (resStatus && resStatus.ok) {
+      const data = await resStatus.json();
+      if (data.modules) for (const m of data.modules) estados[m.id] = m.status;
+    }
     grid.innerHTML = '';
     for (const mod of modulos) {
       const card = document.createElement('a');
@@ -80,6 +86,9 @@ async function showLauncher() {
       card.href = mod.url;
       card.target = '_blank';
       card.rel = 'noopener';
+      const st = estados[mod.id];
+      const borde = st === 'online' ? 'border-color:rgba(79,190,150,0.7)' : st === 'offline' ? 'border-color:rgba(224,83,83,0.7)' : st === 'error' ? 'border-color:rgba(214,158,46,0.7)' : '';
+      if (borde) card.style.cssText = borde + ';border-width:2px;';
       card.innerHTML = `
         <div class="card-icon">${mod.icon}</div>
         <div class="card-title">${mod.nombre}</div>
