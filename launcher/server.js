@@ -1031,6 +1031,10 @@ app.get('/api/admin/updater/logs', verificarToken, soloAdmin, (req, res) => {
 });
 
 // ── MCP Modules management (generic) ──
+function pm2Name(modId) {
+  return modId === 'wordpress' ? 'wordpress-mcp' : modId;
+}
+
 app.get('/api/admin/mcp-modules/status', verificarToken, soloAdmin, async (req, res) => {
   try {
     const modules = getModulos(true);
@@ -1054,7 +1058,7 @@ app.get('/api/admin/mcp-modules/status', verificarToken, soloAdmin, async (req, 
         } catch { entry.status = 'offline'; }
       }
       try {
-        const pid = pm2Exec('pid ' + m.id).toString().trim();
+        const pid = pm2Exec('pid ' + pm2Name(m.id)).toString().trim();
         entry.pm2 = pid.length > 0 && parseInt(pid) > 0 ? 'running' : 'stopped';
       } catch { entry.pm2 = 'stopped'; }
       results.push(entry);
@@ -1070,7 +1074,7 @@ app.post('/api/admin/mcp-modules/:id/restart', verificarToken, soloAdmin, async 
   try {
     const modId = req.params.id;
     try {
-      pm2Exec('restart ' + modId);
+      pm2Exec('restart ' + pm2Name(modId));
       res.json({ ok: true, message: modId + ' reiniciado' });
     } catch {
       res.json({ ok: false, message: 'PM2 no disponible. Debes reiniciar ' + modId + ' manualmente.' });
