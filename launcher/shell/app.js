@@ -158,7 +158,8 @@ async function cargarServerStats() {
           <div style="font-size:12px;color:var(--muted);">Uptime: ${uptime}</div>
         </div>
       </div>`;
-  } catch { w.style.display = 'none'; }
+    setTimeout(() => { if (document.getElementById('launcher-screen').style.display !== 'none') cargarServerStats(); }, 30000);
+  } catch { setTimeout(() => { if (document.getElementById('launcher-screen').style.display !== 'none') cargarServerStats(); }, 30000); }
 }
 
 function logout() {
