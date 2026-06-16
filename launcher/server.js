@@ -1093,6 +1093,56 @@ app.get('/api/admin/mcp-modules/:id/logs', verificarToken, soloAdmin, async (req
   } catch { res.json({ log: '' }); }
 });
 
+// ── Export / Import ──
+app.get('/api/admin/export', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const modulos = db.prepare('SELECT * FROM modulos_plataforma ORDER BY orden').all();
+    const configRows = db.prepare('SELECT key, value FROM config ORDER BY key').all();
+    const config = {};
+    for (const r of configRows) config[r.key] = r.value;
+    const usuarios = db.prepare('SELECT id, nombre, email, rol, activo, creado, actualizado FROM usuarios ORDER BY id').all();
+    res.json({
+      version: 1,
+      exported_at: new Date().toISOString(),
+      modulos,
+      config,
+      usuarios
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/import', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const data = req.body;
+    if (!data || !data.version) return res.status(400).json({ error: 'JSON inválido' });
+    const stats = { modulos: 0, config: 0, usuarios: 0 };
+    if (data.modulos) {
+      db.prepare('DELETE FROM modulos_plataforma').run();
+      const ins = db.prepare('INSERT INTO modulos_plataforma (id, nombre, descripcion, url, public_url, icon, mcp_enabled, activo, orden, proxy_prefix) VALUES (?,?,?,?,?,?,?,?,?,?)');
+      for (const m of data.modulos) {
+        ins.run(m.id, m.nombre, m.descripcion || '', m.url || '', m.public_url || '', m.icon || '📦', m.mcp_enabled != null ? m.mcp_enabled : 1, m.activo != null ? m.activo : 1, m.orden || 0, m.proxy_prefix || '');
+        stats.modulos++;
+      }
+    }
+    if (data.config) {
+      db.prepare('DELETE FROM config').run();
+      const ins = db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?,?)');
+      for (const [k, v] of Object.entries(data.config)) {
+        ins.run(k, String(v));
+        stats.config++;
+      }
+    }
+    if (data.usuarios) {
+      const ins = db.prepare('INSERT OR IGNORE INTO usuarios (nombre, email, password_hash, rol, activo, creado, actualizado) VALUES (?,?,?,?,?,?,?)');
+      for (const u of data.usuarios) {
+        ins.run(u.nombre, u.email, u.password_hash || '$2a$10$imported', u.rol || 'operador', u.activo != null ? u.activo : 1, u.creado || new Date().toISOString(), u.actualizado || new Date().toISOString());
+        stats.usuarios++;
+      }
+    }
+    res.json({ ok: true, message: `Importados ${stats.modulos} módulos, ${stats.config} configuraciones, ${stats.usuarios} usuarios` });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.use(express.static(path.join(__dirname, 'shell')));
 app.get('*', (req, res) => {
   const htmlPath = path.join(__dirname, 'shell', 'index.html');

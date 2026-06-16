@@ -641,7 +641,8 @@ function showAdminTab(tab) {
    else if (tab === 'seguridad') { loadRateLimitConfig(); loadSshConfig(); loadLoginLogs(); }
    else if (tab === 'nginx') loadNginx();
    else if (tab === 'actualizar') { loadUpdaterStatus(); loadUpdaterLogs(); }
-   else if (tab === 'mcp-modules') { loadMcpModulesStatus(); }
+    else if (tab === 'mcp-modules') { loadMcpModulesStatus(); }
+    else if (tab === 'respaldo') { document.getElementById('import-result').style.display = 'none'; }
 }
 
 // ── Nginx ──
@@ -1139,4 +1140,46 @@ async function restartMcpModule(moduleId) {
     }
     setTimeout(loadMcpModulesStatus, 2000);
   } catch (e) { listEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + e.message + '</span>'; }
+}
+
+// ── Export / Import ──
+async function exportarConfig() {
+  try {
+    const res = await fetch('/api/admin/export', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || 'Error al exportar'); }
+    const data = await res.json();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'launcher-backup-' + new Date().toISOString().slice(0, 10) + '.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  } catch (e) { alert('Error al exportar: ' + e.message); }
+}
+
+async function importarConfig() {
+  const input = document.getElementById('import-file-input');
+  const resultEl = document.getElementById('import-result');
+  if (!input.files || !input.files[0]) { resultEl.style.display = 'block'; resultEl.innerHTML = '<span style="color:var(--danger);">Selecciona un archivo JSON primero</span>'; return; }
+  try {
+    const text = await input.files[0].text();
+    const data = JSON.parse(text);
+    if (!data.version) throw new Error('El archivo no parece un backup válido del launcher');
+    const res = await fetch('/api/admin/import', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
+      body: JSON.stringify(data)
+    });
+    const result = await res.json();
+    resultEl.style.display = 'block';
+    if (result.ok) {
+      resultEl.innerHTML = '<span style="color:var(--success);">✓ ' + result.message + '</span>';
+    } else {
+      resultEl.innerHTML = '<span style="color:var(--danger);">❌ ' + (result.error || 'Error') + '</span>';
+    }
+  } catch (e) {
+    resultEl.style.display = 'block';
+    resultEl.innerHTML = '<span style="color:var(--danger);">❌ ' + e.message + '</span>';
+  }
 }
