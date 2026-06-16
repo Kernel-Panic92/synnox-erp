@@ -128,6 +128,12 @@ cd ../C:\Git\Horix && node server.js
   - Probar: `ssh root@host sudo pm2 list`
   - Luego configurar Host y Usuario en el admin del launcher (Seguridad → Conexión SSH)
 
+# Launcher - Export/Import (pestaña Respaldo)
+- Pestaña "Respaldo" en el admin del Launcher
+- Export: `GET /api/admin/export` — descarga JSON con módulos, config (SMTP, SSH, etc.) y usuarios
+- Import: `POST /api/admin/import` — sube JSON y restaura módulos, config y usuarios
+- Útil para reinstalaciones o migraciones entre servidores
+
 # Launcher - Servicios MCP (pestaña admin)
 - Pestaña "Servicios MCP" en el admin del Launcher
 - Muestra todos los módulos con MCP habilitado registrados en la plataforma
