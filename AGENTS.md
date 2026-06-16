@@ -143,6 +143,12 @@ cd ../C:\Git\Horix && node server.js
 - PM2 name mapping: `pm2Name()` traduce IDs de módulo a nombres PM2 (ej: `wordpress` → `wordpress-mcp`)
 - URLs: `url` se usa para health check interno, `public_url` para mostrar en UI (evitar trailing slash en url)
 
+# Launcher - Dashboard
+- Pantalla principal muestra tarjetas de todos los módulos registrados
+- Cada tarjeta tiene borde de color según estado MCP: 🟢 verde (online), 🟡 amarillo (error), 🔴 rojo (offline)
+- La tarjeta de Admin no tiene borde de estado
+- Consulta `/api/admin/mcp-modules/status` en paralelo con `/api/modulos`
+
 # Launcher - Updater (desde UI)
 - Tab "Actualizar" en el admin del Launcher (pestañas: Usuarios, Módulos, MCP, SMTP, Apariencia, Seguridad, Nginx, **Actualizar**, Servicios MCP)
 - Rutas backend: `GET /api/admin/updater/status`, `POST /api/admin/updater/check`, `POST /api/admin/updater/update`, `POST /api/admin/updater/restart`, `GET /api/admin/updater/logs`
