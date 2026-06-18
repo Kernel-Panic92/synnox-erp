@@ -195,6 +195,7 @@ Módulo independiente de optimización de rutas y logística para Vitamar, con g
 
 ## Updater
 - Backend: `backend/routes/actualizador.js` (status, check, update, restart, logs)
+- Auto-detecta la rama actual (master) en vez de hardcodear main
 - Frontend: pestaña "Actualizar" en Configuración
 - Endpoint `/api/health` para monitoreo de reinicio
 
