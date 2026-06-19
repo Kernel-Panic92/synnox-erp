@@ -212,6 +212,7 @@ Módulo independiente de optimización de rutas y logística para Vitamar, con g
 
 ## Pendientes
 - [ ] App móvil para conductores
+- [ ] Al generar rutas, usar el vehículo asignado en el pedido en lugar de asignar vehículos al azar (la query en `rutas.js` actualmente ignora `vehiculo_id` del pedido)
 
 ## Horix Framework — Cómo crear un nuevo módulo desde cero
 
@@ -345,4 +346,22 @@ Cada módulo maneja sus propias plantillas de correo localmente (hardcodeadas en
 - Horix: `reset_asunto`/`reset_cuerpo` configurables en Admin → SMTP
 - Logistics: `reset_asunto`/`reset_cuerpo` configurables en Configuración → Correo
 
+## Horix Logistics — Sesión 2026-06-19 (continuación)
+
+### Fixes aplicados
+- Error al cargar sedes: `s.latitud.toFixed is not a function` — PostgreSQL DECIMAL devuelve strings, se usa `Number()` para convertir
+- VRP: `vehiculosUsar` declarado dos veces (error de sintaxis que impedía iniciar)
+- VRP: query de pedidos retornaba `latitud/longitud` pero VRP esperaba `lat/lng` — se agregó alias en SQL
+- Mapa pedido: `actualizarMapaPin` no detectaba correctamente el mapa de pedido (falttaba case para `p-lat/p-lng`)
+
+### Nuevas features
+- Selector de sede en modal de pedido
+- Selector de vehículo filtrado por sede en modal de pedido
+- Campos lat/lng en pedido con Google Places Autocomplete y mapa Leaflet
+- Mapa en modal de pedido (igual que clientes/sedes)
+- CRUD completo de rutas con bulk delete (individual y masivo)
+- Endpoint `/api/rutas/diagnostico` sin auth para debug
+
+### Bugs pendientes
+- Al generar rutas, no se usa el vehículo configurado en el pedido — la función VRP asigna vehículos al azar (round-robin), ignorando `vehiculo_id` del pedido
 
