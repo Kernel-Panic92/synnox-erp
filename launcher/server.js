@@ -118,18 +118,6 @@ db.prepare("UPDATE modulos_plataforma SET tipo = 'interno' WHERE id IN ('docflow
 // Seed public_url from url if empty
 db.prepare("UPDATE modulos_plataforma SET public_url = url WHERE public_url = '' AND url != ''").run();
 
-// ── Plantillas de correo table ──
-db.exec(`
-  CREATE TABLE IF NOT EXISTS plantillas_correo (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    modulo_id TEXT NOT NULL,
-    tipo TEXT NOT NULL,
-    asunto TEXT NOT NULL DEFAULT '',
-    cuerpo_html TEXT NOT NULL DEFAULT '',
-    UNIQUE(modulo_id, tipo)
-  )
-`);
-
 function getModulos(onlyMcp) {
   let sql = 'SELECT * FROM modulos_plataforma WHERE activo = 1';
   if (onlyMcp) sql += ' AND mcp_enabled = 1';
@@ -236,44 +224,12 @@ app.post('/api/admin/smtp/test', verificarToken, soloAdmin, async (req, res) => 
   }
 });
 
-// ── Plantillas de correo (admin CRUD) ──
-app.get('/api/admin/plantillas', verificarToken, soloAdmin, (req, res) => {
-  const rows = db.prepare(`
-    SELECT p.*, COALESCE(m.nombre, p.modulo_id) as modulo_nombre
-    FROM plantillas_correo p
-    LEFT JOIN modulos_plataforma m ON m.id = p.modulo_id
-    ORDER BY p.modulo_id, p.tipo
-  `).all();
-  res.json(rows);
-});
-
-app.put('/api/admin/plantillas', verificarToken, soloAdmin, (req, res) => {
-  const { modulo_id, tipo, asunto, cuerpo_html } = req.body;
-  if (!modulo_id || !tipo) return res.status(400).json({ error: 'modulo_id y tipo son requeridos' });
-  db.prepare('INSERT OR REPLACE INTO plantillas_correo (modulo_id, tipo, asunto, cuerpo_html) VALUES (?, ?, ?, ?)').run(modulo_id, tipo, asunto || '', cuerpo_html || '');
-  res.json({ ok: true });
-});
-
-app.delete('/api/admin/plantillas/:id', verificarToken, soloAdmin, (req, res) => {
-  db.prepare('DELETE FROM plantillas_correo WHERE id = ?').run(req.params.id);
-  res.json({ ok: true });
-});
-
 // ── Internal endpoint for module SMTP inheritance ──
 app.get('/api/smtp/internal', (req, res) => {
   const rows = db.prepare("SELECT key, value FROM config WHERE key LIKE 'smtp_%' ORDER BY key").all();
   const cfg = {};
   for (const r of rows) cfg[r.key] = r.value;
   res.json({ config: cfg });
-});
-
-// ── Internal endpoint for module template inheritance ──
-app.get('/api/plantillas/internal', (req, res) => {
-  const { modulo, tipo } = req.query;
-  if (!modulo || !tipo) return res.status(400).json({ error: 'modulo y tipo son requeridos' });
-  const row = db.prepare('SELECT asunto, cuerpo_html FROM plantillas_correo WHERE modulo_id = ? AND tipo = ?').get(modulo, tipo);
-  if (!row) return res.status(404).json({ error: 'Plantilla no encontrada' });
-  res.json(row);
 });
 
 // ── Shell/Theme config for framework ──

@@ -701,7 +701,7 @@ function showAdminTab(tab) {
    else if (tab === 'actualizar') { loadUpdaterStatus(); loadUpdaterLogs(); }
     else if (tab === 'mcp-modules') { loadMcpModulesStatus(); }
     else if (tab === 'respaldo') { document.getElementById('import-result').style.display = 'none'; }
-    else if (tab === 'plantillas') { loadPlantillasTab(); }
+
 }
 
 // ── Nginx ──
@@ -1244,100 +1244,4 @@ async function importarConfig() {
   }
 }
 
-// ── Plantillas de correo ──
-let plantillasModulos = [];
 
-async function loadPlantillasTab() {
-  const sel = document.getElementById('plt-modulo');
-  sel.innerHTML = '<option value="">— Seleccionar módulo —</option>';
-  document.getElementById('plt-result').innerHTML = '';
-  try {
-    const res = await fetch('/api/admin/modulos', {
-      headers: { 'Authorization': 'Bearer ' + jwtToken }
-    });
-    if (!res.ok) throw new Error('Error al cargar módulos');
-    plantillasModulos = await res.json();
-    for (const m of plantillasModulos) {
-      if (m.tipo !== 'interno') continue;
-      const opt = document.createElement('option');
-      opt.value = m.id;
-      opt.textContent = m.icon + ' ' + m.nombre;
-      sel.appendChild(opt);
-    }
-  } catch (e) {
-    sel.innerHTML += '<option value="" disabled>Cargando... ' + e.message + '</option>';
-  }
-}
-
-async function cargarPlantillaForm() {
-  const modulo = document.getElementById('plt-modulo').value;
-  const tipo = document.getElementById('plt-tipo').value;
-  const asuntoEl = document.getElementById('plt-asunto');
-  const cuerpoEl = document.getElementById('plt-cuerpo');
-  const resultEl = document.getElementById('plt-result');
-  resultEl.innerHTML = '';
-  if (!modulo || !tipo) { asuntoEl.value = ''; cuerpoEl.value = ''; return; }
-  try {
-    const res = await fetch('/api/admin/plantillas', {
-      headers: { 'Authorization': 'Bearer ' + jwtToken }
-    });
-    if (!res.ok) throw new Error('Error');
-    const list = await res.json();
-    const found = list.find(p => p.modulo_id === modulo && p.tipo === tipo);
-    asuntoEl.value = found ? found.asunto : '';
-    cuerpoEl.value = found ? found.cuerpo_html : '';
-  } catch (e) {
-    resultEl.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
-  }
-}
-
-async function guardarPlantilla() {
-  const modulo = document.getElementById('plt-modulo').value;
-  const tipo = document.getElementById('plt-tipo').value;
-  const asunto = document.getElementById('plt-asunto').value.trim();
-  const cuerpo = document.getElementById('plt-cuerpo').value;
-  const resultEl = document.getElementById('plt-result');
-  if (!modulo || !tipo) { resultEl.innerHTML = '<span style="color:var(--danger);">Selecciona módulo y tipo</span>'; return; }
-  try {
-    const res = await fetch('/api/admin/plantillas', {
-      method: 'PUT',
-      headers: { 'Authorization': 'Bearer ' + jwtToken, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ modulo_id: modulo, tipo, asunto, cuerpo_html: cuerpo })
-    });
-    const data = await res.json();
-    resultEl.innerHTML = data.ok
-      ? '<span style="color:var(--success);">✓ Plantilla guardada</span>'
-      : '<span style="color:var(--danger);">✗ ' + (data.error || 'Error') + '</span>';
-  } catch (e) {
-    resultEl.innerHTML = '<span style="color:var(--danger);">✗ ' + e.message + '</span>';
-  }
-}
-
-async function eliminarPlantilla() {
-  const modulo = document.getElementById('plt-modulo').value;
-  const tipo = document.getElementById('plt-tipo').value;
-  const resultEl = document.getElementById('plt-result');
-  if (!modulo || !tipo) { resultEl.innerHTML = '<span style="color:var(--danger);">Selecciona módulo y tipo</span>'; return; }
-  try {
-    const res = await fetch('/api/admin/plantillas', {
-      headers: { 'Authorization': 'Bearer ' + jwtToken }
-    });
-    const list = await res.json();
-    const found = list.find(p => p.modulo_id === modulo && p.tipo === tipo);
-    if (!found) { resultEl.innerHTML = '<span style="color:var(--muted);">No hay plantilla para eliminar</span>'; return; }
-    const del = await fetch('/api/admin/plantillas/' + found.id, {
-      method: 'DELETE',
-      headers: { 'Authorization': 'Bearer ' + jwtToken }
-    });
-    const data = await del.json();
-    if (data.ok) {
-      document.getElementById('plt-asunto').value = '';
-      document.getElementById('plt-cuerpo').value = '';
-      resultEl.innerHTML = '<span style="color:var(--success);">✓ Plantilla eliminada</span>';
-    } else {
-      resultEl.innerHTML = '<span style="color:var(--danger);">✗ ' + (data.error || 'Error') + '</span>';
-    }
-  } catch (e) {
-    resultEl.innerHTML = '<span style="color:var(--danger);">✗ ' + e.message + '</span>';
-  }
-}
