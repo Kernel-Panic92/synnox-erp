@@ -213,6 +213,99 @@ Módulo independiente de optimización de rutas y logística para Vitamar, con g
 ## Pendientes
 - [ ] App móvil para conductores
 
+## Horix Framework — Cómo crear un nuevo módulo desde cero
+
+```
+bash horix-erp/framework/init.sh /ruta/del/nuevo-modulo/public
+```
+
+Esto copia `base.css`, `components.css`, `framework.js`, `theme.js` y genera un `index.html` completo con login, sidebar, modales y forgot password.
+
+### Estructura resultante
+```
+nuevo-modulo/public/
+├── index.html          ← Base con login + app layout + modales
+├── css/
+│   ├── base.css        ← Variables, reset, layout, responsive
+│   └── components.css  ← Botones, tablas, modales, cards, badges
+└── js/
+    ├── framework.js    ← initHorixFramework(), api(), toast(), confirmar(), navigate()
+    └── theme.js        ← fetchTheme() desde el launcher (fallback silencioso)
+```
+
+### 1. Agregar páginas en el HTML
+Dentro de `<div class="main-body">` en `index.html`:
+```html
+<div class="page active" id="page-dashboard">
+  <div class="page-header"><h3>Dashboard</h3><p>Resumen</p></div>
+  <div id="dash-content"></div>
+</div>
+<div class="page" id="page-items">
+  <div class="page-header"><h3>Items</h3><p>Listado</p></div>
+  <div id="items-content"></div>
+</div>
+```
+
+### 2. Configurar navegación
+En `<script>` después de `framework.js`:
+```javascript
+initHorixFramework({
+  apiPrefix: '/api',
+  tokenKey: 'app_token',
+  themeKey: 'app_theme',
+  themePages: ['dashboard'],
+  routes: {
+    dashboard: cargarDashboard,
+    items: cargarItems,
+  },
+});
+
+async function cargarDashboard() {
+  const data = await api('/stats');
+  document.getElementById('dash-content').innerHTML = `
+    <div class="stats-row">
+      <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">${data.total}</div></div>
+    </div>`;
+}
+```
+
+### 3. Sidebar nav-items
+```html
+<nav id="sidebar-nav">
+  <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+    <span class="icon">📊</span> Dashboard
+  </div>
+  <div class="nav-item" data-page="items" onclick="navigate('items')">
+    <span class="icon">📦</span> Items
+  </div>
+</nav>
+```
+
+### 4. Backend mínimo
+- Endpoints: `/api/auth/login`, `/api/auth/verificar` (JWT)
+- Opcional: `/api/version`, `/api/health`
+- Para herencia SMTP: tabla config con `smtp_heredar` + `launcher_url`; en mail utility fetch a `${launcher_url}/api/smtp/internal`
+
+### 5. API disponibles (framework.js globales)
+| Función | Descripción |
+|---------|-------------|
+| `api(path, opts)` | Fetch con auth, maneja 401 → logout |
+| `esc(s)` | Escape HTML |
+| `toast(msg, type, duration)` | Notificación. type: success/error/info |
+| `abrirModal(titulo, desc, bodyHtml, accionesHtml)` | Modal genérico |
+| `confirmar({ titulo, mensaje, icono, btnTxt, onConfirm })` | Confirmación con callback |
+| `toggleAll(tipo, checked)` | Checkbox "Seleccionar todo" |
+| `eliminarSeleccionados(tipo, endpoint)` | Bulk delete |
+| `setLoading(elId, loading)` | Loading state en botones |
+| `navigate(page)` | Cambiar página activa (.page + .nav-item) |
+| `toggleTheme()` | Light/dark mode |
+
+### Reglas
+- Sin dependencia runtime del launcher — `theme.js` fallback a defaults CSS
+- Módulos existentes NO se modifican — framework solo para nuevos
+- Cada módulo puede sobreescribir variables CSS en su `<style>` después de components.css
+- Funciones son globales (window) para compatibilidad HTML inline
+
 # Horix - Detalles del Módulo
 
 ## Configuración (UI)
@@ -232,5 +325,48 @@ Módulo independiente de optimización de rutas y logística para Vitamar, con g
 - Tab en configuración que muestra dashboard con: totales de eventos, páginas más visitadas (30d), errores JS, eventos recientes, errores backend
 - Backend: `GET /api/telemetry/dashboard` (solo admin), `POST /api/telemetry`
 - Frontend: `public/js/modules/telemetry.js` con `cargarDiagnostico()` y `renderDiagnostico()`
+
+# Última sesión — 2026-06-19
+
+## SMTP layout unification
+Se replicó el estilo card (max-width:600px, form-grid) de Logistics a DocFlow y Horix:
+- **DocFlow**: ya tenía layout similar, ajustes menores
+- **Horix**: se reemplazó layout inline por card con form-grid; se agregó card separada "Template" para configuración de plantilla
+- **Logistics**: ya tenía el patrón, se dejó igual
+
+## Plantillas de Correo centralizadas (Launcher)
+- Tabla `plantillas_correo` en `launcher.db` (SQLite)
+- CRUD: `GET/PUT/DELETE /api/plantillas` (admin), `GET /api/plantillas/internal` (sin auth, para módulos)
+- Admin UI: tab "📝 Plantillas" con selector de módulo, tipo, asunto, cuerpo_html
+
+### Herencia de plantillas en módulos
+Cada módulo obtiene plantillas del Launcher si `plantilla_heredar=1`:
+
+| Módulo | Archivo backend | Archivo frontend | Checkbox |
+|--------|----------------|-----------------|----------|
+| Logistics | `modules/logistics/.../email.js` | config.html (in-page) | En card SMTP |
+| Horix | `server/src/services/email.js` | `public/js/modules/configuracion.js` | Card separada "Template" |
+| DocFlow | `src/services/smtp.service.js` | `public/js/modules/config.js` | En card SMTP |
+
+### Patrón de implementación
+```javascript
+async function obtenerPlantilla(tipo) {
+  const cfg = await getConfig();
+  if (cfg.plantilla_heredar !== '1') return null;
+  const url = (cfg.launcher_url || 'http://localhost:3002').replace(/\/+$/, '');
+  const res = await fetch(`${url}/api/plantillas/internal?modulo=ID&tipo=${tipo}`, { signal: AbortSignal.timeout(5000) });
+  if (!res.ok) return null;
+  const p = await res.json();
+  return { asunto: p.asunto, cuerpo_html: p.cuerpo_html };
+}
+// Luego: html.replace(/{nombre}/g, u.nombre).replace(/{enlace}/g, link).replace(/{empresa}/g, empresa)
+```
+
+### Decisiones clave
+- `plantilla_heredar` es flag separado de `smtp_heredar` (cada módulo decide)
+- Internal endpoint no requiere auth (solo accesible desde red interna)
+- Placeholders: `{nombre}`, `{enlace}`, `{empresa}` — reemplazados server-side
+- Fallback: si launcher no responde o no hay template, se usa la plantilla hardcodeada existente
+- Horix tiene card separada "Template" en el tab SMTP (distinto de Logistics/DocFlow que lo embeben inline)
 
 

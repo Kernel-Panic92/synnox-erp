@@ -287,6 +287,7 @@
       <div class="tab" data-tab="actualizar" onclick="showAdminTab('actualizar')">Actualizar</div>
       <div class="tab" data-tab="mcp-modules" onclick="showAdminTab('mcp-modules')">Servicios MCP</div>
       <div class="tab" data-tab="respaldo" onclick="showAdminTab('respaldo')">Respaldo</div>
+      <div class="tab" data-tab="plantillas" onclick="showAdminTab('plantillas')">📝 Plantillas</div>
     </div>
   <div class="tab-content active" id="tab-usuarios">
     <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
@@ -526,6 +527,32 @@
         <button class="btn btn-primary" onclick="importarConfig()" style="width:100%;justify-content:center;padding:13px;">📤 Importar configuración</button>
         <div id="import-result" style="margin-top:14px;display:none;"></div>
       </div>
+    </div>
+  </div>
+  <div class="tab-content" id="tab-plantillas">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
+      <div style="font-size:var(--fs);font-weight:600;">📝 Plantillas de Correo Electrónico</div>
+    </div>
+    <div class="perm-rol-section">
+      <div class="perm-rol-titulo">Configurar plantilla</div>
+      <label>Módulo</label>
+      <select id="plt-modulo" onchange="cargarPlantillaForm()"><option value="">— Seleccionar módulo —</option></select>
+      <label>Tipo</label>
+      <select id="plt-tipo" onchange="cargarPlantillaForm()">
+        <option value="reset_password">Recuperación de contraseña</option>
+      </select>
+      <label>Asunto del correo</label>
+      <input type="text" id="plt-asunto" placeholder="Ej: Recupera tu contraseña — {nombre}">
+      <label>Cuerpo HTML</label>
+      <textarea id="plt-cuerpo" rows="10" placeholder="Ej: &lt;h2&gt;Hola {nombre}&lt;/h2&gt;&lt;p&gt;Haz clic &lt;a href=&quot;{enlace}&quot;&gt;aquí&lt;/a&gt; para recuperar tu contraseña.&lt;/p&gt;" style="width:100%;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;font-family:monospace;outline:none;resize:vertical;"></textarea>
+      <div style="font-size:12px;color:var(--muted);margin:8px 0 16px 0;">
+        Variables disponibles: <code>{nombre}</code> — nombre del usuario &nbsp;|&nbsp; <code>{enlace}</code> — link de recuperación &nbsp;|&nbsp; <code>{empresa}</code> — nombre de la empresa
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button class="btn btn-primary" onclick="guardarPlantilla()">💾 Guardar plantilla</button>
+        <button class="btn btn-danger" onclick="eliminarPlantilla()">🗑 Eliminar</button>
+      </div>
+      <div id="plt-result" style="margin-top:12px;"></div>
     </div>
   </div>
 </div>
