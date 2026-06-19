@@ -182,16 +182,20 @@ Módulo independiente de optimización de rutas y logística para Vitamar, con g
 
 ## Features implementadas
 - Autenticación JWT con rate limiter
-- Importación SIESA PDF (parseo de planillas de cuadre)
+- Importación SIESA PDF (parseo de planillas de cuadre con 3 líneas por registro: nombre / dos valores + FEV / ciudad+dir+tel)
 - Importación Widetech Excel (históricos GPS)
 - Geocodificación con Nominatim + caché en DB
 - Optimización VRP (OSRM + Nearest Neighbor + 2-opt)
 - Dashboard con estadísticas
-- CRUD de vehículos, pedidos (pendientes), rutas, usuarios
+- CRUD de vehículos, pedidos, clientes, rutas, usuarios
 - Mapa Leaflet con rutas, paradas y posiciones de vehículos
-- Configuración: SMTP, Backup ZIP con upload/download/restore, Seguridad (rate limiter, fail2ban, cambio de contraseña, app_url), Auditoría con estadísticas
-- Actualizador: `git pull + npm install + migrations + restart` desde la UI
+- Configuración: SMTP, Backup ZIP, Seguridad, Auditoría, Mapas (Google API key), Actualizador
 - Sidebar estilo Horix con versión, copyright, GitHub, logout con confirmación
+- Clientes: card grid con avatar+iniciales, selección múltiple, búsqueda, pg_trgm fuzzy matching
+- Pedidos: valor_contado + valor_credito + conductor + placa + nro_guia, búsqueda y filtro por estado
+- Vehículos: búsqueda y filtro por estado
+- Google Places Autocomplete en formulario cliente (con API key configurable en Mapas)
+- Auto-creación de vehículo al importar SIESA si la placa no existe
 
 ## Updater
 - Backend: `backend/routes/actualizador.js` (status, check, update, restart, logs)
@@ -200,9 +204,7 @@ Módulo independiente de optimización de rutas y logística para Vitamar, con g
 - Endpoint `/api/health` para monitoreo de reinicio
 
 ## Pendientes
-- [ ] Registrar como módulo en el Launcher de Horix Platform
 - [ ] App móvil para conductores
-- [ ] Producción: verificar restart con `sudo pm2 restart logistics`
 
 # Horix - Detalles del Módulo
 

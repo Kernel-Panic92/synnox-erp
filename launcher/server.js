@@ -221,6 +221,14 @@ app.post('/api/admin/smtp/test', verificarToken, soloAdmin, async (req, res) => 
   }
 });
 
+// ── Internal endpoint for module SMTP inheritance ──
+app.get('/api/smtp/internal', (req, res) => {
+  const rows = db.prepare("SELECT key, value FROM config WHERE key LIKE 'smtp_%' ORDER BY key").all();
+  const cfg = {};
+  for (const r of rows) cfg[r.key] = r.value;
+  res.json({ config: cfg });
+});
+
 // ── Global config (gradients, etc.) ──
 app.get('/api/config', (req, res) => {
   const rows = db.prepare("SELECT key, value FROM config WHERE key LIKE 'grad_%' OR key LIKE 'rate_limit_%' ORDER BY key").all();
