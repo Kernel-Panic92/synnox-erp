@@ -380,6 +380,7 @@ function showModuloForm(data) {
   document.getElementById('modulo-form-proxy-prefix').value = data?.proxy_prefix || '';
   document.getElementById('modulo-form-desc').value = data?.descripcion || '';
   document.getElementById('modulo-form-mcp').checked = data ? !!data.mcp_enabled : true;
+  document.getElementById('modulo-form-tipo').checked = data ? data.tipo === 'interno' : false;
   renderEmojiPicker(data?.icon || '📦');
   document.getElementById('modulo-form-icon').value = data?.icon || '📦';
   document.getElementById('modulo-form-title').textContent = data?.id ? 'Editar módulo' : 'Nuevo módulo';
@@ -400,6 +401,7 @@ async function saveModulo() {
   const icon = document.getElementById('modulo-form-icon').value.trim() || '📦';
   const desc = document.getElementById('modulo-form-desc').value.trim();
   const mcp_enabled = document.getElementById('modulo-form-mcp').checked;
+  const tipo = document.getElementById('modulo-form-tipo').checked ? 'interno' : 'externo';
   const proxy_prefix = document.getElementById('modulo-form-proxy-prefix').value.trim();
   const errEl = document.getElementById('modulo-form-error');
   if (!id || !nombre) { showError(errEl, 'ID y nombre requeridos'); return; }
@@ -408,7 +410,7 @@ async function saveModulo() {
     const res = await fetch(method === 'PUT' ? `/api/admin/modulos/${id}` : '/api/admin/modulos', {
       method,
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
-      body: JSON.stringify({ id, nombre, url, public_url, icon, descripcion: desc, mcp_enabled, proxy_prefix })
+      body: JSON.stringify({ id, nombre, url, public_url, icon, descripcion: desc, mcp_enabled, proxy_prefix, tipo })
     });
     if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Error'); }
     closeModuloForm();
@@ -1256,6 +1258,7 @@ async function loadPlantillasTab() {
     if (!res.ok) throw new Error('Error al cargar módulos');
     plantillasModulos = await res.json();
     for (const m of plantillasModulos) {
+      if (m.tipo !== 'interno') continue;
       const opt = document.createElement('option');
       opt.value = m.id;
       opt.textContent = m.icon + ' ' + m.nombre;

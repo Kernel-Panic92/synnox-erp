@@ -111,6 +111,9 @@ try { db.exec('ALTER TABLE modulos_plataforma ADD COLUMN orden INTEGER NOT NULL 
 try { db.exec('ALTER TABLE modulos_plataforma ADD COLUMN public_url TEXT NOT NULL DEFAULT ""'); } catch {}
 try { db.exec('ALTER TABLE modulos_plataforma ADD COLUMN mcp_token TEXT NOT NULL DEFAULT ""'); } catch {}
 try { db.exec('ALTER TABLE modulos_plataforma ADD COLUMN proxy_prefix TEXT NOT NULL DEFAULT ""'); } catch {}
+try { db.exec("ALTER TABLE modulos_plataforma ADD COLUMN tipo TEXT NOT NULL DEFAULT 'externo'"); } catch {}
+// Seed tipo for internal modules
+db.prepare("UPDATE modulos_plataforma SET tipo = 'interno' WHERE id IN ('docflow', 'horix', 'logistics') AND tipo = 'externo'").run();
 
 // Seed public_url from url if empty
 db.prepare("UPDATE modulos_plataforma SET public_url = url WHERE public_url = '' AND url != ''").run();
@@ -459,14 +462,14 @@ app.get('/api/admin/modulos', verificarToken, soloAdmin, (req, res) => {
 });
 
 app.post('/api/admin/modulos', verificarToken, soloAdmin, (req, res) => {
-  const { id, nombre, url, public_url, icon, descripcion, mcp_enabled, activo, proxy_prefix } = req.body;
+  const { id, nombre, url, public_url, icon, descripcion, mcp_enabled, activo, proxy_prefix, tipo } = req.body;
   if (!id || !nombre) return res.status(400).json({ error: 'ID y nombre requeridos' });
-  db.prepare('INSERT OR REPLACE INTO modulos_plataforma (id, nombre, descripcion, url, public_url, icon, mcp_enabled, activo, proxy_prefix) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(id, nombre, descripcion || '', url || '', public_url || url || '', icon || '📦', mcp_enabled !== false ? 1 : 0, activo !== false ? 1 : 0, proxy_prefix || '');
+  db.prepare('INSERT OR REPLACE INTO modulos_plataforma (id, nombre, descripcion, url, public_url, icon, mcp_enabled, activo, proxy_prefix, tipo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(id, nombre, descripcion || '', url || '', public_url || url || '', icon || '📦', mcp_enabled !== false ? 1 : 0, activo !== false ? 1 : 0, proxy_prefix || '', tipo === 'interno' ? 'interno' : 'externo');
   res.json({ ok: true });
 });
 
 app.put('/api/admin/modulos/:id', verificarToken, soloAdmin, (req, res) => {
-  const { nombre, url, public_url, icon, descripcion, mcp_enabled, activo, proxy_prefix } = req.body;
+  const { nombre, url, public_url, icon, descripcion, mcp_enabled, activo, proxy_prefix, tipo } = req.body;
   const { id } = req.params;
   if (!db.prepare('SELECT id FROM modulos_plataforma WHERE id = ?').get(id)) return res.status(404).json({ error: 'No encontrado' });
   const u = [];
@@ -479,6 +482,7 @@ app.put('/api/admin/modulos/:id', verificarToken, soloAdmin, (req, res) => {
   if (mcp_enabled !== undefined) { u.push('mcp_enabled = ?'); p.push(mcp_enabled ? 1 : 0); }
   if (activo !== undefined) { u.push('activo = ?'); p.push(activo ? 1 : 0); }
   if (proxy_prefix !== undefined) { u.push('proxy_prefix = ?'); p.push(proxy_prefix); }
+  if (tipo !== undefined) { u.push('tipo = ?'); p.push(tipo === 'interno' ? 'interno' : 'externo'); }
   if (!u.length) return res.status(400).json({ error: 'Sin cambios' });
   p.push(id);
   db.prepare(`UPDATE modulos_plataforma SET ${u.join(', ')} WHERE id = ?`).run(...p);
@@ -1205,9 +1209,9 @@ app.post('/api/admin/import', verificarToken, soloAdmin, (req, res) => {
     const stats = { modulos: 0, config: 0, usuarios: 0 };
     if (data.modulos) {
       db.prepare('DELETE FROM modulos_plataforma').run();
-      const ins = db.prepare('INSERT INTO modulos_plataforma (id, nombre, descripcion, url, public_url, icon, mcp_enabled, activo, orden, proxy_prefix) VALUES (?,?,?,?,?,?,?,?,?,?)');
+      const ins = db.prepare('INSERT INTO modulos_plataforma (id, nombre, descripcion, url, public_url, icon, mcp_enabled, activo, orden, proxy_prefix, tipo) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
       for (const m of data.modulos) {
-        ins.run(m.id, m.nombre, m.descripcion || '', m.url || '', m.public_url || '', m.icon || '📦', m.mcp_enabled != null ? m.mcp_enabled : 1, m.activo != null ? m.activo : 1, m.orden || 0, m.proxy_prefix || '');
+        ins.run(m.id, m.nombre, m.descripcion || '', m.url || '', m.public_url || '', m.icon || '📦', m.mcp_enabled != null ? m.mcp_enabled : 1, m.activo != null ? m.activo : 1, m.orden || 0, m.proxy_prefix || '', m.tipo === 'interno' ? 'interno' : 'externo');
         stats.modulos++;
       }
     }
