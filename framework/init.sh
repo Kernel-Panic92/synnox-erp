@@ -50,10 +50,10 @@ if [ ! -f "$DEST/index.html" ]; then
     <h1>$MODULE_NAME</h1>
     <p>Inicia sesión para continuar</p>
     <div class="error" id="login-error"></div>
-    <div class="form-group"><label>Correo electrónico</label><input type="email" id="login-email" placeholder="correo@empresa.com" autocomplete="email"></div>
-    <div class="form-group"><label>Contraseña</label><input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"></div>
+    <div class="form-group"><label>Correo electrónico</label><input type="email" id="login-email" placeholder="correo@empresa.com" autocomplete="email" onkeydown="if(event.key==='Enter')document.getElementById('login-btn').click()"></div>
+    <div class="form-group"><label>Contraseña</label><input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')document.getElementById('login-btn').click()"></div>
     <button class="btn btn-primary" id="login-btn" onclick="doLogin()" style="width:100%;justify-content:center;">Ingresar</button>
-    <div style="margin-top:12px;text-align:center;"><a href="#" onclick="abrirForgot('modal-forgot')" style="font-size:13px;">¿Olvidaste tu contraseña?</a></div>
+    <div style="margin-top:16px;text-align:center;"><a href="#" onclick="abrirForgot('modal-forgot')" style="font-size:13px;color:var(--muted);text-decoration:none;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">¿Olvidaste tu contraseña?</a></div>
   </div>
 </div>
 
