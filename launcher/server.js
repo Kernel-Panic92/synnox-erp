@@ -229,6 +229,14 @@ app.get('/api/smtp/internal', (req, res) => {
   res.json({ config: cfg });
 });
 
+// ── Shell/Theme config for framework ──
+app.get('/api/shell/config', (req, res) => {
+  const rows = db.prepare("SELECT key, value FROM config WHERE key LIKE 'grad_%' OR key IN ('app_name','logo_url','smtp_from_name') ORDER BY key").all();
+  const cfg = {};
+  for (const r of rows) cfg[r.key] = r.value;
+  res.json(cfg);
+});
+
 // ── Global config (gradients, etc.) ──
 app.get('/api/config', (req, res) => {
   const rows = db.prepare("SELECT key, value FROM config WHERE key LIKE 'grad_%' OR key LIKE 'rate_limit_%' ORDER BY key").all();

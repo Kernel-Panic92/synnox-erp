@@ -203,6 +203,13 @@ Módulo independiente de optimización de rutas y logística para Vitamar, con g
 - Frontend: pestaña "Actualizar" en Configuración
 - Endpoint `/api/health` para monitoreo de reinicio
 
+## Herencia SMTP entre módulos
+- El launcher expone `GET /api/smtp/internal` (sin auth, localhost) con la configuración SMTP
+- Los módulos pueden heredar esta config activando `smtp_heredar = true` y apuntando `launcher_url` (default `http://localhost:3002`)
+- Si el launcher no responde, cada módulo cae a su propia config SMTP local
+- Frontend: checkbox "Heredar del Launcher" + campo URL del Launcher en la pestaña Correo de cada módulo
+- ✅ Implementado en Horix Logistics, Horix y DocFlow
+
 ## Pendientes
 - [ ] App móvil para conductores
 
