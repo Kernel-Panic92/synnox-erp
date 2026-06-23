@@ -345,8 +345,10 @@ server { listen 80; server_name ${domain}; return 301 https://\$host\$request_ur
     for (let i = 0; i < 15; i++) {
       await new Promise(r => setTimeout(r, 2000));
       try {
-        token = execSync(`curl -s -X POST http://localhost:3002/api/auth/login -H "Content-Type: application/json" -d '{"email":"${config.adminEmail || 'admin@horix.com'}","password":"${config.adminPass || 'admin123'}"}' 2>/dev/null | grep -o '"jwt":"[^"]*"' | cut -d'"' -f4`).toString().trim();
+        const loginResp = execSync(`curl -s -X POST http://localhost:3002/api/auth/login -H "Content-Type: application/json" -d '{"email":"${config.adminEmail || 'admin@horix.com'}","password":"${config.adminPass || 'admin123'}"}' 2>/dev/null`).toString().trim();
+        token = (loginResp.match(/"jwt":"([^"]*)"/) || [])[1] || '';
         if (token) break;
+        if (i === 0) log('Esperando al launcher...', 'step');
       } catch {}
     }
     if (token) {

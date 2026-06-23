@@ -83,7 +83,7 @@ async function seedDemo() {
            ON CONFLICT DO NOTHING`,
           [
             numFact + '-' + Date.now(), p.id, cat.id, area.id, asig,
-            valor, iva, total, estado, randomDate(60),
+            valor, iva, valor + iva, estado, randomDate(60),
             p.nit.replace(/-/g,''), p.nombre.substring(0, 200),
             fechas.recibida, fechas.aprobada, fechas.causada, fechas.pagada,
             estado === 'rechazada' ? 'Documentación incompleta, se solicitó nuevamente' : null,
