@@ -454,6 +454,7 @@ async function ejecutarScaffold() {
   const nombre = document.getElementById('scaffold-nombre').value.trim();
   const port = document.getElementById('scaffold-port').value.trim();
   const desc = document.getElementById('scaffold-desc').value.trim();
+  const tipo = document.getElementById('scaffold-tipo').value;
   const resultEl = document.getElementById('scaffold-result');
   const btn = document.getElementById('scaffold-btn');
   if (!id || !nombre || !port) { resultEl.textContent = '❌ ID, nombre y puerto requeridos'; return; }
@@ -462,13 +463,13 @@ async function ejecutarScaffold() {
     const res = await fetch('/api/admin/modulos/scaffold', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
-      body: JSON.stringify({ id, nombre, port: parseInt(port), description: desc })
+      body: JSON.stringify({ id, nombre, port: parseInt(port), description: desc, tipo })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error');
     resultEl.textContent = '✅ ' + data.mensaje;
     if (data.npm) resultEl.textContent += '\n📦 npm: ' + data.npm;
-    resultEl.textContent += '\n▶️ Inicia con: pm2 start /opt/horix-platform/' + id + '/backend/server.js --name ' + id;
+    resultEl.textContent += '\n▶️ Inicia con: pm2 start ' + INSTALL_DIR + '/modules/' + id + '/backend/server.js --name ' + id;
     cerrarModal('modal-scaffold');
     setTimeout(() => loadModulos(), 500);
   } catch (e) {

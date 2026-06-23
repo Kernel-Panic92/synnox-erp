@@ -602,6 +602,11 @@
     <input type="number" id="scaffold-port" placeholder="ej: 3008" min="1024" max="65535">
     <label>Descripción</label>
     <input type="text" id="scaffold-desc" placeholder="Breve descripción del módulo">
+    <label>Tipo</label>
+    <select id="scaffold-tipo" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;">
+      <option value="externo">Externo (login propio, JWT independiente)</option>
+      <option value="interno">Interno (auth compartida con Launcher)</option>
+    </select>
     <div id="scaffold-result" style="margin-top:12px;font-size:13px;white-space:pre-wrap;"></div>
     <div style="display:flex;gap:10px;margin-top:12px;">
       <button class="btn" id="scaffold-btn" onclick="ejecutarScaffold()">⚡ Crear módulo</button>

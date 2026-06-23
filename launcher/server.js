@@ -48,6 +48,17 @@ if (userCount === 0) {
   db.prepare('INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)').run('Admin', adminEmail, bcrypt.hashSync('admin123', 10), 'admin');
 }
 
+// ── User-module permissions (monorepo auth) ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_modulos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    modulo_id TEXT NOT NULL,
+    permisos TEXT DEFAULT '{}',
+    UNIQUE(user_id, modulo_id)
+  )
+`);
+
 // ── Config table (key-value) ──
 db.exec(`CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')`);
 
@@ -188,11 +199,14 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
     logLoginAttempt(req.ip, email, true);
-    const payload = { id: user.id, email: user.email, nombre: user.nombre, rol: user.rol };
+    const modulos = (user.rol === 'admin')
+      ? db.prepare("SELECT id FROM modulos_plataforma WHERE activo = 1").all().map(m => m.id)
+      : db.prepare("SELECT modulo_id FROM user_modulos WHERE user_id = ?").all(user.id).map(m => m.modulo_id);
+    const payload = { id: user.id, email: user.email, nombre: user.nombre, rol: user.rol, modulos };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
     db.prepare("UPDATE usuarios SET actualizado = datetime('now') WHERE id = ?").run(user.id);
     res.cookie('launcher_jwt', token, { httpOnly: false, secure: false, sameSite: 'lax', maxAge: 24 * 60 * 60 * 1000 });
-    res.json({ jwt: token, usuario: payload });
+    res.json({ jwt: token, usuario: payload, modulos });
   } catch (e) { console.error('[LOGIN]', e.stack || e.message); res.status(500).json({ error: 'Error interno' }); }
 });
 
@@ -349,12 +363,18 @@ app.post('/api/auth/reset', async (req, res) => {
 });
 
 app.get('/api/modulos', verificarToken, (req, res) => {
-  res.json(getModulos(false).map(m => ({ id: m.id, nombre: m.nombre, url: m.public_url || m.url, icon: m.icon, descripcion: m.descripcion })));
+  const userModulos = req.usuario.modulos || [];
+  const allModulos = getModulos(false);
+  const filtered = (req.usuario.rol === 'admin') ? allModulos : allModulos.filter(m => userModulos.includes(m.id));
+  res.json(filtered.map(m => ({ id: m.id, nombre: m.nombre, url: m.public_url || m.url, icon: m.icon, descripcion: m.descripcion })));
 });
 
 app.get('/api/auth/me', verificarToken, (req, res) => {
   const user = db.prepare('SELECT id, nombre, email, rol, activo, creado FROM usuarios WHERE id = ?').get(req.usuario.id);
-  res.json(user);
+  const modulos = (user.rol === 'admin')
+    ? db.prepare("SELECT id FROM modulos_plataforma WHERE activo = 1").all().map(m => m.id)
+    : db.prepare("SELECT modulo_id FROM user_modulos WHERE user_id = ?").all(user.id).map(m => m.modulo_id);
+  res.json({ ...user, modulos });
 });
 
 app.get('/api/admin/usuarios', verificarToken, soloAdmin, (req, res) => {
@@ -412,6 +432,26 @@ app.delete('/api/admin/usuarios/:id/permanent', verificarToken, soloAdmin, (req,
   res.json({ ok: true });
 });
 
+// ── User-Module assignments ──
+app.get('/api/admin/usuarios/:id/modulos', verificarToken, soloAdmin, (req, res) => {
+  const rows = db.prepare('SELECT modulo_id FROM user_modulos WHERE user_id = ?').all(parseInt(req.params.id));
+  res.json(rows.map(r => r.modulo_id));
+});
+
+app.put('/api/admin/usuarios/:id/modulos', verificarToken, soloAdmin, (req, res) => {
+  const userId = parseInt(req.params.id);
+  const { modulos } = req.body; // array of module IDs
+  if (!Array.isArray(modulos)) return res.status(400).json({ error: 'modulos debe ser un array' });
+  const del = db.prepare('DELETE FROM user_modulos WHERE user_id = ?');
+  const ins = db.prepare('INSERT OR IGNORE INTO user_modulos (user_id, modulo_id) VALUES (?, ?)');
+  const transaction = db.transaction(() => {
+    del.run(userId);
+    for (const m of modulos) ins.run(userId, m);
+  });
+  transaction();
+  res.json({ ok: true, modulos });
+});
+
 // ── API: Módulos ──
 app.get('/api/admin/modulos', verificarToken, soloAdmin, (req, res) => {
   res.json(getModulos(false));
@@ -452,32 +492,31 @@ app.delete('/api/admin/modulos/:id', verificarToken, soloAdmin, (req, res) => {
 
 // ── Scaffold module from framework template ──
 app.post('/api/admin/modulos/scaffold', verificarToken, soloAdmin, async (req, res) => {
-  const { id, nombre, port, description } = req.body;
+  const { id, nombre, port, description, tipo } = req.body;
   if (!id || !nombre || !port) return res.status(400).json({ error: 'Se requiere: id, nombre, port' });
   if (!/^\w+$/.test(id)) return res.status(400).json({ error: 'ID solo letras, números y guión bajo' });
   const listenPort = parseInt(port);
   if (isNaN(listenPort) || listenPort < 1024 || listenPort > 65535) return res.status(400).json({ error: 'Puerto inválido (1024-65535)' });
+  const isInternal = tipo === 'interno';
 
   const installDir = path.join(__dirname, '..');
-  const modDir = path.join(installDir, id);
+  const modulesDir = path.join(installDir, 'modules');
+  const modDir = path.join(modulesDir, id);
   const publicDir = path.join(modDir, 'public');
   const backendDir = path.join(modDir, 'backend');
   const mcpDir = path.join(backendDir, 'mcp');
   const frameworkDir = path.join(installDir, 'framework');
 
   try {
-    // 1. Crear directorios
     fs.mkdirSync(publicDir, { recursive: true });
     fs.mkdirSync(backendDir, { recursive: true });
     fs.mkdirSync(mcpDir, { recursive: true });
 
-    // 2. Copiar framework
     for (const file of ['base.css', 'components.css', 'framework.js', 'theme.js']) {
       const src = path.join(frameworkDir, file);
       if (fs.existsSync(src)) fs.copyFileSync(src, path.join(publicDir, file));
     }
 
-    // 3. package.json
     const pkg = {
       name: id, version: '1.0.0', type: 'module',
       description: description || '',
@@ -485,17 +524,62 @@ app.post('/api/admin/modulos/scaffold', verificarToken, soloAdmin, async (req, r
       dependencies: { express: '^4.21.0', cors: '^2.8.5', jsonwebtoken: '^9.0.0', dotenv: '^16.0.0' }
     };
     fs.writeFileSync(path.join(modDir, 'package.json'), JSON.stringify(pkg, null, 2));
+    fs.writeFileSync(path.join(modDir, '.env'), `PORT=${listenPort}\nJWT_SECRET=${isInternal ? (process.env.JWT_SECRET || 'dev-secret') : 'change-me-' + id}\nMODULE_ID=${id}\n`);
 
-    // 4. .env
-    fs.writeFileSync(path.join(modDir, '.env'), `PORT=${listenPort}\nJWT_SECRET=change-me-${id}\n`);
-
-    // 5. backend/server.js
-    fs.writeFileSync(path.join(backendDir, 'server.js'), `import express from 'express';
+    const serverJs = isInternal ? (
+`import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import { createMiddleware } from './mcp/index.js';
+
+dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const app = express();
+const PORT = process.env.PORT || ${listenPort};
+const MODULE_ID = process.env.MODULE_ID || '${id}';
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+
+app.use(cors());
+app.use(express.json());
+
+function verificarToken(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Token requerido' });
+  try { req.usuario = jwt.verify(auth.split(' ')[1], JWT_SECRET); next(); }
+  catch { return res.status(401).json({ error: 'Token inv\u00e1lido o expirado' }); }
+}
+
+function requireModulo(req, res, next) {
+  if (!req.usuario) return res.status(401).json({ error: 'No autenticado' });
+  const modulos = req.usuario.modulos || [];
+  if (req.usuario.rol === 'admin' || modulos.includes(MODULE_ID)) return next();
+  res.status(403).json({ error: 'No tienes acceso a ' + MODULE_ID });
+}
+
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', module: MODULE_ID }));
+
+app.use('/mcp', createMiddleware());
+app.use(express.static(path.join(__dirname, '..', 'public')));
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/mcp')) return res.status(404).json({ error: 'Not found' });
+  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+});
+
+app.listen(PORT, () => console.log('${nombre} escuchando en puerto', PORT));
+export default app;
+`
+    ) : (
+`import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
+import { createMiddleware } from './mcp/index.js';
 
 dotenv.config();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -510,15 +594,13 @@ function verificarToken(req, res, next) {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Token requerido' });
   try { req.usuario = jwt.verify(auth.split(' ')[1], JWT_SECRET); next(); }
-  catch { return res.status(401).json({ error: 'Token inválido' }); }
+  catch { return res.status(401).json({ error: 'Token inv\u00e1lido o expirado' }); }
 }
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/health', (req, res) => res.json({ status: 'ok', module: '${id}' }));
 
-import { createMiddleware } from './mcp/index.js';
 app.use('/mcp', createMiddleware());
-
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/') || req.path.startsWith('/mcp')) return res.status(404).json({ error: 'Not found' });
@@ -527,14 +609,14 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => console.log('${nombre} escuchando en puerto', PORT));
 export default app;
-`);
+`
+    );
+    fs.writeFileSync(path.join(backendDir, 'server.js'), serverJs);
 
-    // 6. backend/mcp/index.js
     fs.writeFileSync(path.join(mcpDir, 'index.js'), `export function createMiddleware() {
   return async (req, res) => {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
     const { method, params, id } = req.body;
-
     let response;
     switch (method) {
       case 'initialize':
@@ -557,46 +639,101 @@ export default app;
 }
 `);
 
-    // 7. public/index.html
-    const initShell = path.join(installDir, 'launcher', 'shell', 'index.html');
-    let html = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">';
-    html += '<title>' + nombre + '</title>';
-    html += '<link rel="stylesheet" href="base.css"><link rel="stylesheet" href="components.css">';
-    html += '</head><body>';
-    html += '<div id="login-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)">';
-    html += '<div class="login-card"><h1>' + nombre + '</h1><p>Ingresa tus credenciales</p>';
-    html += '<div id="login-error" style="color:var(--danger);margin-bottom:12px;display:none;font-size:14px;"></div>';
-    html += '<label>Email</label><input type="email" id="login-email" placeholder="admin@correo.com">';
-    html += '<label>Contraseña</label><input type="password" id="login-pass" placeholder="••••••••">';
-    html += '<button class="btn btn-primary" id="login-btn" style="width:100%;margin-top:12px;" onclick="login()">Ingresar</button>';
-    html += '</div></div>';
-    html += '<div id="app-screen" style="display:none;">';
-    html += '<div class="app-layout">';
-    html += '<aside class="sidebar" id="sidebar">';
-    html += '<div class="sidebar-brand">' + nombre + '</div>';
-    html += '<nav id="sidebar-nav"><div class="nav-item active" data-page="dashboard" onclick="navigate(\'dashboard\')"><span class="icon">📊</span> Dashboard</div></nav>';
-    html += '<div class="sidebar-footer"><div class="sidebar-user" onclick="document.getElementById(\'modal-logout\').classList.add(\'show\')">';
-    html += '<div class="avatar" id="user-avatar">U</div><div><div id="user-name"></div><div id="user-role" style="font-size:11px;color:var(--muted)"></div></div></div></div>';
-    html += '</aside><main class="main-content"><div class="page active" id="page-dashboard"><div class="page-header"><h3>Dashboard</h3><p>Bienvenido</p></div><div id="dash-content"></div></div></main></div></div>';
-    html += '<div class="modal-overlay" id="modal-logout"><div class="modal"><div class="modal-title">Cerrar sesión</div><p>¿Estás seguro?</p><div class="modal-actions"><button class="btn btn-sm" onclick="document.getElementById(\'modal-logout\').classList.remove(\'show\')">Cancelar</button><button class="btn btn-danger btn-sm" onclick="logout()">Salir</button></div></div></div>';
-    html += '<div id="toast-container"></div>';
-    html += '<script src="framework.js"></script><script src="theme.js"></script><script src="app.js"></script>';
-    html += '</body></html>';
-    fs.writeFileSync(path.join(publicDir, 'index.html'), html);
+    if (isInternal) {
+      // Internal module: no login screen, reads token from launcher cookie/localStorage
+      let html = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">';
+      html += '<title>' + nombre + '</title>';
+      html += '<link rel="stylesheet" href="base.css"><link rel="stylesheet" href="components.css">';
+      html += '</head><body>';
+      html += '<div id="app-screen" style="display:block;"><div class="app-layout">';
+      html += '<aside class="sidebar" id="sidebar"><div class="sidebar-brand">' + nombre + '</div>';
+      html += '<nav id="sidebar-nav"><div class="nav-item active" data-page="dashboard" onclick="navigate(\'dashboard\')"><span class="icon">📊</span> Dashboard</div></nav>';
+      html += '<div class="sidebar-footer"><div class="sidebar-user" onclick="document.getElementById(\'modal-logout\').classList.add(\'show\')">';
+      html += '<div class="avatar" id="user-avatar">U</div><div><div id="user-name"></div><div id="user-role" style="font-size:11px;color:var(--muted)"></div></div></div></div>';
+      html += '</aside><main class="main-content"><div class="page active" id="page-dashboard"><div class="page-header"><h3>Dashboard</h3><p>Bienvenido</p></div><div id="dash-content"></div></div></main></div></div>';
+      html += '<div class="modal-overlay" id="modal-logout"><div class="modal"><div class="modal-title">Cerrar sesi\u00f3n</div><p>\u00bfEst\u00e1s seguro?</p><div class="modal-actions"><button class="btn btn-sm" onclick="document.getElementById(\'modal-logout\').classList.remove(\'show\')">Cancelar</button><button class="btn btn-danger btn-sm" onclick="logout()">Salir</button></div></div></div>';
+      html += '<div id="toast-container"></div>';
+      html += '<script src="framework.js"></script><script src="theme.js"></script><script src="app.js"></script>';
+      html += '</body></html>';
+      fs.writeFileSync(path.join(publicDir, 'index.html'), html);
+    } else {
+      let html = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">';
+      html += '<title>' + nombre + '</title>';
+      html += '<link rel="stylesheet" href="base.css"><link rel="stylesheet" href="components.css">';
+      html += '</head><body>';
+      html += '<div id="login-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)">';
+      html += '<div class="login-card"><h1>' + nombre + '</h1><p>Ingresa tus credenciales</p>';
+      html += '<div id="login-error" style="color:var(--danger);margin-bottom:12px;display:none;font-size:14px;"></div>';
+      html += '<label>Email</label><input type="email" id="login-email" placeholder="admin@correo.com">';
+      html += '<label>Contrase\u00f1a</label><input type="password" id="login-pass" placeholder="••••••••">';
+      html += '<button class="btn btn-primary" id="login-btn" style="width:100%;margin-top:12px;" onclick="login()">Ingresar</button>';
+      html += '</div></div>';
+      html += '<div id="app-screen" style="display:none;"><div class="app-layout">';
+      html += '<aside class="sidebar" id="sidebar"><div class="sidebar-brand">' + nombre + '</div>';
+      html += '<nav id="sidebar-nav"><div class="nav-item active" data-page="dashboard" onclick="navigate(\'dashboard\')"><span class="icon">📊</span> Dashboard</div></nav>';
+      html += '<div class="sidebar-footer"><div class="sidebar-user" onclick="document.getElementById(\'modal-logout\').classList.add(\'show\')">';
+      html += '<div class="avatar" id="user-avatar">U</div><div><div id="user-name"></div><div id="user-role" style="font-size:11px;color:var(--muted)"></div></div></div></div>';
+      html += '</aside><main class="main-content"><div class="page active" id="page-dashboard"><div class="page-header"><h3>Dashboard</h3><p>Bienvenido</p></div><div id="dash-content"></div></div></main></div></div>';
+      html += '<div class="modal-overlay" id="modal-logout"><div class="modal"><div class="modal-title">Cerrar sesi\u00f3n</div><p>\u00bfEst\u00e1s seguro?</p><div class="modal-actions"><button class="btn btn-sm" onclick="document.getElementById(\'modal-logout\').classList.remove(\'show\')">Cancelar</button><button class="btn btn-danger btn-sm" onclick="logout()">Salir</button></div></div></div>';
+      html += '<div id="toast-container"></div>';
+      html += '<script src="framework.js"></script><script src="theme.js"></script><script src="app.js"></script>';
+      html += '</body></html>';
+      fs.writeFileSync(path.join(publicDir, 'index.html'), html);
+    }
 
-    // 8. public/app.js starter
-    fs.writeFileSync(path.join(publicDir, 'app.js'), `const BASE = location.pathname.match(/^\/(\\w+)\\//) ? '/' + RegExp.$1 : '';
+    // Shared app.js for internal modules: reads JWT from launcher cookie
+    const appJs = isInternal ? (
+`const BASE = location.pathname.match(/^\\/(\\w+)\\//) ? '/' + RegExp.$1 : '';
+const API = BASE + '/api';
+const MODULE_ID = '${id}';
+
+function getToken() {
+  const c = document.cookie.split('; ').find(r => r.startsWith('launcher_jwt='));
+  return c ? c.split('=')[1] : localStorage.getItem('launcher_jwt');
+}
+
+function logout() {
+  window.location.href = (BASE || '');
+}
+
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json', ...opts.headers };
+  const t = getToken();
+  if (t) headers['Authorization'] = 'Bearer ' + t;
+  const res = await fetch(API + path, { ...opts, headers });
+  if (res.status === 401) { logout(); throw new Error('Sesi\u00f3n expirada'); }
+  return await res.json();
+}
+
+async function init() {
+  const t = getToken();
+  if (!t) return logout();
+  try {
+    const data = await api('/auth/me');
+    document.getElementById('user-name').textContent = data.nombre || data.email;
+    document.getElementById('user-role').textContent = data.rol || '';
+  } catch { logout(); }
+}
+init();
+`
+    ) : (
+`const BASE = location.pathname.match(/^\\/(\\w+)\\//) ? '/' + RegExp.$1 : '';
 const API = BASE + '/api';
 let TOKEN = localStorage.getItem('${id}_token');
 let USER = null;
 
-function logout() { TOKEN = null; localStorage.removeItem('${id}_token'); document.getElementById('login-screen').style.display = 'flex'; document.getElementById('app-screen').style.display = 'none'; }
+function logout() {
+  TOKEN = null;
+  localStorage.removeItem('${id}_token');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app-screen').style.display = 'none';
+}
 
 async function api(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...opts.headers };
   if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
   const res = await fetch(API + path, { ...opts, headers });
-  if (res.status === 401 && !path.includes('/auth/login')) { logout(); throw new Error('Sesión expirada'); }
+  if (res.status === 401 && !path.includes('/auth/login')) { logout(); throw new Error('Sesi\u00f3n expirada'); }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Error del servidor');
   return data;
@@ -622,20 +759,17 @@ async function init() {
     catch { logout(); }
   }
 }
-
-function navigate(page) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); const el = document.getElementById('page-' + page); if (el) el.classList.add('active'); const nav = document.querySelector('[data-page="' + page + '"]'); if (nav) nav.classList.add('active'); }
-
 init();
-`);
+`
+    );
+    fs.writeFileSync(path.join(publicDir, 'app.js'), appJs + `\nfunction navigate(page) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); const el = document.getElementById('page-' + page); if (el) el.classList.add('active'); const nav = document.querySelector('[data-page="' + page + '"]'); if (nav) nav.classList.add('active'); }\n`);
 
-    // 9. npm install
     const npmResult = execSync('npm install', { cwd: modDir, timeout: 60000, encoding: 'utf8' });
 
-    // 10. Registrar en DB
     const prefix = '/' + id + '/';
-    db.prepare('INSERT OR REPLACE INTO modulos_plataforma (id, nombre, descripcion, url, icon, mcp_enabled, activo, proxy_prefix, tipo) VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?)').run(id, nombre, description || '', 'http://localhost:' + listenPort, '📦', prefix, 'externo');
+    db.prepare('INSERT OR REPLACE INTO modulos_plataforma (id, nombre, descripcion, url, icon, mcp_enabled, activo, proxy_prefix, tipo) VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?)').run(id, nombre, description || '', 'http://localhost:' + listenPort, '📦', prefix, isInternal ? 'interno' : 'externo');
 
-    res.json({ ok: true, mensaje: 'Módulo creado en ' + modDir, npm: npmResult.trim() });
+    res.json({ ok: true, mensaje: 'M\u00f3dulo ' + (isInternal ? 'interno' : 'externo') + ' creado en ' + modDir, npm: npmResult.trim() });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
