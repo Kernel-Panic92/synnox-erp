@@ -46,7 +46,8 @@ function checkRequirements() {
   const checks = [];
   try {
     const v = execSync('node -v').toString().trim();
-    checks.push({ name: 'Node.js', ok: true, value: v });
+    const num = parseFloat(v.replace('v', ''));
+    checks.push({ name: 'Node.js', ok: num >= 20, value: v + (num < 20 ? ' (se requiere >=20)' : '') });
   } catch { checks.push({ name: 'Node.js', ok: false, value: 'No instalado' }); }
 
   try {
@@ -96,22 +97,39 @@ async function runInstall(config) {
       await runCmd('apt-get', ['install', '-y', '-qq', 'postgresql', 'postgresql-client', 'nginx', 'git', 'openssl']);
       log('Dependencias del sistema instaladas', 'ok');
     } catch (e) {
-      // May fail if no apt or already installed
       log('Nota: ' + e.message, 'warn');
+    }
+
+    // Ensure Node.js >= 20
+    const nodeV = execSync('node -v').toString().trim();
+    const nodeNum = parseFloat(nodeV.replace('v', ''));
+    if (nodeNum < 20) {
+      installState.step = 'Actualizando Node.js a v20...';
+      log('Node.js ' + nodeV + ' — actualizando a v20...', 'step');
+      try {
+        await runCmd('curl', ['-fsSL', 'https://deb.nodesource.com/setup_20.x', '-o', '/tmp/nodesetup.sh']);
+        await runCmd('bash', ['/tmp/nodesetup.sh']);
+        await runCmd('apt-get', ['install', '-y', '-qq', 'nodejs']);
+        const newV = execSync('node -v').toString().trim();
+        log('Node.js actualizado: ' + newV, 'ok');
+      } catch (e) {
+        log('Error actualizando Node.js: ' + e.message + ' — instala Node 20 manualmente', 'warn');
+      }
     }
 
     // Step 2: Setup PostgreSQL
     const dbPass = config.dbPass || require('crypto').randomBytes(16).toString('hex');
+    const pgEnv = { ...process.env, PGPASSWORD: dbPass };
     installState.step = 'Configurando PostgreSQL...';
     log('Creando usuario y databases...', 'step');
     try {
-      execSync(`su - postgres -c "psql -tc \\"SELECT 1 FROM pg_roles WHERE rolname='${config.dbUser}'\\" | grep -q 1 || psql -c \\"CREATE USER ${config.dbUser} WITH PASSWORD '${dbPass}'\\"" 2>/dev/null || true`, { stdio: 'ignore' });
-      for (const db of ['horix_launcher', 'horix_logistics', 'horix_docflow']) {
-        execSync(`su - postgres -c "psql -tc \\"SELECT 1 FROM pg_database WHERE datname='${db}'\\" | grep -q 1 || createdb -O ${config.dbUser} ${db}" 2>/dev/null || true`, { stdio: 'ignore' });
+      execSync(`su - postgres -c "psql -tc \\"SELECT 1 FROM pg_roles WHERE rolname='${config.dbUser}'\\" | grep -q 1 || psql -c \\"CREATE USER ${config.dbUser} WITH PASSWORD '${dbPass}'\\"" 2>/dev/null || true`, { stdio: 'ignore', env: pgEnv });
+      for (const db of ['horix_launcher', 'horix_logistics', 'horix_docflow', 'horix_erp']) {
+        execSync(`su - postgres -c "psql -tc \\"SELECT 1 FROM pg_database WHERE datname='${db}'\\" | grep -q 1 || createdb -O ${config.dbUser} ${db}" 2>/dev/null || true`, { stdio: 'ignore', env: pgEnv });
       }
       log('PostgreSQL listo', 'ok');
     } catch (e) {
-      log('Error PostgreSQL: ' + e.message, 'error');
+      log('Error PostgreSQL: ' + e.message, 'warn');
     }
 
     // Step 3: Generate JWT_SECRET
@@ -138,19 +156,19 @@ async function runInstall(config) {
 
     // Step 5: Clone Horix if selected
     if (config.modules?.includes('horix')) {
-      installState.step = 'Clonando módulo Horix...';
+      installState.step = 'Instalando módulo Horix...';
       const horixDir = path.join(INSTALL_DIR, 'modules/horix');
-      if (fs.existsSync(path.join(horixDir, '.git'))) {
-        log('Horix ya clonado — actualizando...', 'step');
-        try { await runCmd('git', ['pull'], { cwd: horixDir }); } catch {}
+      if (fs.existsSync(horixDir)) {
+        log('Horix ya existe — actualizando...', 'step');
+        if (fs.existsSync(path.join(horixDir, '.git'))) {
+          try { await runCmd('git', ['pull'], { cwd: horixDir }); log('Horix actualizado', 'ok'); } catch (e) { log('Error actualizando Horix: ' + e.message, 'warn'); }
+        } else {
+          log('Directorio existe pero no es git — eliminando y clonando...', 'warn');
+          try { fs.rmSync(horixDir, { recursive: true, force: true }); await runCmd('git', ['clone', 'https://github.com/Kernel-Panic92/Horix.git', horixDir]); } catch {}
+        }
       } else {
         log('Clonando Horix desde GitHub...', 'step');
-        try {
-          await runCmd('git', ['clone', 'https://github.com/Kernel-Panic92/Horix.git', horixDir]);
-          log('Horix clonado', 'ok');
-        } catch (e) {
-          log('Error clonando Horix: ' + e.message, 'error');
-        }
+        try { await runCmd('git', ['clone', 'https://github.com/Kernel-Panic92/Horix.git', horixDir]); log('Horix clonado', 'ok'); } catch (e) { log('Error clonando Horix: ' + e.message, 'error'); }
       }
     }
 
@@ -174,12 +192,12 @@ async function runInstall(config) {
     // Step 6: Migrations
     installState.step = 'Ejecutando migraciones...';
     try {
-      await runCmd('psql', ['-U', config.dbUser, '-h', config.dbHost || 'localhost', '-d', 'horix_logistics', '-c', 'CREATE SCHEMA IF NOT EXISTS logistics;']);
+      await runCmd('psql', ['-U', config.dbUser, '-h', config.dbHost || 'localhost', '-d', 'horix_logistics', '-c', 'CREATE SCHEMA IF NOT EXISTS logistics;'], { env: pgEnv });
       const migDir = path.join(INSTALL_DIR, 'modules/logistics/backend/migrations');
       if (fs.existsSync(migDir)) {
         const files = fs.readdirSync(migDir).filter(f => f.endsWith('.sql')).sort();
         for (const f of files) {
-          try { await runCmd('psql', ['-U', config.dbUser, '-h', config.dbHost || 'localhost', '-d', 'horix_logistics', '-f', path.join(migDir, f)]); } catch {}
+          try { await runCmd('psql', ['-U', config.dbUser, '-h', config.dbHost || 'localhost', '-d', 'horix_logistics', '-f', path.join(migDir, f)], { env: pgEnv }); } catch {}
         }
         log('Logistics: migraciones ok', 'ok');
       }
