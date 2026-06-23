@@ -178,6 +178,10 @@ Editar los módulos desde Admin → Módulos, definir `URL` y `Proxy Prefix`. Lu
 | Launcher | 3002 | 9443 |
 | DocFlow | 3005 | 9442 |
 
+## Creating a new module
+
+See [`framework/README.md`](framework/README.md) for the complete guide: backend boilerplate, MCP implementation, registration, Nginx, and PM2 setup.
+
 ## Clean Install Guide (new server)
 
 When migrating to a new server, this is the **ideal architecture** with a single HTTPS port and path-based routing:
