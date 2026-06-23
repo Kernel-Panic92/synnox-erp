@@ -175,14 +175,15 @@ var loginAttempts = {};
 function loginRateLimit(req, res, next) {
   var ip = req.ip || req.connection.remoteAddress || 'unknown';
   var now = Date.now();
-  var max = parseInt(db.prepare("SELECT value FROM config WHERE key = 'rate_limit_max'").get()?.value || '5', 10);
+  var max = parseInt(db.prepare("SELECT value FROM config WHERE key = 'rate_limit_max'").get()?.value || '20', 10);
   var windowMs = parseInt(db.prepare("SELECT value FROM config WHERE key = 'rate_limit_window'").get()?.value || '60', 10) * 1000;
   if (!loginAttempts[ip]) loginAttempts[ip] = [];
   loginAttempts[ip] = loginAttempts[ip].filter(function(t) { return now - t < windowMs; });
   if (loginAttempts[ip].length >= max) {
     return res.status(429).json({ error: 'Demasiados intentos. Intenta de nuevo en ' + (windowMs/1000) + ' segundos.' });
   }
-  loginAttempts[ip].push(now);
+  req._loginRateLimitKey = ip;
+  req._loginRateLimitNow = now;
   next();
 }
 
@@ -196,6 +197,7 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
   try {
     const user = db.prepare('SELECT * FROM usuarios WHERE email = ? AND activo = 1').get(email.toLowerCase().trim());
     if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+      if (req._loginRateLimitKey) loginAttempts[req._loginRateLimitKey].push(req._loginRateLimitNow);
       logLoginAttempt(req.ip, email, false);
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }

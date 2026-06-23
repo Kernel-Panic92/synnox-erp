@@ -100,7 +100,7 @@ async function seedDemo() {
            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
            ON CONFLICT (numero_factura) DO NOTHING`,
           [
-            `${factura}-${Date.now()}`, c.id, c.nombre,
+             factura, c.id, c.nombre,
             clientes.find(cl => cl.nombre === c.nombre)?.direccion || 'Dirección demo',
             clientes.find(cl => cl.nombre === c.nombre)?.ciudad || 'Cali',
             clientes.find(cl => cl.nombre === c.nombre)?.latitud || 3.45,
