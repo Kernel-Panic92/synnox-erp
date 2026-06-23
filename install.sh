@@ -326,6 +326,7 @@ register_module() {
   local id="$1" nombre="$2" url="$3" prefix="$4" tipo="$5"
   curl -s -X POST "http://localhost:3002/api/admin/modulos" \
     -H "Content-Type: application/json" \
+    -H "Authorization: Bearer $TOKEN" \
     -d "{\"id\":\"$id\",\"nombre\":\"$nombre\",\"url\":\"$url\",\"proxy_prefix\":\"$prefix\",\"mcp_enabled\":true,\"tipo\":\"$tipo\"}" >/dev/null 2>&1 || true
 }
 
