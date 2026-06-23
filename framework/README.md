@@ -177,7 +177,19 @@ location /mi-modulo/ {
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-## 6. PM2
+## 6. initHorixFramework options
+
+| Opción | Default | Descripción |
+|--------|---------|-------------|
+| `apiPrefix` | `/api` | Prefijo para llamadas API |
+| `basePath` | `''` | Base path cuando el módulo está detrás de proxy prefix |
+| `tokenKey` | `'hf_token'` | Clave en localStorage para el token |
+| `themeKey` | `'hf_theme'` | Clave en localStorage para el tema |
+| `routes` | `{}` | Mapa de páginas `{ dashboard: fn, items: fn }` |
+
+Si el módulo se sirve desde un proxy prefix (ej: `:9443/mi-modulo/`), pasar `basePath: '/mi-modulo'` para que las API calls apunten a `/mi-modulo/api/...`.
+
+## 7. PM2
 
 ```bash
 pm2 start /opt/horix-platform/mi-modulo/backend/server.js --name mi-modulo

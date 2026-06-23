@@ -15,9 +15,7 @@ let HF = {
 
 // ── Init ──
 function initHorixFramework(opts = {}) {
-  const guessPrefix = location.pathname.match(/^\/(\w+)\//);
-  const autoBase = guessPrefix && !location.pathname.startsWith('/api/') ? '/' + guessPrefix[1] : '';
-  HF.API = (opts.basePath || autoBase) + (opts.apiPrefix || '/api');
+  HF.API = (opts.basePath || '') + (opts.apiPrefix || '/api');
   HF.TOKEN_KEY = opts.tokenKey || 'hf_token';
   HF.THEME_KEY = opts.themeKey || 'hf_theme';
   HF.TOKEN = localStorage.getItem(HF.TOKEN_KEY);
