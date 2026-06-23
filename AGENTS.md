@@ -429,3 +429,41 @@ Ventajas:
 
 Pasos detallados en `README.md` sección *Clean Install Guide*.
 
+# Última sesión — 2026-06-23
+
+## Resumen
+
+### HTTPS logistics
+- Se registró **logistics** como módulo en `modulos_plataforma` con proxy_prefix `/logistics/`
+- Nginx config actualizado: Horix (443) y Launcher (9443) ahora sirven `/logistics/` → `:3004`
+- Se desactivó `horix-erp` de sites-enabled (conflicto con Horix en puerto 443/server_name)
+- Documentado setup ideal para próximo servidor: **puerto único 443 + path prefix routing**
+
+### MCP logistics
+- Reescrito `backend/mcp/index.js` con protocolo JSON-RPC 2.0 completo
+- 9 tools: `dashboard`, `listar_vehiculos`, `listar_sedes`, `listar_pedidos`, `buscar_clientes`, `crear_pedido`, `generar_rutas`, `listar_rutas`, `obtener_ruta`
+- Agregado `GET /health` para health check del launcher (antes solo `/api/health`)
+- El gateway de horix-erp las expone como `logistics_*`
+
+### Proxy prefix fix (BASE path)
+- `app.js`: auto-detección de `BASE = '/logistics'` desde `location.pathname`, API calls van a `/logistics/api/...` cuando corresponde
+- `framework.js`: soporte `basePath` explícito en `initHorixFramework()` para nuevos módulos
+- Fix: function `logout()` faltante (causaba `ReferenceError` en consola)
+
+### Framework
+- `framework/README.md`: guía completa para crear nuevos módulos (backend, MCP, registro, nginx, PM2, `basePath`)
+- `README.md`: sección "Creating a new module" y "Clean Install Guide" documentados
+
+### Archivos modificados (horix-erp)
+- `launcher/modules.json`: agregado logistics
+- `launcher/register-logistics.js`: script one-time para registrar logistics en DB
+- `framework/framework.js`: soporte `basePath` en initHorixFramework
+- `framework/README.md`: documentación para crear nuevos módulos
+- `README.md`: clean install guide + módulos actuales
+
+### Archivos modificados (horix-logistics)
+- `backend/mcp/index.js`: MCP completo con 9 tools
+- `backend/server.js`: agregado GET /health
+- `public/app.js`: BASE dinámico + función logout
+- `AGENTS.md`: contexto del proyecto
+
