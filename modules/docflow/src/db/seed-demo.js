@@ -54,7 +54,7 @@ async function seedDemo() {
     }
     console.log(`  ${proveedores.length} proveedores`);
 
-    const provDb = (await pool.query('SELECT id, nombre FROM proveedores')).rows;
+    const provDb = (await pool.query('SELECT id, nombre, nit FROM proveedores')).rows;
     let totalFacturas = 0;
 
     for (const p of provDb) {

@@ -345,11 +345,16 @@ server { listen 80; server_name ${domain}; return 301 https://\$host\$request_ur
     for (let i = 0; i < 15; i++) {
       await new Promise(r => setTimeout(r, 2000));
       try {
-        const loginResp = execSync(`curl -s -X POST http://localhost:3002/api/auth/login -H "Content-Type: application/json" -d '{"email":"${config.adminEmail || 'admin@horix.com'}","password":"${config.adminPass || 'admin123'}"}' 2>/dev/null`).toString().trim();
-        token = (loginResp.match(/"jwt":"([^"]*)"/) || [])[1] || '';
+        const loginResp = execSync(`curl -s -w "\\n%{http_code}" -X POST http://localhost:3002/api/auth/login -H "Content-Type: application/json" -d '{"email":"${config.adminEmail || 'admin@horix.com'}","password":"${config.adminPass || 'admin123'}"}' 2>&1 || true`).toString().trim();
+        const lines = loginResp.split('\n');
+        const httpCode = lines.pop().trim();
+        const body = lines.join('\n').trim();
+        token = (body.match(/"jwt":"([^"]*)"/) || [])[1] || '';
         if (token) break;
         if (i === 0) log('Esperando al launcher...', 'step');
+        if (i >= 4 && i % 5 === 0) log(`Login: HTTP ${httpCode} — reintentando...`, 'warn');
       } catch {}
+      await new Promise(r => setTimeout(r, 1000));
     }
     if (token) {
       const mods = [

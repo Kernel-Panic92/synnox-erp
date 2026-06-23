@@ -91,7 +91,7 @@ async function seedDemo() {
       const numPedidos = 1 + Math.floor(Math.random() * 3);
       for (let i = 0; i < numPedidos; i++) {
         const estado = estadosPedido[Math.floor(Math.random() * estadosPedido.length)];
-        const factura = `FAC-${String(Date.now()).slice(-4)}-${String(c.id).padStart(3,'0')}-${i}`;
+        const factura = `FAC-${Math.random().toString(36).substring(2,8)}`;
         await pool.query(
           `INSERT INTO logistics.pedidos_logistica
            (numero_factura, cliente_id, cliente_nombre, direccion, ciudad, latitud, longitud,
