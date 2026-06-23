@@ -44,9 +44,12 @@ db.prepare("UPDATE usuarios SET rol = 'operador' WHERE rol = 'comprador'").run()
 
 const adminEmail = process.env.ADMIN_EMAIL || 'admin@horix.com';
 const adminPass = process.env.ADMIN_PASS || 'admin123';
-const userCount = db.prepare('SELECT COUNT(*) as c FROM usuarios').get().c;
-if (userCount === 0) {
-  db.prepare('INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)').run('Admin', adminEmail, bcrypt.hashSync(adminPass, 10), 'admin');
+const adminHash = bcrypt.hashSync(adminPass, 10);
+const existing = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(adminEmail);
+if (!existing) {
+  db.prepare('INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)').run('Admin', adminEmail, adminHash, 'admin');
+} else {
+  db.prepare('UPDATE usuarios SET password_hash = ?, rol = ? WHERE id = ?').run(adminHash, 'admin', existing.id);
 }
 
 // ── User-module permissions (monorepo auth) ──
