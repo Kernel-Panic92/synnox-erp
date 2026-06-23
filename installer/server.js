@@ -127,6 +127,8 @@ async function runInstall(config) {
       for (const db of ['horix_launcher', 'horix_logistics', 'horix_docflow', 'horix_erp']) {
         execSync(`su - postgres -c "psql -tc \\"SELECT 1 FROM pg_database WHERE datname='${db}'\\" | grep -q 1 || createdb -O ${config.dbUser} ${db}" 2>/dev/null || true`, { stdio: 'ignore', env: pgEnv });
       }
+      // Ensure password matches .env (idempotent)
+      execSync(`su - postgres -c "psql -c \\"ALTER USER ${config.dbUser} WITH PASSWORD '${dbPass}';\\"" 2>/dev/null || true`, { stdio: 'ignore' });
       log('PostgreSQL listo', 'ok');
     } catch (e) {
       log('Error PostgreSQL: ' + e.message, 'warn');
@@ -143,7 +145,7 @@ async function runInstall(config) {
       'modules/docflow': { PORT: 3100, MODULE_ID: 'docflow', JWT_SECRET: jwtSecret, DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_HOST: config.dbHost || 'localhost', DB_PORT: 5432, DB_NAME: 'horix_docflow', NODE_ENV: 'production' },
     };
     if (config.modules?.includes('horix')) {
-      envs['modules/horix'] = { PORT: 3000, MODULE_ID: 'horix', JWT_SECRET: jwtSecret, DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_HOST: config.dbHost || 'localhost', DB_PORT: 5432, DB_NAME: 'horix_erp', NODE_ENV: 'production' };
+      envs['modules/horix'] = { PORT: 3000, MODULE_ID: 'horix', JWT_SECRET: jwtSecret, DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_HOST: config.dbHost || 'localhost', DB_PORT: 5432, DB_NAME: 'horix_erp', NODE_ENV: 'production', ADMIN_EMAIL: config.adminEmail || 'admin@horix.com', ADMIN_PASS: config.adminPass || 'admin123' };
     }
     for (const [dir, vars] of Object.entries(envs)) {
       const p = path.join(INSTALL_DIR, dir, '.env');
@@ -187,6 +189,12 @@ async function runInstall(config) {
           log(`npm: ${dir} — ${e.message}`, 'warn');
         }
       }
+    }
+
+    // Post-install: rebuild native addons (e.g. better-sqlite3 after Node upgrade)
+    installState.step = 'Reconstruyendo addons nativos...';
+    for (const dir of npmDirs) {
+      try { await runCmd('npm', ['rebuild'], { cwd: path.join(INSTALL_DIR, dir) }); } catch {}
     }
 
     // Step 6: Migrations
