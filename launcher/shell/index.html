@@ -544,8 +544,12 @@
     <label>Contraseña</label>
     <input type="password" id="form-password" placeholder="••••••••">
     <label>Rol</label>
-    <select id="form-rol"><option value="operador">Operador</option><option value="admin">Admin</option></select>
-    <div style="display:flex;gap:10px;margin-top:8px;">
+    <select id="form-rol" onchange="toggleModulosSection()"><option value="operador">Operador</option><option value="admin">Admin</option></select>
+    <div id="form-modulos-section" style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+      <label style="font-weight:600;">Módulos permitidos</label>
+      <div id="form-modulos-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:12px;">
       <button class="btn" id="form-submit-btn" onclick="saveUser()">Guardar</button>
       <button class="btn btn-danger btn-sm" style="align-self:center;" onclick="closeForm()">Cancelar</button>
     </div>

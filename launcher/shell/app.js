@@ -205,6 +205,33 @@ async function loadUsers() {
   }
 }
 
+let cachedModulos = [];
+
+function toggleModulosSection() {
+  const isAdmin = document.getElementById('form-rol').value === 'admin';
+  document.getElementById('form-modulos-section').style.display = isAdmin ? 'none' : 'block';
+}
+
+async function renderModulosCheckboxes(selectedModulos = []) {
+  const container = document.getElementById('form-modulos-list');
+  if (!cachedModulos.length) {
+    try {
+      const res = await fetch('/api/admin/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+      cachedModulos = await res.json();
+    } catch { container.innerHTML = '<span style="color:var(--danger);font-size:13px;">Error al cargar módulos</span>'; return; }
+  }
+  container.innerHTML = cachedModulos.map(m => `
+    <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:400;">
+      <input type="checkbox" value="${m.id}" ${selectedModulos.includes(m.id) ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
+      ${m.icon} ${m.nombre}
+    </label>
+  `).join('');
+}
+
+function getSelectedModulos() {
+  return [...document.querySelectorAll('#form-modulos-list input[type="checkbox"]:checked')].map(cb => cb.value);
+}
+
 function showUserForm(data) {
   document.getElementById('form-user-id').value = data?.id || '';
   document.getElementById('form-nombre').value = data?.nombre || '';
@@ -215,6 +242,14 @@ function showUserForm(data) {
   document.getElementById('form-submit-btn').textContent = data?.id ? 'Guardar cambios' : 'Crear usuario';
   document.getElementById('form-error').classList.remove('show');
   document.getElementById('admin-form-overlay').style.display = 'block';
+  // Load modules for user
+  toggleModulosSection();
+  if (data?.id) {
+    fetch('/api/admin/usuarios/' + data.id + '/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } })
+      .then(r => r.json()).then(mods => renderModulosCheckboxes(mods)).catch(() => renderModulosCheckboxes([]));
+  } else {
+    renderModulosCheckboxes([]);
+  }
 }
 
 function closeForm() {
@@ -250,9 +285,18 @@ async function saveUser() {
       body: JSON.stringify(body)
     });
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || 'Error al guardar');
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Error al guardar');
+
+    // Save module assignments (if operador)
+    const userId = id || result.id;
+    if (rol === 'operador' && userId) {
+      const selectedModulos = getSelectedModulos();
+      await fetch('/api/admin/usuarios/' + userId + '/modulos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
+        body: JSON.stringify({ modulos: selectedModulos })
+      });
     }
 
     closeForm();
