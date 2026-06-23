@@ -1,6 +1,6 @@
 /* ── Horix Framework - JavaScript core ── */
 /* Repo: https://github.com/Kernel-Panic92/horix-erp/tree/main/framework */
-/* Usage: initHorixFramework({ apiPrefix: '/api', themeKey: 'myapp_theme', tokenKey: 'myapp_token', launcherUrl: 'http://localhost:3002' }) */
+/* Usage: initHorixFramework({ apiPrefix: '/api', themeKey: 'myapp_theme', tokenKey: 'myapp_token', basePath: '/logistics' }) */
 
 // ── Config ──
 let HF = {
@@ -15,7 +15,9 @@ let HF = {
 
 // ── Init ──
 function initHorixFramework(opts = {}) {
-  HF.API = opts.apiPrefix || '/api';
+  const guessPrefix = location.pathname.match(/^\/(\w+)\//);
+  const autoBase = guessPrefix && !location.pathname.startsWith('/api/') ? '/' + guessPrefix[1] : '';
+  HF.API = (opts.basePath || autoBase) + (opts.apiPrefix || '/api');
   HF.TOKEN_KEY = opts.tokenKey || 'hf_token';
   HF.THEME_KEY = opts.themeKey || 'hf_theme';
   HF.TOKEN = localStorage.getItem(HF.TOKEN_KEY);
