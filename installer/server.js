@@ -124,6 +124,9 @@ async function runInstall(config) {
       'modules/logistics': { PORT: 3004, MODULE_ID: 'logistics', JWT_SECRET: jwtSecret, DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_HOST: config.dbHost || 'localhost', DB_PORT: 5432, DB_NAME: 'horix_logistics', NODE_ENV: 'production', OSRM_URL: 'https://router.project-osrm.org' },
       'modules/docflow': { PORT: 3100, MODULE_ID: 'docflow', JWT_SECRET: jwtSecret, DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_HOST: config.dbHost || 'localhost', DB_PORT: 5432, DB_NAME: 'horix_docflow', NODE_ENV: 'production' },
     };
+    if (config.modules?.includes('horix')) {
+      envs['modules/horix'] = { PORT: 3000, MODULE_ID: 'horix', JWT_SECRET: jwtSecret, DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_HOST: config.dbHost || 'localhost', DB_PORT: 5432, DB_NAME: 'horix_erp', NODE_ENV: 'production' };
+    }
     for (const [dir, vars] of Object.entries(envs)) {
       const p = path.join(INSTALL_DIR, dir, '.env');
       const mkdir = path.dirname(p);
@@ -133,9 +136,29 @@ async function runInstall(config) {
       log(`.env creado: ${dir}`, 'ok');
     }
 
-    // Step 5: npm install
+    // Step 5: Clone Horix if selected
+    if (config.modules?.includes('horix')) {
+      installState.step = 'Clonando módulo Horix...';
+      const horixDir = path.join(INSTALL_DIR, 'modules/horix');
+      if (fs.existsSync(path.join(horixDir, '.git'))) {
+        log('Horix ya clonado — actualizando...', 'step');
+        try { await runCmd('git', ['pull'], { cwd: horixDir }); } catch {}
+      } else {
+        log('Clonando Horix desde GitHub...', 'step');
+        try {
+          await runCmd('git', ['clone', 'https://github.com/Kernel-Panic92/Horix.git', horixDir]);
+          log('Horix clonado', 'ok');
+        } catch (e) {
+          log('Error clonando Horix: ' + e.message, 'error');
+        }
+      }
+    }
+
+    // Step 6: npm install
     installState.step = 'Instalando dependencias npm...';
-    for (const dir of ['launcher', 'modules/logistics', 'modules/docflow']) {
+    const npmDirs = ['launcher', 'modules/logistics', 'modules/docflow'];
+    if (config.modules?.includes('horix')) npmDirs.push('modules/horix');
+    for (const dir of npmDirs) {
       const pkg = path.join(INSTALL_DIR, dir, 'package.json');
       if (fs.existsSync(pkg)) {
         log(`npm install: ${dir}`, 'step');
@@ -216,6 +239,10 @@ async function runInstall(config) {
         await runCmd('pm2', ['start', 'src/server.js', '--name', 'docflow', '--', '--port', '3100'], { cwd: path.join(INSTALL_DIR, 'modules/docflow') });
         log('docflow → :3100', 'ok');
       }
+      if (config.modules?.includes('horix')) {
+        await runCmd('pm2', ['start', 'server.js', '--name', 'horix', '--', '--port', '3000'], { cwd: path.join(INSTALL_DIR, 'modules/horix') });
+        log('horix → :3000', 'ok');
+      }
 
       execSync('pm2 save 2>/dev/null || true', { stdio: 'ignore' });
       execSync('pm2 startup 2>/dev/null || true', { stdio: 'ignore' });
@@ -246,6 +273,10 @@ server {
         nginxConf += `
     location /docflow/ { proxy_pass http://127.0.0.1:3100/; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; }`;
       }
+      if (config.modules?.includes('horix')) {
+        nginxConf += `
+    location /horix/ { proxy_pass http://127.0.0.1:3000/; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; }`;
+      }
       nginxConf += `
 }
 server { listen 80; server_name ${domain}; return 301 https://\$host\$request_uri; }
@@ -265,6 +296,7 @@ server { listen 80; server_name ${domain}; return 301 https://\$host\$request_ur
         const mods = [
           { id: 'logistics', nombre: 'Logística', url: 'http://localhost:3004', prefix: '/logistics/', tipo: 'interno' },
           { id: 'docflow', nombre: 'DocFlow', url: 'http://localhost:3100', prefix: '/docflow/', tipo: 'interno' },
+          { id: 'horix', nombre: 'Horix ERP', url: 'http://localhost:3000', prefix: '/horix/', tipo: 'externo' },
         ];
         for (const m of mods) {
           if (config.modules?.includes(m.id)) {
