@@ -72,6 +72,23 @@ document.addEventListener('click', e => {
   opt.querySelector('input').checked = isChecked;
 });
 
+function toggleClean() {
+  const cb = document.getElementById('clean-install');
+  document.getElementById('clean-confirm').style.display = cb.checked ? 'block' : 'none';
+  document.getElementById('clean-confirm-input').value = '';
+}
+
+function checkCleanConfirm() {
+  const val = document.getElementById('clean-confirm-input').value;
+  const btn = document.querySelector('#step-4 .btn-primary');
+  const clean = document.getElementById('clean-install').checked;
+  if (clean) {
+    btn.disabled = val !== 'CONFIRMAR';
+  } else {
+    btn.disabled = false;
+  }
+}
+
 // ─── Step 4: Review ────────────────────────────────────────
 function buildSummary() {
   document.getElementById('summary').innerHTML = `
@@ -103,6 +120,7 @@ nextStep = function() {
   }
   if (currentStep === 3) {
     config.modules = getSelectedMods();
+  config.clean = document.getElementById('clean-install').checked;
   }
   if (currentStep === 4) {
     buildSummary();

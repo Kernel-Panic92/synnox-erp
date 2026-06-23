@@ -100,6 +100,31 @@ async function runInstall(config) {
       log('Nota: ' + e.message, 'warn');
     }
 
+    // Clean install: wipe existing data
+    if (config.clean) {
+      installState.step = '🧹 Limpiando instalación anterior...';
+      log('Eliminando datos existentes...', 'step');
+      // Drop PostgreSQL databases
+      for (const db of ['horix_launcher', 'horix_logistics', 'horix_docflow', 'horix_erp']) {
+        try { execSync(`su - postgres -c "psql -c \\"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${db}' AND pid <> pg_backend_pid();\\"" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
+        try { execSync(`su - postgres -c "dropdb ${db}" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
+        try { execSync(`su - postgres -c "createdb -O ${config.dbUser} ${db}" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
+      }
+      // Delete SQLite databases
+      for (const f of ['launcher/launcher.db', 'modules/horix/horas_extra.db']) {
+        try { fs.unlinkSync(path.join(INSTALL_DIR, f)); log(`Eliminado: ${f}`, 'ok'); } catch {}
+      }
+      // Delete .env files
+      for (const dir of ['launcher', 'modules/logistics', 'modules/docflow', 'modules/horix']) {
+        try { fs.unlinkSync(path.join(INSTALL_DIR, dir, '.env')); } catch {}
+      }
+      // Stop PM2 processes
+      for (const name of ['horix-erp', 'horix-launcher', 'logistics', 'docflow', 'horix']) {
+        try { execSync(`pm2 delete ${name} 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
+      }
+      log('Instalación anterior eliminada', 'ok');
+    }
+
     // Ensure Node.js >= 20
     const nodeV = execSync('node -v').toString().trim();
     const nodeNum = parseFloat(nodeV.replace('v', ''));

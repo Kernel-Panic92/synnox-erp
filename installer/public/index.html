@@ -230,6 +230,17 @@ body {
       <h2>📋 Revisar configuración</h2>
       <p class="desc">Confirma que todo esté correcto antes de comenzar la instalación.</p>
       <div class="summary-grid" id="summary"></div>
+      <div style="margin-top:20px;border-top:1px solid var(--danger);padding-top:16px;background:rgba(247,97,79,.06);border-radius:10px;padding:16px;">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;color:var(--danger);">
+          <input type="checkbox" id="clean-install" onchange="toggleClean()" style="width:18px;height:18px;accent-color:var(--danger);">
+          🗑️ Instalación limpia — elimina datos existentes
+        </label>
+        <p style="font-size:12px;color:var(--muted);margin:8px 0 0 28px;">Esto borrará todas las bases de datos, archivos .env y registros PM2 actuales. No se puede deshacer.</p>
+        <div id="clean-confirm" style="display:none;margin-top:12px;margin-left:28px;">
+          <label style="font-size:13px;color:var(--danger);">Escribe <strong>CONFIRMAR</strong> para confirmar:</label>
+          <input type="text" id="clean-confirm-input" placeholder="CONFIRMAR" oninput="checkCleanConfirm()" style="border-color:var(--danger);margin-top:4px;max-width:300px;">
+        </div>
+      </div>
     </div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="prevStep()">Atrás</button>
