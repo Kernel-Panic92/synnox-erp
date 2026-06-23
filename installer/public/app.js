@@ -1,4 +1,5 @@
 let currentStep = 0;
+let installDbPass = '';
 const totalSteps = 7;
 
 const config = {
@@ -157,12 +158,14 @@ function startInstall() {
     }
   };
 
-  // Poll status for step title
+  // Poll status for step title and dbPass
+  installDbPass = '';
   const statusInt = setInterval(async () => {
     try {
       const r = await fetch('/api/install/status');
       const s = await r.json();
       document.getElementById('install-status').textContent = s.step || 'Instalando...';
+      if (s.dbPass) installDbPass = s.dbPass;
       if (!s.running) { clearInterval(statusInt); }
     } catch {}
   }, 1000);
@@ -193,6 +196,7 @@ function showComplete() {
     ${config.modules.includes('horix') ? `<div class="comp-item"><div class="comp-label">🏭 Horix ERP</div><div class="comp-val"><a href="${isLocal ? 'http://localhost:3000' : 'https://'+config.domain+'/horix/'}">${isLocal ? 'http://localhost:3000' : 'https://'+config.domain+'/horix/'}</a></div></div>` : ''}
     <div class="comp-item"><div class="comp-label">👤 Admin email</div><div class="comp-val">${config.adminEmail}</div></div>
     <div class="comp-item"><div class="comp-label">🔑 Contraseña</div><div class="comp-val">${config.adminPass}</div></div>
+    ${installDbPass ? `<div class="comp-item"><div class="comp-label">🗄️ DB Password</div><div class="comp-val" style="font-family:monospace;font-size:12px;">${installDbPass}</div></div>` : ''}
     <div class="comp-item"><div class="comp-label">🔧 PM2</div><div class="comp-val">pm2 status (3 procesos)</div></div>
   `;
 }

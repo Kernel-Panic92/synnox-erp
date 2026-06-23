@@ -144,6 +144,7 @@ async function runInstall(config) {
 
     // Step 2: Setup PostgreSQL
     const dbPass = config.dbPass || require('crypto').randomBytes(16).toString('hex');
+    installState.dbPass = dbPass;
     const pgEnv = { ...process.env, PGPASSWORD: dbPass };
     installState.step = 'Configurando PostgreSQL...';
     log('Creando usuario y databases...', 'step');
@@ -433,7 +434,7 @@ const server = http.createServer((req, res) => {
   // API: install status
   if (pathname === '/api/install/status' && method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ running: installState.running, step: installState.step, logs: installState.logs.slice(-50) }));
+    res.end(JSON.stringify({ running: installState.running, step: installState.step, logs: installState.logs.slice(-50), dbPass: installState.dbPass || null }));
     return;
   }
 
