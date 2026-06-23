@@ -17,11 +17,20 @@ err() { echo -e " ${ROJO}✗${RESET} $1"; }
 warn(){ echo -e " ${AMARILLO}⚠${RESET} $1"; }
 
 echo -e "${JUAN}"
-echo "╔══════════════════════════════════════════╗"
-echo "║     Horix Platform — Monorepo Setup     ║"
-echo "║         Branch: $BRANCH          ║"
-echo "╚══════════════════════════════════════════╝"
+echo "╔══════════════════════════════════════════════════════╗"
+echo "║         Horix ERP — Instalación automática         ║"
+echo "║                                                    ║"
+echo "║  ¿Quieres una instalación guiada desde el          ║"
+echo "║  navegador? Abre otra terminal y corre:            ║"
+echo "║                                                    ║"
+echo "║    node installer/server.js                        ║"
+echo "║                                                    ║"
+echo "║  Luego abre http://<IP>:3001 en tu navegador.     ║"
+echo "║                                                    ║"
+echo "║  O continúa con la instalación CLI (sin logo):     ║"
+echo "╚══════════════════════════════════════════════════════╝"
 echo -e "${RESET}"
+echo ""
 
 # ─── Verificar root ────────────────────────────────────────
 if [[ $EUID -ne 0 ]]; then warn "Ejecuta con sudo: sudo bash install.sh"; exit 1; fi
