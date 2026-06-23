@@ -23,7 +23,7 @@ Port 9443 ─── Launcher (Express :3002)
 | Module | Internal | HTTPS | PM2 name | Repo |
 |--------|----------|-------|----------|------|
 | **Horix** | 3000 | 443 | `horix` | `https://github.com/Kernel-Panic92/Horix` |
-| **Launcher** | 3002 | 9443 | `horix-launcher` | `https://github.com/Kernel-Panic92/horix-erp` |
+| **Launcher** | 3002 | 9443 | `horix-erp` | `https://github.com/Kernel-Panic92/horix-erp` |
 | **Logistics** | 3004 | 9443 | `logistics` | `https://github.com/Kernel-Panic92/horix-logistics` |
 | **WordPress MCP** | 3006 | 9443 | `wordpress-mcp` | `wordpress-mcp/` |
 
@@ -42,7 +42,7 @@ sudo bash install.sh test
 ```bash
 sudo git -C /opt/horix-platform pull
 sudo npm install --prefix /opt/horix-platform/launcher
-sudo pm2 restart horix-launcher
+sudo pm2 restart horix-erp
 ```
 
 ## MCP (Model Context Protocol)
@@ -63,7 +63,7 @@ Deshabilitado por defecto. Para habilitarlo:
 ```bash
 sudo sqlite3 /opt/horix-platform/launcher/launcher.db \
   "UPDATE config SET value='true' WHERE key='mcp_oauth_enabled'"
-sudo pm2 restart horix-launcher
+sudo pm2 restart horix-erp
 ```
 
 ### Windows TLS workaround (FortiGate)
@@ -243,7 +243,7 @@ Port 443 ─── Nginx (single SSL termination)
    ```
 
 5. **Generate Nginx config from Admin UI**
-   - Start launcher: `pm2 start server.js --name horix-launcher`
+   - Start launcher: `pm2 start server.js --name horix-erp`
    - Open `http://localhost:3002` → Admin → Nginx → **Generate** → **Apply**
    - This auto-generates location blocks for all registered modules
 
@@ -261,7 +261,7 @@ Port 443 ─── Nginx (single SSL termination)
    ```bash
    pm2 start /opt/horix-platform/horix/server.js --name horix
    pm2 start /opt/horix-platform/logistics/backend/server.js --name logistics
-   pm2 start /opt/horix-platform/launcher/server.js --name horix-launcher
+   pm2 start /opt/horix-platform/launcher/server.js --name horix-erp
    pm2 save
    pm2 startup
    ```

@@ -159,7 +159,7 @@ cd ../C:\Git\Horix && node server.js
 - Tab "Actualizar" en el admin del Launcher (pestañas: Usuarios, Módulos, MCP, SMTP, Apariencia, Seguridad, Nginx, **Actualizar**, Servicios MCP)
 - Rutas backend: `GET /api/admin/updater/status`, `POST /api/admin/updater/check`, `POST /api/admin/updater/update`, `POST /api/admin/updater/restart`, `GET /api/admin/updater/logs`
 - Ejecuta: `git fetch origin && git reset --hard origin/main` sobre `C:\Git\Horix-Platform`, `npm install --production` en `launcher/`
-- Reinicia automáticamente `wordpress-mcp` y luego `horix-launcher` (o `horix-erp` como fallback) vía PM2
+- Reinicia automáticamente `wordpress-mcp` y luego `horix-erp` (o `horix-erp` como fallback) vía PM2
 - El frontend muestra mensaje de reinicio y recarga la página a los 5 segundos
 - Log en `launcher/logs/updater.log`
 - Frontend: `shell/app.js` (funciones `loadUpdaterStatus`, `checkUpdate`, `doUpdate`, `loadUpdaterLogs`) y `shell/index.html` (`#tab-actualizar`)
@@ -393,7 +393,7 @@ SSL:  Let's Encrypt (wildcard para todos los server blocks)
 | Nombre | Puerto | Ruta |
 |--------|--------|------|
 | `horix` | 3000 | `/home/coordinadorsistemas/horix` |
-| `horix-launcher` | 3002 | `/opt/horix-platform/launcher` |
+| `horix-erp` | 3002 | `/opt/horix-platform/launcher` |
 | `logistics` | 3004 | `/opt/horix-platform/logistics` |
 | `wordpress-mcp` | 3006 | `/opt/horix-platform/wordpress-mcp` |
 

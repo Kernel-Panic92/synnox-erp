@@ -21,7 +21,7 @@ Modular ERP with independent micro-frontends, MCP orchestration, and git sub-mod
        └──────────────┘   └──────────┘       └──────────────┘
              Git:              Git:                 Git:
        Kernel-Panic92/    Kernel-Panic92/     Kernel-Panic92/
-       horix-launcher     horix-api           docflow-api
+       horix-erp     horix-api           docflow-api
 ```
 
 **Launcher** — Shell SPA, auth, MCP Gateway (routes to modules by prefix).
