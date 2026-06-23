@@ -439,6 +439,47 @@ async function deleteModulo(id) {
   } catch (e) { alert(e.message); }
 }
 
+// ── Scaffold module ──
+function showScaffoldModal() {
+  document.getElementById('scaffold-id').value = '';
+  document.getElementById('scaffold-nombre').value = '';
+  document.getElementById('scaffold-port').value = '';
+  document.getElementById('scaffold-desc').value = '';
+  document.getElementById('scaffold-result').textContent = '';
+  document.getElementById('modal-scaffold').classList.add('show');
+}
+
+async function ejecutarScaffold() {
+  const id = document.getElementById('scaffold-id').value.trim();
+  const nombre = document.getElementById('scaffold-nombre').value.trim();
+  const port = document.getElementById('scaffold-port').value.trim();
+  const desc = document.getElementById('scaffold-desc').value.trim();
+  const resultEl = document.getElementById('scaffold-result');
+  const btn = document.getElementById('scaffold-btn');
+  if (!id || !nombre || !port) { resultEl.textContent = '❌ ID, nombre y puerto requeridos'; return; }
+  btn.disabled = true; btn.textContent = 'Creando...';
+  try {
+    const res = await fetch('/api/admin/modulos/scaffold', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
+      body: JSON.stringify({ id, nombre, port: parseInt(port), description: desc })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error');
+    resultEl.textContent = '✅ ' + data.mensaje;
+    if (data.npm) resultEl.textContent += '\n📦 npm: ' + data.npm;
+    resultEl.textContent += '\n▶️ Inicia con: pm2 start /opt/horix-platform/' + id + '/backend/server.js --name ' + id;
+    cerrarModal('modal-scaffold');
+    setTimeout(() => loadModulos(), 500);
+  } catch (e) {
+    resultEl.textContent = '❌ ' + e.message;
+  } finally {
+    btn.disabled = false; btn.textContent = '⚡ Crear módulo';
+  }
+}
+
+function cerrarModal(id) { document.getElementById(id).classList.remove('show'); }
+
 // ── MCP URL display ──
 async function loadMcpUrl() {
   const el = document.getElementById('mcp-url-display');

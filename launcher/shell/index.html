@@ -305,7 +305,8 @@
       <div style="font-size:var(--fs);font-weight:600;">Módulos de la plataforma</div>
       <div style="display:flex;gap:8px;">
         <button class="btn btn-sm" onclick="loadHealth()">🔄 Health</button>
-        <button class="btn btn-sm" onclick="showModuloForm()">+ Nuevo</button>
+          <button class="btn btn-sm" onclick="showModuloForm()">+ Nuevo</button>
+          <button class="btn btn-sm" onclick="showScaffoldModal()" style="background:var(--accent);color:#fff;">🧩 Scaffold</button>
       </div>
     </div>
     <div style="overflow-x:auto;">
@@ -583,6 +584,28 @@
     <div style="display:flex;gap:10px;margin-top:12px;">
       <button class="btn" id="modulo-form-submit-btn" onclick="saveModulo()">Guardar</button>
       <button class="btn btn-danger btn-sm" style="align-self:center;" onclick="closeModuloForm()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-scaffold">
+  <div class="modal" style="max-width:500px;">
+    <div class="modal-title">🧩 Scaffold — Nuevo módulo desde framework</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+      Crea un módulo completo con backend Express, MCP y frontend SPA.
+    </p>
+    <label>ID del módulo *</label>
+    <input type="text" id="scaffold-id" placeholder="ej: crm" style="text-transform:lowercase;">
+    <label>Nombre *</label>
+    <input type="text" id="scaffold-nombre" placeholder="ej: CRM Clientes">
+    <label>Puerto *</label>
+    <input type="number" id="scaffold-port" placeholder="ej: 3008" min="1024" max="65535">
+    <label>Descripción</label>
+    <input type="text" id="scaffold-desc" placeholder="Breve descripción del módulo">
+    <div id="scaffold-result" style="margin-top:12px;font-size:13px;white-space:pre-wrap;"></div>
+    <div style="display:flex;gap:10px;margin-top:12px;">
+      <button class="btn" id="scaffold-btn" onclick="ejecutarScaffold()">⚡ Crear módulo</button>
+      <button class="btn btn-sm" onclick="cerrarModal('modal-scaffold')" style="background:var(--surface2);color:var(--text);">Cancelar</button>
     </div>
   </div>
 </div>

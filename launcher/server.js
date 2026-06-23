@@ -450,6 +450,197 @@ app.delete('/api/admin/modulos/:id', verificarToken, soloAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
+// ── Scaffold module from framework template ──
+app.post('/api/admin/modulos/scaffold', verificarToken, soloAdmin, async (req, res) => {
+  const { id, nombre, port, description } = req.body;
+  if (!id || !nombre || !port) return res.status(400).json({ error: 'Se requiere: id, nombre, port' });
+  if (!/^\w+$/.test(id)) return res.status(400).json({ error: 'ID solo letras, números y guión bajo' });
+  const listenPort = parseInt(port);
+  if (isNaN(listenPort) || listenPort < 1024 || listenPort > 65535) return res.status(400).json({ error: 'Puerto inválido (1024-65535)' });
+
+  const installDir = path.join(__dirname, '..');
+  const modDir = path.join(installDir, id);
+  const publicDir = path.join(modDir, 'public');
+  const backendDir = path.join(modDir, 'backend');
+  const mcpDir = path.join(backendDir, 'mcp');
+  const frameworkDir = path.join(installDir, 'framework');
+
+  try {
+    // 1. Crear directorios
+    fs.mkdirSync(publicDir, { recursive: true });
+    fs.mkdirSync(backendDir, { recursive: true });
+    fs.mkdirSync(mcpDir, { recursive: true });
+
+    // 2. Copiar framework
+    for (const file of ['base.css', 'components.css', 'framework.js', 'theme.js']) {
+      const src = path.join(frameworkDir, file);
+      if (fs.existsSync(src)) fs.copyFileSync(src, path.join(publicDir, file));
+    }
+
+    // 3. package.json
+    const pkg = {
+      name: id, version: '1.0.0', type: 'module',
+      description: description || '',
+      main: 'backend/server.js',
+      dependencies: { express: '^4.21.0', cors: '^2.8.5', jsonwebtoken: '^9.0.0', dotenv: '^16.0.0' }
+    };
+    fs.writeFileSync(path.join(modDir, 'package.json'), JSON.stringify(pkg, null, 2));
+
+    // 4. .env
+    fs.writeFileSync(path.join(modDir, '.env'), `PORT=${listenPort}\nJWT_SECRET=change-me-${id}\n`);
+
+    // 5. backend/server.js
+    fs.writeFileSync(path.join(backendDir, 'server.js'), `import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
+
+dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const app = express();
+const PORT = process.env.PORT || ${listenPort};
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+
+app.use(cors());
+app.use(express.json());
+
+function verificarToken(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Token requerido' });
+  try { req.usuario = jwt.verify(auth.split(' ')[1], JWT_SECRET); next(); }
+  catch { return res.status(401).json({ error: 'Token inválido' }); }
+}
+
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', module: '${id}' }));
+
+import { createMiddleware } from './mcp/index.js';
+app.use('/mcp', createMiddleware());
+
+app.use(express.static(path.join(__dirname, '..', 'public')));
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/mcp')) return res.status(404).json({ error: 'Not found' });
+  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+});
+
+app.listen(PORT, () => console.log('${nombre} escuchando en puerto', PORT));
+export default app;
+`);
+
+    // 6. backend/mcp/index.js
+    fs.writeFileSync(path.join(mcpDir, 'index.js'), `export function createMiddleware() {
+  return async (req, res) => {
+    if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+    const { method, params, id } = req.body;
+
+    let response;
+    switch (method) {
+      case 'initialize':
+        response = { jsonrpc: '2.0', id, result: { protocolVersion: '0.1.0', capabilities: { tools: {} }, serverInfo: { name: '${id}', version: '1.0.0' } } };
+        break;
+      case 'ping':
+        response = { jsonrpc: '2.0', id, result: {} };
+        break;
+      case 'tools/list':
+        response = { jsonrpc: '2.0', id, result: { tools: [] } };
+        break;
+      case 'tools/call':
+        response = { jsonrpc: '2.0', id, error: { code: -32601, message: 'Tool not implemented' } };
+        break;
+      default:
+        response = { jsonrpc: '2.0', id, error: { code: -32601, message: 'Method not found' } };
+    }
+    res.json(response);
+  };
+}
+`);
+
+    // 7. public/index.html
+    const initShell = path.join(installDir, 'launcher', 'shell', 'index.html');
+    let html = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">';
+    html += '<title>' + nombre + '</title>';
+    html += '<link rel="stylesheet" href="base.css"><link rel="stylesheet" href="components.css">';
+    html += '</head><body>';
+    html += '<div id="login-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)">';
+    html += '<div class="login-card"><h1>' + nombre + '</h1><p>Ingresa tus credenciales</p>';
+    html += '<div id="login-error" style="color:var(--danger);margin-bottom:12px;display:none;font-size:14px;"></div>';
+    html += '<label>Email</label><input type="email" id="login-email" placeholder="admin@correo.com">';
+    html += '<label>Contraseña</label><input type="password" id="login-pass" placeholder="••••••••">';
+    html += '<button class="btn btn-primary" id="login-btn" style="width:100%;margin-top:12px;" onclick="login()">Ingresar</button>';
+    html += '</div></div>';
+    html += '<div id="app-screen" style="display:none;">';
+    html += '<div class="app-layout">';
+    html += '<aside class="sidebar" id="sidebar">';
+    html += '<div class="sidebar-brand">' + nombre + '</div>';
+    html += '<nav id="sidebar-nav"><div class="nav-item active" data-page="dashboard" onclick="navigate(\'dashboard\')"><span class="icon">📊</span> Dashboard</div></nav>';
+    html += '<div class="sidebar-footer"><div class="sidebar-user" onclick="document.getElementById(\'modal-logout\').classList.add(\'show\')">';
+    html += '<div class="avatar" id="user-avatar">U</div><div><div id="user-name"></div><div id="user-role" style="font-size:11px;color:var(--muted)"></div></div></div></div>';
+    html += '</aside><main class="main-content"><div class="page active" id="page-dashboard"><div class="page-header"><h3>Dashboard</h3><p>Bienvenido</p></div><div id="dash-content"></div></div></main></div></div>';
+    html += '<div class="modal-overlay" id="modal-logout"><div class="modal"><div class="modal-title">Cerrar sesión</div><p>¿Estás seguro?</p><div class="modal-actions"><button class="btn btn-sm" onclick="document.getElementById(\'modal-logout\').classList.remove(\'show\')">Cancelar</button><button class="btn btn-danger btn-sm" onclick="logout()">Salir</button></div></div></div>';
+    html += '<div id="toast-container"></div>';
+    html += '<script src="framework.js"></script><script src="theme.js"></script><script src="app.js"></script>';
+    html += '</body></html>';
+    fs.writeFileSync(path.join(publicDir, 'index.html'), html);
+
+    // 8. public/app.js starter
+    fs.writeFileSync(path.join(publicDir, 'app.js'), `const BASE = location.pathname.match(/^\/(\\w+)\\//) ? '/' + RegExp.$1 : '';
+const API = BASE + '/api';
+let TOKEN = localStorage.getItem('${id}_token');
+let USER = null;
+
+function logout() { TOKEN = null; localStorage.removeItem('${id}_token'); document.getElementById('login-screen').style.display = 'flex'; document.getElementById('app-screen').style.display = 'none'; }
+
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json', ...opts.headers };
+  if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
+  const res = await fetch(API + path, { ...opts, headers });
+  if (res.status === 401 && !path.includes('/auth/login')) { logout(); throw new Error('Sesión expirada'); }
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || 'Error del servidor');
+  return data;
+}
+
+async function login() {
+  const email = document.getElementById('login-email').value.trim();
+  const password = document.getElementById('login-pass').value;
+  try {
+    const data = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
+    TOKEN = data.token; USER = data.usuario;
+    localStorage.setItem('${id}_token', TOKEN);
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'block';
+    document.getElementById('user-name').textContent = USER.nombre;
+    document.getElementById('user-role').textContent = USER.email;
+  } catch (e) { document.getElementById('login-error').textContent = e.message; document.getElementById('login-error').style.display = 'block'; }
+}
+
+async function init() {
+  if (TOKEN) {
+    try { const data = await api('/auth/verificar'); USER = data.usuario; document.getElementById('login-screen').style.display = 'none'; document.getElementById('app-screen').style.display = 'block'; }
+    catch { logout(); }
+  }
+}
+
+function navigate(page) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); const el = document.getElementById('page-' + page); if (el) el.classList.add('active'); const nav = document.querySelector('[data-page="' + page + '"]'); if (nav) nav.classList.add('active'); }
+
+init();
+`);
+
+    // 9. npm install
+    const npmResult = execSync('npm install', { cwd: modDir, timeout: 60000, encoding: 'utf8' });
+
+    // 10. Registrar en DB
+    const prefix = '/' + id + '/';
+    db.prepare('INSERT OR REPLACE INTO modulos_plataforma (id, nombre, descripcion, url, icon, mcp_enabled, activo, proxy_prefix, tipo) VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?)').run(id, nombre, description || '', 'http://localhost:' + listenPort, '📦', prefix, 'externo');
+
+    res.json({ ok: true, mensaje: 'Módulo creado en ' + modDir, npm: npmResult.trim() });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── API: Health check ──
 app.get('/api/admin/health', verificarToken, soloAdmin, async (req, res) => {
   const modulos = getModulos(false);
