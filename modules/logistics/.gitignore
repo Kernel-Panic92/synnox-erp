@@ -1,0 +1,7 @@
+node_modules/
+uploads/
+logs/
+.env
+*.log
+PlanillaSiesa.pdf
+HistoricoWD.xlsx

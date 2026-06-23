@@ -1,0 +1,1 @@
+ALTER TABLE logistics.rutas ADD COLUMN IF NOT EXISTS geometria JSONB DEFAULT NULL;
