@@ -42,10 +42,11 @@ db.exec(`
 // Migrate: rename comprador → operador
 db.prepare("UPDATE usuarios SET rol = 'operador' WHERE rol = 'comprador'").run();
 
-const adminEmail = 'admin@horix.com';
+const adminEmail = process.env.ADMIN_EMAIL || 'admin@horix.com';
+const adminPass = process.env.ADMIN_PASS || 'admin123';
 const userCount = db.prepare('SELECT COUNT(*) as c FROM usuarios').get().c;
 if (userCount === 0) {
-  db.prepare('INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)').run('Admin', adminEmail, bcrypt.hashSync('admin123', 10), 'admin');
+  db.prepare('INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)').run('Admin', adminEmail, bcrypt.hashSync(adminPass, 10), 'admin');
 }
 
 // ── User-module permissions (monorepo auth) ──

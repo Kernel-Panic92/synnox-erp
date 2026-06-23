@@ -140,7 +140,7 @@ async function runInstall(config) {
     // Step 4: Create .env files
     installState.step = 'Generando .env...';
     const envs = {
-      'launcher': { PORT: 3002, MODULE_ID: 'launcher', JWT_SECRET: jwtSecret, DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_HOST: config.dbHost || 'localhost', DB_PORT: 5432, DB_NAME: 'horix_launcher', NODE_ENV: 'production' },
+      'launcher': { PORT: 3002, MODULE_ID: 'launcher', JWT_SECRET: jwtSecret, DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_HOST: config.dbHost || 'localhost', DB_PORT: 5432, DB_NAME: 'horix_launcher', NODE_ENV: 'production', ADMIN_EMAIL: config.adminEmail || 'admin@horix.com', ADMIN_PASS: config.adminPass || 'admin123' },
       'modules/logistics': { PORT: 3004, MODULE_ID: 'logistics', JWT_SECRET: jwtSecret, DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_HOST: config.dbHost || 'localhost', DB_PORT: 5432, DB_NAME: 'horix_logistics', NODE_ENV: 'production', OSRM_URL: 'https://router.project-osrm.org' },
       'modules/docflow': { PORT: 3100, MODULE_ID: 'docflow', JWT_SECRET: jwtSecret, DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_HOST: config.dbHost || 'localhost', DB_PORT: 5432, DB_NAME: 'horix_docflow', NODE_ENV: 'production' },
     };
@@ -315,23 +315,29 @@ server { listen 80; server_name ${domain}; return 301 https://\$host\$request_ur
 
     // Step 10: Register modules via API
     installState.step = 'Registrando módulos en el launcher...';
-    await new Promise(r => setTimeout(r, 2000));
-    try {
-      const token = execSync(`curl -s -X POST http://localhost:3002/api/auth/login -H "Content-Type: application/json" -d '{"email":"${config.adminEmail || 'admin@horix.com'}","password":"${config.adminPass || 'admin123'}"}' 2>/dev/null | grep -o '"jwt":"[^"]*"' | cut -d'"' -f4`).toString().trim();
-      if (token) {
-        const mods = [
-          { id: 'logistics', nombre: 'Logística', url: 'http://localhost:3004', prefix: '/logistics/', tipo: 'interno' },
-          { id: 'docflow', nombre: 'DocFlow', url: 'http://localhost:3100', prefix: '/docflow/', tipo: 'interno' },
-          { id: 'horix', nombre: 'Horix ERP', url: 'http://localhost:3000', prefix: '/horix/', tipo: 'externo' },
-        ];
-        for (const m of mods) {
-          if (config.modules?.includes(m.id)) {
-            execSync(`curl -s -X POST http://localhost:3002/api/admin/modulos -H "Content-Type: application/json" -H "Authorization: Bearer ${token}" -d '${JSON.stringify({ ...m, mcp_enabled: true })}' 2>/dev/null || true`, { stdio: 'ignore' });
-          }
+    let token = '';
+    for (let i = 0; i < 15; i++) {
+      await new Promise(r => setTimeout(r, 2000));
+      try {
+        token = execSync(`curl -s -X POST http://localhost:3002/api/auth/login -H "Content-Type: application/json" -d '{"email":"${config.adminEmail || 'admin@horix.com'}","password":"${config.adminPass || 'admin123'}"}' 2>/dev/null | grep -o '"jwt":"[^"]*"' | cut -d'"' -f4`).toString().trim();
+        if (token) break;
+      } catch {}
+    }
+    if (token) {
+      const mods = [
+        { id: 'logistics', nombre: 'Logística', url: 'http://localhost:3004', prefix: '/logistics/', tipo: 'interno' },
+        { id: 'docflow', nombre: 'DocFlow', url: 'http://localhost:3100', prefix: '/docflow/', tipo: 'interno' },
+        { id: 'horix', nombre: 'Horix ERP', url: 'http://localhost:3000', prefix: '/horix/', tipo: 'externo' },
+      ];
+      for (const m of mods) {
+        if (config.modules?.includes(m.id)) {
+          execSync(`curl -s -X POST http://localhost:3002/api/admin/modulos -H "Content-Type: application/json" -H "Authorization: Bearer ${token}" -d '${JSON.stringify({ ...m, mcp_enabled: true })}' 2>/dev/null || true`, { stdio: 'ignore' });
         }
-        log('Módulos registrados en el launcher', 'ok');
       }
-    } catch (e) { log('Registro automático de módulos falló — puedes registrarlos manualmente desde Admin', 'warn'); }
+      log('Módulos registrados en el launcher', 'ok');
+    } else {
+      log('No se pudo obtener token — registra los módulos manualmente desde Admin → Módulos', 'warn');
+    }
 
     installState.step = 'Instalación completada';
     log('=== Instalación completada exitosamente ===', 'complete');
@@ -403,6 +409,18 @@ const server = http.createServer((req, res) => {
   if (pathname === '/api/install/status' && method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ running: installState.running, step: installState.step, logs: installState.logs.slice(-50) }));
+    return;
+  }
+
+  // API: server IP
+  if (pathname === '/api/ip' && method === 'GET') {
+    const ip = require('os').networkInterfaces();
+    let addr = 'localhost';
+    Object.values(ip).forEach(ifaces => {
+      ifaces?.forEach(i => { if (!i.internal && i.family === 'IPv4') addr = i.address; });
+    });
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ ip: addr }));
     return;
   }
 

@@ -187,3 +187,8 @@ function openLogin() {
 // ─── Init ──────────────────────────────────────────────────
 updateSteps();
 loadRequirements();
+
+// Auto-detect server IP for domain field
+fetch('/api/ip').then(r => r.json()).then(d => {
+  if (d.ip && d.ip !== 'localhost') document.getElementById('domain').value = d.ip;
+}).catch(() => {});
