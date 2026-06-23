@@ -467,3 +467,52 @@ Pasos detallados en `README.md` sección *Clean Install Guide*.
 - `public/app.js`: BASE dinámico + función logout
 - `AGENTS.md`: contexto del proyecto
 
+# Última sesión — 2026-06-23 (parte 2 — refactor/monorepo-auth)
+
+**Branch**: `refactor/monorepo-auth`
+
+### Resumen
+Se creó la branch `refactor/monorepo-auth` para reestructurar horix-erp como monorepo con auth centralizada. Todos los cambios están en esa branch (NO mergeados a main).
+
+### Cambios estructurales
+| Cambio | Archivos |
+|--------|----------|
+| `framework/auth.js` | Middleware compartido: `verifyToken`, `requireModule(id)` |
+| `modules/` directorio | Alberga logistics y docflow como módulos internos |
+| Tabla `user_modulos` | SQLite en launcher.db — asigna módulos a usuarios |
+| Login con `modulos[]` | JWT ahora incluye los módulos que el usuario puede acceder |
+| `GET/PUT /api/admin/usuarios/:id/modulos` | Endpoints para gestionar permisos |
+| UI admin: checkboxes de módulos | Al crear/editar usuario, se asignan módulos |
+| `GET /api/auth/me` | Ahora devuelve `modulos[]` |
+| `GET /api/modulos` | Filtra por permisos del usuario (admins ven todo) |
+
+### Scaffold mejorado
+- `POST /api/admin/modulos/scaffold` acepta `tipo: interno | externo`
+- **Interno**: auth compartida, JWT_SECRET del launcher, sin login propio, lee cookie `launcher_jwt`
+- **Externo**: login propio, JWT independiente (como antes)
+- Se crea en `modules/{id}/` en vez de `/opt/horix-platform/{id}/`
+
+### Logistics migrado (`modules/logistics/`)
+- `backend/server.js`: usa `verifyToken` y `requireModule('logistics')` de `../../framework/auth.js`
+- `backend/routes/auth.js`: solo cambiar-password, forgot, reset (sin login/verificar)
+- `public/app.js`: lee JWT de cookie `launcher_jwt`, sin login propio
+- `public/index.html`: sin login-screen ni forgot modal
+- `.env.example`: actualizado con `MODULE_ID=logistics` y `JWT_SECRET` compartido
+
+### DocFlow migrado (`modules/docflow/`)
+- `src/middleware/auth.js`: reescrito para usar JWT_SECRET compartido (sin tabla `sesiones`)
+- `src/server.js`: sin ruta `/api/auth` (login eliminado)
+- `src/routes/auth.js`: solo me, cambiar-password, cambio-forzado, forgot, reset
+- `public/js/utils/api.js`: lee token de `launcher_jwt` cookie, redirige a `/` en 401
+- `public/js/modules/auth.js`: sin doLogin(), init via `fetchUserAndShowApp()`
+- `public/index.html`: sin login-screen ni forgot modal
+- `public/app.js`: init llama a `fetchUserAndShowApp()`
+
+### Pendiente en servidor
+- [ ] Mover `/opt/horix-platform/logistics` → `/opt/horix-platform/modules/logistics`
+- [ ] Mover `/opt/horix-platform/docflow` → `/opt/horix-platform/modules/docflow`
+- [ ] Actualizar PM2 entries
+- [ ] Compartir JWT_SECRET entre launcher y módulos
+- [ ] Registrar módulos como tipo "interno" en DB
+- [ ] Asignar módulos a usuarios en Admin UI
+
