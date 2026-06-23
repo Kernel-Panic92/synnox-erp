@@ -1358,10 +1358,9 @@ app.post('/api/admin/updater/restart', verificarToken, soloAdmin, async (req, re
     try {
       pm2Exec('restart horix-erp');
     } catch {
-        logUpdater('PM2 no disponible — reinicio manual requerido');
-        res.json({ ok: false, message: 'PM2 no disponible. Debes reiniciar el servidor manualmente.' });
-        return;
-      }
+      logUpdater('PM2 no disponible — reinicio manual requerido');
+      res.json({ ok: false, message: 'PM2 no disponible. Debes reiniciar el servidor manualmente.' });
+      return;
     }
     logUpdater('Servicio reiniciado');
     res.json({ ok: true, message: 'Servicio reiniciado' });
