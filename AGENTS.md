@@ -365,3 +365,67 @@ Cada módulo maneja sus propias plantillas de correo localmente (hardcodeadas en
 ### Bugs pendientes
 - Al generar rutas, no se usa el vehículo configurado en el pedido — la función VRP asigna vehículos al azar (round-robin), ignorando `vehiculo_id` del pedido
 
+# Estado actual del servidor (producción)
+
+```
+FQDN: horixvitamar.fortiddns.com
+SSL:  Let's Encrypt (wildcard para todos los server blocks)
+```
+
+## Puertos HTTPS
+
+| Puerto | Quién sirve | Ubicación configuración |
+|--------|-------------|------------------------|
+| **443** | Nginx → Horix (`:3000`) + logistics (`/logistics/` → `:3004`) | `/etc/nginx/sites-available/horix` |
+| **9443** | Nginx → Launcher (`:3002`) + logistics (`/logistics/` → `:3004`) + wordpress (`/wordpress/` → `:3006`) | `/etc/nginx/sites-available/launcher` |
+
+## Archivos Nginx
+
+| Archivo | Activo | Puerto |
+|---------|--------|--------|
+| `/etc/nginx/sites-available/horix` | ✅ `sites-enabled/horix` | 443 |
+| `/etc/nginx/sites-available/launcher` | ✅ `sites-enabled/launcher` | 9443 |
+| `/etc/nginx/sites-available/horix-erp` | ❌ desactivado (conflicto con horix en 443) | — |
+| `/etc/nginx/sites-available/docflow-certbot` | ✅ `sites-enabled/docflow-certbot` | — |
+
+## PM2 procesos
+
+| Nombre | Puerto | Ruta |
+|--------|--------|------|
+| `horix` | 3000 | `/home/coordinadorsistemas/horix` |
+| `horix-launcher` | 3002 | `/opt/horix-platform/launcher` |
+| `logistics` | 3004 | `/opt/horix-platform/logistics` |
+| `wordpress-mcp` | 3006 | `/opt/horix-platform/wordpress-mcp` |
+
+## Accesos por navegador
+
+| URL | Destino |
+|-----|---------|
+| `https://horixvitamar.fortiddns.com` | Horix ERP (producción) |
+| `https://horixvitamar.fortiddns.com/logistics/` | Logistics (vía horix nginx, puerto 443) |
+| `https://horixvitamar.fortiddns.com:9443` | Launcher (Admin, Dashboard) |
+| `https://horixvitamar.fortiddns.com:9443/logistics/` | Logistics (vía launcher nginx, puerto 9443) |
+| `http://localhost:3002` | Launcher directo (sin SSL) |
+| `http://localhost:3004` | Logistics directo (sin SSL) |
+
+# Clean Install — Setup ideal (próximo servidor)
+
+En una instalación nueva desde cero, usar un **solo puerto 443** con path prefix routing:
+
+```
+443 → Nginx (single SSL)
+  /horix/      → :3000
+  /launcher/   → :3002
+  /logistics/  → :3004
+  /wordpress/  → :3006
+  /crm/        → :3008  (futuro)
+```
+
+Ventajas:
+- Un solo certificado SSL
+- Sin puerto no-estándar (9443)
+- Cada módulo sirve sus propios estáticos vía Express
+- El launcher genera los location blocks automáticamente desde Admin → Nginx
+
+Pasos detallados en `README.md` sección *Clean Install Guide*.
+

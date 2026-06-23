@@ -2,27 +2,30 @@
 
 Modular ERP platform with independent micro-frontends. Each module has its own auth, frontend, and MCP server. The **launcher** orchestrates them all — CRUD, health checks, nginx config generation, and MCP gateway.
 
-## Architecture
+## Current Architecture (production)
 
 ```
-                    ┌──────────────┐
-                    │  FortiGate /  │
-                    │  Load Balancer│
-                    └──────┬───────┘
-                           │
-              ┌────────────┼────────────┬─────────────┐
-              ▼            ▼            ▼             ▼
-        ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐
-        │  Horix   │ │ Launcher │ │ DocFlow  │ │WordPress │
-        │  :443    │ │ :9443    │ │ :9442    │ │  :3006   │
-        └──────────┘ └──────────┘ └──────────┘ └──────────┘
+FQDN: horixvitamar.fortiddns.com
+SSL:  Let's Encrypt
+
+Port 443 ─── Horix (Express :3000)
+  ├── location /          → static files (root + try_files)
+  ├── location /api/      → proxy_pass :3000
+  ├── location /mcp       → proxy_pass :3000
+  └── location /logistics → proxy_pass :3004 (via horix nginx)
+
+Port 9443 ─── Launcher (Express :3002)
+  ├── location /          → proxy_pass :3002
+  ├── location /logistics → proxy_pass :3004
+  └── location /wordpress → proxy_pass :3006
 ```
 
-| Module | Tech | MCP Tools |
-|--------|------|-----------|
-| **Launcher** | Express, SQLite | Gateway, health, config, nginx gen |
-| **Horix** | Express, SQLite | 16 tools (registros, empleados, reportes) |
-| **WordPress** | Express | 12 tools (posts, pages, medios, categorias, busqueda) |
+| Module | Internal | HTTPS | PM2 name | Repo |
+|--------|----------|-------|----------|------|
+| **Horix** | 3000 | 443 | `horix` | `https://github.com/Kernel-Panic92/Horix` |
+| **Launcher** | 3002 | 9443 | `horix-launcher` | `https://github.com/Kernel-Panic92/horix-erp` |
+| **Logistics** | 3004 | 9443 | `logistics` | `https://github.com/Kernel-Panic92/horix-logistics` |
+| **WordPress MCP** | 3006 | 9443 | `wordpress-mcp` | `wordpress-mcp/` |
 
 ## Quick Start
 
@@ -174,3 +177,94 @@ Editar los módulos desde Admin → Módulos, definir `URL` y `Proxy Prefix`. Lu
 | Horix API | 3000 | 443 |
 | Launcher | 3002 | 9443 |
 | DocFlow | 3005 | 9442 |
+
+## Clean Install Guide (new server)
+
+When migrating to a new server, this is the **ideal architecture** with a single HTTPS port and path-based routing:
+
+### Ideal Architecture
+
+```
+Port 443 ─── Nginx (single SSL termination)
+  ├── location /horix/      → proxy_pass :3000
+  ├── location /launcher/   → proxy_pass :3002
+  ├── location /logistics/  → proxy_pass :3004
+  ├── location /wordpress/  → proxy_pass :3006
+  └── location /crm/        → proxy_pass :3008   (future)
+```
+
+**No port 9443 needed.** All modules live under `/prefix/`, each one handles its own static files via Express (`express.static`) or Nginx `alias`.
+
+### Migration Steps
+
+1. **Install dependencies**
+   ```bash
+   apt update && apt install -y nginx postgresql nodejs npm pm2 certbot
+   ```
+
+2. **Clone all repos**
+   ```bash
+   mkdir -p /opt/horix-platform
+   cd /opt/horix-platform
+   git clone https://github.com/Kernel-Panic92/horix-erp.git launcher
+   git clone https://github.com/Kernel-Panic92/horix-logistics.git logistics
+   git clone https://github.com/Kernel-Panic92/Horix.git horix
+   ```
+
+3. **Install dependencies per module**
+   ```bash
+   for dir in launcher logistics horix; do
+     cd /opt/horix-platform/$dir && npm install
+   done
+   ```
+
+4. **Register in launcher DB**
+   ```bash
+   cd /opt/horix-platform/launcher
+   node -e "
+   const Database = require('better-sqlite3');
+   const db = new Database('launcher.db');
+   const modules = [
+     {id:'horix', nombre:'Horix', url:'http://localhost:3000', prefix:'/horix/'},
+     {id:'logistics', nombre:'Logistics', url:'http://localhost:3004', prefix:'/logistics/'},
+     {id:'wordpress', nombre:'WordPress', url:'http://localhost:3006', prefix:'/wordpress/'},
+   ];
+   for (const m of modules) {
+     db.prepare(\`INSERT OR REPLACE INTO modulos_plataforma
+       (id, nombre, descripcion, url, icon, mcp_enabled, activo, orden, proxy_prefix, tipo)
+       VALUES (?, ?, '', ?, '📦', 1, 1, 0, ?, 'externo')\`).run(m.id, m.nombre, m.url, m.prefix);
+   }
+   console.log('Modules registered');
+   "
+   ```
+
+5. **Generate Nginx config from Admin UI**
+   - Start launcher: `pm2 start server.js --name horix-launcher`
+   - Open `http://localhost:3002` → Admin → Nginx → **Generate** → **Apply**
+   - This auto-generates location blocks for all registered modules
+
+6. **Obtain SSL certificate**
+   ```bash
+   certbot certonly --nginx -d tudominio.com
+   ```
+
+7. **Adjust generated Nginx**
+   - The generated config from step 5 will have the correct location blocks
+   - Set `ssl_certificate` / `ssl_certificate_key` to Let's Encrypt paths
+   - Ensure `location /` serves the launcher
+
+8. **Start all modules with PM2**
+   ```bash
+   pm2 start /opt/horix-platform/horix/server.js --name horix
+   pm2 start /opt/horix-platform/logistics/backend/server.js --name logistics
+   pm2 start /opt/horix-platform/launcher/server.js --name horix-launcher
+   pm2 save
+   pm2 startup
+   ```
+
+### Notes
+
+- The launcher **must** run for modules to be discoverable via MCP Gateway
+- Each module's `/mcp` endpoint does NOT need auth (trusted internal network)
+- The gateway prefixes tools with module ID: `logistics_dashboard`, `horix_empleados`, etc.
+- The DB (`launcher.db`) with `modulos_plataforma` table is the **source of truth** for which modules exist
