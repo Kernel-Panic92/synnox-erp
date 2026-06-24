@@ -163,50 +163,34 @@ async function runInstall(config) {
     // Step 3: Generate JWT_SECRET
     const jwtSecret = require('crypto').randomBytes(32).toString('hex');
 
-    // Step 4: Create .env files
+    // Step 4: Create single .env at root
     installState.step = 'Generando .env...';
-    const envs = {
-      'launcher': { PORT: 3002, MODULE_ID: 'launcher', JWT_SECRET: jwtSecret, DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_HOST: config.dbHost || 'localhost', DB_PORT: 5432, DB_NAME: 'horix_launcher', NODE_ENV: 'production', ADMIN_EMAIL: config.adminEmail || 'admin@horix.com', ADMIN_PASS: config.adminPass || 'admin123' },
-      'modules/logistics': { PORT: 3004, MODULE_ID: 'logistics', JWT_SECRET: jwtSecret, DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_HOST: config.dbHost || 'localhost', DB_PORT: 5432, DB_NAME: 'horix_logistics', NODE_ENV: 'production', OSRM_URL: 'https://router.project-osrm.org' },
-      'modules/docflow': { PORT: 3100, MODULE_ID: 'docflow', JWT_SECRET: jwtSecret, DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_HOST: config.dbHost || 'localhost', DB_PORT: 5432, DB_NAME: 'horix_docflow', NODE_ENV: 'production' },
+    const envVars = {
+      PORT: 3002,
+      JWT_SECRET: jwtSecret,
+      PGHOST: config.dbHost || 'localhost',
+      PGPORT: 5432,
+      PGUSER: config.dbUser,
+      PGPASSWORD: dbPass,
+      PGDATABASE: 'horix_erp',
+      NODE_ENV: 'production',
+      ADMIN_EMAIL: config.adminEmail || 'admin@horix.com',
+      ADMIN_PASS: config.adminPass || 'admin123',
+      OSRM_URL: 'https://router.project-osrm.org',
     };
-    if (config.modules?.includes('horix')) {
-      envs['modules/horix'] = { PORT: 3000, MODULE_ID: 'horix', JWT_SECRET: jwtSecret, HE_SECRET: require('crypto').randomBytes(32).toString('hex'), DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_HOST: config.dbHost || 'localhost', DB_PORT: 5432, DB_NAME: 'horix_erp', NODE_ENV: 'production', ADMIN_EMAIL: config.adminEmail || 'admin@horix.com', ADMIN_PASS: config.adminPass || 'admin123' };
-    }
-    for (const [dir, vars] of Object.entries(envs)) {
-      const p = path.join(INSTALL_DIR, dir, '.env');
-      const mkdir = path.dirname(p);
-      if (!fs.existsSync(mkdir)) fs.mkdirSync(mkdir, { recursive: true });
-      const content = Object.entries(vars).map(([k, v]) => `${k}=${v}`).join('\n') + '\n';
-      fs.writeFileSync(p, content);
-      log(`.env creado: ${dir}`, 'ok');
-    }
+    const envContent = Object.entries(envVars).map(([k, v]) => `${k}=${v}`).join('\n') + '\n';
+    fs.writeFileSync(path.join(INSTALL_DIR, '.env'), envContent);
+    log('.env creado en raíz', 'ok');
 
-    // Step 5: Horix is already in the monorepo (modules/horix)
-    // No need to clone it separately
-
-    // Step 6: npm install
+    // Step 5: npm install (single root)
     installState.step = 'Instalando dependencias npm...';
-    const npmDirs = ['launcher', 'modules/logistics', 'modules/docflow'];
-    if (config.modules?.includes('horix')) npmDirs.push('modules/horix');
-    for (const dir of npmDirs) {
-      const pkg = path.join(INSTALL_DIR, dir, 'package.json');
-      if (fs.existsSync(pkg)) {
-        log(`npm install: ${dir}`, 'step');
-        try {
-          await runCmd('npm', ['install', '--omit=dev'], { cwd: path.join(INSTALL_DIR, dir) });
-          log(`npm: ${dir}`, 'ok');
-        } catch (e) {
-          log(`npm: ${dir} — ${e.message}`, 'warn');
-        }
-      }
-    }
+    try {
+      await runCmd('npm', ['install', '--omit=dev'], { cwd: INSTALL_DIR });
+      log('npm install completado', 'ok');
+    } catch (e) { log('npm: ' + e.message, 'warn'); }
 
-    // Post-install: rebuild native addons (e.g. better-sqlite3 after Node upgrade)
-    installState.step = 'Reconstruyendo addons nativos...';
-    for (const dir of npmDirs) {
-      try { await runCmd('npm', ['rebuild'], { cwd: path.join(INSTALL_DIR, dir) }); } catch {}
-    }
+    // Rebuild native addons
+    try { await runCmd('npm', ['rebuild'], { cwd: INSTALL_DIR }); } catch {}
 
     // Step 6: Migrations
     installState.step = 'Ejecutando migraciones...';
@@ -247,62 +231,37 @@ async function runInstall(config) {
       }
     }
 
-    // Step 8: PM2
+    // Step 9 — Nginx config
+
+    // Step 8: PM2 (single process)
     installState.step = 'Configurando PM2...';
     try {
-      for (const name of ['horix-erp', 'logistics', 'docflow', 'horix-launcher']) {
+      for (const name of ['horix-erp', 'logistics', 'docflow', 'horix', 'horix-launcher', 'synnoxerp']) {
         try { execSync(`pm2 delete ${name} 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
       }
-      await runCmd('pm2', ['start', 'server.js', '--name', 'horix-erp', '--', '--port', '3002'], { cwd: path.join(INSTALL_DIR, 'launcher') });
-      log('horix-erp → :3002', 'ok');
-
-      if (config.modules?.includes('logistics')) {
-        await runCmd('pm2', ['start', 'backend/server.js', '--name', 'logistics', '--', '--port', '3004'], { cwd: path.join(INSTALL_DIR, 'modules/logistics') });
-        log('logistics → :3004', 'ok');
-      }
-      if (config.modules?.includes('docflow')) {
-        await runCmd('pm2', ['start', 'src/server.js', '--name', 'docflow', '--', '--port', '3100'], { cwd: path.join(INSTALL_DIR, 'modules/docflow') });
-        log('docflow → :3100', 'ok');
-      }
-      if (config.modules?.includes('horix')) {
-        await runCmd('pm2', ['start', 'server.js', '--name', 'horix', '--', '--port', '3000'], { cwd: path.join(INSTALL_DIR, 'modules/horix') });
-        log('horix → :3000', 'ok');
-      }
-
+      await runCmd('pm2', ['start', 'server.js', '--name', 'synnoxerp'], { cwd: INSTALL_DIR });
+      log('synnoxerp → :3002', 'ok');
       execSync('pm2 save 2>/dev/null || true', { stdio: 'ignore' });
       execSync('pm2 startup 2>/dev/null || true', { stdio: 'ignore' });
     } catch (e) { log('PM2: ' + e.message, 'warn'); }
 
-    // Step 9: Nginx
+    // Step 9: Nginx (single upstream → servidor unificado)
     installState.step = 'Configurando Nginx...';
     try {
       const domain = config.domain || 'localhost';
       const sslDir = '/etc/ssl/horix-platform';
       if (!fs.existsSync(sslDir)) { execSync(`mkdir -p ${sslDir}`, { stdio: 'ignore' }); }
       if (!fs.existsSync(`${sslDir}/cert.pem`)) {
-        execSync(`openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout ${sslDir}/key.pem -out ${sslDir}/cert.pem -subj "/CN=${domain}/O=HorixERP/C=CO" 2>/dev/null`, { stdio: 'ignore' });
+        execSync(`openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout ${sslDir}/key.pem -out ${sslDir}/cert.pem -subj "/CN=${domain}/O=SynnoxERP/C=CO" 2>/dev/null`, { stdio: 'ignore' });
       }
 
-      let nginxConf = `
+      const nginxConf = `
 server {
     listen 443 ssl http2;
     server_name ${domain};
     ssl_certificate ${sslDir}/cert.pem;
     ssl_certificate_key ${sslDir}/key.pem;
-    location / { proxy_pass http://127.0.0.1:3002; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; }`;
-      if (config.modules?.includes('logistics')) {
-        nginxConf += `
-    location /logistics/ { proxy_pass http://127.0.0.1:3004/; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; }`;
-      }
-      if (config.modules?.includes('docflow')) {
-        nginxConf += `
-    location /docflow/ { proxy_pass http://127.0.0.1:3100/; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; }`;
-      }
-      if (config.modules?.includes('horix')) {
-        nginxConf += `
-    location /horix/ { proxy_pass http://127.0.0.1:3000/; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; }`;
-      }
-      nginxConf += `
+    location / { proxy_pass http://127.0.0.1:3002; proxy_set_header Host \$host; proxy_set_header X-Real-IP \$remote_addr; proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for; proxy_set_header X-Forwarded-Proto \$scheme; }
 }
 server { listen 80; server_name ${domain}; return 301 https://\$host\$request_uri; }
 `;
@@ -332,9 +291,9 @@ server { listen 80; server_name ${domain}; return 301 https://\$host\$request_ur
     }
     if (token) {
       const mods = [
-        { id: 'logistics', nombre: 'Logística', icon: '🚚', url: 'http://localhost:3004', proxy_prefix: '/logistics/', tipo: 'interno' },
-        { id: 'docflow', nombre: 'DocFlow', icon: '📄', url: 'http://localhost:3100', proxy_prefix: '/docflow/', tipo: 'interno' },
-        { id: 'horix', nombre: 'Horix ERP', icon: '⏰', url: 'http://localhost:3000', proxy_prefix: '/horix/', tipo: 'interno' },
+        { id: 'logistics', nombre: 'Logística', icon: '🚚', url: 'http://localhost:3002/logistics', proxy_prefix: '/logistics/', tipo: 'interno' },
+        { id: 'docflow', nombre: 'DocFlow', icon: '📄', url: 'http://localhost:3002/docflow', proxy_prefix: '/docflow/', tipo: 'interno' },
+        { id: 'horix', nombre: 'Novedades', icon: '⏰', url: 'http://localhost:3002/horix', proxy_prefix: '/horix/', tipo: 'interno' },
       ];
       for (const m of mods) {
         if (config.modules?.includes(m.id)) {
