@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
+<title>Horix — Consulta</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background: #f5f5f5; height: 100dvh; display: flex; flex-direction: column; }
+header { background: #1a73e8; color: #fff; padding: 14px 16px; font-size: 18px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+header small { font-size: 12px; font-weight: 400; opacity: .8; }
+#chat { flex: 1; overflow-y: auto; padding: 12px 16px; display: flex; flex-direction: column; gap: 12px; }
+.msg { max-width: 90%; padding: 10px 14px; border-radius: 14px; font-size: 14px; line-height: 1.5; white-space: pre-wrap; word-break: break-word; }
+.user { background: #1a73e8; color: #fff; align-self: flex-end; border-bottom-right-radius: 4px; }
+.bot { background: #e9ecef; color: #1a1a1a; align-self: flex-start; border-bottom-left-radius: 4px; }
+.bot.error { background: #fce4ec; color: #c62828; }
+.bot pre { background: #fff3; padding: 8px; border-radius: 8px; font-size: 12px; overflow-x: auto; margin-top: 6px; }
+#input-bar { display: flex; gap: 8px; padding: 10px 12px; background: #fff; border-top: 1px solid #ddd; position: sticky; bottom: 0; }
+#input-bar input { flex: 1; padding: 12px 14px; border: 1px solid #ddd; border-radius: 24px; font-size: 15px; outline: none; }
+#input-bar input:focus { border-color: #1a73e8; }
+#input-bar button { width: 44px; height: 44px; border-radius: 50%; border: none; background: #1a73e8; color: #fff; font-size: 20px; cursor: pointer; flex-shrink: 0; }
+#input-bar button:disabled { opacity: .5; }
+.loading { align-self: center; color: #888; font-size: 13px; }
+.sugerencias { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 16px 4px; }
+.sugerencias button { background: #e9ecef; border: 1px solid #ddd; border-radius: 16px; padding: 6px 12px; font-size: 12px; color: #333; cursor: pointer; }
+.sugerencias button:hover { background: #dde; }
+</style>
+</head>
+<body>
+<header>🤖 Horix <small>Consulta inteligente</small></header>
+<div class="sugerencias" id="sugerencias"></div>
+<div id="chat"></div>
+<div id="input-bar">
+  <input id="input" type="text" placeholder="Ej: cuántos registros hay pendientes?" autofocus>
+  <button id="send" onclick="enviar()">➤</button>
+</div>
+<script>
+const SUGERENCIAS = [
+  '¿Cuántos registros hay pendientes?',
+  '¿Cuántas novedades se han registrado?',
+  'Lista los empleados de Principal',
+  'Resumen por sede',
+  'Estadísticas generales',
+  '¿Cuántos registros hay aprobados?',
+  'Nóminas disponibles',
+  'Conceptos de nómina',
+];
+
+let ultimoResultado = null;
+
+function addMsg(text, tipo, raw) {
+  const div = document.createElement('div');
+  div.className = 'msg ' + tipo;
+  if (tipo === 'bot' && raw) {
+    div.textContent = text;
+    const pre = document.createElement('pre');
+    pre.textContent = JSON.stringify(raw, null, 2);
+    div.appendChild(pre);
+  } else {
+    div.textContent = text;
+  }
+  document.getElementById('chat').appendChild(div);
+  div.scrollIntoView({ behavior: 'smooth' });
+}
+
+function addLoading() {
+  const div = document.createElement('div');
+  div.className = 'loading';
+  div.id = 'loading';
+  div.textContent = 'Pensando...';
+  document.getElementById('chat').appendChild(div);
+}
+
+function removeLoading() {
+  const el = document.getElementById('loading');
+  if (el) el.remove();
+}
+
+function procesarQuery(texto) {
+  const t = texto.toLowerCase().trim();
+
+  // Estadísticas generales
+  if (/estadisticas?\s*(generales)?$|resumen\s*general/i.test(t))
+    return { tool: 'estadisticas', args: {} };
+
+  // Resumen por sede
+  if (/resumen\s*por\s*sede|agrupa.*sede|por sede/i.test(t))
+    return { tool: 'resumen_por_sede', args: {} };
+
+  // Resumen por estado
+  if (/resumen\s*por\s*estado|agrupa.*estado/i.test(t))
+    return { tool: 'resumen_por_estado', args: {} };
+
+  // Empleados por sede o búsqueda
+  const empSede = t.match(/empleados?\s*(?:de|en)?\s*(.+)/i);
+  if (empSede) {
+    const termino = empSede[1].trim();
+    if (termino && !/^tod/.test(termino)) {
+      return { tool: 'empleados', args: { sede: termino } };
+    }
+  }
+  if (/empleados?|lista\s*empleados/i.test(t))
+    return { tool: 'empleados', args: { limite: 30 } };
+
+  // Nóminas
+  if (/nominas?|periodos/i.test(t))
+    return { tool: 'nominas', args: {} };
+
+  // Tipos
+  if (/tipos?\s*de\s*horas?|tipos?\s*disponibles/i.test(t))
+    return { tool: 'tipos', args: {} };
+
+  // Registros pendientes
+  if (/pendientes/i.test(t)) {
+    if (/(?:por|de|en)\s*sede/i.test(t)) {
+      return { tool: 'registros', args: { estado: 'pendiente' } };
+    }
+    return { tool: 'registros', args: { estado: 'pendiente', limite: 20 } };
+  }
+
+  // Registros aprobados
+  if (/aprobados/i.test(t))
+    return { tool: 'registros', args: { estado: 'aprobado', limite: 20 } };
+
+  // Registros con fecha
+  const fechas = t.match(/(\d{4}-\d{2}-\d{2}).*(\d{4}-\d{2}-\d{2})/);
+  if (fechas && /registros|horas/i.test(t))
+    return { tool: 'registros', args: { fechaInicio: fechas[1], fechaFin: fechas[2], limite: 30 } };
+
+  // Registros general
+  if (/registros|horas?\s*extra/i.test(t))
+    return { tool: 'registros', args: { limite: 20 } };
+
+  // Tablas
+  if (/tablas?|base\s*de\s*datos|esquema/i.test(t))
+    return { tool: 'tablas', args: {} };
+
+  // Cuántos / conteo
+  if (/cu[áa]ntos|total|conteo|cu[áa]ntas/i.test(t))
+    return { tool: 'estadisticas', args: {} };
+
+  return null;
+}
+
+function formatearResultado(tool, data) {
+  switch (tool) {
+    case 'estadisticas': {
+      const d = Array.isArray(data) ? data[0] : data;
+      if (!d) return 'Sin datos';
+      return `📊 **Estadísticas**
+• Registros totales: ${d.totalRegistros ?? d.total ?? '—'}
+• Empleados: ${d.totalEmpleados ?? '—'}
+• Total horas: ${d.totalHoras ?? '—'}
+• Pendientes: ${d.pendientes ?? '—'}
+• Aprobados: ${d.aprobados ?? '—'}
+• Sedes: ${d.sedes ?? '—'}`;
+    }
+    case 'resumen_por_sede': {
+      if (!data?.length) return 'Sin datos';
+      const agrupado = {};
+      data.forEach(r => {
+        if (!agrupado[r.sede]) agrupado[r.sede] = { total: 0, horas: 0, estados: {} };
+        agrupado[r.sede].total += r.total;
+        agrupado[r.sede].horas += r.horas;
+        agrupado[r.sede].estados[r.estado] = r.total;
+      });
+      let s = '📍 **Resumen por sede**';
+      Object.entries(agrupado).forEach(([sede, info]) => {
+        s += `\n\n**${sede}**: ${info.total} registros, ${info.horas} horas`;
+        Object.entries(info.estados).forEach(([est, cant]) => {
+          s += ` (${est}: ${cant})`;
+        });
+      });
+      return s;
+    }
+    case 'resumen_por_estado': {
+      if (!data?.length) return 'Sin datos';
+      let s = '📌 **Resumen por estado**';
+      data.forEach(r => { s += `\n• ${r.estado}: ${r.total} registros, ${r.horas} horas`; });
+      return s;
+    }
+    case 'empleados': {
+      if (!data?.length) return 'No se encontraron empleados';
+      let s = `👥 **Empleados** (${data.length})`;
+      data.slice(0, 20).forEach(e => {
+        s += `\n• ${e.nombre} — ${e.cedula} (${e.sede})`;
+      });
+      if (data.length > 20) s += `\n... y ${data.length - 20} más`;
+      return s;
+    }
+    case 'nominas': {
+      if (!data?.length) return 'Sin nóminas';
+      let s = '📆 **Nóminas**';
+      data.forEach(n => { s += `\n• ${n.nombre} — ${n.inicio} al ${n.fin}`; });
+      return s;
+    }
+    case 'tipos': {
+      if (!data?.length) return 'Sin tipos';
+      let s = '🔧 **Tipos de hora extra**';
+      data.forEach(t => { s += `\n• ${t.id} — ${t.nombre}${t.es_valor ? ' (valor fijo)' : ''}`; });
+      return s;
+    }
+    case 'registros': {
+      if (!data?.length) return 'No hay registros';
+      let s = `📋 **Registros** (últimos ${data.length})`;
+      data.slice(0, 15).forEach(r => {
+        s += `\n• ${r.fecha} — ${r.empleadoNombre || '—'} — ${r.horas}h — ${r.estado}${r.tipo ? ' [' + r.tipo + ']' : ''}`;
+      });
+      if (data.length > 15) s += `\n... y ${data.length - 15} más`;
+      return s;
+    }
+    case 'tablas': {
+      if (!data?.length) return 'Sin tablas';
+      let s = '🗄️ **Base de datos**';
+      data.forEach(t => {
+        s += `\n• ${t.nombre}: ${t.filas} filas`;
+      });
+      return s;
+    }
+    default:
+      return JSON.stringify(data, null, 2);
+  }
+}
+
+async function ejecutar(tool, args) {
+  const r = await fetch('/api/consulta', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tool, args })
+  });
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error);
+  return j.data;
+}
+
+async function enviar() {
+  const input = document.getElementById('input');
+  const texto = input.value.trim();
+  if (!texto) return;
+  input.value = '';
+  document.getElementById('send').disabled = true;
+
+  addMsg(texto, 'user');
+  addLoading();
+
+  try {
+    const parsed = procesarQuery(texto);
+    if (!parsed) {
+      removeLoading();
+      addMsg('No entendí la consulta. Prueba con sugerencias como "resumen por sede" o "cuántos pendientes hay".', 'bot error');
+      document.getElementById('send').disabled = false;
+      return;
+    }
+
+    const data = await ejecutar(parsed.tool, parsed.args);
+    removeLoading();
+    const textoResp = formatearResultado(parsed.tool, data);
+    addMsg(textoResp, 'bot', data);
+    ultimoResultado = data;
+  } catch (e) {
+    removeLoading();
+    addMsg('Error: ' + e.message, 'bot error');
+  }
+  document.getElementById('send').disabled = false;
+}
+
+// Sugerencias
+const contSug = document.getElementById('sugerencias');
+SUGERENCIAS.forEach(s => {
+  const btn = document.createElement('button');
+  btn.textContent = s;
+  btn.onclick = () => {
+    document.getElementById('input').value = s;
+    enviar();
+  };
+  contSug.appendChild(btn);
+});
+
+// Enter
+document.getElementById('input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') enviar();
+});
+</script>
+</body>
+</html>

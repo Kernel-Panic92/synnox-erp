@@ -182,23 +182,8 @@ async function runInstall(config) {
       log(`.env creado: ${dir}`, 'ok');
     }
 
-    // Step 5: Clone Horix if selected
-    if (config.modules?.includes('horix')) {
-      installState.step = 'Instalando módulo Horix...';
-      const horixDir = path.join(INSTALL_DIR, 'modules/horix');
-      if (fs.existsSync(horixDir)) {
-        log('Horix ya existe — actualizando...', 'step');
-        if (fs.existsSync(path.join(horixDir, '.git'))) {
-          try { await runCmd('git', ['pull'], { cwd: horixDir }); log('Horix actualizado', 'ok'); } catch (e) { log('Error actualizando Horix: ' + e.message, 'warn'); }
-        } else {
-          log('Directorio existe pero no es git — eliminando y clonando...', 'warn');
-          try { fs.rmSync(horixDir, { recursive: true, force: true }); await runCmd('git', ['clone', 'https://github.com/Kernel-Panic92/Horix.git', horixDir]); } catch {}
-        }
-      } else {
-        log('Clonando Horix desde GitHub...', 'step');
-        try { await runCmd('git', ['clone', 'https://github.com/Kernel-Panic92/Horix.git', horixDir]); log('Horix clonado', 'ok'); } catch (e) { log('Error clonando Horix: ' + e.message, 'error'); }
-      }
-    }
+    // Step 5: Horix is already in the monorepo (modules/horix)
+    // No need to clone it separately
 
     // Step 6: npm install
     installState.step = 'Instalando dependencias npm...';
@@ -361,7 +346,7 @@ server { listen 80; server_name ${domain}; return 301 https://\$host\$request_ur
       const mods = [
         { id: 'logistics', nombre: 'Logística', icon: '🚚', url: 'http://localhost:3004', proxy_prefix: '/logistics/', tipo: 'interno' },
         { id: 'docflow', nombre: 'DocFlow', icon: '📄', url: 'http://localhost:3100', proxy_prefix: '/docflow/', tipo: 'interno' },
-        { id: 'horix', nombre: 'Horix ERP', icon: '⏰', url: 'http://localhost:3000', proxy_prefix: '/horix/', tipo: 'externo' },
+        { id: 'horix', nombre: 'Horix ERP', icon: '⏰', url: 'http://localhost:3000', proxy_prefix: '/horix/', tipo: 'interno' },
       ];
       for (const m of mods) {
         if (config.modules?.includes(m.id)) {
