@@ -62,45 +62,35 @@ async function login() {
 
 let launcherVersion = '';
 
+const MODULOS_FIJOS = [
+  { id: 'proveedores', nombre: 'Proveedores', icon: '📄', desc: 'Facturas y proveedores', ruta: '/proveedores/' },
+  { id: 'logistica', nombre: 'Logística', icon: '🚚', desc: 'Planeación de rutas', ruta: '/logistica/' },
+  { id: 'nomina', nombre: 'Nómina', icon: '💰', desc: 'Horas extra y novedades', ruta: '/nomina/' },
+];
+
 async function showLauncher() {
   document.getElementById('launcher-user').innerHTML = (user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
   document.getElementById('launcher-role').textContent = user?.rol || '';
 
   const grid = document.getElementById('module-grid');
-  grid.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px;grid-column:1/-1;">Cargando...</div>';
+  grid.innerHTML = '';
 
-  try {
-    const [resMod, resStatus] = await Promise.all([
-      fetch('/api/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } }),
-      fetch('/api/admin/mcp-modules/status', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).catch(() => null)
-    ]);
-    if (!resMod.ok) throw new Error('Error al cargar módulos');
-    const modulos = await resMod.json();
-    const estados = {};
-    if (resStatus && resStatus.ok) {
-      const data = await resStatus.json();
-      if (data.modules) for (const m of data.modules) estados[m.id] = m.status;
-    }
-    grid.innerHTML = '';
-    for (const mod of modulos) {
-      const card = document.createElement('a');
-      card.className = 'card';
-      const host = window.location.hostname;
-      card.href = (window.location.protocol === 'https:' && mod.proxy_prefix) ? window.location.origin + mod.proxy_prefix : mod.url.replace('localhost', host);
-      card.target = '_blank';
-      card.rel = 'noopener';
-      const st = estados[mod.id];
-      const borde = st === 'online' ? 'border-color:rgba(79,190,150,0.7)' : st === 'offline' ? 'border-color:rgba(224,83,83,0.7)' : st === 'error' ? 'border-color:rgba(214,158,46,0.7)' : '';
-      if (borde) card.style.cssText = borde + ';border-width:2px;';
-      card.innerHTML = `
-        <div class="card-icon">${mod.icon}</div>
-        <div class="card-title">${mod.nombre}</div>
-        <div class="card-desc">${mod.descripcion}</div>
-      `;
-      grid.appendChild(card);
-    }
-  } catch (e) {
-    grid.innerHTML = '<div style="color:var(--danger);text-align:center;padding:20px;grid-column:1/-1;">Error: ' + e.message + '</div>';
+  const modulosDisponibles = user?.rol === 'admin'
+    ? MODULOS_FIJOS
+    : MODULOS_FIJOS.filter(m => user?.modulos?.includes(m.id));
+
+  for (const mod of modulosDisponibles) {
+    const card = document.createElement('a');
+    card.className = 'card';
+    card.href = window.location.origin + mod.ruta;
+    card.target = '_blank';
+    card.rel = 'noopener';
+    card.innerHTML = `
+      <div class="card-icon">${mod.icon}</div>
+      <div class="card-title">${mod.nombre}</div>
+      <div class="card-desc">${mod.desc}</div>
+    `;
+    grid.appendChild(card);
   }
 
   if (user?.rol === 'admin') {

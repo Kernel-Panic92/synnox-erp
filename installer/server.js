@@ -271,40 +271,6 @@ server { listen 80; server_name ${domain}; return 301 https://\$host\$request_ur
       log('Nginx configurado', 'ok');
     } catch (e) { log('Nginx: ' + e.message, 'warn'); }
 
-    // Step 10: Register modules via API
-    installState.step = 'Registrando módulos en el launcher...';
-    let token = '';
-    let retryDelay = 2000;
-    for (let i = 0; i < 15; i++) {
-      await new Promise(r => setTimeout(r, retryDelay));
-      try {
-        const loginResp = execSync(`curl -s -w "\\n%{http_code}" -X POST http://localhost:3002/api/auth/login -H "Content-Type: application/json" -d '{"email":"${config.adminEmail || 'admin@horix.com'}","password":"${config.adminPass || 'admin123'}"}' 2>&1 || true`).toString().trim();
-        const lines = loginResp.split('\n');
-        const httpCode = lines.pop().trim();
-        const body = lines.join('\n').trim();
-        if (httpCode === '429') { retryDelay = 5000; if (i === 0 || i % 3 === 0) log('Rate limit — esperando...', 'warn'); continue; }
-        token = (body.match(/"jwt":"([^"]*)"/) || [])[1] || '';
-        if (token) break;
-        if (i === 0) log('Esperando al launcher...', 'step');
-        if (i >= 4 && i % 5 === 0) log(`Login: HTTP ${httpCode} — reintentando...`, 'warn');
-      } catch {}
-    }
-    if (token) {
-      const mods = [
-        { id: 'logistica', nombre: 'Logística', icon: '🚚', url: 'http://localhost:3002/logistica', proxy_prefix: '/logistica/', tipo: 'interno' },
-        { id: 'proveedores', nombre: 'Proveedores', icon: '📄', url: 'http://localhost:3002/proveedores', proxy_prefix: '/proveedores/', tipo: 'interno' },
-        { id: 'nomina', nombre: 'Nómina', icon: '💰', url: 'http://localhost:3002/nomina', proxy_prefix: '/nomina/', tipo: 'interno' },
-      ];
-      for (const m of mods) {
-        if (config.modules?.includes(m.id)) {
-          execSync(`curl -s -X POST http://localhost:3002/api/admin/modulos -H "Content-Type: application/json" -H "Authorization: Bearer ${token}" -d '${JSON.stringify({ ...m, mcp_enabled: true })}' 2>/dev/null || true`, { stdio: 'ignore' });
-        }
-      }
-      log('Módulos registrados en el launcher', 'ok');
-    } else {
-      log('No se pudo obtener token — registra los módulos manualmente desde Admin → Módulos', 'warn');
-    }
-
     installState.step = 'Instalación completada';
     log('=== Instalación completada exitosamente ===', 'complete');
     installState.running = false;
