@@ -1515,11 +1515,14 @@ app.post('/api/admin/import', verificarToken, soloAdmin, (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.use(express.static(path.join(__dirname, 'shell')));
-app.get('*', (req, res) => {
-  const htmlPath = path.join(__dirname, 'shell', 'index.html');
-  if (fs.existsSync(htmlPath)) return res.sendFile(htmlPath);
-  res.status(404).json({ error: 'Not found: ' + req.path });
-});
+if (require.main === module) {
+  app.use(express.static(path.join(__dirname, 'shell')));
+  app.get('*', (req, res) => {
+    const htmlPath = path.join(__dirname, 'shell', 'index.html');
+    if (fs.existsSync(htmlPath)) return res.sendFile(htmlPath);
+    res.status(404).json({ error: 'Not found: ' + req.path });
+  });
+  app.listen(PORT, () => console.log('Launcher on port ' + PORT));
+}
 
-app.listen(PORT, () => console.log('Launcher on port ' + PORT));
+module.exports = app;

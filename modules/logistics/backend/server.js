@@ -102,29 +102,10 @@ import { createMiddleware } from './mcp/index.js';
 app.use('/mcp', createMiddleware());
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
-app.get('*', (req, res) => {
-  if (req.path.startsWith('/api/') || req.path.startsWith('/mcp')) return res.status(404).json({ error: 'Not found' });
-  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
-});
 
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(500).json({ error: err.message || 'Error interno del servidor' });
 });
-
-async function start() {
-  try {
-    await pool.query('SELECT NOW()');
-    console.log('✅ Conectado a PostgreSQL');
-    app.listen(PORT, () => {
-      console.log(`🚀 ${MODULE_ID} escuchando en puerto ${PORT}`);
-    });
-  } catch (err) {
-    console.error('❌ Error iniciando servidor:', err);
-    process.exit(1);
-  }
-}
-
-start();
 
 export default app;

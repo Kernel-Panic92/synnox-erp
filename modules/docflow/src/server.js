@@ -102,10 +102,6 @@ app.get('/api/version', (req, res) => {
   }
 });
 
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
-});
-
 // ─── Error handler global ─────────────────────────────────────────────────────
 // Maneja todos los errores no capturados - oculta detalles en producción
 app.use((err, req, res, next) => {
@@ -130,28 +126,28 @@ app.use((err, req, res, next) => {
 const PORT = parseInt(process.env.PORT || '3100');
 
 // ─── Arranque con migraciones ────────────────────────────────────────────────
-(async () => {
-  await require('./db/migrate')();
-  app.listen(PORT, () => {
-  console.log(`\n╔══════════════════════════════════════════╗`);
-  console.log(`║   DocFlow  —  puerto ${PORT.toString().padEnd(5)}           ║`);
-  console.log(`╚══════════════════════════════════════════╝`);
-  console.log(`  API:   http://localhost:${PORT}/api`);
-  console.log(`  App:   http://localhost:${PORT}`);
-  console.log(`  Env:   ${process.env.NODE_ENV || 'development'}\n`);
+if (require.main === module) {
+  (async () => {
+    await require('./db/migrate')();
+    app.listen(PORT, () => {
+    console.log(`\n╔══════════════════════════════════════════╗`);
+    console.log(`║   DocFlow  —  puerto ${PORT.toString().padEnd(5)}           ║`);
+    console.log(`╚══════════════════════════════════════════╝`);
+    console.log(`  API:   http://localhost:${PORT}/api`);
+    console.log(`  App:   http://localhost:${PORT}`);
+    console.log(`  Env:   ${process.env.NODE_ENV || 'development'}\n`);
 
-  // Servicios en background
-  if (process.env.NODE_ENV !== 'test') {
-    const { iniciarCronJobs }   = require('./services/cron.service');
-    const { iniciarServicioImap } = require('./services/imap.service');
-    // Sin CRON jobs activos por ahora (escalaciones y DIAN tácita deshabilitados)
-    iniciarCronJobs();
-    iniciarServicioImap();
-  }
-});
-})().catch(err => {
-  console.error('\n  ERROR al iniciar:', err.message);
-  process.exit(1);
-});
+    if (process.env.NODE_ENV !== 'test') {
+      const { iniciarCronJobs }   = require('./services/cron.service');
+      const { iniciarServicioImap } = require('./services/imap.service');
+      iniciarCronJobs();
+      iniciarServicioImap();
+    }
+  });
+  })().catch(err => {
+    console.error('\n  ERROR al iniciar:', err.message);
+    process.exit(1);
+  });
+}
 
 module.exports = app;

@@ -1,0 +1,37 @@
+{
+  "name": "synnoxerp",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SynnoxERP — Plataforma de orquestación de módulos ERP",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.21.0",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "bcrypt": "^6.0.0",
+    "better-sqlite3": "^11.0.0",
+    "dotenv": "^16.4.5",
+    "nodemailer": "^8.0.5",
+    "pg": "^8.12.0",
+    "cors": "^2.8.5",
+    "cookie-parser": "^1.4.6",
+    "multer": "^2.1.1",
+    "adm-zip": "^0.5.17",
+    "helmet": "^8.1.0",
+    "escape-html": "^1.0.3",
+    "express-rate-limit": "^8.5.2",
+    "exceljs": "^4.4.0",
+    "node-cron": "^3.0.3",
+    "imapflow": "^1.0.162",
+    "mailparser": "^3.7.1",
+    "uuid": "^11.0.5",
+    "pdf-parse": "^1.1.1",
+    "xlsx": "^0.18.5",
+    "axios": "^1.6.2",
+    "@modelcontextprotocol/sdk": "^1.0.0"
+  }
+}
