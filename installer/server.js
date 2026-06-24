@@ -359,9 +359,9 @@ server { listen 80; server_name ${domain}; return 301 https://\$host\$request_ur
     }
     if (token) {
       const mods = [
-        { id: 'logistics', nombre: 'Logística', url: 'http://localhost:3004', prefix: '/logistics/', tipo: 'interno' },
-        { id: 'docflow', nombre: 'DocFlow', url: 'http://localhost:3100', prefix: '/docflow/', tipo: 'interno' },
-        { id: 'horix', nombre: 'Horix ERP', url: 'http://localhost:3000', prefix: '/horix/', tipo: 'externo' },
+        { id: 'logistics', nombre: 'Logística', icon: '🚚', url: 'http://localhost:3004', proxy_prefix: '/logistics/', tipo: 'interno' },
+        { id: 'docflow', nombre: 'DocFlow', icon: '📄', url: 'http://localhost:3100', proxy_prefix: '/docflow/', tipo: 'interno' },
+        { id: 'horix', nombre: 'Horix ERP', icon: '⏰', url: 'http://localhost:3000', proxy_prefix: '/horix/', tipo: 'externo' },
       ];
       for (const m of mods) {
         if (config.modules?.includes(m.id)) {
