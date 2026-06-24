@@ -1,4 +1,5 @@
 const BASE = window.BASE || '';
+const API = BASE;
 
 function getLauncherToken() {
   const c = document.cookie.split('; ').find(r => r.startsWith('launcher_jwt='));
