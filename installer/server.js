@@ -111,11 +111,11 @@ async function runInstall(config) {
         try { execSync(`su - postgres -c "createdb -O ${config.dbUser} ${db}" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
       }
       // Delete SQLite databases
-      for (const f of ['launcher/launcher.db', 'modules/horix/horas_extra.db']) {
+      for (const f of ['launcher/launcher.db', 'modules/nomina/horas_extra.db']) {
         try { fs.unlinkSync(path.join(INSTALL_DIR, f)); log(`Eliminado: ${f}`, 'ok'); } catch {}
       }
       // Delete .env files
-      for (const dir of ['launcher', 'modules/logistics', 'modules/docflow', 'modules/horix']) {
+      for (const dir of ['launcher', 'modules/logistics', 'modules/docflow', 'modules/nomina']) {
         try { fs.unlinkSync(path.join(INSTALL_DIR, dir, '.env')); } catch {}
       }
       // Stop PM2 processes
@@ -293,7 +293,7 @@ server { listen 80; server_name ${domain}; return 301 https://\$host\$request_ur
       const mods = [
         { id: 'logistics', nombre: 'Logística', icon: '🚚', url: 'http://localhost:3002/logistics', proxy_prefix: '/logistics/', tipo: 'interno' },
         { id: 'docflow', nombre: 'DocFlow', icon: '📄', url: 'http://localhost:3002/docflow', proxy_prefix: '/docflow/', tipo: 'interno' },
-        { id: 'horix', nombre: 'Novedades', icon: '⏰', url: 'http://localhost:3002/horix', proxy_prefix: '/horix/', tipo: 'interno' },
+        { id: 'nomina', nombre: 'Nómina', icon: '💰', url: 'http://localhost:3002/nomina', proxy_prefix: '/nomina/', tipo: 'interno' },
       ];
       for (const m of mods) {
         if (config.modules?.includes(m.id)) {

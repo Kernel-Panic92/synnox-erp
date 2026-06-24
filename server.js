@@ -28,8 +28,8 @@ app.use('/docflow', require('./modules/docflow/src/server'));
 app.use('/docflow', express.static(path.join(__dirname, 'modules', 'docflow', 'public')));
 
 // ── Module: Horix (novedades) ───────────────────────────────────
-app.use('/horix', require('./modules/horix/server'));
-app.use('/horix', express.static(path.join(__dirname, 'modules', 'horix', 'public')));
+app.use('/nomina', require('./modules/nomina/server'));
+app.use('/nomina', express.static(path.join(__dirname, 'modules', 'nomina', 'public')));
 
 // ── Catch-all: serve launcher SPA ──────────────────────────────
 app.get('*', (req, res) => {
@@ -62,7 +62,7 @@ async function start() {
     console.log(`   Dashboard: http://localhost:${PORT}`);
     console.log(`   DocFlow:   http://localhost:${PORT}/docflow/`);
     console.log(`   Logistics: http://localhost:${PORT}/logistics/`);
-    console.log(`   Horix:     http://localhost:${PORT}/horix/`);
+    console.log(`   Nómina:    http://localhost:${PORT}/nomina/`);
   });
 }
 

@@ -82,8 +82,8 @@ module.exports = async function runSeeds({ db, uid, encryptSmtp, BASE_URL, APP_N
     smtp_usuario:   '',
     smtp_password:  '',
     smtp_remitente: 'Horix <mail@tuempresa.com>',
-    reset_asunto:   'Recuperación de contraseña — Horix',
-    reset_cuerpo:   'Hola {nombre},\n\nRecibimos una solicitud para restablecer tu contraseña.\n\nHaz clic en el siguiente enlace (válido por 30 minutos):\n{enlace}\n\nSi no solicitaste esto, ignora este correo.\n\nSaludos,\nEquipo Horix'
+    reset_asunto:   'Recuperación de contraseña — Nómina',
+    reset_cuerpo:   'Hola {nombre},\n\nRecibimos una solicitud para restablecer tu contraseña.\n\nHaz clic en el siguiente enlace (válido por 30 minutos):\n{enlace}\n\nSi no solicitaste esto, ignora este correo.\n\nSaludos,\nEquipo Nómina'
   };
   for (const [clave, valor] of Object.entries(smtpDefaults)) {
     const existe = db.prepare('SELECT clave FROM configuracion WHERE clave = ?').get(clave);

@@ -128,7 +128,7 @@ try { db.exec('ALTER TABLE modulos_plataforma ADD COLUMN mcp_token TEXT NOT NULL
 try { db.exec('ALTER TABLE modulos_plataforma ADD COLUMN proxy_prefix TEXT NOT NULL DEFAULT ""'); } catch {}
 try { db.exec("ALTER TABLE modulos_plataforma ADD COLUMN tipo TEXT NOT NULL DEFAULT 'externo'"); } catch {}
 // Seed tipo for internal modules
-db.prepare("UPDATE modulos_plataforma SET tipo = 'interno' WHERE id IN ('docflow', 'horix', 'logistics') AND tipo = 'externo'").run();
+db.prepare("UPDATE modulos_plataforma SET tipo = 'interno' WHERE id IN ('docflow', 'nomina', 'logistics') AND tipo = 'externo'").run();
 
 // Seed public_url from url if empty
 db.prepare("UPDATE modulos_plataforma SET public_url = url WHERE public_url = '' AND url != ''").run();
