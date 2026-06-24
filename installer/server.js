@@ -171,7 +171,7 @@ async function runInstall(config) {
       'modules/docflow': { PORT: 3100, MODULE_ID: 'docflow', JWT_SECRET: jwtSecret, DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_HOST: config.dbHost || 'localhost', DB_PORT: 5432, DB_NAME: 'horix_docflow', NODE_ENV: 'production' },
     };
     if (config.modules?.includes('horix')) {
-      envs['modules/horix'] = { PORT: 3000, MODULE_ID: 'horix', JWT_SECRET: jwtSecret, DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_HOST: config.dbHost || 'localhost', DB_PORT: 5432, DB_NAME: 'horix_erp', NODE_ENV: 'production', ADMIN_EMAIL: config.adminEmail || 'admin@horix.com', ADMIN_PASS: config.adminPass || 'admin123' };
+      envs['modules/horix'] = { PORT: 3000, MODULE_ID: 'horix', JWT_SECRET: jwtSecret, HE_SECRET: require('crypto').randomBytes(32).toString('hex'), DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_HOST: config.dbHost || 'localhost', DB_PORT: 5432, DB_NAME: 'horix_erp', NODE_ENV: 'production', ADMIN_EMAIL: config.adminEmail || 'admin@horix.com', ADMIN_PASS: config.adminPass || 'admin123' };
     }
     for (const [dir, vars] of Object.entries(envs)) {
       const p = path.join(INSTALL_DIR, dir, '.env');

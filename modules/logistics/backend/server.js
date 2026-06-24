@@ -5,7 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import pool from './config/db.js';
-import { verifyToken, requireModule } from '../../framework/auth.js';
+import { verifyToken, requireModule } from '../../../framework/auth.js';
 
 dotenv.config();
 
