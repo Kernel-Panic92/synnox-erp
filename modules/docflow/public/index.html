@@ -248,31 +248,6 @@ input[type=password]{letter-spacing:2px}
 </head>
 <body>
 
-<!-- Change password modal -->
-<div id="chpass-modal" class="modal-overlay">
-  <div class="modal">
-    <div class="modal-title">Cambiar contraseña</div>
-    <div class="field">
-      <label>NUEVA CONTRASEÑA</label>
-      <input type="password" id="chpass-new" placeholder="••••••••" autocomplete="new-password"/>
-      <div style="margin-top:8px;font-size:11px;color:var(--muted)">
-        <div id="req-len">✓ 8+ caracteres</div>
-        <div id="req-up">✓ Una mayúscula</div>
-        <div id="req-num">✓ Un número</div>
-        <div id="req-sym">✓ Un carácter especial</div>
-      </div>
-    </div>
-    <div class="field">
-      <label>CONFIRMAR</label>
-      <input type="password" id="chpass-confirm" placeholder="••••••••" autocomplete="new-password"/>
-    </div>
-    <div id="chpass-msg" style="font-size:13px;margin-bottom:14px"></div>
-    <div class="modal-footer">
-      <button class="btn btn-primary" onclick="doChangePass()">Guardar</button>
-    </div>
-  </div>
-</div>
-
 <!-- App -->
 <div id="app-screen">
   <!-- Mobile hamburger -->

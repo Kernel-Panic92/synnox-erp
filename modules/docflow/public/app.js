@@ -1,6 +1,5 @@
 // ─── STATE ───────────────────────────────────────────────────────────────────
 const S={
-  token:localStorage.getItem('vd_t'),
   usuario:JSON.parse(localStorage.getItem('vd_u')||'null'),
   view:'dashboard',
   areas:[],

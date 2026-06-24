@@ -227,21 +227,9 @@ async function runInstall(config) {
       log('DocFlow: migraciones ok', 'ok');
     } catch (e) { log('DocFlow migrate: ' + e.message, 'warn'); }
 
-    // Step 7: Seeds
+    // Step 7: Demo seeds (admin users are auto-created from launcher JWT)
     if (config.runSeeds !== false) {
       installState.step = 'Sembrando datos demo...';
-      try {
-        const pwd = config.dbPass || dbPass;
-        await runCmd('node', ['backend/db/seed.js'], { cwd: path.join(INSTALL_DIR, 'modules/logistics'), env: { ...process.env, PGPASSWORD: pwd, DB_USER: config.dbUser, DB_PASSWORD: pwd, DB_NAME: 'horix_logistics' } });
-        log('Logistics: admin seed', 'ok');
-      } catch (e) { log('Seed logistics: ' + e.message, 'warn'); }
-
-      try {
-        const pwd = config.dbPass || dbPass;
-        await runCmd('node', ['src/db/seed.js'], { cwd: path.join(INSTALL_DIR, 'modules/docflow'), env: { ...process.env, PGPASSWORD: pwd, DB_USER: config.dbUser, DB_PASSWORD: pwd, DB_NAME: 'horix_docflow' } });
-        log('DocFlow: admin seed', 'ok');
-      } catch (e) { log('Seed docflow: ' + e.message, 'warn'); }
-
       // Demo seeds
       if (fs.existsSync(path.join(INSTALL_DIR, 'modules/logistics/backend/db/seed-demo.js'))) {
         try {

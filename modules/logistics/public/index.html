@@ -241,9 +241,6 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
       <div class="nav-item" data-page="mapa" onclick="navigate('mapa')">
         <span class="icon">🗺️</span> Mapa
       </div>
-      <div class="nav-item" data-page="usuarios" onclick="navigate('usuarios')">
-        <span class="icon">👥</span> Usuarios
-      </div>
       <div class="nav-item" data-page="config" onclick="navigate('config')">
         <span class="icon">⚙️</span> Configuración
       </div>
@@ -488,19 +485,6 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
         <div id="mapa-contenedor" style="height:calc(100vh - 180px);border-radius:12px;border:1px solid var(--border);overflow:hidden;"></div>
       </div>
 
-      <!-- Usuarios -->
-      <div class="page" id="page-usuarios">
-        <div class="page-header flex" style="justify-content:space-between;align-items:center;">
-          <div><h3>Usuarios</h3><p>Gestión de usuarios del sistema</p></div>
-          <button class="btn btn-primary btn-sm" onclick="abrirModalUsuario()">+ Nuevo</button>
-        </div>
-        <div class="tbl-wrap">
-          <table class="tbl" id="tbl-usuarios"><thead><tr>
-            <th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Creado</th><th style="width:80px"></th>
-          </tr></thead><tbody></tbody></table>
-        </div>
-      </div>
-
       <!-- Configuración -->
       <div class="page" id="page-config">
         <div class="page-header">
@@ -518,38 +502,6 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
         <div id="cfg-content">Cargando...</div>
       </div>
 
-    </div>
-  </div>
-</div>
-
-<!-- Password Change Modal -->
-<div class="modal-overlay" id="modal-chpass">
-  <div class="modal" style="max-width:420px;">
-    <div class="modal-title" style="font-family:var(--font-head);font-size:18px;margin-bottom:4px;">Cambiar Contraseña</div>
-    <p style="color:var(--muted);font-size:13px;margin-bottom:20px;">Ingresa tu contraseña actual y la nueva</p>
-    <div style="color:var(--danger);font-size:13px;display:none;margin-bottom:12px;" id="chpass-error"></div>
-    <div class="form-group">
-      <label>Contraseña actual</label>
-      <input type="password" id="chpass-actual" placeholder="••••••••" autocomplete="current-password">
-    </div>
-    <div class="form-group">
-      <label>Nueva contraseña</label>
-      <input type="password" id="chpass-nueva" placeholder="Mínimo 8 caracteres" autocomplete="new-password">
-    </div>
-    <div class="form-group">
-      <label>Confirmar nueva contraseña</label>
-      <input type="password" id="chpass-confirm" placeholder="••••••••" autocomplete="new-password">
-    </div>
-    <div style="font-size:11px;color:var(--muted);margin-top:4px;">
-      <div id="chpreq-len">• 8+ caracteres</div>
-      <div id="chpreq-up">• Una mayúscula</div>
-      <div id="chpreq-num">• Un número</div>
-      <div id="chpreq-sym">• Un carácter especial</div>
-    </div>
-    <div id="chpass-msg" style="font-size:13px;margin-top:12px;"></div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
-      <button class="btn btn-secondary" onclick="cerrarChpass()">Cancelar</button>
-      <button class="btn btn-primary" id="btn-chpass" onclick="doChangePass()">Cambiar contraseña</button>
     </div>
   </div>
 </div>

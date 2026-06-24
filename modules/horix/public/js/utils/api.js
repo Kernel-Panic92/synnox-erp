@@ -1,4 +1,3 @@
-// api.js - Shared API helpers for Horix
 const BASE = window.BASE || '';
 
 function getLauncherToken() {
@@ -7,22 +6,6 @@ function getLauncherToken() {
 }
 
 const API = '';
-function getBrowserFingerprint() {
-  try {
-    const parts = [
-      navigator.userAgent,
-      navigator.language,
-      navigator.platform,
-      screen.width + 'x' + screen.height,
-      screen.colorDepth,
-      new Date().getTimezoneOffset()
-    ];
-    return btoa(parts.join('|||'));
-  } catch (e) {
-    return navigator.userAgent || 'unknown';
-  }
-}
-const _bfp = getBrowserFingerprint();
 
 let sesion = null;
 let empleados = [], nominas = [], registros = [], usuarios = [], centros = [], tipos = [];
@@ -39,17 +22,11 @@ const api = async (method, path, body = undefined) => {
     method,
     headers: {
       'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': 'Bearer ' + token } : {}),
-      'x-browser-fp': _bfp
+      ...(token ? { 'Authorization': 'Bearer ' + token } : {})
     }
   };
-  if (sesion?.csrfToken && method !== 'GET') {
-    opts.headers['x-csrf-token'] = sesion.csrfToken;
-  }
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(API + path, opts);
-  const newCsrf = res.headers.get('x-csrf-token');
-  if (newCsrf && sesion) sesion.csrfToken = newCsrf;
   if (res.status === 401 && path !== '/api/auth/me') {
     localStorage.removeItem('he_logged_in');
     sesion = null;
@@ -65,7 +42,6 @@ const POST = (p, b) => api('POST', p, b);
 const PUT = (p, b) => api('PUT', p, b);
 const DEL = (p) => api('DELETE', p);
 
-// Refresh global registros array from server (called after any mutation)
 async function refreshRegistros() {
   try {
     const res = await GET('/api/registros');

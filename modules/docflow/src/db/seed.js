@@ -1,5 +1,4 @@
 require('dotenv').config();
-const bcrypt = require('bcryptjs');
 const { pool } = require('./index');
 
 async function seed() {
@@ -30,31 +29,6 @@ async function seed() {
       );
       areaIds[a.nombre] = res.rows[0].id;
       console.log(`     ✓ ${a.nombre}`);
-    }
-
-    // ─── Usuario admin ─────────────────────────────────────────────────────────
-    console.log('\n  → Usuario administrador...');
-    const hash = await bcrypt.hash('docflow2025', 12);
-    const adminAreaId = areaIds['Sistemas'];
-    const adminRes = await client.query(
-      `INSERT INTO usuarios (nombre, email, password_hash, rol, area_id)
-       VALUES ($1, $2, $3, $4, $5)
-       ON CONFLICT (email) DO UPDATE SET password_hash=$3, rol=$4
-       RETURNING id`,
-      ['Administrador', 'admin@docflow.com', hash, 'admin', adminAreaId]
-    );
-    const adminId = adminRes.rows[0].id;
-    console.log('     ✓ admin@docflow.com');
-
-    // Asignar admin como jefe de Sistemas
-    try {
-      await client.query(
-        'UPDATE areas SET jefe_id = $1 WHERE nombre = $2',
-        [adminId, 'Sistemas']
-      );
-      console.log('     ✓ Admin asignado como jefe de Sistemas');
-    } catch (e) {
-      console.log('     ⚠ No se pudo asignar jefe (se hará después)');
     }
 
     // ─── Categorías de compra ─────────────────────────────────────────────────
@@ -130,10 +104,6 @@ async function seed() {
 
     await client.query('COMMIT');
     console.log('\n✅ Seed completado.\n');
-    console.log('  Acceso inicial:');
-    console.log('    Email:    admin@docflow.com');
-    console.log('    Password: docflow2025');
-    console.log('  ⚠️  Cambia la contraseña en el primer acceso.\n');
 
   } catch (err) {
     await client.query('ROLLBACK');

@@ -17,7 +17,7 @@ const upload     = multer({ storage: multer.memoryStorage(), limits: { fileSize:
 const { db, uid } = require('./src/db');
 require('./src/db/migrations')(db);
 const { parseCookies, createAuth } = require('./src/middleware/auth');
-const { hashPassword, verificarPassword, encryptSmtp, validarPassword, generateToken } = require('./src/utils/crypto');
+const { encryptSmtp } = require('./src/utils/crypto');
 const { getConfig, getAdminEmail } = require('./src/utils/config');
 const { permisosPorRol, rolTienePermiso } = require('./src/utils/permisos');
 const { restoreData } = require('./src/utils/restore')({ db, encryptSmtp });
@@ -28,15 +28,8 @@ const enviarCorreo = require('./src/utils/email')({ getConfig, nodemailer, escap
 const PORT         = parseInt(process.env.PORT || '3000', 10);
 const CORS_ORIGIN  = process.env.CORS_ORIGIN || '';
 const BACKUP_TOKEN = process.env.BACKUP_TOKEN || '';
-
-// Validar que HE_SECRET esté configurado (excepto en desarrollo)
-if (!process.env.HE_SECRET && process.env.NODE_ENV === 'production') {
-  console.error('❌ HE_SECRET no está configurado. Genera uno con: openssl rand -hex 32');
-  process.exit(1);
-}
 const app = express();
 app.set('trust proxy', 1);
-const COOKIE_SECURE = process.env.NODE_ENV === 'production';
 
 // CORS — restringir en producción
 if (CORS_ORIGIN) {
@@ -135,37 +128,14 @@ app.get('/api/version', (req, res) => {
   res.json({ version: pkg.version, name: pkg.name });
 });
 
-// CSRF Protection — skip GET/HEAD/OPTIONS and unauthenticated auth endpoints
-const CSRF_SKIP_PATHS = ['/auth/login', '/auth/forgot-password', '/auth/reset-password', '/backup/alerta', '/telemetry'];
-function csrfProtection(req, res, next) {
-  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
-  if (CSRF_SKIP_PATHS.includes(req.path)) return next();
-  const headerToken = req.headers['x-csrf-token'];
-  const cookies = parseCookies(req);
-  const authToken = cookies.he_token || req.headers['authorization']?.replace('Bearer ', '');
-  if (!authToken || !headerToken) return res.status(403).json({ error: 'CSRF token requerido' });
-  const sesion = db.prepare('SELECT csrf FROM sesiones WHERE token = ?').get(authToken);
-  if (!sesion || sesion.csrf !== headerToken) return res.status(403).json({ error: 'CSRF token inválido' });
-  // Rotate CSRF token — one-time use
-  const newToken = crypto.randomBytes(32).toString('hex');
-  db.prepare('UPDATE sesiones SET csrf = ? WHERE token = ?').run(newToken, authToken);
-  res.set('x-csrf-token', newToken);
-  next();
-}
-app.use('/api', csrfProtection);
+
 
 // ─────────────────────────────────────────────
 // UTILS
 // ─────────────────────────────────────────────
-// Startup: advertir si hay usuarios con hash SHA-256 legacy pendientes de migrar
-try {
-  const legacyCount = db.prepare("SELECT COUNT(*) as n FROM usuarios WHERE length(password)=64 AND password NOT LIKE '$2%'").get().n;
-  if (legacyCount > 0) console.warn(`⚠️  ${legacyCount} usuario(s) tienen hash SHA-256 legacy. Deben usar "Olvidaste tu contraseña" para crear una nueva.`);
-} catch {}
-
-// Seeds (tipos, permisos, roles, centros, admin inicial)
+// Seeds (tipos, permisos, roles, centros)
 const boot = (async () => {
-  await require('./src/db/seeds')({ db, uid, hashPassword, encryptSmtp, BASE_URL, APP_NAME });
+  await require('./src/db/seeds')({ db, uid, encryptSmtp, BASE_URL, APP_NAME });
 })();
 
 const { soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles, soloAdminOBkp, autenticar, requierePermiso } = createAuth({
@@ -174,69 +144,8 @@ const { soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles, 
   getConfig
 });
 
-// ─────────────────────────────────────────────
-// RATE LIMITING — protección fuerza bruta login
-// ─────────────────────────────────────────────
-const loginAttempts  = new Map();
-const LOGIN_MAX_ATTEMPTS = 5;
-const LOGIN_WINDOW_MS    = 5 * 60 * 1000;   // 5 min
-const LOGIN_BLOCK_MS     = 30 * 60 * 1000;  // 30 min
-
-setInterval(() => {
-  const now = Date.now();
-  for (const [ip, data] of loginAttempts.entries()) {
-    if (data.blockedUntil && now > data.blockedUntil) loginAttempts.delete(ip);
-    else if (now - data.firstAttempt > LOGIN_WINDOW_MS) loginAttempts.delete(ip);
-  }
-}, 10 * 60 * 1000);
-
-function getRealIp(req) {
-  const fwd = (req.headers['x-forwarded-for'] || '').split(',').map(s => s.trim()).filter(s => s && s !== '127.0.0.1');
-  return fwd[0] || req.headers['x-real-ip'] || req.socket.remoteAddress || 'unknown';
-}
-
-function loginRateLimit(req, res, next) {
-  const ip  = getRealIp(req);
-  const now = Date.now();
-  let data  = loginAttempts.get(ip) || { count: 0, firstAttempt: now, blockedUntil: null };
-  if (data.blockedUntil && now < data.blockedUntil) {
-    const mins = Math.ceil((data.blockedUntil - now) / 60000);
-    return res.status(429).json({ error: `Demasiados intentos fallidos. Intenta de nuevo en ${mins} minuto${mins !== 1 ? 's' : ''}.` });
-  }
-  if (now - data.firstAttempt > LOGIN_WINDOW_MS) {
-    data = { count: 0, firstAttempt: now, blockedUntil: null };
-  }
-  loginAttempts.set(ip, data);
-  req._loginIp = ip;
-  next();
-}
-
-function loginRegisterFail(ip, email = '') {
-  const now  = Date.now();
-  const data = loginAttempts.get(ip) || { count: 0, firstAttempt: now, blockedUntil: null };
-  data.count++;
-  if (data.count >= LOGIN_MAX_ATTEMPTS) {
-    data.blockedUntil = now + LOGIN_BLOCK_MS;
-    console.warn(`🔒 IP bloqueada por fuerza bruta: ${ip} (${data.count} intentos)`);
-  }
-  loginAttempts.set(ip, data);
-  if (email) {
-    db.prepare("INSERT INTO auditoria_logins (usuarioId, email, ip, tipo, timestamp) VALUES (NULL,?,?,'fallido',?)").run(email, ip, new Date().toISOString());
-  }
-}
-
-function loginRegisterSuccess(ip, usuarioId, email) {
-  loginAttempts.delete(ip);
-  db.prepare("INSERT INTO auditoria_logins (usuarioId, email, ip, tipo, timestamp) VALUES (?,?,?,'exito',?)").run(usuarioId, email, ip, new Date().toISOString());
-}
-
 app.use('/api/auth', require('./src/routes/auth')({
-  db, crypto, BASE_URL, COOKIE_SECURE,
-  verificarPassword, generateToken, hashPassword, validarPassword,
-  getConfig, enviarCorreo, permisosPorRol, parseCookies,
-  loginAttempts, LOGIN_WINDOW_MS, LOGIN_MAX_ATTEMPTS, LOGIN_BLOCK_MS,
-  loginRegisterFail, loginRegisterSuccess,
-  middlewares: { loginRateLimit, todosRoles, soloAdmin }
+  db, crypto, middlewares: { todosRoles, soloAdmin }
 }));
 
 app.use('/api', require('./src/routes/misc')({ db, fs, path, __dirname, permisosPorRol, middlewares: { todosRoles } }));
@@ -253,11 +162,6 @@ app.use('/api/configuracion', require('./src/routes/configuracion')({ db, getCon
 app.use('/api/centros', require('./src/routes/centros')({ db, uid, middlewares: { todosRoles, adminRrhh, soloAdmin } }));
 
 app.use('/api/tipos', require('./src/routes/tipos')({ db, middlewares: { todosRoles, autenticar, requierePermiso } }));
-
-// ─────────────────────────────────────────────
-// USUARIOS
-// ─────────────────────────────────────────────
-app.use('/api/usuarios', require('./src/routes/usuarios')({ db, uid, BASE_URL, hashPassword, generateToken, getConfig, validarPassword, rolTienePermiso, enviarCorreo, middlewares: { soloAdmin, todosRoles } }));
 
 // ─────────────────────────────────────────────
 // PERMISOS CONFIGURABLES

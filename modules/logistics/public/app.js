@@ -21,38 +21,6 @@ async function api(path, opts = {}) {
   return data;
 }
 
-function abrirForgot() {
-  document.getElementById('forgot-error').style.display = 'none';
-  document.getElementById('forgot-success').style.display = 'none';
-  document.getElementById('forgot-form').style.display = 'block';
-  document.getElementById('forgot-email').value = '';
-  document.getElementById('modal-forgot').classList.add('show');
-}
-
-function cerrarForgot() {
-  document.getElementById('modal-forgot').classList.remove('show');
-}
-
-async function enviarReset() {
-  const email = document.getElementById('forgot-email').value.trim();
-  const errEl = document.getElementById('forgot-error');
-  const btn = document.getElementById('btn-forgot');
-  if (!email) { errEl.textContent = 'Ingresa tu correo electrónico'; errEl.style.display = 'block'; return; }
-  errEl.style.display = 'none';
-  btn.disabled = true; btn.textContent = 'Enviando...';
-  try {
-    await api('/auth/forgot-password', { method: 'POST', body: JSON.stringify({ email }) });
-    document.getElementById('forgot-form').style.display = 'none';
-    document.getElementById('forgot-success').style.display = 'block';
-    document.getElementById('forgot-success').textContent = '✅ Si el correo existe en el sistema, recibirás un enlace para restablecer tu contraseña.';
-    setTimeout(() => cerrarForgot(), 4000);
-  } catch (e) {
-    errEl.textContent = e.message; errEl.style.display = 'block';
-  } finally {
-    btn.disabled = false; btn.textContent = 'Enviar Enlace';
-  }
-}
-
 function mostrarLogoutConfirm() {
   document.getElementById('modal-logout').classList.add('show');
 }
@@ -61,9 +29,7 @@ function cerrarLogoutConfirm() {
   document.getElementById('modal-logout').classList.remove('show');
 }
 
-document.getElementById('modal-logout')?.addEventListener('click', function(e) {
-  if (e.target === this) cerrarLogoutConfirm();
-});
+
 
 function confirmarLogout() {
   cerrarLogoutConfirm();
@@ -97,7 +63,6 @@ function navigate(page) {
   else if (page === 'vehiculos') cargarVehiculos();
   else if (page === 'pedidos') cargarPedidos();
   else if (page === 'rutas') cargarRutas();
-  else if (page === 'usuarios') cargarUsuarios();
   else if (page === 'config') cargarConfig();
   else if (page === 'mapa') cargarMapa();
   else if (page === 'clientes') cargarClientes();
@@ -1188,80 +1153,6 @@ async function importarWidetech() {
   }
 }
 
-/* ── Usuarios ── */
-async function cargarUsuarios() {
-  const tbody = document.querySelector('#tbl-usuarios tbody');
-  try {
-    const data = await api('/usuarios');
-    if (!data.usuarios?.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted" style="padding:32px;">No hay usuarios</td></tr>'; return; }
-    tbody.innerHTML = data.usuarios.map(u => `
-      <tr>
-        <td><strong>${u.nombre}</strong></td>
-        <td>${u.email}</td>
-        <td><span class="badge badge-info">${u.rol}</span></td>
-        <td><span class="badge badge-${u.activo ? 'success' : 'danger'}">${u.activo ? 'Activo' : 'Inactivo'}</span></td>
-        <td>${u.created_at ? u.created_at.slice(0,10) : '—'}</td>
-        <td><button class="btn btn-sm btn-secondary" onclick="editarUsuario(${u.id})">✏️</button></td>
-      </tr>
-    `).join('');
-  } catch (e) {
-    tbody.innerHTML = '<tr><td colspan="6" class="text-center text-muted">Error al cargar</td></tr>';
-  }
-}
-
-function abrirModalUsuario(data) {
-  const d = data || {};
-  abrirModal(
-    data ? 'Editar usuario' : 'Nuevo usuario',
-    data ? 'Actualiza los datos del usuario' : 'Crea un nuevo usuario del sistema',
-    `
-      <div class="form-grid">
-        <div class="form-group"><label>Nombre *</label><input id="u-nombre" value="${d.nombre||''}"></div>
-        <div class="form-group"><label>Email *</label><input type="email" id="u-email" value="${d.email||''}"></div>
-        <div class="form-group"><label>Contraseña ${data?'(dejar vacío para mantener)':''} *</label><input type="password" id="u-pass" ${data?'placeholder="Sin cambios"':'required'}></div>
-        <div class="form-group"><label>Rol</label><select id="u-rol">
-          <option value="admin" ${d.rol==='admin'?'selected':''}>Administrador</option>
-          <option value="operador" ${d.rol==='operador'?'selected':''}>Operador</option>
-          <option value="visor" ${d.rol==='visor'?'selected':''}>Visor</option>
-        </select></div>
-        ${data ? '<div class="form-group"><label>Activo</label><select id="u-activo"><option value="true" '+(d.activo?'selected':'')+'>Sí</option><option value="false" '+(!d.activo?'selected':'')+'>No</option></select></div>' : ''}
-      </div>
-    `,
-    `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
-     <button class="btn btn-primary" onclick="${data ? 'guardarUsuario('+d.id+')' : 'guardarUsuario()'}">${data ? 'Guardar cambios' : 'Crear usuario'}</button>`
-  );
-}
-
-function editarUsuario(id) {
-  api('/usuarios').then(d => {
-    const u = d.usuarios.find(x => x.id === id);
-    if (u) abrirModalUsuario(u);
-  }).catch(e => mostrarAlerta(e.message, 'error'));
-}
-
-async function guardarUsuario(id) {
-  const body = {
-    nombre: document.getElementById('u-nombre').value.trim(),
-    email: document.getElementById('u-email').value.trim(),
-    rol: document.getElementById('u-rol').value
-  };
-  if (id) {
-    body.activo = document.getElementById('u-activo')?.value === 'true';
-    const pass = document.getElementById('u-pass').value;
-    if (pass) body.password = pass;
-  } else {
-    body.password = document.getElementById('u-pass').value;
-  }
-  if (!body.nombre || !body.email) { mostrarAlerta('Nombre y email requeridos', 'warning'); return; }
-  if (!id && !body.password) { mostrarAlerta('Contraseña requerida', 'warning'); return; }
-  try {
-    if (id) await api('/usuarios/' + id, { method: 'PUT', body: JSON.stringify(body) });
-    else await api('/usuarios', { method: 'POST', body: JSON.stringify(body) });
-    cerrarModal();
-    cargarUsuarios();
-  } catch (e) { mostrarAlerta(e.message, 'error'); }
-}
-
 /* ── Configuración ── */
 let cfgTab = 'smtp';
 
@@ -1598,62 +1489,7 @@ async function cargarSecStatus() {
   } catch {}
 }
 
-async function desbloquearIP(ip) {
-  try {
-    await api('/auth/ratelimit-status/' + encodeURIComponent(ip), { method: 'DELETE' });
-    cargarSecStatus();
-  } catch (e) { mostrarAlerta(e.message, 'error'); }
-}
 
-/* ── Password Change ── */
-function abrirChpass() {
-  document.getElementById('chpass-error').style.display = 'none';
-  document.getElementById('chpass-msg').innerHTML = '';
-  document.getElementById('chpass-actual').value = '';
-  document.getElementById('chpass-nueva').value = '';
-  document.getElementById('chpass-confirm').value = '';
-  ['chpreq-len','chpreq-up','chpreq-num','chpreq-sym'].forEach(id => document.getElementById(id).style.color = 'var(--muted)');
-  document.getElementById('modal-chpass').classList.add('show');
-  document.getElementById('chpass-nueva').addEventListener('input', validarChpassReqs);
-}
-
-function cerrarChpass() {
-  document.getElementById('modal-chpass').classList.remove('show');
-  document.getElementById('chpass-nueva').removeEventListener('input', validarChpassReqs);
-}
-
-document.getElementById('modal-chpass')?.addEventListener('click', function(e) {
-  if (e.target === this) cerrarChpass();
-});
-
-function validarChpassReqs() {
-  const p = document.getElementById('chpass-nueva').value;
-  const toggle = (id, ok) => document.getElementById(id).style.color = ok ? 'var(--success)' : 'var(--muted)';
-  toggle('chpreq-len', p.length >= 8);
-  toggle('chpreq-up', /[A-Z]/.test(p));
-  toggle('chpreq-num', /[0-9]/.test(p));
-  toggle('chpreq-sym', /[!@#$%^&*(),.?":{}|<>_\-+=\\\/[\]~`]/.test(p));
-}
-
-async function doChangePass() {
-  const actual = document.getElementById('chpass-actual').value;
-  const nueva = document.getElementById('chpass-nueva').value;
-  const confirm = document.getElementById('chpass-confirm').value;
-  const errEl = document.getElementById('chpass-error');
-  const msgEl = document.getElementById('chpass-msg');
-  errEl.style.display = 'none'; msgEl.innerHTML = '';
-  if (!actual || !nueva) { errEl.textContent = 'Completa todos los campos'; errEl.style.display = 'block'; return; }
-  if (nueva.length < 8) { errEl.textContent = 'La nueva contraseña debe tener al menos 8 caracteres'; errEl.style.display = 'block'; return; }
-  if (nueva !== confirm) { errEl.textContent = 'Las contraseñas no coinciden'; errEl.style.display = 'block'; return; }
-  try {
-    await api('/auth/cambiar-password', { method: 'POST', body: JSON.stringify({ actual, nueva }) });
-    msgEl.innerHTML = '<span style="color:var(--success)">✓ Contraseña actualizada correctamente</span>';
-    document.getElementById('chpass-actual').value = '';
-    document.getElementById('chpass-nueva').value = '';
-    document.getElementById('chpass-confirm').value = '';
-    setTimeout(cerrarChpass, 1500);
-  } catch (e) { errEl.textContent = e.message; errEl.style.display = 'block'; }
-}
 
 /* ── Auditoría Tab ── */
 function renderAuditoria(el) {

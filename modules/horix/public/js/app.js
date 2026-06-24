@@ -1,6 +1,6 @@
 // app.js - Main initialization and global state for Horix
 
-const PAGINAS_VALIDAS = ['dashboard','historial','empleados','nomina','registro','reportes','usuarios','centros','configuracion','tipos','siesa'];
+const PAGINAS_VALIDAS = ['dashboard','historial','empleados','nomina','registro','reportes','centros','configuracion','tipos','siesa'];
 function paginaSegura(hash) {
   return PAGINAS_VALIDAS.includes(hash) ? hash : 'dashboard';
 }
@@ -47,7 +47,6 @@ function applyPermControls() {
     centros: 'centros',
     nomina: 'nominas',
     nominas: 'nominas',
-    usuarios: 'usuarios',
     configuracion: 'configuracion',
     siesa: 'siesa',
     tipos: 'tipos',
@@ -122,9 +121,6 @@ async function navigate(page) {
     case 'reportes':
       if (typeof restaurarRangoReporte === 'function') restaurarRangoReporte();
       if (typeof renderReporte === 'function') renderReporte();
-      break;
-    case 'usuarios':
-      if (typeof renderUsuarios === 'function') renderUsuarios();
       break;
     case 'centros':
       if (typeof renderCentros === 'function') renderCentros();
@@ -236,11 +232,10 @@ async function iniciarApp() {
 
 async function loadAll() {
   try {
-    const [empl, nom, reg, usr, ctr, tip] = await Promise.all([
+    const [empl, nom, reg, ctr, tip] = await Promise.all([
       GET('/api/empleados'),
       GET('/api/nominas'),
       GET('/api/registros'),
-      GET('/api/usuarios'),
       GET('/api/centros'),
       GET('/api/tipos')
     ]);
@@ -248,7 +243,6 @@ async function loadAll() {
     if (empl.ok) { empleados = await empl.json(); rebuildEmpMap(); }
     if (nom.ok) nominas = await nom.json();
     if (reg.ok) registros = await reg.json();
-    if (usr.ok) usuarios = await usr.json();
     if (ctr.ok) centros = await ctr.json();
     if (tip.ok) tipos = await tip.json();
   } catch (e) {
@@ -277,8 +271,7 @@ function poblarSelectAprobadores() {
     const res = await GET('/api/auth/me');
     if (res.ok) {
       const userData = await res.json();
-      sesion = { usuario: userData, csrfToken: userData.csrfToken || '' };
-      document.getElementById('login-screen').style.display = 'none';
+      sesion = { usuario: userData, csrfToken: '' };
       document.getElementById('app').style.display = 'flex';
       document.getElementById('app-screen').classList.add('show');
       await iniciarApp();

@@ -28,14 +28,12 @@ import pedidosRoutes from './routes/pedidos.js';
 import rutasRoutes from './routes/rutas.js';
 import importadoresRoutes from './routes/importadores.js';
 import healthRoutes from './routes/health.js';
-import usuariosRoutes from './routes/usuarios.js';
 import configRoutes from './routes/configuracion.js';
 import backupRoutes from './routes/backup.js';
 import auditoriaRoutes from './routes/auditoria.js';
 import actualizadorRoutes from './routes/actualizador.js';
 import clientesRoutes from './routes/clientes.js';
 import sedesRoutes from './routes/sedes.js';
-import authRoutes from './routes/auth.js';
 
 app.use('/api/health', healthRoutes);
 app.get('/api/rutas/diagnostico', async (req, res) => {
@@ -57,7 +55,6 @@ app.use('/api/vehiculos', protect, vehiculosRoutes);
 app.use('/api/pedidos', protect, pedidosRoutes);
 app.use('/api/rutas', protect, rutasRoutes);
 app.use('/api/importadores', protect, importadoresRoutes);
-app.use('/api/usuarios', protect, usuariosRoutes);
 app.use('/api/configuracion', protect, configRoutes);
 app.use('/api/backup', protect, backupRoutes);
 app.use('/api/auditoria', protect, auditoriaRoutes);
@@ -65,8 +62,29 @@ app.use('/api/actualizador', protect, actualizadorRoutes);
 app.use('/api/clientes', protect, clientesRoutes);
 app.use('/api/sedes', protect, sedesRoutes);
 
-// Auth routes: cambiar-password, forgot, reset (no login/verificar)
-app.use('/api/auth', verifyToken, authRoutes);
+// GET /api/auth/me — verify JWT and return user info (auto-create if new)
+app.get('/api/auth/me', verifyToken, async (req, res) => {
+  try {
+    const result = await pool.query('SELECT id, nombre, email, rol, activo FROM logistics.usuarios WHERE email=$1', [req.user.email]);
+    if (result.rows.length === 0) {
+      const rolesValidos = ['admin', 'operador', 'visor'];
+      const rol = rolesValidos.includes(req.user.rol) ? req.user.rol : 'operador';
+      const r = await pool.query(
+        `INSERT INTO logistics.usuarios (nombre, email, password_hash, rol, activo)
+         VALUES ($1, $2, '', $3, true)
+         ON CONFLICT (email) DO UPDATE SET nombre = $1, rol = $3
+         RETURNING id, nombre, email, rol, activo`,
+        [req.user.nombre || req.user.email, req.user.email, rol]
+      );
+      return res.json(r.rows[0]);
+    }
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error('[auth/me]', err);
+    res.status(500).json({ error: 'Error interno' });
+  }
+});
+
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 
 app.get('/api/version', (req, res) => {

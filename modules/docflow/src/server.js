@@ -24,7 +24,6 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/areas',       require('./routes/areas'));
 app.use('/api/categorias',  require('./routes/categorias'));
 app.use('/api/facturas',    require('./routes/facturas'));
-app.use('/api/usuarios',    require('./routes/usuarios'));
 app.use('/api/proveedores', require('./routes/proveedores'));
 app.use('/api/dashboard',   require('./routes/dashboard'));
 app.use('/api/backup',         require('./routes/backup'));

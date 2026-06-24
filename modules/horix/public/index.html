@@ -30,8 +30,6 @@
   body.light thead th { background:#f0f2f7; }
   body.light .nav-item:hover { background:#f0f2f7; }
   body.light .nav-item.active { background:rgba(79,142,247,0.12); }
-  body.light .login-box { background:#ffffff; }
-  body.light .login-box { box-shadow: 0 24px 80px rgba(0,0,0,0.12); }
   .sede-filter-admin.hidden-operador { display: none; }
 
   /* ── THEME TOGGLE ── */
@@ -47,16 +45,6 @@
 
   *{box-sizing:border-box;margin:0;padding:0;}
   body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;transition:background 0.2s,color 0.2s;}
-
-  /* ── LOGIN ── */
-  #login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:radial-gradient(ellipse at top right,rgba(43,108,176,0.12),transparent 50%),radial-gradient(ellipse at bottom left,rgba(43,108,176,0.06),transparent 50%),var(--bg)}
-  .login-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:40px;width:100%;max-width:400px}
-.login-card h1{font-family:var(--font-head);font-size:24px;margin-bottom:4px;text-align:center}
-.login-card p{color:var(--muted);font-size:14px;margin-bottom:24px;text-align:center}
-.login-card .logo{font-size:40px;margin-bottom:12px;text-align:center}
-.login-card label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
-.login-card .form-group{margin-bottom:16px}
-.login-card .error{color:var(--danger);font-size:13px;display:none;margin-bottom:12px}
 
   /* ── LAYOUT ── */
   .layout{display:flex;min-height:100vh;}
@@ -652,50 +640,6 @@
 </head>
 <body>
 
-<!-- ══════════════════════════════════════════
-     LOGIN
-══════════════════════════════════════════ -->
-<div id="login-screen">
-  <div class="login-card">
-    <div class="logo">🕐</div>
-    <h1>Horix</h1>
-    <p>Sistema de Control de Novedades</p>
-    <div class="error" id="login-error"></div>
-    <div class="form-group">
-      <label>Correo electrónico</label>
-      <input type="email" id="login-email" placeholder="correo@empresa.com" autocomplete="email" onkeydown="if(event.key==='Enter')doLogin()"/>
-    </div>
-    <div class="form-group">
-      <label>Contraseña</label>
-      <input type="password" id="login-pass" placeholder="Escribe tu contraseña" autocomplete="current-password" onkeydown="if(event.key==='Enter')doLogin()"/>
-    </div>
-    <button class="btn btn-primary" id="btn-login" onclick="doLogin()" style="width:100%;justify-content:center;">Ingresar</button>
-    <div style="text-align:center;margin-top:16px;">
-      <a href="#" onclick="abrirForgot()" style="font-size:13px;color:var(--muted);text-decoration:none;" onmouseover="this.style.color='var(--text)'" onmouseout="this.style.color='var(--muted)'">¿Olvidaste tu contraseña?</a>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL FORGOT PASSWORD (fuera de #app para que sea visible en login) -->
-<div class="modal-overlay" id="modal-forgot">
-  <div class="modal" style="width:420px;">
-    <div class="modal-title">Recuperar Contraseña</div>
-    <p style="color:var(--muted);font-size:13px;margin-bottom:20px;">Ingresa tu correo y te enviaremos un enlace para restablecer tu contraseña.</p>
-    <div class="login-error" id="forgot-error" style="display:none"></div>
-    <div id="forgot-success" style="display:none;padding:12px;background:rgba(79,190,150,.1);border-radius:8px;color:var(--success);font-size:13px;margin-bottom:16px;"></div>
-    <div id="forgot-form">
-      <div class="form-group" style="margin-bottom:20px;">
-        <label>Correo Electrónico</label>
-        <input type="email" id="forgot-email" placeholder="correo@empresa.com" onkeydown="if(event.key==='Enter')enviarReset()"/>
-      </div>
-    </div>
-    <div style="display:flex;gap:10px;justify-content:flex-end;padding-top:16px;border-top:1px solid var(--border);">
-      <button class="btn btn-secondary" onclick="cerrarModal('modal-forgot')">Cancelar</button>
-      <button class="btn btn-primary" id="btn-forgot" onclick="enviarReset()">Enviar Enlace</button>
-    </div>
-  </div>
-</div>
-
 <!-- APP -->
 <div id="app" style="display:none;">
 <!-- ══════════════════════════════════════════
@@ -721,7 +665,6 @@
      <div class="nav-item"         onclick="navigate('nomina')"   id="nav-nomina" data-page="nominas"><span class="nav-icon">💰</span><span>Períodos Nómina</span></div>
       <div class="nav-item"         onclick="navigate('reportes')"><span class="nav-icon">📈</span><span>Reportes</span></div>
       <div class="nav-item"         onclick="navigate('siesa')" id="nav-siesa" data-page="siesa" data-perm="siesa"><span class="nav-icon">📤</span><span>Exportar Siesa</span></div>
-      <div class="nav-item"         onclick="navigate('usuarios')" id="nav-usuarios" data-page="usuarios"><span class="nav-icon">🔐</span><span>Usuarios</span></div>
       <div class="nav-item"         onclick="navigate('tipos')" id="nav-tipos" data-page="tipos"><span class="nav-icon">🏷️</span><span>Conceptos de Nómina</span></div>
       <div class="nav-item" onclick="navigate('configuracion')" id="nav-configuracion" data-page="configuracion"><span class="nav-icon">⚙️</span><span>Configuración</span></div>
     </div>
@@ -1406,7 +1349,6 @@
 <script src="js/modules/dashboard.js?v=10"></script>
 <script src="js/modules/records.js?v=36"></script>
 <script src="js/modules/employees.js?v=11"></script>
-<script src="js/modules/users.js?v=4"></script>
 <script src="js/modules/nomina.js?v=5"></script>
 <script src="js/modules/reports.js?v=9"></script>
 <script src="js/modules/attachments.js?v=4"></script>

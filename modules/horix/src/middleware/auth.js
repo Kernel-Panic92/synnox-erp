@@ -16,94 +16,29 @@ function parseCookies(req) {
 }
 
 function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
-  function verifyLauncherJWT(token) {
-    try {
-      const payload = jwt.verify(token, JWT_SECRET);
-      if (!payload || !payload.email) return null;
-      let user = db.prepare('SELECT * FROM usuarios WHERE email = ? AND activo = 1').get(payload.email);
-      if (!user) {
-        const id = require('crypto').randomUUID();
-        const nombre = payload.nombre || payload.email.split('@')[0];
-        const rol = payload.rol === 'admin' ? 'admin' : 'operador';
-        db.prepare('INSERT INTO usuarios (id, nombre, email, password, rol, activo, sede, creado) VALUES (?,?,?,?,?,1,?,?)').run(id, nombre, payload.email, '', rol, payload.sede || 'Principal', new Date().toISOString());
-        user = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(id);
-      }
-      return user;
-    } catch { return null; }
-  }
-
-  function notifyNewIP(usuarioId, oldIP, newIP, ua) {
-    try {
-      const usuario = db.prepare('SELECT nombre, email FROM usuarios WHERE id = ?').get(usuarioId);
-      if (!usuario || !getConfig().smtp_host) return;
-      const ahora = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
-      enviarCorreo(usuario.email, 'Nuevo inicio de sesión en Horix',
-        `Hola ${usuario.nombre},\n\nSe detectó un inicio de sesión en tu cuenta de Horix desde una dirección IP diferente.\n\n` +
-        `IP anterior: ${oldIP}\nIP nueva: ${newIP}\nAgente: ${ua}\nFecha: ${ahora}\n\n` +
-        `Si fuiste t, ignora este mensaje.\nSi no reconoces esta actividad, cambia tu contraseña inmediatamente.\n\nSaludos,\nEquipo HORIX`);
-    } catch (e) {
-      console.error('Error notificando nuevo IP:', e.message);
-    }
-  }
-
   function autenticar(rolesPermitidos = []) {
     return (req, res, next) => {
       const cookies = parseCookies(req);
-      const token = cookies.launcher_jwt || cookies.he_token || req.headers['authorization']?.replace('Bearer ', '');
-
-      // Try launcher JWT first (monorepo auth)
-      if (token) {
-        const launcherUser = verifyLauncherJWT(token);
-        if (launcherUser) {
-          if (rolesPermitidos.length && !rolesPermitidos.includes(launcherUser.rol))
-            return res.status(403).json({ error: 'Sin permisos para esta acción' });
-          req.usuario = launcherUser;
-          return next();
+      const token = cookies.launcher_jwt || req.headers['authorization']?.replace('Bearer ', '');
+      if (!token) return res.status(401).json({ error: 'Token requerido' });
+      try {
+        const payload = jwt.verify(token, JWT_SECRET);
+        if (!payload || !payload.email) return res.status(401).json({ error: 'Token inválido' });
+        let user = db.prepare('SELECT * FROM usuarios WHERE email = ? AND activo = 1').get(payload.email);
+        if (!user) {
+          const id = require('crypto').randomUUID();
+          const nombre = payload.nombre || payload.email.split('@')[0];
+          const rol = ['admin','rrhh','gerencia','operador','consulta'].includes(payload.rol) ? payload.rol : 'operador';
+          db.prepare('INSERT INTO usuarios (id, nombre, email, password, rol, activo, sede, creado) VALUES (?,?,?,?,?,1,?,?)').run(id, nombre, payload.email, '', rol, payload.sede || 'Principal', new Date().toISOString());
+          user = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(id);
         }
+        if (rolesPermitidos.length && !rolesPermitidos.includes(user.rol))
+          return res.status(403).json({ error: 'Sin permisos para esta acción' });
+        req.usuario = user;
+        next();
+      } catch {
+        return res.status(401).json({ error: 'Token inválido o expirado' });
       }
-
-      if (!token) return res.status(401).json({ error: 'No autenticado' });
-      const sesion = db.prepare('SELECT * FROM sesiones WHERE token = ?').get(token);
-      if (!sesion || new Date(sesion.expira) < new Date()) {
-        if (sesion) db.prepare('DELETE FROM sesiones WHERE token = ?').run(token);
-        return res.status(401).json({ error: 'Sesión expirada' });
-      }
-
-      const currentIP = req.ip || '';
-      const currentUA = req.headers['user-agent'] || '';
-      const currentBFP = req.headers['x-browser-fp'] || '';
-
-      if (sesion.bfp && currentBFP && sesion.bfp !== currentBFP) {
-        db.prepare('DELETE FROM sesiones WHERE token = ?').run(token);
-        notifyNewIP(sesion.usuarioId, sesion.ip, currentIP, currentUA);
-        console.warn(`Sesión eliminada por cambio de fingerprint: ${sesion.bfp} → ${currentBFP}`);
-        return res.status(401).json({ error: 'Sesión invalidada por cambio de navegador' });
-      }
-
-      if (!sesion.bfp && currentBFP) {
-        db.prepare('UPDATE sesiones SET bfp = ? WHERE token = ?').run(currentBFP, token);
-      }
-
-      if (sesion.ua && sesion.ua !== currentUA) {
-        db.prepare('DELETE FROM sesiones WHERE token = ?').run(token);
-        console.warn(`Sesión eliminada por cambio de User-Agent: ${sesion.ua} → ${currentUA}`);
-        return res.status(401).json({ error: 'Sesión invalidada por cambio de agente' });
-      }
-
-      if (sesion.ip && sesion.ip !== currentIP) {
-        notifyNewIP(sesion.usuarioId, sesion.ip, currentIP, currentUA);
-        db.prepare('DELETE FROM sesiones WHERE token = ?').run(token);
-        console.warn(`Sesión eliminada por cambio de IP: ${sesion.ip} → ${currentIP}`);
-        return res.status(401).json({ error: 'Sesión invalidada por cambio de IP' });
-      }
-
-      const usuario = db.prepare('SELECT * FROM usuarios WHERE id = ? AND activo = 1').get(sesion.usuarioId);
-      if (!usuario) return res.status(401).json({ error: 'Usuario inactivo' });
-      db.prepare("UPDATE sesiones SET expira = datetime('now', '+30 days') WHERE token = ?").run(token);
-      if (rolesPermitidos.length && !rolesPermitidos.includes(usuario.rol))
-        return res.status(403).json({ error: 'Sin permisos para esta acción' });
-      req.usuario = usuario;
-      next();
     };
   }
 
@@ -137,7 +72,7 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
     soloAdmin(req, res, next);
   };
 
-  return { autenticar, requierePermiso, soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles, requiereBackupToken, soloAdminOBkp };
+  return { autenticar, requierePermiso, soloAdmin, adminRrhh, adminRrhhOp, podeAprovar: podeAprobar, podeEditar, todosRoles, requiereBackupToken, soloAdminOBkp };
 }
 
 module.exports = { parseCookies, createAuth };

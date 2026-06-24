@@ -166,39 +166,7 @@ const migrations = [
   ('moneda',                  'COP',  'Moneda por defecto')
 ON CONFLICT (clave) DO NOTHING`,
 
-// ─── 012: Tokens de recuperación de contraseña ───────────────────────────────
-`CREATE TABLE IF NOT EXISTS tokens_reset (
-  token      VARCHAR(100) PRIMARY KEY,
-  usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-  expira     TIMESTAMPTZ NOT NULL,
-  creado_en  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-)`,
 
-// ─── 013: Sesiones (para logout y gestión) ───────────────────────────────────
-`CREATE TABLE IF NOT EXISTS sesiones (
-  token      TEXT PRIMARY KEY,
-  usuario_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-  expira     TIMESTAMPTZ NOT NULL,
-  ip         VARCHAR(50),
-  user_agent TEXT,
-  creado_en  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-)`,
-`ALTER TABLE IF EXISTS sesiones ALTER COLUMN token TYPE TEXT`,
-
-// ─── 014: Log de accesos (auditoría login) ───────────────────────────────────
-`CREATE TABLE IF NOT EXISTS log_accesos (
-  id         UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  usuario_id  UUID REFERENCES usuarios(id) ON DELETE SET NULL,
-  email      VARCHAR(200),
-  ip         VARCHAR(50),
-  user_agent TEXT,
-  exito      BOOLEAN NOT NULL,
-  motivo     VARCHAR(100),
-  creado_en  TIMESTAMPTZ NOT NULL DEFAULT NOW()
-)`,
-
-// ─── 015: Actualizar tabla usuarios ────────────────────────────────────────────
-`ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cambio_password BOOLEAN NOT NULL DEFAULT FALSE`,
 
 // ─── 015b: Agregar jefe_id a áreas ──────────────────────────────────────────────
 `ALTER TABLE areas ADD COLUMN IF NOT EXISTS jefe_id UUID REFERENCES usuarios(id) ON DELETE SET NULL`,

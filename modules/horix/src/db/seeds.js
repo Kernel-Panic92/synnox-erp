@@ -1,4 +1,4 @@
-module.exports = async function runSeeds({ db, uid, hashPassword, encryptSmtp, BASE_URL, APP_NAME }) {
+module.exports = async function runSeeds({ db, uid, encryptSmtp, BASE_URL, APP_NAME }) {
   // Seed tipos
   try {
     const existing = db.prepare('SELECT COUNT(*) c FROM tipos').get().c;
@@ -106,22 +106,5 @@ module.exports = async function runSeeds({ db, uid, hashPassword, encryptSmtp, B
     console.log('🏢 Centro de operación inicial creado: Principal');
   }
 
-  // Seed admin
-  const totalUsuarios = db.prepare('SELECT COUNT(*) as c FROM usuarios').get();
-  if (totalUsuarios.c === 0) {
-    const adminEmail = process.env.ADMIN_EMAIL;
-    const adminPass  = process.env.ADMIN_PASS;
-    if (!adminEmail || !adminPass) {
-      console.error('❌ ADMIN_EMAIL y ADMIN_PASS deben estar configurados en .env para crear el admin inicial');
-      process.exit(1);
-    }
-    const primerCentro = db.prepare('SELECT nombre FROM centros LIMIT 1').get()?.nombre || 'Principal';
-    db.prepare('INSERT INTO usuarios (id,nombre,email,password,rol,sede,activo,creado) VALUES (?,?,?,?,?,?,?,?)').run(
-      uid(), 'Administrador',
-      adminEmail,
-      await hashPassword(adminPass),
-      'admin', primerCentro, 1, new Date().toISOString()
-    );
-    console.log('👤 Usuario admin creado');
-  }
+
 };

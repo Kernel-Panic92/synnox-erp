@@ -10,17 +10,6 @@ module.exports = function runMigrations(db) {
       activo    INTEGER NOT NULL DEFAULT 1,
       creado    TEXT NOT NULL
     );
-    CREATE TABLE IF NOT EXISTS sesiones (
-      token     TEXT PRIMARY KEY,
-      usuarioId TEXT NOT NULL,
-      expira    TEXT NOT NULL,
-      csrf      TEXT
-    );
-    CREATE TABLE IF NOT EXISTS tokens_reset (
-      token     TEXT PRIMARY KEY,
-      usuarioId TEXT NOT NULL,
-      expira    TEXT NOT NULL
-    );
     CREATE TABLE IF NOT EXISTS configuracion (
       clave TEXT PRIMARY KEY,
       valor TEXT NOT NULL
@@ -70,14 +59,6 @@ module.exports = function runMigrations(db) {
       nombre  TEXT NOT NULL UNIQUE,
       activo  INTEGER NOT NULL DEFAULT 1,
       creado  TEXT NOT NULL
-    );
-    CREATE TABLE IF NOT EXISTS auditoria_logins (
-      id        INTEGER PRIMARY KEY AUTOINCREMENT,
-      usuarioId TEXT,
-      email     TEXT NOT NULL,
-      ip        TEXT NOT NULL,
-      tipo      TEXT NOT NULL,
-      timestamp TEXT NOT NULL
     );
     CREATE TABLE IF NOT EXISTS telemetria (
       id        INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -152,11 +133,6 @@ module.exports = function runMigrations(db) {
     `ALTER TABLE empleados ADD COLUMN activo INTEGER NOT NULL DEFAULT 1`,
     `ALTER TABLE usuarios ADD COLUMN sede TEXT NOT NULL DEFAULT 'Principal'`,
     `ALTER TABLE usuarios ADD COLUMN cambio_password INTEGER NOT NULL DEFAULT 0`,
-    `ALTER TABLE sesiones ADD COLUMN csrf TEXT`,
-    `ALTER TABLE sesiones ADD COLUMN ip TEXT NOT NULL DEFAULT ''`,
-    `ALTER TABLE sesiones ADD COLUMN creado TEXT NOT NULL DEFAULT ''`,
-    `ALTER TABLE sesiones ADD COLUMN ua TEXT NOT NULL DEFAULT ''`,
-    `ALTER TABLE sesiones ADD COLUMN bfp TEXT NOT NULL DEFAULT ''`,
   ];
   for (const sql of alterMigrations) {
     try { db.exec(sql); } catch {}
