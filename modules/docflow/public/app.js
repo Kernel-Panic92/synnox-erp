@@ -29,13 +29,6 @@ function getPageFromHash(){
 }
 function savePage(v){localStorage.setItem('vd_last_page',v)}
 
-$('chpass-new').addEventListener('input',function(){
-  const p=this.value;
-  $('req-len').style.color=p.length>=8?'var(--success)':'';
-  $('req-up').style.color=/[A-Z]/.test(p)?'var(--success)':'';
-  $('req-num').style.color=/[0-9]/.test(p)?'var(--success)':'';
-  $('req-sym').style.color=/[!@#$%^&*(),.?":{}|<>_\-+=]/.test(p)?'var(--success)':'';
-});
 function goNav(v){closeSidebar();goTo(v)}
 function setNav(id){
   document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
