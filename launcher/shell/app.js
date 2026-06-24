@@ -85,7 +85,8 @@ async function showLauncher() {
     for (const mod of modulos) {
       const card = document.createElement('a');
       card.className = 'card';
-      card.href = mod.url;
+      const host = window.location.hostname;
+      card.href = (window.location.protocol === 'https:' && mod.proxy_prefix) ? window.location.origin + mod.proxy_prefix : mod.url.replace('localhost', host);
       card.target = '_blank';
       card.rel = 'noopener';
       const st = estados[mod.id];
