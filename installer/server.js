@@ -115,7 +115,7 @@ async function runInstall(config) {
         try { fs.unlinkSync(path.join(INSTALL_DIR, f)); log(`Eliminado: ${f}`, 'ok'); } catch {}
       }
       // Delete .env files
-      for (const dir of ['launcher', 'modules/logistics', 'modules/docflow', 'modules/nomina']) {
+      for (const dir of ['launcher', 'modules/logistica', 'modules/proveedores', 'modules/nomina']) {
         try { fs.unlinkSync(path.join(INSTALL_DIR, dir, '.env')); } catch {}
       }
       // Stop PM2 processes
@@ -291,8 +291,8 @@ server { listen 80; server_name ${domain}; return 301 https://\$host\$request_ur
     }
     if (token) {
       const mods = [
-        { id: 'logistics', nombre: 'Logística', icon: '🚚', url: 'http://localhost:3002/logistics', proxy_prefix: '/logistics/', tipo: 'interno' },
-        { id: 'docflow', nombre: 'DocFlow', icon: '📄', url: 'http://localhost:3002/docflow', proxy_prefix: '/docflow/', tipo: 'interno' },
+        { id: 'logistica', nombre: 'Logística', icon: '🚚', url: 'http://localhost:3002/logistica', proxy_prefix: '/logistica/', tipo: 'interno' },
+        { id: 'proveedores', nombre: 'Proveedores', icon: '📄', url: 'http://localhost:3002/proveedores', proxy_prefix: '/proveedores/', tipo: 'interno' },
         { id: 'nomina', nombre: 'Nómina', icon: '💰', url: 'http://localhost:3002/nomina', proxy_prefix: '/nomina/', tipo: 'interno' },
       ];
       for (const m of mods) {

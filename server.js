@@ -23,13 +23,23 @@ app.get('/api/version', (req, res) => {
 app.use('/', require('./launcher/server'));
 app.use(express.static(path.join(__dirname, 'launcher', 'shell')));
 
-// ── Module: DocFlow (facturas) ──────────────────────────────────
-app.use('/docflow', require('./modules/docflow/src/server'));
-app.use('/docflow', express.static(path.join(__dirname, 'modules', 'docflow', 'public')));
+// ── Module: Proveedores (facturas) ──────────────────────────────
+app.use('/proveedores', require('./modules/proveedores/src/server'));
+app.use('/proveedores', express.static(path.join(__dirname, 'modules', 'proveedores', 'public')));
 
-// ── Module: Horix (novedades) ───────────────────────────────────
+// ── Module: Nómina (novedades) ──────────────────────────────────
 app.use('/nomina', require('./modules/nomina/server'));
 app.use('/nomina', express.static(path.join(__dirname, 'modules', 'nomina', 'public')));
+
+// ── Module: Logística (rutas — ESM) ─────────────────────────────
+async function mountLogistica() {
+  try {
+    const mod = await import('./modules/logistica/backend/server.js');
+    app.use('/logistica', mod.default);
+    app.use('/logistica', express.static(path.join(__dirname, 'modules', 'logistica', 'public')));
+    console.log('   Logística: montado en /logistica/');
+  } catch (e) { console.error('[logistica] Error:', e.message); }
+}
 
 // ── Catch-all: serve launcher SPA ──────────────────────────────
 app.get('*', (req, res) => {
@@ -45,23 +55,14 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 
-// ── Start (sync modules first, then async) ──────────────────────
+// ── Start ───────────────────────────────────────────────────────
 async function start() {
-  // Module: Logistics (ESM → import dinámico)
-  try {
-    const logisticsMod = await import('./modules/logistics/backend/server.js');
-    app.use('/logistics', logisticsMod.default);
-    app.use('/logistics', express.static(path.join(__dirname, 'modules', 'logistics', 'public')));
-    console.log('   Logistics: montado en /logistics/');
-  } catch (e) {
-    console.error('[logistics] Error:', e.message);
-  }
-
+  await mountLogistica();
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`✅ SynnoxERP corriendo en puerto ${PORT}`);
     console.log(`   Dashboard: http://localhost:${PORT}`);
-    console.log(`   DocFlow:   http://localhost:${PORT}/docflow/`);
-    console.log(`   Logistics: http://localhost:${PORT}/logistics/`);
+    console.log(`   Proveedores: http://localhost:${PORT}/proveedores/`);
+    console.log(`   Logística: http://localhost:${PORT}/logistica/`);
     console.log(`   Nómina:    http://localhost:${PORT}/nomina/`);
   });
 }
