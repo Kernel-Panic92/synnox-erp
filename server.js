@@ -20,7 +20,7 @@ app.get('/api/version', (req, res) => {
 });
 
 // ── Module: Launcher (dashboard, auth, admin) ───────────────────
-app.use('/api', require('./launcher/server'));
+app.use('/', require('./launcher/server'));
 app.use(express.static(path.join(__dirname, 'launcher', 'shell')));
 
 // ── Module: DocFlow (facturas) ──────────────────────────────────
