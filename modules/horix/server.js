@@ -225,13 +225,15 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 
-// INICIAR
-// ─────────────────────────────────────────────
-boot.then(() => {
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`✅ Servidor corriendo en http://0.0.0.0:${PORT}`);
+module.exports = app;
+
+if (require.main === module) {
+  boot.then(() => {
+    app.listen(PORT, '0.0.0.0', () => {
+      console.log(`✅ Servidor corriendo en http://0.0.0.0:${PORT}`);
+    });
+  }).catch(err => {
+    console.error('Error durante la inicialización:', err);
+    process.exit(1);
   });
-}).catch(err => {
-  console.error('Error durante la inicialización:', err);
-  process.exit(1);
-});
+}
