@@ -72,7 +72,7 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
     soloAdmin(req, res, next);
   };
 
-  return { autenticar, requierePermiso, soloAdmin, adminRrhh, adminRrhhOp, podeAprovar: podeAprobar, podeEditar, todosRoles, requiereBackupToken, soloAdminOBkp };
+  return { autenticar, requierePermiso, soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles, requiereBackupToken, soloAdminOBkp };
 }
 
 module.exports = { parseCookies, createAuth };
