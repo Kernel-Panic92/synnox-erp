@@ -32,7 +32,20 @@ router.get('/me', authMiddleware, async (req, res) => {
        WHERE u.email = $1`,
       [req.usuario.email]
     );
-    if (rows.length === 0) return res.status(404).json({ error: 'Usuario no encontrado en docflow' });
+    if (rows.length === 0) {
+      const rolesValidos = ['admin','contador','tesorero','comprador','auditor'];
+      const rol = rolesValidos.includes(req.usuario.rol) ? req.usuario.rol : 'comprador';
+      const randomPass = crypto.randomBytes(32).toString('hex');
+      const hash = bcrypt.hashSync(randomPass, 12);
+      const { rows: newUser } = await db.query(
+        `INSERT INTO usuarios (nombre, email, password_hash, rol, activo)
+         VALUES ($1, $2, $3, $4, TRUE)
+         ON CONFLICT (email) DO UPDATE SET nombre = $1, rol = $4
+         RETURNING id, nombre, email, rol, activo, creado, actualizado`,
+        [req.usuario.nombre, req.usuario.email, hash, rol]
+      );
+      return res.json(newUser[0]);
+    }
     res.json(rows[0]);
   } catch (err) {
     console.error('[auth/me]', err);

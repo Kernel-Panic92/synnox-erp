@@ -287,12 +287,7 @@ function poblarSelectAprobadores() {
     }
   } catch (e) {
     console.error('Session check failed:', e);
-    const token = getLauncherToken && getLauncherToken();
-    if (!token) {
-      window.location.href = (window.BASE || '') + '/';
-    } else {
-      document.getElementById('login-screen').style.display = 'flex';
-    }
+    window.location.href = (window.BASE || '') + '/';
   }
 })();
 
