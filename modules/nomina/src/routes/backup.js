@@ -25,6 +25,7 @@ module.exports = function createBackupRouter({
         registros: db.prepare('SELECT * FROM registros').all(),
         usuario_empleados: db.prepare('SELECT * FROM usuario_empleados').all(),
         dashboard_layout: db.prepare('SELECT * FROM dashboard_layout').all(),
+        centros: db.prepare('SELECT * FROM centros').all(),
       };
       const zip = new AdmZip();
       zip.addFile('backup.json', Buffer.from(JSON.stringify(data, null, 2), 'utf8'));
