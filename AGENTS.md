@@ -1,74 +1,33 @@
 # SynnoxERP — Contexto del proyecto
 
-> Propósito: Mantener contexto entre sesiones de opencode.
+## Estado actual (25 Jun 2026)
 
-## ¿Qué es?
-Plataforma de orquestación de módulos ERP con servidor unificado. Monorepo con un solo punto de entrada.
-
-**Repo**: `https://github.com/Kernel-Panic92/horix-erp` (branch `refactor/monorepo-auth`)
-
-## Arquitectura actual
-
-```
-server.js (raíz, puerto 3002)
-├── Launcher (login, dashboard, admin) → /
-├── Proveedores (facturas) → /proveedores/
-├── Logística (rutas) → /logistica/
-└── Nómina (novedades) → /nomina/
-```
-
-- **1 solo proceso PM2** (`synnoxerp`)
-- **1 solo .env** en raíz
+### Arquitectura
+- **Servidor unificado**: 1 proceso PM2 (synnoxerp) en puerto 3002
+- **1 solo .env** en raíz con todas las configuraciones
 - **1 solo package.json** con todas las dependencias
-- **Módulos estáticos** — no requieren registro vía API
-- **Instalador** genera único .env, único npm install, único PM2
+- **Módulos estáticos**: las rutas están hardcodeadas en server.js, no requieren registro vía API
 
-## Estructura
+### Módulos
 
-```
-horix-erp/
-├── server.js              ← Entry point único
-├── package.json           ← Todas las dependencias
-├── .env                   ← Configuración única
-├── src/
-│   ├── auth.js            ← Middleware JWT compartido
-│   └── db.js              ← Conexiones PostgreSQL + SQLite
-├── launcher/              ← Login, dashboard, admin usuarios
-│   └── shell/             ← Frontend SPA
-├── modules/
-│   ├── proveedores/       ← Facturas (CommonJS, PostgreSQL)
-│   ├── logistica/         ← Rutas (ESM, PostgreSQL)
-│   └── nomina/            ← Novedades (CommonJS, SQLite)
-├── framework/
-│   └── auth.js            ← verifyToken + requireModule (shared ESM)
-└── installer/
-    └── server.js          ← Instalador web
-```
+| Ruta | Nombre | DB | Estado |
+|------|--------|----|--------|
+| `/` | Launcher (login, dashboard, admin) | SQLite | ✅ |
+| `/proveedores/` | Proveedores (facturas) | PostgreSQL (`horix_erp`) | ✅ |
+| `/logistica/` | Logística (rutas) | PostgreSQL (`horix_erp`, schema `logistics`) | ✅ |
+| `/nomina/` | Nómina (novedades) | SQLite (`modules/nomina/horas_extra.db`) | ✅ |
 
-## Auth centralizada
-- Launcher tiene el login único (`POST /api/auth/login`)
-- JWT_SECRET compartido via .env único
-- JWT incluye `modulos[]` (módulos permitidos para el usuario)
-- Módulos leen cookie `launcher_jwt` y verifican con JWT_SECRET
-- Cada módulo auto-crea usuario local si no existe (desde payload JWT)
+### Bugs resueltos
+- DocFlow → Proveedores: bucle infinito por columna `creado` vs `creado_en` ✅
+- Horix → Nómina: typo `podeAprovar` vs `podeAprobar` en middleware ✅
+- Logística: catch-all interceptaba rutas antes de montar el módulo ESM ✅
+- Nómina: `const API` duplicado anulaba prefijo BASE en frontend ✅
+- DBs unificadas: `PGHOST/PGUSER/PGPASSWORD/PGDATABASE` para todos los módulos ✅
 
-## Pendientes (próxima sesión)
-
-### Bugs conocidos
-1. **Módulos redirigen al login** — Al hacer clic en una tarjeta del dashboard, el módulo abre pero `GET /api/auth/me` falla (posible JWT_SECRET mismatch o cookie no enviada). Diagnosticar por qué el JWT no se verifica en los submódulos.
-2. **Nómina carga en negro** — Verificar que el fix de `API = BASE` en `api.js` resolvió el path de las llamadas API.
-
-### Próximos pasos
-- [ ] Diagnosticar por qué los módulos redirigen al login (JWT no verificado)
+### Pendientes
+- [ ] Verificar dashboards y funcionalidad de cada módulo migrado
+- [ ] Revisar submódulos de configuración de cada módulo (SMTP, backup, etc.)
 - [ ] Simplificar admin del launcher (remover gestión de módulos vía API)
 - [ ] Limpiar tablas `modulos_plataforma` del launcher (obsoletas)
-- [ ] Renombrar proyecto a SynnoxERP (marca)
-- [ ] Limpiar seeds duplicados (cada módulo ya no crea admin propio)
-
-### Para probar instalación limpia
-```bash
-cd /opt/horix-platform
-sudo git pull origin refactor/monorepo-auth
-sudo node installer/server.js
-# En wizard: marcar "Instalación limpia" + escribir CONFIRMAR
-```
+- [ ] Renombrar proyecto a SynnoxERP
+- [ ] Agregar `"type": "module"` a package.json (eliminar warning de ESM)
