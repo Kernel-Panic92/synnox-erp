@@ -89,7 +89,7 @@
   }
   .login-card .logo{font-size:24px;font-weight:800;margin-bottom:4px;text-align:center;}
   .login-card .sub{text-align:center;}
-  .login-brand-icon{text-align:center;font-size:48px;margin-bottom:12px;display:block;}
+  /* login-brand-icon removed */
 
   #launcher-screen{display:none;width:100%;min-height:100vh;padding:0;}
   #admin-screen{display:none;}
@@ -171,7 +171,7 @@
     .card-title{font-size:14px;}
     .login-card{padding:32px 20px;width:100%;margin:auto 12px;}
     .login-card .logo{font-size:20px;}
-    .login-brand-icon{font-size:36px;}
+    /* login-brand-icon removed */
     #admin-screen .dash-header{gap:4px;padding:10px 12px;}
     #admin-screen .dash-header .dash-logo{font-size:16px;}
     .perm-rol-section{padding:14px;}
@@ -185,7 +185,6 @@
 <body>
 <div id="login-screen">
   <div class="login-card">
-    <div class="login-brand-icon">&#9889;</div>
     <div class="logo"><img src="/media/LogoERP.png" style="height:80px;display:block;margin:0 auto 12px"></div>
     <div class="sub">Accede a todos los m&oacute;dulos del sistema</div>
     <div class="error" id="login-error"></div>
@@ -249,7 +248,7 @@
 
 <div id="launcher-screen">
   <div class="dash-header">
-    <div class="dash-logo"><img src="/media/LogoERP.png" style="height:40px;vertical-align:middle;margin-right:8px"> <span style="font-size:20px;font-weight:700">SynnoxERP</span></div>
+    <div class="dash-logo"><img src="/media/LogoERP.png" style="height:40px;vertical-align:middle"></div>
     <div class="dash-user">
       <span class="name" id="launcher-user"></span>
       <span class="role" id="launcher-role"></span>
