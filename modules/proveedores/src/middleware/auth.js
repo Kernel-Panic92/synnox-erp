@@ -17,10 +17,11 @@ async function authMiddleware(req, res, next) {
   let token = cookies.launcher_jwt || null;
   const header = req.headers.authorization;
   const rawCookie = req.headers['cookie'] || '(none)';
-  console.log(`[proveedores] RAW cookie: ${rawCookie.slice(0,120)} — parsed launcher_jwt: ${(cookies.launcher_jwt || 'MISSING').slice(0,30)}`);
+  const parts = token ? token.split('.').length : 0;
+  console.log(`[proveedores] cookie: ${rawCookie.slice(0,80)}... tokenParts: ${parts}, secret: ${JWT_SECRET.slice(0,12)}... (len:${JWT_SECRET.length})`);
   if (!token && header && header.startsWith('Bearer ')) token = header.split(' ')[1];
   if (!token) {
-    console.log(`[proveedores] 401 — no token en ${req.method} ${req.path}`);
+    console.log(`[proveedores] 401 — no token`);
     return res.status(401).json({ error: 'Token requerido' });
   }
   try {
@@ -28,7 +29,7 @@ async function authMiddleware(req, res, next) {
     req.usuario = { ...payload, _token: token };
     next();
   } catch (err) {
-    console.log(`[proveedores] JWT error: ${err.message} — path: ${req.path} — token: ${token.slice(0,20)}... — secret: ${JWT_SECRET.slice(0,8)}...`);
+    console.log(`[proveedores] JWT error: ${err.message} — token: ${token.slice(0,25)}... (${token.length} chars, ${token.split('.').length} parts) — secret len:${JWT_SECRET.length}`);
     if (err.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Sesión expirada' });
     }
