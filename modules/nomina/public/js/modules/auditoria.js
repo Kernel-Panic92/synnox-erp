@@ -36,12 +36,14 @@ async function cargarAuditoria() {
     const res = await GET('/api/admin/auditoria' + (qs ? '?' + qs : ''));
     if (!res.ok) return;
     const data = await res.json();
-    document.getElementById('aud-sesiones').textContent = data.stats.totalSesiones;
-    document.getElementById('aud-exitos-hoy').textContent = data.stats.totalExitosHoy;
-    document.getElementById('aud-fallidos-hoy').textContent = data.stats.totalFallidosHoy;
+    const sesiones = data.sesiones || [];
+    const stats = data.stats || {};
+    document.getElementById('aud-sesiones').textContent = stats.totalSesiones || 0;
+    document.getElementById('aud-exitos-hoy').textContent = stats.totalExitosHoy || 0;
+    document.getElementById('aud-fallidos-hoy').textContent = stats.totalFallidosHoy || 0;
 
     if (sesBody) {
-      let usuarios = data.sesiones;
+      let usuarios = sesiones;
       if (buscar) usuarios = usuarios.filter(function(u) {
         return (u.nombre||'').toLowerCase().includes(buscar) || (u.email||'').toLowerCase().includes(buscar);
       });
@@ -61,8 +63,7 @@ async function cargarAuditoria() {
             + '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">'
             + '<span style="font-weight:600;font-size:14px;">' + esc(s.nombre||'—') + '</span>'
             + '<span style="display:flex;align-items:center;gap:8px;">'
-            + (activa ? '<button class="btn btn-sm btn-danger" onclick="cerrarSesionAdmin(\'' + esc(s.token) + '\',\'' + esc(s.nombre) + '\')" title="Cerrar sesión" style="font-size:11px;padding:2px 8px;">🔒 Cerrar</button>' : '')
-            + '<span style="font-size:11px;background:' + esc(statusBg) + ';color:' + esc(statusColor) + ';padding:2px 8px;border-radius:6px;font-weight:600;">' + esc(statusText) + '</span>'
+                    + (activa ? '<span style="font-size:11px;background:var(--border);color:var(--muted);padding:2px 8px;border-radius:6px;font-weight:600;">Sesión activa (gestión centralizada)</span>' : '')
             + '</span></div>'
             + '<div style="font-size:12px;color:var(--muted);display:flex;gap:16px;flex-wrap:wrap;">'
             + '<span>' + esc(s.email||'') + '</span>'

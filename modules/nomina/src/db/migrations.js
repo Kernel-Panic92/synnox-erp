@@ -112,7 +112,6 @@ module.exports = function runMigrations(db) {
     'CREATE INDEX IF NOT EXISTS idx_registros_search      ON registros(estado, tipo, nominaId, empleadoId, fecha)',
     'CREATE INDEX IF NOT EXISTS idx_empleados_sede        ON empleados(sede)',
     'CREATE INDEX IF NOT EXISTS idx_empleados_cedula      ON empleados(cedula)',
-    'CREATE INDEX IF NOT EXISTS idx_sesiones_usuarioId    ON sesiones(usuarioId)',
     'CREATE INDEX IF NOT EXISTS idx_centros_nombre        ON centros(nombre)',
   ];
   for (const sql of indexes) {

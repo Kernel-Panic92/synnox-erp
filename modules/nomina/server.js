@@ -150,7 +150,7 @@ app.use('/api/auth', require('./src/routes/auth')({
 }));
 
 app.use('/api', require('./src/routes/misc')({ db, fs, path, __dirname, permisosPorRol, middlewares: { todosRoles } }));
-app.use('/api/admin', require('./src/routes/auditoria')({ db, parseCookies, middlewares: { soloAdmin } }));
+app.use('/api/admin', require('./src/routes/auditoria')({ db, middlewares: { soloAdmin } }));
 
 // ─────────────────────────────────────────────
 // CONFIGURACIÓN SMTP (solo admin)
@@ -188,12 +188,12 @@ app.use('/api/registros', require('./src/routes/registros')({
 app.use('/api', require('./src/routes/dashboard')({ db, middlewares: { todosRoles } }));
 
 // ─────────────────────────────────────────────
-app.use('/api/backup', require('./src/routes/backup')({ db, AdmZip, fs, path, __dirname, encryptSmtp, getConfig, getAdminEmail, enviarCorreo, restoreData, parseCookies, middlewares: { soloAdminOBkp, soloAdmin } }));
-app.use('/api/restore', require('./src/routes/backup').createRestoreRouter({ db, AdmZip, encryptSmtp, restoreData, parseCookies, middlewares: { soloAdmin } }));
+app.use('/api/backup', require('./src/routes/backup')({ db, AdmZip, fs, path, __dirname, encryptSmtp, getConfig, getAdminEmail, enviarCorreo, restoreData, middlewares: { soloAdminOBkp, soloAdmin } }));
+app.use('/api/restore', require('./src/routes/backup').createRestoreRouter({ db, AdmZip, encryptSmtp, restoreData, middlewares: { soloAdmin } }));
 
 app.use('/api', require('./src/routes/adjuntos')({ db, uid, rolTienePermiso, middlewares: { todosRoles, adminRrhhOp, podeEditar, autenticar, requierePermiso } }));
 app.use('/api', require('./src/routes/exportar')({ db, ExcelJS, getConfig, enviarCorreo, rolTienePermiso, middlewares: { autenticar, requierePermiso, todosRoles } }));
-app.use('/api', require('./src/routes/telemetry')({ db, parseCookies }));
+app.use('/api', require('./src/routes/telemetry')({ db, parseCookies, middlewares: { soloAdmin } }));
 
 // ─────────────────────────────────────────────
 // CONSULTA — endpoint REST para chat web/móvil

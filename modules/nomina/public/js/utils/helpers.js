@@ -293,12 +293,14 @@ function exportarCSV(modo) {
   URL.revokeObjectURL(url);
 }
 
-// Wrapper around fetch that handles CSRF token rotation
+// Wrapper around fetch that handles CSRF token rotation and BASE prefix
 async function fetchCSRF(url, options = {}) {
+  const base = window.BASE || '';
+  const fullUrl = url.startsWith(base) ? url : base + url;
   const headers = options.headers || {};
   headers['x-csrf-token'] = sesion?.csrfToken || '';
   options.headers = headers;
-  const res = await fetch(url, options);
+  const res = await fetch(fullUrl, options);
   const newCsrf = res.headers.get('x-csrf-token');
   if (newCsrf && sesion) sesion.csrfToken = newCsrf;
   if (res.status >= 400 && res.status !== 404) teleError(url, res.status, options.method);

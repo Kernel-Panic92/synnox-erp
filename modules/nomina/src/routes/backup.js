@@ -9,7 +9,7 @@ function toCSV(rows) {
 }
 
 module.exports = function createBackupRouter({
-  db, AdmZip, fs, path, __dirname, encryptSmtp, getConfig, getAdminEmail, enviarCorreo, middlewares, restoreData, parseCookies
+  db, AdmZip, fs, path, __dirname, encryptSmtp, getConfig, getAdminEmail, enviarCorreo, middlewares, restoreData
 }) {
   const router = express.Router();
   const { soloAdminOBkp, soloAdmin } = middlewares;
@@ -97,10 +97,7 @@ module.exports = function createBackupRouter({
     try {
       const zip=new AdmZip(fp), entry=zip.getEntry('backup.json');
       if (!entry) return res.status(400).json({error:'El ZIP no contiene backup.json'});
-      const token = parseCookies(req).he_token || req.headers['authorization']?.replace('Bearer ', '');
       const resumen = restoreData(JSON.parse(entry.getData().toString('utf8')), req.usuario.id);
-      // Reinsertar la sesión del usuario actual para no cerrarla
-      if (token) db.prepare('INSERT OR IGNORE INTO sesiones (token, usuarioId, expira) VALUES (?,?,?)').run(token, req.usuario.id, new Date(Date.now() + 24*60*60*1000).toISOString());
       res.json({ok:true,mensaje:'Restauración completada correctamente', resumen});
     } catch(e) { console.error('❌ Error restaurando backup local:', e.message, e.stack?.split('\n').slice(0,4).join('\n')); res.status(500).json({error:'Error restaurando backup'}); }
   });
@@ -137,7 +134,7 @@ module.exports = function createBackupRouter({
 };
 
 // Separate router for /api/restore (not under /api/backup)
-module.exports.createRestoreRouter = function({ db, AdmZip, encryptSmtp, middlewares, restoreData, parseCookies }) {
+module.exports.createRestoreRouter = function({ db, AdmZip, encryptSmtp, middlewares, restoreData }) {
   const router = express.Router();
   const { soloAdmin } = middlewares;
 
@@ -157,9 +154,7 @@ module.exports.createRestoreRouter = function({ db, AdmZip, encryptSmtp, middlew
         data=JSON.parse(req.file.buffer.toString('utf8'));
       }
       if (data.app!=='HorasExtra') return res.status(400).json({error:'Archivo de backup inválido'});
-      const token = parseCookies(req).he_token || req.headers['authorization']?.replace('Bearer ', '');
       const resumen = restoreData(data,req.usuario.id);
-      if (token) db.prepare('INSERT OR IGNORE INTO sesiones (token, usuarioId, expira) VALUES (?,?,?)').run(token, req.usuario.id, new Date(Date.now() + 24*60*60*1000).toISOString());
       res.json({ok:true,mensaje:'Restauración completada correctamente', resumen});
     } catch(e) {console.error('❌ Error restaurando backup subido:', e.message, e.stack?.split('\n').slice(0,4).join('\n'));res.status(500).json({error:'Error restaurando backup'});}
   });

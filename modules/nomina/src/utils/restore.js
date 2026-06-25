@@ -1,7 +1,7 @@
 module.exports = function createRestoreUtils({ db, encryptSmtp }) {
   function restoreData(data, currentUserId) {
     return db.transaction(() => {
-      let confItems = 0, empleados = 0, nominas = 0, registros = 0, usuarios = 0, sesionesCerradas = 0;
+      let confItems = 0, empleados = 0, nominas = 0, registros = 0, usuarios = 0;
       if (data.configuracion) {
         const ins = db.prepare('INSERT OR REPLACE INTO configuracion VALUES (?,?)');
         for (const [clave, valor] of Object.entries(data.configuracion)) {
@@ -41,10 +41,7 @@ module.exports = function createRestoreUtils({ db, encryptSmtp }) {
         const ins = db.prepare(`INSERT OR REPLACE INTO dashboard_layout (${cols.join(',')}) VALUES (${placeholders})`);
         data.dashboard_layout.forEach(d => ins.run(cols.map(c => d[c] ?? '')));
       }
-      // Cerrar todas las sesiones activas para evitar corrupción
-      const r = db.prepare('DELETE FROM sesiones').run();
-      sesionesCerradas = r.changes;
-      return { confItems, empleados, nominas, registros, usuarios: usuarios + ' (excluyendo tu usuario)', sesionesCerradas };
+      return { confItems, empleados, nominas, registros, usuarios: usuarios + ' (excluyendo tu usuario)' };
     })();
   }
   return { restoreData };
