@@ -125,13 +125,15 @@ app.use((err, req, res, next) => {
 
 const PORT = parseInt(process.env.PORT || '3100');
 
-// ─── Arranque con migraciones ────────────────────────────────────────────────
+// ─── Migraciones (siempre, incluso al ser importado) ──────────────────────────
+require('./db/migrate')().catch(err => console.error('[proveedores] Migración fallida:', err.message));
+
+// ─── Arranque standalone ─────────────────────────────────────────────────────
 if (require.main === module) {
   (async () => {
-    await require('./db/migrate')();
     app.listen(PORT, () => {
     console.log(`\n╔══════════════════════════════════════════╗`);
-    console.log(`║   DocFlow  —  puerto ${PORT.toString().padEnd(5)}           ║`);
+    console.log(`║   Proveedores  —  puerto ${PORT.toString().padEnd(5)}       ║`);
     console.log(`╚══════════════════════════════════════════╝`);
     console.log(`  API:   http://localhost:${PORT}/api`);
     console.log(`  App:   http://localhost:${PORT}`);
