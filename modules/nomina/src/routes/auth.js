@@ -8,7 +8,8 @@ module.exports = function createAuthRouter({
 
   router.get('/me', todosRoles, (req, res) => {
     const u = req.usuario;
-    res.json({ id: u.id, nombre: u.nombre, email: u.email, rol: u.rol, sede: u.sede });
+    const permisos = db.prepare('SELECT permiso FROM permisos_roles WHERE rol = ?').all(u.rol).map(p => p.permiso);
+    res.json({ id: u.id, nombre: u.nombre, email: u.email, rol: u.rol, sede: u.sede, permisos });
   });
 
   return router;

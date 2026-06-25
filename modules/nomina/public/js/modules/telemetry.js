@@ -4,7 +4,7 @@ function enviarTelemetria(evento, datos) {
   try {
     const body = { evento, pagina: window._currentPage || '', datos: datos || {} };
     const blob = new Blob([JSON.stringify(body)], { type: 'application/json' });
-    navigator.sendBeacon('/api/telemetry', blob);
+    navigator.sendBeacon((window.BASE || '') + '/api/telemetry', blob);
   } catch {}
 }
 
