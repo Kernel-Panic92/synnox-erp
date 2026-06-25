@@ -23,8 +23,8 @@ function toast(msg,type='info'){
 function toggleTheme(){
   S.theme=S.theme==='dark'?'light':'dark';
   document.body.className=S.theme;
-  localStorage.setItem('vd_theme',S.theme);
-  $('theme-btn').textContent=S.theme==='dark'?'🌙':'☀️';
+  localStorage.setItem('synnox_theme',S.theme);
+  const tb=$('theme-btn');if(tb)tb.textContent=S.theme==='dark'?'🌙':'☀️';
 }
 
 function toggleSidebar(){$('sidebar').classList.add('open');$('mob-overlay').classList.add('visible')}

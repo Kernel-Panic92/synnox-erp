@@ -21,7 +21,7 @@ async function fetchUserAndShowApp(){
 function showApp(){
   $('app-screen').classList.add('show');
   document.body.className=S.theme;
-  $('theme-btn').textContent=S.theme==='dark'?'🌙':'☀️';
+  const tb=$('theme-btn');if(tb)tb.textContent=S.theme==='dark'?'🌙':'☀️';
   $('u-name').textContent=S.usuario?.nombre||'—';
   $('u-role').textContent=S.usuario?.rol||'—';
   const rolClass={'admin':'role-admin','contador':'role-contador','tesorero':'role-tesorero','comprador':'role-comprador','auditor':'role-auditor'};
