@@ -31,7 +31,6 @@ import healthRoutes from './routes/health.js';
 import configRoutes from './routes/configuracion.js';
 import backupRoutes from './routes/backup.js';
 import auditoriaRoutes from './routes/auditoria.js';
-import actualizadorRoutes from './routes/actualizador.js';
 import clientesRoutes from './routes/clientes.js';
 import sedesRoutes from './routes/sedes.js';
 
@@ -58,7 +57,6 @@ app.use('/api/importadores', protect, importadoresRoutes);
 app.use('/api/configuracion', protect, configRoutes);
 app.use('/api/backup', protect, backupRoutes);
 app.use('/api/auditoria', protect, auditoriaRoutes);
-app.use('/api/actualizador', protect, actualizadorRoutes);
 app.use('/api/clientes', protect, clientesRoutes);
 app.use('/api/sedes', protect, sedesRoutes);
 

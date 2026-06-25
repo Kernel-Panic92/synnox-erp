@@ -16,7 +16,6 @@ async function rConfig(){
       <button class="fb${cfgTabs==='seguridad'?' active':''}" onclick="cfgTabs='seguridad';rConfig()">🔒 Seguridad</button>
       <button class="fb${cfgTabs==='backups'?' active':''}" onclick="cfgTabs='backups';rConfig()">💾 Backups</button>
       <button class="fb${cfgTabs==='cron'?' active':''}" onclick="cfgTabs='cron';rConfig()">⏰ Tareas</button>
-      <button class="fb${cfgTabs==='actualizar'?' active':''}" onclick="cfgTabs='actualizar';rConfig()">🚀 Actualizar</button>
     </div>
     
     <div id="cfg-content">Cargando...</div>
@@ -159,44 +158,6 @@ async function renderCfgTab(cfg){
         </div>`).join(''):'<div style="text-align:center;padding:40px;color:var(--muted)">No hay áreas configuradas</div>'}</div>
       </div>
     `;
-  }
-  else if(cfgTabs==='actualizar'){
-    c.innerHTML=`
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:20px">
-        <div style="font-family:var(--font-head);font-size:16px;font-weight:700;margin-bottom:20px">Actualización del sistema</div>
-        
-        <div id="update-status" style="margin-bottom:20px">
-          <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border-radius:10px;margin-bottom:12px">
-            <div style="width:10px;height:10px;border-radius:50%;background:var(--accent)"></div>
-            <div style="flex:1">
-              <div style="font-weight:600" id="update-version">Versión: ${cfg.version||'—'}</div>
-              <div style="font-size:12px;color:var(--muted)" id="update-commit">Commit: ${cfg.commit||'—'}</div>
-            </div>
-            <button class="btn btn-secondary btn-sm" onclick="checkUpdates()" id="btn-check-update">🔍 Verificar</button>
-          </div>
-          
-          <div id="update-available" style="display:none;padding:16px;background:rgba(79,190,150,.1);border:1px solid rgba(79,190,150,.3);border-radius:10px;margin-bottom:12px">
-            <div style="font-weight:600;color:var(--success);margin-bottom:8px">🎉 Nueva versión disponible</div>
-            <div id="update-changes" style="font-size:13px;color:var(--text);margin-bottom:12px"></div>
-            <div style="display:flex;gap:10px">
-              <button class="btn btn-primary" onclick="ejecutarActualizacion()" id="btn-update-now">🚀 Actualizar ahora</button>
-            </div>
-          </div>
-          
-          <div id="update-no-changes" style="display:none;padding:14px;background:var(--surface2);border-radius:10px;margin-bottom:12px">
-            <div style="display:flex;align-items:center;gap:8px;color:var(--success);font-weight:500">✓ Sistema actualizado</div>
-          </div>
-        </div>
-        
-        <div style="margin-top:20px">
-          <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px">Registro de actualizaciones</div>
-          <div id="update-log" style="background:#000;border-radius:8px;padding:12px;font-family:monospace;font-size:11px;color:#0f0;max-height:200px;overflow-y:auto;white-space:pre-wrap">Cargando...</div>
-        </div>
-      </div>
-    `;
-    
-    cargarStatusActualizacion();
-    cargarLogActualizacion();
   }
   else if(cfgTabs==='seguridad'){
     const r=await api('GET','/configuracion/seguridad');
@@ -527,109 +488,4 @@ function toggleHeredarSmtp() {
   if (local) { local.style.opacity = checked ? '0.5' : ''; local.style.pointerEvents = checked ? 'none' : ''; }
 }
 
-// ─── ACTUALIZACIÓN ─────────────────────────────────────────────────────────
-let updatePolling=null;
 
-async function cargarStatusActualizacion(){
-  try{
-    const r=await api('GET','/configuracion/updater/status');
-    if(r.ok){
-      $('update-version').textContent=`Versión: ${r.commit||'—'}`;
-      $('update-commit').textContent=`Rama: ${r.branch||'—'} | Repo: ${r.remote||'—'}`;
-      if(r.lastUpdate){
-        const fecha=new Date(r.lastUpdate).toLocaleString('es-CO');
-        $('update-commit').textContent+=` | Última update: ${fecha}`;
-      }
-    }
-  }catch(e){console.log('Error cargando status:',e.message)}
-}
-
-async function cargarLogActualizacion(){
-  try{
-    const r=await api('GET','/configuracion/updater/logs');
-    const logEl=$('update-log');
-    if(logEl)logEl.textContent=r.log||'Sin registros';
-    logEl.scrollTop=logEl.scrollHeight;
-  }catch(e){console.log('Error cargando logs:',e.message)}
-}
-
-async function checkUpdates(){
-  const btn=$('btn-check-update');
-  btn.disabled=true;
-  btn.textContent='Verificando...';
-  try{
-    const r=await api('POST','/configuracion/updater/check');
-    const avEl=$('update-available');
-    const ncEl=$('update-no-changes');
-    if(r.hasUpdates){
-      avEl.style.display='block';
-      ncEl.style.display='none';
-      const changesEl=$('update-changes');
-      changesEl.innerHTML=`<strong>${r.commitsBehind}</strong> actualización(es) pendiente(s)<br>`+
-        `<div style="margin-left:12px;margin-top:8px;color:#0f0">🔄 Local: ${r.currentCommit} → Remote: ${r.remoteCommit}</div>`+
-        (r.changes||[]).map(c=>`<div style="margin-left:12px;margin-top:4px">• ${esc(c)}</div>`).join('');
-    }else{
-      avEl.style.display='none';
-      ncEl.style.display='block';
-    }
-  }catch(e){
-    toast('Error verificando: '+e.message,'error');
-  }finally{
-    btn.disabled=false;
-    btn.textContent='🔍 Verificar';
-  }
-}
-
-async function ejecutarActualizacion(){
-  if(!confirm('¿Actualizar el sistema? El servicio se reiniciará automáticamente.'))return;
-  const btn=$('btn-update-now');
-  btn.disabled=true;
-  btn.textContent='Actualizando...';
-  try{
-    const r=await api('POST','/configuracion/updater/update');
-    if(r.ok){
-      toast('Actualización iniciada. El sistema se reiniciará.','success');
-      $('update-available').style.display='none';
-      $('update-no-changes').style.display='block';
-      
-      updatePolling=setInterval(async()=>{
-        await cargarLogActualizacion();
-        try{
-          const status=await api('GET','/configuracion/updater/status');
-          if(status&&status.updaterLog?.includes('COMPLETADA')){
-            clearInterval(updatePolling);
-            toast('Actualización completada, reiniciando...','success');
-            try{
-              await api('POST','/configuracion/updater/restart');
-            }catch(e){}
-            // Esperar hasta que el servidor responda
-            let intentos=0;
-            const esperarServidor=setInterval(async()=>{
-              try{
-                await fetch('/api/health');
-                clearInterval(esperarServidor);
-                toast('Servicio reiniciado','success');
-                window.location.reload();
-              }catch(e){
-                intentos++;
-                if(intentos>60){
-                  clearInterval(esperarServidor);
-                  window.location.reload();
-                }
-              }
-            },2000);
-          }
-        }catch(e){}
-      },3000);
-    }else{
-      toast('Error: '+r.error,'error');
-    }
-    await cargarLogActualizacion();
-  }catch(e){
-    clearInterval(updatePolling);
-    toast('Error: '+e.message,'error');
-  }finally{
-    btn.disabled=false;
-    btn.textContent='🚀 Actualizar ahora';
-  }
-}

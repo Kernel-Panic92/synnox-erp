@@ -1162,7 +1162,6 @@ async function rConfig() {
     else if (cfgTab === 'backup') renderBackup(el, c);
     else if (cfgTab === 'seguridad') renderSeguridad(el, c);
     else if (cfgTab === 'auditoria') renderAuditoria(el);
-    else if (cfgTab === 'actualizar') renderActualizar(el);
     else if (cfgTab === 'mapas') renderMapas(el);
   } catch { el.innerHTML = '<p class="text-muted">Error al cargar configuración</p>'; }
 }
@@ -1539,114 +1538,6 @@ async function cargarAuditoria() {
       </tr>
     `).join('');
   } catch {}
-}
-
-/* ── Actualizar Tab ── */
-let updatePolling = null;
-
-function renderActualizar(el) {
-  if (updatePolling) clearInterval(updatePolling);
-  el.innerHTML = `
-    <div class="card" style="max-width:700px;">
-      <h4 style="margin-bottom:16px;font-family:var(--font-head);">🚀 Actualización del sistema</h4>
-      <div id="update-status" style="margin-bottom:20px">
-        <div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border-radius:10px;margin-bottom:12px">
-          <div style="width:10px;height:10px;border-radius:50%;background:var(--accent)"></div>
-          <div style="flex:1"><div style="font-weight:600" id="update-version">Versión: —</div><div style="font-size:12px;color:var(--muted)" id="update-commit">—</div></div>
-          <button class="btn btn-secondary btn-sm" onclick="checkUpdates()" id="btn-check-update">🔍 Verificar</button>
-        </div>
-        <div id="update-available" style="display:none;padding:16px;background:rgba(79,190,150,.1);border:1px solid rgba(79,190,150,.3);border-radius:10px;margin-bottom:12px">
-          <div style="font-weight:600;color:var(--success);margin-bottom:8px">🎉 Nueva versión disponible</div>
-          <div id="update-changes" style="font-size:13px;color:var(--text);margin-bottom:12px"></div>
-          <div class="flex"><button class="btn btn-primary" onclick="ejecutarActualizacion()" id="btn-update-now">🚀 Actualizar ahora</button></div>
-        </div>
-        <div id="update-no-changes" style="display:none;padding:14px;background:var(--surface2);border-radius:10px;margin-bottom:12px"><div style="display:flex;align-items:center;gap:8px;color:var(--success);font-weight:500">✓ Sistema actualizado</div></div>
-      </div>
-      <div style="margin-top:16px">
-        <div style="font-size:13px;font-weight:600;color:var(--muted);margin-bottom:8px">Registro de actualizaciones</div>
-        <div id="update-log" style="background:#000;border-radius:8px;padding:12px;font-family:monospace;font-size:11px;color:#0f0;max-height:200px;overflow-y:auto;white-space:pre-wrap">Cargando...</div>
-      </div>
-    </div>`;
-  cargarStatusActualizacion();
-  cargarLogActualizacion();
-}
-
-async function cargarStatusActualizacion() {
-  try {
-    const data = await api('/actualizador/status');
-    document.getElementById('update-version').textContent = 'Versión: ' + (data.commit || '—');
-    let com = 'Rama: ' + (data.branch || '—') + ' | Repo: ' + (data.remote || '—');
-    if (data.lastUpdate) com += ' | Última: ' + new Date(data.lastUpdate).toLocaleString('es-CO');
-    document.getElementById('update-commit').textContent = com;
-  } catch {}
-}
-
-async function cargarLogActualizacion() {
-  try {
-    const data = await api('/actualizador/logs');
-    const el = document.getElementById('update-log');
-    if (el) { el.textContent = data.log || 'Sin registros'; el.scrollTop = el.scrollHeight; }
-  } catch {}
-}
-
-async function checkUpdates() {
-  const btn = document.getElementById('btn-check-update');
-  if (!btn) return;
-  btn.disabled = true; btn.textContent = 'Verificando...';
-  try {
-    const data = await api('/actualizador/check', { method: 'POST' });
-    const av = document.getElementById('update-available');
-    const nc = document.getElementById('update-no-changes');
-    if (av) av.style.display = 'none';
-    if (nc) nc.style.display = 'none';
-    if (data.hasUpdates) {
-      if (av) av.style.display = 'block';
-      const ch = document.getElementById('update-changes');
-      if (ch) ch.innerHTML = '<strong>' + data.commitsBehind + '</strong> actualización(es) pendiente(s)<br>' +
-        '<div style="margin-left:12px;margin-top:8px;color:#0f0">🔄 Local: ' + data.currentCommit + ' → Remote: ' + data.remoteCommit + '</div>' +
-        (data.changes || []).map(c => '<div style="margin-left:12px;margin-top:4px">• ' + esc(c) + '</div>').join('');
-    } else {
-      if (nc) nc.style.display = 'block';
-    }
-  } catch (e) { mostrarAlerta(e.message, 'error'); }
-  if (btn) { btn.disabled = false; btn.innerHTML = '🔍 Verificar'; }
-}
-
-async function ejecutarActualizacion() {
-  const ok = await confirmarModal('Actualizar sistema', '¿Actualizar el sistema? El servicio se reiniciará automáticamente.');
-  if (!ok) return;
-  const btn = document.getElementById('btn-update-now');
-  if (!btn) return;
-  btn.disabled = true; btn.textContent = 'Actualizando...';
-  try {
-    await api('/actualizador/update', { method: 'POST' });
-    document.getElementById('update-available').style.display = 'none';
-    document.getElementById('update-no-changes').style.display = 'block';
-    updatePolling = setInterval(async () => {
-      await cargarLogActualizacion();
-      try {
-        const status = await api('/actualizador/status');
-        if (status?.updaterLog?.includes('COMPLETADA')) {
-          clearInterval(updatePolling);
-          try { await api('/actualizador/restart', { method: 'POST' }); } catch {}
-          let intentos = 0;
-          const esperar = setInterval(async () => {
-            try {
-              await fetch('/api/health');
-              clearInterval(esperar);
-              window.location.reload();
-            } catch { intentos++; if (intentos > 60) { clearInterval(esperar); window.location.reload(); } }
-          }, 2000);
-        }
-      } catch {}
-    }, 3000);
-    await cargarLogActualizacion();
-  } catch (e) {
-    clearInterval(updatePolling);
-    mostrarAlerta(e.message, 'error');
-  } finally {
-    btn.disabled = false; btn.textContent = '🚀 Actualizar ahora';
-  }
 }
 
 function esc(s) {
