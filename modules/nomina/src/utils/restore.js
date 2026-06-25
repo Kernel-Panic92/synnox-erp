@@ -35,8 +35,9 @@ module.exports = function createRestoreUtils({ db, encryptSmtp }) {
       }
       if (data.dashboard_layout?.length) {
         db.prepare('DELETE FROM dashboard_layout').run();
-        // Insertar dinámicamente según columnas que vengan en el backup
-        const cols = ['usuarioId', ...Object.keys(data.dashboard_layout[0]).filter(k => k !== 'usuarioId')];
+        const VALID_COLS = new Set(['usuarioId', 'orden', 'tamanos']);
+        const cols = ['usuarioId', ...Object.keys(data.dashboard_layout[0]).filter(k => k !== 'usuarioId' && VALID_COLS.has(k))];
+        if (cols.length <= 1) return; // solo usuarioId, nada que insertar
         const placeholders = cols.map(() => '?').join(',');
         const ins = db.prepare(`INSERT OR REPLACE INTO dashboard_layout (${cols.join(',')}) VALUES (${placeholders})`);
         data.dashboard_layout.forEach(d => ins.run(cols.map(c => d[c] ?? '')));
