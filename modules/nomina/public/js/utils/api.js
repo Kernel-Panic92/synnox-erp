@@ -29,7 +29,7 @@ const api = async (method, path, body = undefined) => {
   if (res.status === 401 && path !== '/api/auth/me') {
     localStorage.removeItem('he_logged_in');
     sesion = null;
-    window.location.href = BASE || '/';
+    window.location.href = '/';
   } else if (res.status >= 400 && res.status !== 404 && !(res.status === 401 && path === '/api/auth/me')) {
     teleError(path, res.status, method);
   }

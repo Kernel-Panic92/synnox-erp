@@ -280,7 +280,7 @@ function poblarSelectAprobadores() {
     }
   } catch (e) {
     console.error('Session check failed:', e);
-    window.location.href = (window.BASE || '') + '/';
+    window.location.href = '/';
   }
 })();
 

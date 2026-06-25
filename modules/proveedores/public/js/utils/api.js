@@ -14,7 +14,7 @@ async function api(m,p,b,isF){
   const url=m==='GET'?`${BASE}/api${p}${p.includes('?')?'&':'?'}_t=${Date.now()}`:`${BASE}/api${p}`;
   const r=await fetch(url,o);
   if (r.status === 401) {
-    window.location.href = BASE || '/';
+    window.location.href = '/';
     throw new Error('Sesión expirada');
   }
   const j=await r.json().catch(()=>({}));

@@ -8,7 +8,7 @@ function getToken() {
 
 function logout() {
   document.cookie = 'launcher_jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-  window.location.href = (BASE || '/');
+  window.location.href = '/';
 }
 
 async function api(path, opts = {}) {
