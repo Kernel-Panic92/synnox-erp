@@ -212,8 +212,16 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
     db.prepare("UPDATE usuarios SET actualizado = datetime('now') WHERE id = ?").run(user.id);
     res.cookie('launcher_jwt', token, { httpOnly: false, secure: false, sameSite: 'lax', maxAge: 24 * 60 * 60 * 1000 });
+    console.log(`[LOGIN] Cookie set for ${email}, secret: ${JWT_SECRET.slice(0,8)}..., token: ${token.slice(0,20)}...`);
     res.json({ jwt: token, usuario: payload, modulos });
   } catch (e) { console.error('[LOGIN]', e.stack || e.message); res.status(500).json({ error: 'Error interno' }); }
+});
+
+// ── Cookie test endpoint ──
+app.get('/api/cookie-test', (req, res) => {
+  const raw = req.headers['cookie'] || '';
+  const hasLauncherJwt = raw.includes('launcher_jwt=');
+  res.json({ hasCookie: !!raw, hasLauncherJwt: hasLauncherJwt, preview: raw.slice(0,100) });
 });
 
 // ── SMTP config ──
