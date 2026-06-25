@@ -85,13 +85,6 @@ async function init() {
     if (roleEl) roleEl.textContent = data.rol || '';
   } catch { logout(); }
 }
-  document.getElementById('user-name').textContent = USER.nombre;
-  document.getElementById('user-role').textContent = USER.email;
-  document.getElementById('user-badge').textContent = USER.rol;
-  cargarVersion();
-  navigate('dashboard');
-  iniciarDropZones();
-}
 
 async function cargarVersion() {
   try {
