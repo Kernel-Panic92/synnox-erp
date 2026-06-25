@@ -33,15 +33,7 @@
   .sede-filter-admin.hidden-operador { display: none; }
 
   /* ── THEME TOGGLE ── */
-  .theme-toggle {
-    background:none; border:1px solid var(--border); border-radius:8px;
-    color:var(--muted); cursor:pointer; padding:6px 10px; font-size:16px;
-    transition:all 0.2s; margin: 0 24px 12px;
-    display:flex; align-items:center; gap:8px; width:calc(100% - 48px);
-    font-family:var(--font-body); font-size:12px; font-weight:500;
-  }
-  .theme-toggle:hover { border-color:var(--accent); color:var(--text); }
-  #theme-text { display: none; }
+
 
   *{box-sizing:border-box;margin:0;padding:0;}
   body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;transition:background 0.2s,color 0.2s;}
@@ -682,7 +674,6 @@
   <main class="main" id="main-content">
     <button class="mob-hamburger" id="mob-hamburger" onclick="toggleSidebar()">☰</button>
     <div class="main-topbar">
-      <button class="main-icon-btn" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema"><span id="theme-icon">☀️</span><span id="theme-text">Modo oscuro</span></button>
       <button class="main-icon-btn" onclick="abrirManual()" title="Ayuda" style="font-weight:700;font-size:18px;">?</button>
     </div>
 
@@ -1340,9 +1331,9 @@
 
 
 <!-- Modular JS -->
-<script>window.BASE = window.location.pathname.replace(/\/[^/]*$/,'').replace(/\/+$/,'') || '';</script>
+<script nonce="__NONCE__">window.BASE = window.location.pathname.replace(/\/[^/]*$/,'').replace(/\/+$/,'') || '';</script>
 <script src="js/utils/helpers.js?v=21"></script>
-<script src="js/utils/api.js?v=1"></script>
+<script src="js/utils/api.js?v=2"></script>
 <script src="js/components/modals.js?v=5"></script>
 <script src="js/modules/auth.js?v=4"></script>
 <script src="js/modules/tipos.js?v=2"></script>
