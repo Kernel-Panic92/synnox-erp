@@ -1,31 +1,50 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado actual (25 Jun 2026)
+## Estado (25 Jun 2026 — fin de sesión)
 
-### Arquitectura
-- **Servidor unificado**: 1 proceso, 1 .env, 1 package.json
-- **Módulos como plugins**: montados en server.js con path prefix
-- **Auth centralizada**: JWT compartido, login único en el launcher
-- **Tema universal**: `synnox_theme` en localStorage, toggle en launcher
+### Arquitectura final
+- **Servidor unificado**: 1 proceso PM2 (`synnoxerp`), puerto 3002
+- **1 solo .env**, **1 solo package.json**
+- **Módulos como plugins**: montados en `server.js` con path prefix
+- **Auth centralizada**: JWT compartido vía cookie `launcher_jwt`
+- **Tema universal**: `synnox_theme` en localStorage, toggle en el launcher
+- **Login único** en el launcher, módulos sin login propio
 
 ### Módulos
 
-| Ruta | Nombre | DB | Estado |
-|------|--------|----|--------|
-| `/` | Launcher (login, dashboard, admin) | SQLite | ✅ |
-| `/proveedores/` | Proveedores (facturas) | PostgreSQL | ✅ |
-| `/logistica/` | Logística (rutas) | PostgreSQL | ✅ |
-| `/nomina/` | Nómina (novedades) | SQLite | ⚠️ |
+| Ruta | Nombre | Función | DB |
+|------|--------|---------|----|
+| `/` | Launcher | Login, dashboard, admin usuarios | SQLite |
+| `/proveedores/` | Proveedores | Facturas y proveedores | PostgreSQL |
+| `/logistica/` | Logística | Rutas y vehículos | PostgreSQL |
+| `/nomina/` | Nómina | Horas extra y novedades | SQLite |
 
-### Bugs conocidos
+### Cambios realizados esta sesión
+- Servidor unificado (merge de 4 procesos en 1)
+- Módulos exportan `app` sin `listen()` propio
+- Auth centralizada: se removieron logins, CRUD usuarios, sesiones locales
+- Instalador refactorizado: single .env, single npm, single PM2
+- Renombrado: horix→nomina, docflow→proveedores, logistics→logistica
+- DBs unificadas: todas las migraciones en `horix_erp`
+- Launcher con módulos estáticos (sin registro vía API)
+- Toggle de tema universal `synnox_theme` en localStorage
+- Logo SynnoxERP en login y dashboard
+- Modo claro por defecto
 
-1. **Nómina**: API calls sin prefijo `/nomina/` → los JS están cacheados en el browser. Forzar hard refresh o esperar a que venza el caché.
-2. **Nómina**: CSP bloquea inline script de `window.BASE` — agregado `nonce="__NONCE__"`.
-3. **Proveedores**: Algunas URLs absolutas en backup y auditoría ya corregidas.
-4. **Logística**: Tabla `logistics.usuarios` restaurada.
+### Bugs resueltos
+- Bucle infinito DocFlow por columna `creado` vs `creado_en`
+- Typo `podeAprovar`→`podeAprobar` en middleware de Nómina
+- Catch-all interceptaba Logística (montado después)
+- `const API` duplicado anulaba prefijo BASE en Nómina
+- Migraciones no se ejecutaban al importar módulos
+- Backup usaba `localStorage.vd_t` (token legacy) en vez de cookie
+- NAS backup: `cfgRows.rows` vs `cfgRows` (pg devuelve `{rows:[]}`)
+- Logout no limpiaba cookie `launcher_jwt`
+- CSP bloqueaba inline script de `window.BASE` en Nómina (nonce)
+- Theme toggles locales removidos (ahora es universal)
 
 ### Pendientes próxima sesión
-- [ ] Verificar Nómina después de hard refresh (F12 → network → disable cache)
+- [ ] Probar Nómina con hard refresh (Ctrl+Shift+R) para caché nuevo
 - [ ] Probar flujos completos: crear factura, ruta, registro de nómina
 - [ ] Revisar submódulos de configuración de cada módulo
-- [ ] Verificar sesión: logout del launcher debe invalidar acceso a módulos
+- [ ] Vectorizar logo (SVG)
