@@ -29,6 +29,7 @@ const PORT         = parseInt(process.env.PORT || '3000', 10);
 const CORS_ORIGIN  = process.env.CORS_ORIGIN || '';
 const BACKUP_TOKEN = process.env.BACKUP_TOKEN || '';
 const app = express();
+app.use((req, res, next) => { console.log(`[nomina] ${req.method} ${req.path}`); next(); });
 app.set('trust proxy', 1);
 
 // CORS — restringir en producción
