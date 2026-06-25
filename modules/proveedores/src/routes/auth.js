@@ -13,7 +13,8 @@ router.get('/me', authMiddleware, async (req, res) => {
        WHERE u.email = $1`,
       [req.usuario.email]
     );
-    if (rows.length === 0) {
+    const user = rows[0];
+    if (!user) {
       const rolesValidos = ['admin','contador','tesorero','comprador','auditor'];
       const rol = rolesValidos.includes(req.usuario.rol) ? req.usuario.rol : 'comprador';
       const hash = bcrypt.hashSync(crypto.randomBytes(32).toString('hex'), 12);
@@ -26,7 +27,14 @@ router.get('/me', authMiddleware, async (req, res) => {
       );
       return res.json(newUser[0]);
     }
-    res.json(rows[0]);
+    const rolesValidos = ['admin','contador','tesorero','comprador','auditor'];
+    const updateRol = rolesValidos.includes(req.usuario.rol) ? req.usuario.rol : 'comprador';
+    if (user.nombre !== req.usuario.nombre || user.rol !== updateRol) {
+      await db.query('UPDATE usuarios SET nombre = $1, rol = $2 WHERE id = $3', [req.usuario.nombre, updateRol, user.id]);
+      user.nombre = req.usuario.nombre;
+      user.rol = updateRol;
+    }
+    res.json(user);
   } catch (err) {
     console.error('[auth/me]', err);
     res.status(500).json({ error: 'Error interno' });

@@ -24,13 +24,16 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
       try {
         const payload = jwt.verify(token, JWT_SECRET);
         if (!payload || !payload.email) return res.status(401).json({ error: 'Token inválido' });
+        const payloadNombre = payload.nombre || payload.email.split('@')[0];
+        const payloadRol = ['admin','rrhh','gerencia','operador','consulta'].includes(payload.rol) ? payload.rol : 'operador';
         let user = db.prepare('SELECT * FROM usuarios WHERE email = ? AND activo = 1').get(payload.email);
         if (!user) {
           const id = require('crypto').randomUUID();
-          const nombre = payload.nombre || payload.email.split('@')[0];
-          const rol = ['admin','rrhh','gerencia','operador','consulta'].includes(payload.rol) ? payload.rol : 'operador';
-          db.prepare('INSERT INTO usuarios (id, nombre, email, password, rol, activo, sede, creado) VALUES (?,?,?,?,?,1,?,?)').run(id, nombre, payload.email, '', rol, payload.sede || 'Principal', new Date().toISOString());
+          db.prepare('INSERT INTO usuarios (id, nombre, email, password, rol, activo, sede, creado) VALUES (?,?,?,?,?,1,?,?)').run(id, payloadNombre, payload.email, '', payloadRol, payload.sede || 'Principal', new Date().toISOString());
           user = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(id);
+        } else if (user.nombre !== payloadNombre || user.rol !== payloadRol) {
+          db.prepare('UPDATE usuarios SET nombre = ?, rol = ? WHERE id = ?').run(payloadNombre, payloadRol, user.id);
+          user = { ...user, nombre: payloadNombre, rol: payloadRol };
         }
         if (rolesPermitidos.length && !rolesPermitidos.includes(user.rol))
           return res.status(403).json({ error: 'Sin permisos para esta acción' });

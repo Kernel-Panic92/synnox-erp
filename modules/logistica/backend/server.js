@@ -5,7 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import pool from './config/db.js';
-import { verifyToken, requireModule } from '../../../framework/auth.js';
+import { verifyToken, requireModule } from '../../../framework/auth.mjs';
 
 dotenv.config();
 
@@ -67,7 +67,8 @@ app.get('/api/auth/me', verifyToken, async (req, res) => {
   console.log(`[logistica] /me llamado — user: ${req.user?.email}, rol: ${req.user?.rol}, modulos: ${JSON.stringify(req.user?.modulos)}`);
   try {
     const result = await pool.query('SELECT id, nombre, email, rol, activo FROM logistics.usuarios WHERE email=$1', [req.user.email]);
-    if (result.rows.length === 0) {
+    const user = result.rows[0];
+    if (!user) {
       const rolesValidos = ['admin', 'operador', 'visor'];
       const rol = rolesValidos.includes(req.user.rol) ? req.user.rol : 'operador';
       const r = await pool.query(
@@ -79,7 +80,14 @@ app.get('/api/auth/me', verifyToken, async (req, res) => {
       );
       return res.json(r.rows[0]);
     }
-    res.json(result.rows[0]);
+    const rolesValidos = ['admin', 'operador', 'visor'];
+    const updateRol = rolesValidos.includes(req.user.rol) ? req.user.rol : 'operador';
+    if (user.nombre !== (req.user.nombre || req.user.email) || user.rol !== updateRol) {
+      await pool.query('UPDATE logistics.usuarios SET nombre = $1, rol = $2 WHERE id = $3', [req.user.nombre || req.user.email, updateRol, user.id]);
+      user.nombre = req.user.nombre || req.user.email;
+      user.rol = updateRol;
+    }
+    res.json(user);
   } catch (err) {
     console.error('[auth/me]', err);
     res.status(500).json({ error: 'Error interno' });
