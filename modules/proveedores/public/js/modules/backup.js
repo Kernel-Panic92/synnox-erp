@@ -106,11 +106,11 @@ async function descargarBackup(tipo='completo'){
   const label=tipo==='config'?'⚙️ Solo Config':'💾 Completo';
   btn.disabled=true;btn.textContent='Verificando...';
   
-  const token=localStorage.getItem('vd_t');
+  const token=getToken();
   
   // Verificar conexión primero
   try{
-    await fetch('/api/backup?action=generate&tipo=config',{headers:{Authorization:`Bearer ${token}`}});
+    await fetch(BASE+'/api/backup?action=generate&tipo=config',{headers:{Authorization:`Bearer ${token}`}});
   }catch(e){
     btn.disabled=false;btn.textContent=label;
     toast('Sin conexión al servidor','error');
@@ -143,7 +143,7 @@ async function descargarBackup(tipo='completo'){
   window.cancelarBackupGen=async function(){
       cancelled=true;
       if(pollInterval)clearInterval(pollInterval);
-      try{await fetch('/api/backup/cancelar',{method:'POST',headers:{Authorization:'Bearer '+token}})}catch(_){}
+      try{await fetch(BASE+'/api/backup/cancelar',{method:'POST',headers:{Authorization:'Bearer '+token}})}catch(_){}
       closeM();
       btn.disabled=false;
       btn.textContent=label;
@@ -211,7 +211,7 @@ async function descargarBackup(tipo='completo'){
     // Polling para progreso mientras genera
     pollInterval=setInterval(async()=>{
       try{
-        const p=await fetch('/api/backup/progreso',{headers:{Authorization:`Bearer ${token}`}}).then(r=>r.json());
+        const p=await fetch(BASE+'/api/backup/progreso',{headers:{Authorization:`Bearer ${token}`}}).then(r=>r.json());
         if(p.stage && p.stage!=='done'){
           const pct=Math.round((p.current/p.total)*100)||0;
           document.getElementById('backup-progress-bar').style.width=pct+'%';
@@ -266,7 +266,7 @@ async function cargarListaBackups(){
 
 async function descargarBackupLocal(n){
   try{
-    const token=localStorage.getItem('vd_t');
+    const token=getToken();
     const resp=await fetch(BASE+'/api/backup/descargar/'+encodeURIComponent(n),{headers:{Authorization:`Bearer ${token}`}});
     if(!resp.ok)throw new Error('Error descargando');
     const blob=await resp.blob();
@@ -281,8 +281,8 @@ async function restaurarBackupLocal(n){
   const err=document.getElementById('restore-err');
   ok.style.display='none';err.style.display='none';
   try{
-    const token=localStorage.getItem('vd_t');
-    const resp=await fetch('/api/backup/restore/local/'+encodeURIComponent(n),{
+    const token=getToken();
+    const resp=await fetch(BASE+'/api/backup/restore/local/'+encodeURIComponent(n),{
       method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({})
     });
     const j=await resp.json();
@@ -304,10 +304,10 @@ async function restaurarBackup(){
   ok.style.display='none';err.style.display='none';
   if(!confirm('¿Restaurar el backup "'+archivoARestaurar.name+'"?\n\nLos datos actuales serán reemplazados.'))return;
   try{
-    const token=localStorage.getItem('vd_t');
+    const token=getToken();
     const form=new FormData();
     form.append('backup',archivoARestaurar);
-    const resp=await fetch('/api/backup/restore',{method:'POST',headers:{Authorization:`Bearer ${token}`},body:form});
+    const resp=await fetch(BASE+'/api/backup/restore',{method:'POST',headers:{Authorization:`Bearer ${token}`},body:form});
     const j=await resp.json();
     if(!resp.ok)throw new Error(j.error||'Error');
     ok.textContent='✓ Restauración completada correctamente';
