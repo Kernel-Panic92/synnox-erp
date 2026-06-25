@@ -19,7 +19,7 @@ app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 app.use((req, res, next) => {
-  console.log(`${new Date().toISOString()} ${req.method} ${req.path}`);
+  if (req.path.startsWith('/api/')) console.log(`[logistica] ${req.method} ${req.path} — auth: ${!!req.headers.authorization}`);
   next();
 });
 
@@ -64,6 +64,7 @@ app.use('/api/sedes', protect, sedesRoutes);
 
 // GET /api/auth/me — verify JWT and return user info (auto-create if new)
 app.get('/api/auth/me', verifyToken, async (req, res) => {
+  console.log(`[logistica] /me llamado — user: ${req.user?.email}, rol: ${req.user?.rol}, modulos: ${JSON.stringify(req.user?.modulos)}`);
   try {
     const result = await pool.query('SELECT id, nombre, email, rol, activo FROM logistics.usuarios WHERE email=$1', [req.user.email]);
     if (result.rows.length === 0) {

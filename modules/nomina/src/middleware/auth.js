@@ -36,7 +36,8 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
           return res.status(403).json({ error: 'Sin permisos para esta acción' });
         req.usuario = user;
         next();
-      } catch {
+      } catch (err) {
+        console.log(`[nomina] JWT error: ${err?.name} — path: ${req.path}, token: ${token?.slice(0,20)}..., secret: ${JWT_SECRET.slice(0,8)}...`);
         return res.status(401).json({ error: 'Token inválido o expirado' });
       }
     };
