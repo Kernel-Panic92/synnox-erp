@@ -267,7 +267,7 @@ async function cargarListaBackups(){
 async function descargarBackupLocal(n){
   try{
     const token=localStorage.getItem('vd_t');
-    const resp=await fetch('/api/backup/descargar/'+encodeURIComponent(n),{headers:{Authorization:`Bearer ${token}`}});
+    const resp=await fetch(BASE+'/api/backup/descargar/'+encodeURIComponent(n),{headers:{Authorization:`Bearer ${token}`}});
     if(!resp.ok)throw new Error('Error descargando');
     const blob=await resp.blob();
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=n;a.click();

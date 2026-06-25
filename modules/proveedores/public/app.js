@@ -204,7 +204,9 @@ async function crearArea(){
 }
 
 async function editarArea(id,nombre,jefe_id,email){
-  const users=(S.usuarios||[]).filter(u=>u.rol==='jefe'||u.rol==='admin');
+  let users=[];
+  try { if(!S.usuarios)S.usuarios=await api('GET','/usuarios'); users=S.usuarios||[]; } catch { users=[]; }
+  users=users.filter(u=>u.rol==='jefe'||u.rol==='admin');
   showM('Editar área','<div class=form-grid><div class=field full><label>NOMBRE</label><input type=text id=edit-area-nombre value='+esc(nombre)+'/></div><div class=field><label>JEFE (opcional)</label><select id=edit-area-jefe><option value=>— Sin jefe —</option>'+users.map(u=>'<option value='+u.id+' '+(u.id===jefe_id?'selected':'')+'>'+esc(u.nombre)+'</option>').join('')+'</select></div><div class=field><label>EMAIL</label><input type=email id=edit-area-email value='+esc(email||'')+'/></div></div><div style=display:flex;gap:10px;margin-top:16px><button class=btn btn-danger onclick=eliminarArea(\''+id+'\')>Eliminar</button><button class=btn btn-primary style=margin-left:auto onclick=guardarArea(\''+id+'\')>Guardar</button></div>');
 }
 
