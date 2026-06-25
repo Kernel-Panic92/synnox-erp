@@ -2,13 +2,27 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 
+function parseCookies(req) {
+  const raw = req.headers['cookie'] || '';
+  const result = {};
+  raw.split(';').forEach(pair => {
+    const idx = pair.indexOf('=');
+    if (idx !== -1) result[pair.slice(0, idx).trim()] = decodeURIComponent(pair.slice(idx + 1).trim());
+  });
+  return result;
+}
+
 export function verifyToken(req, res, next) {
+  const cookies = parseCookies(req);
+  let token = cookies.launcher_jwt || null;
   const auth = req.headers.authorization;
-  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Token requerido' });
+  if (auth && auth.startsWith('Bearer ')) token = auth.split(' ')[1];
+  if (!token) return res.status(401).json({ error: 'Token requerido' });
   try {
-    req.user = jwt.verify(auth.split(' ')[1], JWT_SECRET);
+    req.user = jwt.verify(token, JWT_SECRET);
     next();
-  } catch {
+  } catch (err) {
+    console.log(`[framework] JWT error: ${err.message} — token: ${token.slice(0,20)}...`);
     return res.status(401).json({ error: 'Token inválido o expirado' });
   }
 }
