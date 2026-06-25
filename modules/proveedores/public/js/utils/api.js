@@ -4,7 +4,9 @@ const BASE = window.BASE || '';
 
 function getToken() {
   const c = document.cookie.split('; ').find(r => r.startsWith('launcher_jwt='));
-  return c ? c.split('=')[1] : null;
+  const t = c ? c.split('=')[1] : null;
+  console.log('[getToken] found:', !!c, 'preview:', t ? t.slice(0,20)+'...' : 'null');
+  return t;
 }
 
 async function api(m,p,b,isF){

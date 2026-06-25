@@ -14,7 +14,7 @@ async function authMiddleware(req, res, next) {
     req.usuario = { ...payload, _token: token };
     next();
   } catch (err) {
-    console.log(`[proveedores] JWT error: ${err.name} — path: ${req.path} — secret: ${JWT_SECRET.slice(0,8)}...`);
+    console.log(`[proveedores] JWT error: ${err.message} — path: ${req.path} — secret: ${JWT_SECRET.slice(0,8)}...`);
     if (err.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Sesión expirada' });
     }

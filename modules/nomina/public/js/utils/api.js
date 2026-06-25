@@ -3,7 +3,9 @@ const API = BASE;
 
 function getLauncherToken() {
   const c = document.cookie.split('; ').find(r => r.startsWith('launcher_jwt='));
-  return c ? c.split('=')[1] : null;
+  const t = c ? c.split('=')[1] : null;
+  console.log('[nomina-getToken] found:', !!c, 'preview:', t ? t.slice(0,20)+'...' : 'null');
+  return t;
 }
 
 let sesion = null;

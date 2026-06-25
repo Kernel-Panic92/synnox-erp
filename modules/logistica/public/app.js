@@ -3,7 +3,9 @@ const API = BASE + '/api';
 
 function getToken() {
   const c = document.cookie.split('; ').find(r => r.startsWith('launcher_jwt='));
-  return c ? c.split('=')[1] : null;
+  const token = c ? c.split('=')[1] : null;
+  console.log('[getToken] cookie encontrada:', !!c, 'token:', token ? token.slice(0,20)+'...' : 'null');
+  return token;
 }
 
 function logout() {
