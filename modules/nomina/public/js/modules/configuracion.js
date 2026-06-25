@@ -135,7 +135,7 @@ async function renderCfgTab(){
               <div id="restore-filename" style="margin-top:6px;font-size:12px;color:var(--accent);display:none;"></div>
             </div>
             <input type="file" id="restore-file" accept=".zip,.json" style="display:none"/>
-            <button class="btn btn-danger" onclick="restaurarBackup()" disabled style="width:100%;justify-content:center;padding:11px;opacity:0.5;">♻️ Restaurar desde Archivo</button>
+            <button class="btn btn-danger" id="btn-restaurar" onclick="restaurarBackup()" disabled style="width:100%;justify-content:center;padding:11px;opacity:0.5;">♻️ Restaurar desde Archivo</button>
           </div>
           <div id="restore-ok" style="display:none;margin-top:14px;padding:10px 14px;background:rgba(79,190,150,0.1);border:1px solid rgba(79,190,150,0.3);border-radius:9px;font-size:13px;color:var(--success);"></div>
           <div id="restore-err" style="display:none;margin-top:14px;padding:10px 14px;background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.3);border-radius:9px;font-size:13px;color:var(--danger);"></div>
