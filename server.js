@@ -20,6 +20,7 @@ app.get('/api/version', (req, res) => {
 // ── Mount modules ──
 app.use('/', require('./launcher/server'));
 app.use(express.static(path.join(__dirname, 'launcher', 'shell')));
+app.use('/media', express.static(path.join(__dirname, 'media')));
 
 app.use('/proveedores', require('./modules/proveedores/src/server'));
 app.use('/proveedores', express.static(path.join(__dirname, 'modules', 'proveedores', 'public')));
