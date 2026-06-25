@@ -42,9 +42,12 @@
 - Logout no limpiaba cookie `launcher_jwt`
 - CSP bloqueaba inline script de `window.BASE` en Nómina (nonce)
 - Theme toggles locales removidos (ahora es universal)
+- Proveedores crash: `$('theme-btn')` null en `showApp()` y `toggleTheme()` → TypeError → catch → `doLogout()` → redirect a launcher. Guard con null check.
+- Nómina pantalla negra: `aplicarTema()` crasheaba con `null.textContent` de `theme-icon`/`theme-text` (ausentes en HTML) **fuera** del try/catch del IIFE, así que ni el catch ni el redirect se ejecutaban. Guard con null check.
 
 ### Pendientes próxima sesión
-- [ ] Probar Nómina con hard refresh (Ctrl+Shift+R) para caché nuevo
+- [ ] Probar Nómina con hard refresh (Ctrl+Shift+R)
 - [ ] Probar flujos completos: crear factura, ruta, registro de nómina
+- [ ] Probar Logística end-to-end
 - [ ] Revisar submódulos de configuración de cada módulo
 - [ ] Vectorizar logo (SVG)
