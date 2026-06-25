@@ -6,8 +6,6 @@ function getLauncherToken() {
   return c ? c.split('=')[1] : null;
 }
 
-const API = '';
-
 let sesion = null;
 let empleados = [], nominas = [], registros = [], usuarios = [], centros = [], tipos = [];
 let editEmpId = null, editUsrId = null;
