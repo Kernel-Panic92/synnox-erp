@@ -10,7 +10,7 @@ const config = {
   adminEmail: 'admin@horix.com',
   adminPass: 'admin123',
   domain: 'localhost',
-  modules: ['logistics', 'docflow'],
+  modules: ['proveedores', 'logistica', 'nomina'],
 };
 
 function scrollToTop() { window.scrollTo({ top: 0, behavior: 'smooth' }); }
@@ -122,6 +122,7 @@ nextStep = function() {
   if (currentStep === 3) {
     config.modules = getSelectedMods();
   config.clean = document.getElementById('clean-install').checked;
+  config.runSeeds = document.getElementById('seed-demo').checked;
   }
   if (currentStep === 4) {
     buildSummary();
@@ -191,9 +192,9 @@ function showComplete() {
   const isLocal = config.domain === 'localhost';
   document.getElementById('complete-info').innerHTML = `
     <div class="comp-item"><div class="comp-label">🌐 Plataforma</div><div class="comp-val"><a href="${isLocal ? 'http://localhost:3002' : 'https://'+config.domain}">${isLocal ? 'http://localhost:3002' : 'https://'+config.domain}</a></div></div>
-    ${config.modules.includes('logistics') ? `<div class="comp-item"><div class="comp-label">🚚 Logística</div><div class="comp-val"><a href="${isLocal ? 'http://localhost:3004' : 'https://'+config.domain+'/logistics/'}">${isLocal ? 'http://localhost:3004' : 'https://'+config.domain+'/logistics/'}</a></div></div>` : ''}
-    ${config.modules.includes('docflow') ? `<div class="comp-item"><div class="comp-label">📄 DocFlow</div><div class="comp-val"><a href="${isLocal ? 'http://localhost:3100' : 'https://'+config.domain+'/docflow/'}">${isLocal ? 'http://localhost:3100' : 'https://'+config.domain+'/docflow/'}</a></div></div>` : ''}
-    ${config.modules.includes('horix') ? `<div class="comp-item"><div class="comp-label">🏭 Horix ERP</div><div class="comp-val"><a href="${isLocal ? 'http://localhost:3000' : 'https://'+config.domain+'/horix/'}">${isLocal ? 'http://localhost:3000' : 'https://'+config.domain+'/horix/'}</a></div></div>` : ''}
+    ${config.modules.includes('proveedores') ? `<div class="comp-item"><div class="comp-label">📄 Proveedores</div><div class="comp-val"><a href="${isLocal ? 'http://localhost:3002/proveedores/' : 'https://'+config.domain+'/proveedores/'}">${isLocal ? 'http://localhost:3002/proveedores/' : 'https://'+config.domain+'/proveedores/'}</a></div></div>` : ''}
+    ${config.modules.includes('logistica') ? `<div class="comp-item"><div class="comp-label">🚚 Logística</div><div class="comp-val"><a href="${isLocal ? 'http://localhost:3002/logistica/' : 'https://'+config.domain+'/logistica/'}">${isLocal ? 'http://localhost:3002/logistica/' : 'https://'+config.domain+'/logistica/'}</a></div></div>` : ''}
+    ${config.modules.includes('nomina') ? `<div class="comp-item"><div class="comp-label">💰 Nómina</div><div class="comp-val"><a href="${isLocal ? 'http://localhost:3002/nomina/' : 'https://'+config.domain+'/nomina/'}">${isLocal ? 'http://localhost:3002/nomina/' : 'https://'+config.domain+'/nomina/'}</a></div></div>` : ''}
     <div class="comp-item"><div class="comp-label">👤 Admin email</div><div class="comp-val">${config.adminEmail}</div></div>
     <div class="comp-item"><div class="comp-label">🔑 Contraseña</div><div class="comp-val">${config.adminPass}</div></div>
     ${installDbPass ? `<div class="comp-item"><div class="comp-label">🗄️ DB Password</div><div class="comp-val" style="font-family:monospace;font-size:12px;">${installDbPass}</div></div>` : ''}

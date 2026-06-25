@@ -191,7 +191,15 @@ body {
       <h2>🧩 Módulos</h2>
       <p class="desc">Selecciona los módulos que deseas instalar. El launcher (panel principal) siempre se instala.</p>
       <div class="mod-grid" id="mod-list">
-        <div class="mod-option checked" data-mod="logistics">
+        <div class="mod-option checked" data-mod="proveedores">
+          <input type="checkbox" checked style="display:none">
+          <div class="mod-icon">📄</div>
+          <div class="mod-info">
+            <div class="mod-name">Proveedores</div>
+            <div class="mod-desc">Facturas, proveedores, flujo de aprobación</div>
+          </div>
+        </div>
+        <div class="mod-option checked" data-mod="logistica">
           <input type="checkbox" checked style="display:none">
           <div class="mod-icon">🚚</div>
           <div class="mod-info">
@@ -199,24 +207,20 @@ body {
             <div class="mod-desc">Rutas, vehículos, pedidos, VRP</div>
           </div>
         </div>
-        <div class="mod-option checked" data-mod="docflow">
-          <input type="checkbox" checked style="display:none">
-          <div class="mod-icon">📄</div>
-          <div class="mod-info">
-            <div class="mod-name">DocFlow</div>
-            <div class="mod-desc">Facturas, proveedores, flujo de aprobación</div>
-          </div>
-        </div>
-        <div class="mod-option" data-mod="horix">
+        <div class="mod-option" data-mod="nomina">
           <input type="checkbox" style="display:none">
-          <div class="mod-icon">🏭</div>
+          <div class="mod-icon">💰</div>
           <div class="mod-info">
-            <div class="mod-name">Horix (ERP original)</div>
-            <div class="mod-desc">Dashboard, telemetría, configuración general</div>
+            <div class="mod-name">Nómina</div>
+            <div class="mod-desc">Horas extra, novedades, empleados</div>
           </div>
         </div>
       </div>
-      <p style="font-size:13px;color:var(--muted);">💡 Los módulos internos comparten autenticación con el launcher (login único).</p>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;">
+        <input type="checkbox" id="seed-demo" checked>
+        <span style="font-size:13px;">🌱 Sembrar datos demo (clientes, facturas, vehículos de prueba)</span>
+      </label>
+      <p style="font-size:13px;color:var(--muted);margin-top:8px;">💡 Los módulos comparten autenticación con el launcher (login único).</p>
     </div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="prevStep()">Atrás</button>
