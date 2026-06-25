@@ -4,7 +4,7 @@ const S={
   view:'dashboard',
   areas:[],
   cats:[],
-  theme:localStorage.getItem('vd_theme')||'dark'
+  theme:localStorage.getItem('synnox_theme')||'light'
 };
 const NAV=[
   {id:'dashboard',l:'Dashboard',i:'📊',s:'p'},

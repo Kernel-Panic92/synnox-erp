@@ -39,7 +39,7 @@ function confirmarLogout() {
 
 function toggleTheme() {
   document.body.classList.toggle('light');
-  localStorage.setItem('logistics_theme', document.body.classList.contains('light') ? 'light' : 'dark');
+  localStorage.setItem('synnox_theme', document.body.classList.contains('light') ? 'light' : 'dark');
 }
 
 function toggleSidebar() {
@@ -72,7 +72,7 @@ function navigate(page) {
 
 /* ── Init ── */
 async function init() {
-  if (localStorage.getItem('logistics_theme') === 'light') document.body.classList.add('light');
+  if (localStorage.getItem('synnox_theme') !== 'dark') document.body.classList.add('light');
   const hoy = new Date().toISOString().split('T')[0];
   const fFecha = document.getElementById('filtro-fecha');
   if (fFecha) fFecha.value = hoy;

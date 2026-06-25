@@ -7,7 +7,7 @@ function paginaSegura(hash) {
 
 // Theme Management
 function aplicarTema() {
-  const saved = localStorage.getItem('he_theme');
+  const saved = localStorage.getItem('synnox_theme');
   if (saved === 'light') {
     document.body.classList.add('light');
     document.getElementById('theme-icon').textContent = '☀️';
@@ -21,7 +21,7 @@ function aplicarTema() {
 
 function toggleTheme() {
   const isLight = document.body.classList.toggle('light');
-  localStorage.setItem('he_theme', isLight ? 'light' : 'dark');
+  localStorage.setItem('synnox_theme', isLight ? 'light' : 'dark');
   document.getElementById('theme-icon').textContent = isLight ? '☀️' : '🌙';
   document.getElementById('theme-text').textContent = isLight ? 'Modo oscuro' : 'Modo claro';
   

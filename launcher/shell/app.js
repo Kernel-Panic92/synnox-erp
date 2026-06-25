@@ -3,6 +3,45 @@ let user = null;
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s||'')); return d.innerHTML; }
 
+// ─── Theme toggle (universal: synnox_theme en localStorage) ────
+(function initTheme() {
+  const theme = localStorage.getItem('synnox_theme') || 'light';
+  const root = document.documentElement;
+  if (theme === 'dark') {
+    root.style.setProperty('--bg', '#12141a');
+    root.style.setProperty('--surface', '#1a1d28');
+    root.style.setProperty('--surface2', '#222738');
+    root.style.setProperty('--border', '#2e3548');
+    root.style.setProperty('--text', '#e8ecf4');
+    root.style.setProperty('--muted', '#8892a8');
+  }
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+})();
+function toggleTheme() {
+  const root = document.documentElement;
+  const isDark = root.style.getPropertyValue('--bg') === '#12141a' || root.style.getPropertyValue('--bg') === '';
+  if (isDark) {
+    root.style.setProperty('--bg', '#f0f2f7');
+    root.style.setProperty('--surface', '#ffffff');
+    root.style.setProperty('--surface2', '#e8eaf0');
+    root.style.setProperty('--border', '#d0d4e4');
+    root.style.setProperty('--text', '#1a1d2e');
+    root.style.setProperty('--muted', '#5a6180');
+    localStorage.setItem('synnox_theme', 'light');
+    document.getElementById('theme-btn').textContent = '🌙';
+  } else {
+    root.style.setProperty('--bg', '#12141a');
+    root.style.setProperty('--surface', '#1a1d28');
+    root.style.setProperty('--surface2', '#222738');
+    root.style.setProperty('--border', '#2e3548');
+    root.style.setProperty('--text', '#e8ecf4');
+    root.style.setProperty('--muted', '#8892a8');
+    localStorage.setItem('synnox_theme', 'dark');
+    document.getElementById('theme-btn').textContent = '☀️';
+  }
+}
+
 function show(id) {
   ['login-screen', 'launcher-screen', 'admin-screen', 'admin-form-overlay', 'modulo-form-overlay'].forEach(s => {
     const el = document.getElementById(s);
