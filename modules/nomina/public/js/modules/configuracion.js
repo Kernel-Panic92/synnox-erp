@@ -95,7 +95,7 @@ async function renderCfgTab(){
               <span>✓ Configuración SMTP</span>
             </div>
           </div>
-          <button class="btn btn-primary" onclick="descargarBackup()" style="width:100%;justify-content:center;padding:13px;">💾 Descargar Backup ZIP</button>
+          <button class="btn btn-primary" id="btn-descargar-backup" onclick="descargarBackup()" style="width:100%;justify-content:center;padding:13px;">💾 Descargar Backup ZIP</button>
           <div id="backup-ok" style="display:none;margin-top:14px;padding:10px 14px;background:rgba(79,190,150,0.1);border:1px solid rgba(79,190,150,0.3);border-radius:9px;font-size:13px;color:var(--success);">✓ Backup generado y descargado correctamente.</div>
           <div id="ultimo-backup-card" style="margin-top:20px;border:1px solid var(--border);border-radius:12px;padding:16px 18px;display:none;">
             <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">🤖 Último Backup Automático</div>
@@ -109,7 +109,7 @@ async function renderCfgTab(){
           <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:20px;">
             <div style="font-size:13px;font-weight:600;margin-bottom:6px;">🚀 Ejecutar Backup Automático</div>
             <p style="color:var(--muted);font-size:12px;margin-bottom:14px;line-height:1.6;">Ejecuta el script de backup del servidor (backup local + copia NAS si está configurado).</p>
-            <button class="btn btn-primary" onclick="ejecutarBackupScript()" style="width:100%;justify-content:center;padding:13px;">▶ Ejecutar Backup Automático</button>
+            <button class="btn btn-primary" id="btn-ejecutar-backup-script" onclick="ejecutarBackupScript()" style="width:100%;justify-content:center;padding:13px;">▶ Ejecutar Backup Automático</button>
             <div id="bk-script-log" style="display:none;margin-top:14px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;font-size:12px;font-family:monospace;color:var(--text);max-height:200px;overflow-y:auto;white-space:pre-wrap;"></div>
           </div>
         </div>
