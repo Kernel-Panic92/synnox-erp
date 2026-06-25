@@ -7,7 +7,7 @@ function paginaSegura(hash) {
 
 // Theme Management
 function aplicarTema() {
-  const saved = localStorage.getItem('synnox_theme');
+  const saved = localStorage.getItem('synnox_theme') || 'light';
   const icon = document.getElementById('theme-icon');
   const text = document.getElementById('theme-text');
   if (saved === 'light') {
