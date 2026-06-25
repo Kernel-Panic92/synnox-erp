@@ -16,7 +16,7 @@ async function authMiddleware(req, res, next) {
   const cookies = parseCookies(req);
   let token = cookies.launcher_jwt || null;
   const header = req.headers.authorization;
-  if (header && header.startsWith('Bearer ')) token = header.split(' ')[1];
+  if (!token && header && header.startsWith('Bearer ')) token = header.split(' ')[1];
   if (!token) {
     console.log(`[proveedores] 401 — no token en ${req.method} ${req.path}, cookies: ${req.headers.cookie?.slice(0,80)}`);
     return res.status(401).json({ error: 'Token requerido' });

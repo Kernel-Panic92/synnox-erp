@@ -16,7 +16,7 @@ export function verifyToken(req, res, next) {
   const cookies = parseCookies(req);
   let token = cookies.launcher_jwt || null;
   const auth = req.headers.authorization;
-  if (auth && auth.startsWith('Bearer ')) token = auth.split(' ')[1];
+  if (!token && auth && auth.startsWith('Bearer ')) token = auth.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Token requerido' });
   try {
     req.user = jwt.verify(token, JWT_SECRET);
