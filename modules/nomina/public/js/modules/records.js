@@ -913,7 +913,7 @@ function iniciarPollHistorial() {
   _histPollTimer = setInterval(async () => {
     if (window._currentPage !== 'historial') return;
     try {
-      const res = await fetch('/api/registros');
+      const res = await GET('/api/registros');
       if (!res.ok) return;
       const nuevos = await res.json();
       const oldJson = JSON.stringify(registros);

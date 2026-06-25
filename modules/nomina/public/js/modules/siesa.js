@@ -38,7 +38,7 @@ async function cargarSiesa() {
   const nominaId = document.getElementById('sie-nomina')?.value || '';
 
   try {
-    const res = await fetch('/api/registros');
+    const res = await GET('/api/registros');
     if (!res.ok) throw new Error('Error cargando registros');
     let data = await res.json();
 
