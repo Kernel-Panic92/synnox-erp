@@ -254,6 +254,18 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
 // ─── 024: Categoría por defecto en proveedor ────────────────────────────────
 `ALTER TABLE proveedores ADD COLUMN IF NOT EXISTS categoria_default_id UUID REFERENCES categorias_compra(id) ON DELETE SET NULL`,
 
+// ─── 025: Log de accesos (auditoría) ────────────────────────────────────────
+`CREATE TABLE IF NOT EXISTS log_accesos (
+  id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  usuario_id  UUID REFERENCES usuarios(id) ON DELETE SET NULL,
+  email       VARCHAR(200),
+  ip          VARCHAR(50),
+  user_agent  TEXT,
+  exito       BOOLEAN NOT NULL,
+  motivo      VARCHAR(100),
+  creado_en   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+)`,
+
 ];
 
 async function migrate() {

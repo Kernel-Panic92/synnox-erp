@@ -143,14 +143,15 @@ async function renderCfgTab(cfg){
     `;
   }
   else if(cfgTabs==='areas'){
-    if(!S.usuarios)S.usuarios=await api('GET','/usuarios');
+    let users=[];
+    try { if(!S.usuarios)S.usuarios=await api('GET','/usuarios'); users=S.usuarios||[]; } catch { users=[]; }
     const areas=await api('GET','/areas');
-    const users=S.usuarios.filter(u=>u.rol==='jefe'||u.rol==='admin');
+    const jefes=users.filter(u=>u.rol==='jefe'||u.rol==='admin');
     c.innerHTML=`
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:20px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
           <div><div style="font-family:var(--font-head);font-size:16px;font-weight:700">Áreas</div><div style="font-size:13px;color:var(--muted);margin-top:4px">Gestión de áreas organizacionales</div></div>
-          <button class="btn btn-primary btn-sm" onclick="showM('Nueva área','<div class=form-grid><div class=field full><label>NOMBRE</label><input type=text id=new-area-nombre placeholder=Nombre del área/></div><div class=field><label>JEFE (opcional)</label><select id=new-area-jefe><option value=>— Sin jefe —</option>'+users.map(u=>'<option value='+u.id+'>'+esc(u.nombre)+'</option>').join('')+'</select></div><div class=field><label>EMAIL</label><input type=email id=new-area-email placeholder=area@empresa.com/></div></div><div class=modal-footer><button class=btn btn-primary onclick=crearArea()>Crear área</button></div>')">➕ Nueva área</button>
+          <button class="btn btn-primary btn-sm" onclick="showM('Nueva área','<div class=form-grid><div class=field full><label>NOMBRE</label><input type=text id=new-area-nombre placeholder=Nombre del área/></div><div class=field><label>JEFE (opcional)</label><select id=new-area-jefe><option value=>— Sin jefe —</option>'+jefes.map(u=>'<option value='+u.id+'>'+esc(u.nombre)+'</option>').join('')+'</select></div><div class=field><label>EMAIL</label><input type=email id=new-area-email placeholder=area@empresa.com/></div></div><div class=modal-footer><button class=btn btn-primary onclick=crearArea()>Crear área</button></div>')">➕ Nueva área</button>
         </div>
         <div style="display:grid;gap:12px">${areas.length?areas.map(a=>`<div style="display:flex;align-items:center;gap:12px;padding:14px;background:var(--surface2);border-radius:10px">
           <div style="flex:1"><div style="font-weight:600">${esc(a.nombre)}</div><div style="font-size:12px;color:var(--muted)">${a.jefe_nombre?'Jefe: '+esc(a.jefe_nombre):'Sin jefe asignado'} · ${a.total_usuarios||0} usuario(s)</div></div>
