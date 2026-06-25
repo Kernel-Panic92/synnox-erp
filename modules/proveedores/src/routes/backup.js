@@ -220,12 +220,12 @@ router.all('/', soloAdmin, async (req, res) => {
 
     // Copiar a NAS si está configurado
     try {
-      const cfgRows = await db.query(
+      const cfgResult = await db.query(
         `SELECT clave, valor FROM configuracion 
          WHERE clave IN ('backup_auto_type','backup_auto_path','backup_auto_host','backup_auto_user','backup_auto_pass')`
       );
       const cfg = {};
-      for (const row of cfgRows) cfg[row.clave] = row.valor;
+      for (const row of cfgResult.rows) cfg[row.clave] = row.valor;
       
       if (cfg.backup_auto_type === 'smb' && cfg.backup_auto_host) {
         console.log('[Backup] Copiando a NAS...');

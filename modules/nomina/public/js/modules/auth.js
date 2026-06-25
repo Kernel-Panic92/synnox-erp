@@ -5,6 +5,7 @@ async function doLogout() {
     icono: '👋',
     btnTxt: 'Cerrar sesión',
     onConfirm: async () => {
+      document.cookie = 'launcher_jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
       localStorage.removeItem('he_logged_in');
       sesion = null;
       empleados = [];
