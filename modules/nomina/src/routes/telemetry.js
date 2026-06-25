@@ -32,6 +32,7 @@ module.exports = function({ db, parseCookies, middlewares: { soloAdmin } }) {
   });
 
   router.get('/telemetry/dashboard', soloAdmin, (req, res) => {
+    try {
 
       const hitsPagina = db.prepare(`SELECT pagina, COUNT(*) as total FROM telemetria WHERE evento='page_view' AND creado > datetime('now','-30 days') GROUP BY pagina ORDER BY total DESC`).all();
       const eventosRecientes = db.prepare(`SELECT t.*, u.nombre as usuarioNombre FROM telemetria t LEFT JOIN usuarios u ON t.usuarioId=u.id ORDER BY t.id DESC LIMIT 50`).all();
