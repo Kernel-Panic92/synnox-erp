@@ -104,12 +104,12 @@ async function runInstall(config) {
     if (config.clean) {
       installState.step = '🧹 Limpiando instalación anterior...';
       log('Eliminando datos existentes...', 'step');
-      // Drop PostgreSQL databases
+      // Drop PostgreSQL databases (only horix_erp needed)
       for (const db of ['horix_launcher', 'horix_logistics', 'horix_docflow', 'horix_erp']) {
         try { execSync(`su - postgres -c "psql -c \\"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${db}' AND pid <> pg_backend_pid();\\"" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
         try { execSync(`su - postgres -c "dropdb ${db}" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
-        try { execSync(`su - postgres -c "createdb -O ${config.dbUser} ${db}" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
       }
+      try { execSync(`su - postgres -c "createdb -O ${config.dbUser} horix_erp" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
       // Delete SQLite databases
       for (const f of ['launcher/launcher.db', 'modules/nomina/horas_extra.db']) {
         try { fs.unlinkSync(path.join(INSTALL_DIR, f)); log(`Eliminado: ${f}`, 'ok'); } catch {}
@@ -150,9 +150,11 @@ async function runInstall(config) {
     log('Creando usuario y databases...', 'step');
     try {
       execSync(`su - postgres -c "psql -tc \\"SELECT 1 FROM pg_roles WHERE rolname='${config.dbUser}'\\" | grep -q 1 || psql -c \\"CREATE USER ${config.dbUser} WITH PASSWORD '${dbPass}'\\"" 2>/dev/null || true`, { stdio: 'ignore', env: pgEnv });
-      for (const db of ['horix_launcher', 'horix_logistics', 'horix_docflow', 'horix_erp']) {
-        execSync(`su - postgres -c "psql -tc \\"SELECT 1 FROM pg_database WHERE datname='${db}'\\" | grep -q 1 || createdb -O ${config.dbUser} ${db}" 2>/dev/null || true`, { stdio: 'ignore', env: pgEnv });
+      for (const db of ['horix_launcher', 'horix_logistics', 'horix_docflow']) {
+        try { execSync(`su - postgres -c "psql -c \\"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${db}' AND pid <> pg_backend_pid();\\"" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
+        try { execSync(`su - postgres -c "dropdb ${db}" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
       }
+      execSync(`su - postgres -c "psql -tc \\"SELECT 1 FROM pg_database WHERE datname='horix_erp'\\" | grep -q 1 || createdb -O ${config.dbUser} horix_erp" 2>/dev/null || true`, { stdio: 'ignore', env: pgEnv });
       // Ensure password matches .env (idempotent)
       execSync(`su - postgres -c "psql -c \\"ALTER USER ${config.dbUser} WITH PASSWORD '${dbPass}';\\"" 2>/dev/null || true`, { stdio: 'ignore' });
       log('PostgreSQL listo', 'ok');
@@ -192,42 +194,40 @@ async function runInstall(config) {
     // Rebuild native addons
     try { await runCmd('npm', ['rebuild'], { cwd: INSTALL_DIR }); } catch {}
 
-    // Step 6: Migrations
+    // Step 6: Migraciones (todas en horix_erp)
     installState.step = 'Ejecutando migraciones...';
+    const dbEnv = { ...process.env, PGPASSWORD: dbPass, PGHOST: config.dbHost || 'localhost', PGUSER: config.dbUser, PGPASSWORD: dbPass, PGDATABASE: 'horix_erp', DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_NAME: 'horix_erp' };
     try {
-      await runCmd('psql', ['-U', config.dbUser, '-h', config.dbHost || 'localhost', '-d', 'horix_logistics', '-c', 'CREATE SCHEMA IF NOT EXISTS logistics;'], { env: pgEnv });
-      const migDir = path.join(INSTALL_DIR, 'modules/logistics/backend/migrations');
+      await runCmd('psql', ['-U', config.dbUser, '-h', config.dbHost || 'localhost', '-d', 'horix_erp', '-c', 'CREATE SCHEMA IF NOT EXISTS logistics;'], { env: pgEnv });
+      const migDir = path.join(INSTALL_DIR, 'modules/logistica/backend/migrations');
       if (fs.existsSync(migDir)) {
         const files = fs.readdirSync(migDir).filter(f => f.endsWith('.sql')).sort();
         for (const f of files) {
-          try { await runCmd('psql', ['-U', config.dbUser, '-h', config.dbHost || 'localhost', '-d', 'horix_logistics', '-f', path.join(migDir, f)], { env: pgEnv }); } catch {}
+          try { await runCmd('psql', ['-U', config.dbUser, '-h', config.dbHost || 'localhost', '-d', 'horix_erp', '-f', path.join(migDir, f)], { env: pgEnv }); } catch {}
         }
-        log('Logistics: migraciones ok', 'ok');
+        log('Logistica: migraciones ok', 'ok');
       }
-    } catch (e) { log('Migraciones logistics: ' + e.message, 'warn'); }
+    } catch (e) { log('Migraciones logistica: ' + e.message, 'warn'); }
 
     try {
-      await runCmd('node', ['src/db/migrate.js'], { cwd: path.join(INSTALL_DIR, 'modules/docflow'), env: { ...process.env, PGPASSWORD: dbPass, DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_NAME: 'horix_docflow' } });
-      log('DocFlow: migraciones ok', 'ok');
-    } catch (e) { log('DocFlow migrate: ' + e.message, 'warn'); }
+      await runCmd('node', ['src/db/migrate.js'], { cwd: path.join(INSTALL_DIR, 'modules/proveedores'), env: dbEnv });
+      log('Proveedores: migraciones ok', 'ok');
+    } catch (e) { log('Proveedores migrate: ' + e.message, 'warn'); }
 
-    // Step 7: Demo seeds (admin users are auto-created from launcher JWT)
+    // Step 7: Demo seeds (en horix_erp)
     if (config.runSeeds !== false) {
       installState.step = 'Sembrando datos demo...';
-      // Demo seeds
-      if (fs.existsSync(path.join(INSTALL_DIR, 'modules/logistics/backend/db/seed-demo.js'))) {
+      if (fs.existsSync(path.join(INSTALL_DIR, 'modules/logistica/backend/db/seed-demo.js'))) {
         try {
-          const pwd = config.dbPass || dbPass;
-          await runCmd('node', ['backend/db/seed-demo.js'], { cwd: path.join(INSTALL_DIR, 'modules/logistics'), env: { ...process.env, PGPASSWORD: pwd, DB_USER: config.dbUser, DB_PASSWORD: pwd, DB_NAME: 'horix_logistics' } });
-          log('Logistics: datos demo', 'ok');
-        } catch (e) { log('Seed-demo logistics: ' + e.message, 'warn'); }
+          await runCmd('node', ['backend/db/seed-demo.js'], { cwd: path.join(INSTALL_DIR, 'modules/logistica'), env: dbEnv });
+          log('Logística: datos demo', 'ok');
+        } catch (e) { log('Seed-demo logistica: ' + e.message, 'warn'); }
       }
-      if (fs.existsSync(path.join(INSTALL_DIR, 'modules/docflow/src/db/seed-demo.js'))) {
+      if (fs.existsSync(path.join(INSTALL_DIR, 'modules/proveedores/src/db/seed-demo.js'))) {
         try {
-          const pwd = config.dbPass || dbPass;
-          await runCmd('node', ['src/db/seed-demo.js'], { cwd: path.join(INSTALL_DIR, 'modules/docflow'), env: { ...process.env, PGPASSWORD: pwd, DB_USER: config.dbUser, DB_PASSWORD: pwd, DB_NAME: 'horix_docflow' } });
-          log('DocFlow: datos demo', 'ok');
-        } catch (e) { log('Seed-demo docflow: ' + e.message, 'warn'); }
+          await runCmd('node', ['src/db/seed-demo.js'], { cwd: path.join(INSTALL_DIR, 'modules/proveedores'), env: dbEnv });
+          log('Proveedores: datos demo', 'ok');
+        } catch (e) { log('Seed-demo proveedores: ' + e.message, 'warn'); }
       }
     }
 

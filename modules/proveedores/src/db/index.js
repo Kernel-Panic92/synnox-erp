@@ -1,11 +1,11 @@
 const { Pool } = require('pg');
 
 const pool = new Pool({
-  host:     process.env.DB_HOST     || 'localhost',
-  port:     parseInt(process.env.DB_PORT || '5432'),
-  database: process.env.DB_NAME     || 'docflow_db',
-  user:     process.env.DB_USER     || 'postgres',
-  password: process.env.DB_PASSWORD || '',
+  host:     process.env.PGHOST     || process.env.DB_HOST     || 'localhost',
+  port:     parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
+  database: process.env.PGDATABASE || process.env.DB_NAME     || 'horix_erp',
+  user:     process.env.PGUSER     || process.env.DB_USER     || 'postgres',
+  password: process.env.PGPASSWORD || process.env.DB_PASSWORD || '',
   max: 10,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
