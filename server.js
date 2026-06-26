@@ -37,9 +37,10 @@ async function start() {
   try {
     const mod = await import('./modules/logistica/backend/server.js');
     app.use('/logistica', mod.default);
-    app.use('/logistica', express.static(path.join(__dirname, 'modules', 'logistica', 'public')));
     console.log('   Logística: montado en /logistica/');
   } catch (e) { console.error('[logistica] Error:', e.message); }
+  // Static files always served regardless of module load success
+  app.use('/logistica', express.static(path.join(__dirname, 'modules', 'logistica', 'public')));
 
   app.get('*', (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });

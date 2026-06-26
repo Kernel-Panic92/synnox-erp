@@ -1,5 +1,4 @@
 import express from 'express';
-import PDFDocument from 'pdfkit';
 import pool from '../config/db.js';
 
 const router = express.Router();
@@ -11,6 +10,7 @@ function soloAdmin(req, res, next) {
 
 router.get('/:id/checklist.pdf', soloAdmin, async (req, res) => {
   try {
+    const { default: PDFDocument } = await import('pdfkit');
     const { id } = req.params;
 
     const rutaRes = await pool.query(
