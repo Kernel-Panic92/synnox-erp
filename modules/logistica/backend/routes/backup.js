@@ -10,7 +10,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = express.Router();
 
 function soloAdmin(req, res, next) {
-  if (req.usuario?.rol !== 'admin') return res.status(403).json({ error: 'Solo administradores' });
+  if (req.user?.rol !== 'admin') return res.status(403).json({ error: 'Solo administradores' });
   next();
 }
 

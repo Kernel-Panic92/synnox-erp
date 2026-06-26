@@ -86,6 +86,7 @@ async function init() {
     if (nameEl) nameEl.textContent = data.nombre || data.email;
     const roleEl = document.getElementById('user-role');
     if (roleEl) roleEl.textContent = data.rol || '';
+    cargarDashboard();
   } catch { logout(); }
 }
 
@@ -1071,7 +1072,7 @@ async function importarSiesa() {
   const fd = new FormData();
   fd.append('archivo', input.files[0]);
   try {
-    const res = await fetch(API + '/importadores/siesa', { method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN }, body: fd });
+    const res = await fetch(API + '/importadores/siesa', { method: 'POST', headers: { 'Authorization': 'Bearer ' + getToken() }, body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     let html = `<div style="padding:10px;background:rgba(79,190,150,.1);border-radius:8px;color:var(--success);font-size:13px;">
@@ -1110,7 +1111,7 @@ async function importarMaestroClientes() {
   const fd = new FormData();
   fd.append('archivo', input.files[0]);
   try {
-    const res = await fetch(API + '/importadores/maestro-clientes', { method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN }, body: fd });
+    const res = await fetch(API + '/importadores/maestro-clientes', { method: 'POST', headers: { 'Authorization': 'Bearer ' + getToken() }, body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     resEl.innerHTML = `<div style="padding:10px;background:rgba(79,190,150,.1);border-radius:8px;color:var(--success);font-size:13px;">
@@ -1134,7 +1135,7 @@ async function importarWidetech() {
   const fd = new FormData();
   fd.append('archivo', input.files[0]);
   try {
-    const res = await fetch(API + '/importadores/widetech', { method: 'POST', headers: { 'Authorization': 'Bearer ' + TOKEN }, body: fd });
+    const res = await fetch(API + '/importadores/widetech', { method: 'POST', headers: { 'Authorization': 'Bearer ' + getToken() }, body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     resEl.innerHTML = `<div style="padding:10px;background:rgba(79,190,150,.1);border-radius:8px;color:var(--success);font-size:13px;">
@@ -1276,7 +1277,7 @@ function renderBackup(el) {
 
 async function descargarBackup() {
   try {
-    const res = await fetch('/api/backup', { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    const res = await fetch(API + '/backup', { headers: { 'Authorization': 'Bearer ' + getToken() } });
     const blob = await res.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -1315,7 +1316,7 @@ async function cargarListaBackups() {
 
 async function descargarBackupServidor(nombre) {
   try {
-    const res = await fetch('/api/backup/descargar/' + encodeURIComponent(nombre), { headers: { 'Authorization': 'Bearer ' + TOKEN } });
+    const res = await fetch(API + '/backup/descargar/' + encodeURIComponent(nombre), { headers: { 'Authorization': 'Bearer ' + getToken() } });
     const blob = await res.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = nombre;

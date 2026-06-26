@@ -5,7 +5,7 @@ import pool from '../config/db.js';
 const router = express.Router();
 
 function soloAdmin(req, res, next) {
-  if (req.usuario?.rol !== 'admin') return res.status(403).json({ error: 'Solo administradores' });
+  if (req.user?.rol !== 'admin') return res.status(403).json({ error: 'Solo administradores' });
   next();
 }
 
@@ -149,11 +149,11 @@ router.post('/test', soloAdmin, async (req, res) => {
       auth: smtp.user ? { user: smtp.user, pass: smtp.pass } : undefined
     });
     await transporter.sendMail({
-      from: smtp.from, to: req.usuario.email,
+      from: smtp.from, to: req.user.email,
       subject: '🔧 Prueba SMTP - Horix Logistics',
       text: 'Si recibes esto, la configuración SMTP funciona correctamente.'
     });
-    res.json({ exitosa: true, mensaje: 'Correo de prueba enviado a ' + req.usuario.email });
+    res.json({ exitosa: true, mensaje: 'Correo de prueba enviado a ' + req.user.email });
   } catch (err) {
     res.status(500).json({ error: 'Error al enviar: ' + err.message });
   }
