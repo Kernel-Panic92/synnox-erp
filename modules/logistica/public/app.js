@@ -975,9 +975,8 @@ function initMapaRutaDetalle(paradas, geometria, colorRuta, sedeNombre) {
     map.fitBounds(coords, { padding: [30,30] });
   }
   el._leafletMap = map;
+  requestAnimationFrame(() => requestAnimationFrame(() => map.invalidateSize()));
 }
-
-function cerrarRutaDetalle() {
   const el = document.getElementById('mapa-ruta-detalle');
   if (el && el._leafletMap) { el._leafletMap.remove(); el._leafletMap = null; }
   cerrarModal();
@@ -1679,6 +1678,7 @@ function initMapaPin(containerId, latInputId, lngInputId) {
   agregarCapasMapa(map);
   container._leafletMap = map;
   window._activeModalMap = map;
+  requestAnimationFrame(() => requestAnimationFrame(() => map.invalidateSize()));
 
   if (hasCoords) {
     L.marker(center, { draggable: true }).addTo(map).on('dragend', (e) => {
