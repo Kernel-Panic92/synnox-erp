@@ -24,9 +24,9 @@ router.get('/:id/checklist.pdf', soloAdmin, async (req, res) => {
     const ruta = rutaRes.rows[0];
 
     const paradasRes = await pool.query(
-      `SELECT p.*, c.nombre as cliente_nombre, c.direccion as cliente_direccion, c.telefono 
+      `SELECT p.*, pl.numero_factura
        FROM logistics.paradas_ruta p 
-       LEFT JOIN logistics.clientes c ON p.cliente_id = c.id 
+       LEFT JOIN logistics.pedidos_logistica pl ON p.pedido_id = pl.id
        WHERE p.ruta_id = $1 
        ORDER BY p.secuencia ASC`,
       [id]
@@ -94,7 +94,7 @@ router.get('/:id/checklist.pdf', soloAdmin, async (req, res) => {
     doc.text('#', colX[0] + 8, tableTop + 7);
     doc.text('CLIENTE', colX[1] + 5, tableTop + 7);
     doc.text('DIRECCIÓN', colX[2] + 5, tableTop + 7);
-    doc.text('TELÉFONO', colX[3] + 5, tableTop + 7);
+    doc.text('FACTURA', colX[3] + 5, tableTop + 7);
     doc.text('☐', colX[4] + 8, tableTop + 7);
 
     let y = tableTop + 28;
@@ -114,8 +114,8 @@ router.get('/:id/checklist.pdf', soloAdmin, async (req, res) => {
 
       doc.font('Helvetica').fontSize(8);
       doc.text(p.cliente_nombre || '—', colX[1] + 5, y + 2, { width: colWidths[1] - 10 });
-      doc.text(p.direccion || p.cliente_direccion || '—', colX[2] + 5, y + 2, { width: colWidths[2] - 10 });
-      doc.text(p.telefono || '', colX[3] + 5, y + 2, { width: colWidths[3] - 10 });
+      doc.text(p.direccion || '—', colX[2] + 5, y + 2, { width: colWidths[2] - 10 });
+      doc.text(p.numero_factura || '', colX[3] + 5, y + 2, { width: colWidths[3] - 10 });
 
       doc.rect(colX[4] + 8, y + 2, 12, 12).lineWidth(0.5).strokeColor('#95a5a6').stroke();
 
