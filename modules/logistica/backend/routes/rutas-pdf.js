@@ -112,16 +112,18 @@ router.get('/:id/checklist.pdf', soloAdmin, async (req, res) => {
     doc.moveTo(50, infoY + 75).lineTo(562, infoY + 75).lineWidth(0.5).strokeColor('#bdc3c7').stroke();
 
     const tableTop = infoY + 90;
-    const colWidths = [30, 150, 180, 120, 40];
-    const colX = [50, 80, 230, 410, 530];
+    const colWidths = [25, 100, 120, 60, 80, 87, 25];
+    const colX = [50, 75, 175, 295, 355, 435, 522];
 
     doc.rect(50, tableTop, 512, 22).fill(primaryColor);
-    doc.fontSize(9).fillColor('#ffffff').font('Helvetica-Bold');
-    doc.text('#', colX[0] + 8, tableTop + 7);
+    doc.fontSize(8).fillColor('#ffffff').font('Helvetica-Bold');
+    doc.text('#', colX[0] + 5, tableTop + 7);
     doc.text('CLIENTE', colX[1] + 5, tableTop + 7);
     doc.text('DIRECCIÓN', colX[2] + 5, tableTop + 7);
     doc.text('FACTURA', colX[3] + 5, tableTop + 7);
-    doc.text('☐', colX[4] + 8, tableTop + 7);
+    doc.text('FIRMA', colX[4] + 5, tableTop + 7);
+    doc.text('OBS.', colX[5] + 5, tableTop + 7);
+    doc.text('☐', colX[6] + 5, tableTop + 7);
 
     let y = tableTop + 28;
     paradas.forEach((p, i) => {
@@ -135,15 +137,21 @@ router.get('/:id/checklist.pdf', soloAdmin, async (req, res) => {
         doc.rect(50, y - 4, 512, rowHeight).fill(lightGray);
       }
 
-      doc.fillColor(darkGray).font('Helvetica-Bold').fontSize(9);
-      doc.text(String(p.secuencia || i + 1), colX[0] + 8, y + 4);
+      doc.fillColor(darkGray).font('Helvetica-Bold').fontSize(8);
+      doc.text(String(p.secuencia || i + 1), colX[0] + 5, y + 4);
 
-      doc.font('Helvetica').fontSize(8);
+      doc.font('Helvetica').fontSize(7);
       doc.text(p.cliente_nombre || '—', colX[1] + 5, y + 2, { width: colWidths[1] - 10 });
       doc.text(p.direccion || '—', colX[2] + 5, y + 2, { width: colWidths[2] - 10 });
       doc.text(p.numero_factura || '', colX[3] + 5, y + 2, { width: colWidths[3] - 10 });
 
-      doc.rect(colX[4] + 8, y + 2, 12, 12).lineWidth(0.5).strokeColor('#95a5a6').stroke();
+      // Signature line
+      doc.moveTo(colX[4] + 5, y + 16).lineTo(colX[4] + colWidths[4] - 5, y + 16).lineWidth(0.3).strokeColor('#95a5a6').stroke();
+
+      // Observations line
+      doc.moveTo(colX[5] + 5, y + 16).lineTo(colX[5] + colWidths[5] - 5, y + 16).lineWidth(0.3).strokeColor('#95a5a6').stroke();
+
+      doc.rect(colX[6] + 5, y + 2, 10, 10).lineWidth(0.5).strokeColor('#95a5a6').stroke();
 
       y += rowHeight;
     });
