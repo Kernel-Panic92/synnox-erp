@@ -139,11 +139,15 @@ const boot = (async () => {
   await require('./src/db/seeds')({ db, uid, encryptSmtp, BASE_URL, APP_NAME });
 })();
 
-const { soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles, soloAdminOBkp, autenticar, requierePermiso } = createAuth({
+const { soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles, soloAdminOBkp, autenticar, requierePermiso, requireModule } = createAuth({
   BACKUP_TOKEN,
   enviarCorreo,
   getConfig
 });
+
+// ─── Auth global: verify JWT + check module access for all /api routes ──────
+app.use('/api', autenticar([]));
+app.use('/api', requireModule('nomina'));
 
 app.use('/api/auth', require('./src/routes/auth')({
   db, crypto, middlewares: { todosRoles, soloAdmin }

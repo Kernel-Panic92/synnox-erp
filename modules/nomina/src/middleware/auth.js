@@ -76,7 +76,25 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
     soloAdmin(req, res, next);
   };
 
-  return { autenticar, requierePermiso, soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles, requiereBackupToken, soloAdminOBkp };
+  function requireModule(moduleId) {
+    return (req, res, next) => {
+      if (!req.usuario) return res.status(401).json({ error: 'No autenticado' });
+      if (req.usuario.rol === 'admin') return next();
+      // Read modulos from JWT (local user record doesn't have it)
+      try {
+        const cookies = parseCookies(req);
+        const token = cookies.launcher_jwt || req.headers['authorization']?.replace('Bearer ', '');
+        if (token) {
+          const payload = jwt.verify(token, JWT_SECRET);
+          const modulos = payload.modulos || [];
+          if (modulos.includes(moduleId)) return next();
+        }
+      } catch {}
+      res.status(403).json({ error: `No tienes acceso al módulo ${moduleId}` });
+    };
+  }
+
+  return { autenticar, requierePermiso, requireModule, soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles, requiereBackupToken, soloAdminOBkp };
 }
 
 module.exports = { parseCookies, createAuth };

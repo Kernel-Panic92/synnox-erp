@@ -16,7 +16,6 @@ const NAV=[
   {id:'centros',l:'Centros',i:'🗺️',s:'c',roles:['admin','contador']},
   {id:'configuracion',l:'Configuración',i:'⚙️',s:'c',roles:['admin']},
   {id:'backup',l:'Backup',i:'💾',s:'c',roles:['admin']},
-  {id:'usuarios',l:'Usuarios',i:'👤',s:'c',roles:['admin']},
   {id:'audit',l:'Auditoría',i:'🔒',s:'c',roles:['admin','auditor']}
 ];
 const SECS=[{id:'p',l:'Principal'},{id:'f',l:'Flujo'},{id:'c',l:'Config'}];
@@ -33,7 +32,7 @@ function goNav(v){closeSidebar();goTo(v)}
 function setNav(id){
   document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
   const e=$(`nv-${id}`);if(e)e.classList.add('active');
-  const T={'dashboard':'Dashboard','facturas':'Facturas','pendientes':'Pendientes','aprobaciones':'Aprobaciones','causacion':'Causación','categorias':'Categorías','usuarios':'Usuarios','backup':'Backup'};
+  const T={'dashboard':'Dashboard','facturas':'Facturas','pendientes':'Pendientes','aprobaciones':'Aprobaciones','causacion':'Causación','categorias':'Categorías','backup':'Backup'};
   $('content').parentElement.querySelector('.page-title')?.remove();
   $('content').parentElement.querySelector('.page-sub')?.remove();
 }
@@ -51,7 +50,6 @@ async function goTo(v){
     else if(v==='porpagar')await rPorPagar();
     else if(v==='categorias')await rCats();
     else if(v==='centros')await rCentros();
-    else if(v==='usuarios')await rUsers();
     else if(v==='backup')await rBackup();
     else if(v==='configuracion')await rConfig();
     else if(v==='audit')await rAudit();

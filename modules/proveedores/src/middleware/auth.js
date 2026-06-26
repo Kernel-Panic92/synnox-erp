@@ -16,12 +16,8 @@ async function authMiddleware(req, res, next) {
   const cookies = parseCookies(req);
   let token = cookies.launcher_jwt || null;
   const header = req.headers.authorization;
-  const rawCookie = req.headers['cookie'] || '(none)';
-  const parts = token ? token.split('.').length : 0;
-  console.log(`[proveedores] cookie: ${rawCookie.slice(0,80)}... tokenParts: ${parts}, secret: ${JWT_SECRET.slice(0,12)}... (len:${JWT_SECRET.length})`);
   if (!token && header && header.startsWith('Bearer ')) token = header.split(' ')[1];
   if (!token) {
-    console.log(`[proveedores] 401 — no token`);
     return res.status(401).json({ error: 'Token requerido' });
   }
   try {
@@ -29,7 +25,6 @@ async function authMiddleware(req, res, next) {
     req.usuario = { ...payload, _token: token };
     next();
   } catch (err) {
-    console.log(`[proveedores] JWT error: ${err.message} — token: ${token.slice(0,25)}... (${token.length} chars, ${token.split('.').length} parts) — secret len:${JWT_SECRET.length}`);
     if (err.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Sesión expirada' });
     }
@@ -47,4 +42,14 @@ function requireRol(...roles) {
   };
 }
 
-module.exports = { authMiddleware, requireRol };
+function requireModule(moduleId) {
+  return (req, res, next) => {
+    if (!req.usuario) return res.status(401).json({ error: 'No autenticado' });
+    if (req.usuario.rol === 'admin') return next();
+    const modulos = req.usuario.modulos || [];
+    if (modulos.includes(moduleId)) return next();
+    res.status(403).json({ error: `No tienes acceso al módulo ${moduleId}` });
+  };
+}
+
+module.exports = { authMiddleware, requireRol, requireModule };

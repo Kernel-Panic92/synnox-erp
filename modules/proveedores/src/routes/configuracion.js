@@ -6,8 +6,7 @@ const path = require('path');
 const fs = require('fs');
 const os = require('os');
 const HOME_DIR = os.homedir();
-
-router.use(authMiddleware);
+const APP_DIR = path.join(__dirname, '..', '..');
 
 // Helper: sanitizar entrada para evitar command injection
 function sanitizeShellArg(str) {

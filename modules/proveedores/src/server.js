@@ -20,7 +20,13 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+const { authMiddleware, requireModule } = require('./middleware/auth');
+
 // ─── Rutas API ────────────────────────────────────────────────────────────────
+// Auth global: verify JWT + check module access for all /api routes
+app.use('/api', authMiddleware);
+app.use('/api', requireModule('proveedores'));
+
 app.use('/api/areas',       require('./routes/areas'));
 app.use('/api/categorias',  require('./routes/categorias'));
 app.use('/api/facturas',    require('./routes/facturas'));
