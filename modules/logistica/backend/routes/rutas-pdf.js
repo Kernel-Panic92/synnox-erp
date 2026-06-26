@@ -1,5 +1,11 @@
 import express from 'express';
 import pool from '../config/db.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const LAUNCHER_LOGO = path.join(__dirname, '..', '..', '..', '..', 'media', 'LogoERP.png');
 
 const router = express.Router();
 
@@ -51,16 +57,21 @@ router.get('/:id/checklist.pdf', soloAdmin, async (req, res) => {
     const lightGray = '#f2f3f4';
     const darkGray = '#2c3e50';
 
+    // Logo: company_logo (DB) > launcher logo (file) > none
+    let logoImg = null;
     if (cfg.company_logo) {
-      try {
-        const imgData = Buffer.from(cfg.company_logo, 'base64');
-        doc.image(imgData, 50, 40, { width: 80, height: 80 });
-      } catch {}
+      try { logoImg = Buffer.from(cfg.company_logo, 'base64'); } catch {}
+    } else if (fs.existsSync(LAUNCHER_LOGO)) {
+      try { logoImg = fs.readFileSync(LAUNCHER_LOGO); } catch {}
     }
 
-    const textStartX = cfg.company_logo ? 140 : 50;
+    if (logoImg) {
+      doc.image(logoImg, 50, 40, { width: 80, height: 80 });
+    }
+
+    const textStartX = logoImg ? 140 : 50;
     doc.fontSize(20).fillColor(primaryColor).font('Helvetica-Bold')
-       .text(cfg.company_name || 'Horix Logistics', textStartX, 45);
+       .text(cfg.company_name || 'SynnoxERP', textStartX, 45);
     doc.fontSize(9).fillColor(darkGray).font('Helvetica')
        .text(cfg.company_address || '', textStartX, 70)
        .text(cfg.company_phone || '', textStartX, 82);
@@ -135,8 +146,11 @@ router.get('/:id/checklist.pdf', soloAdmin, async (req, res) => {
     doc.text('Firma del despachador:', 330, footerY + 70);
     doc.moveTo(450, footerY + 90).lineTo(562, footerY + 90).lineWidth(0.5).strokeColor('#bdc3c7').stroke();
 
+    if (logoImg) {
+      doc.image(logoImg, 260, footerY + 100, { width: 30, height: 30, opacity: 0.3 });
+    }
     doc.fontSize(7).fillColor('#95a5a6').font('Helvetica')
-       .text(`Generado por Horix Logistics • ${new Date().toLocaleString('es-CO')}`, 50, 750, { align: 'center' });
+       .text(`Generado por SynnoxERP • ${new Date().toLocaleString('es-CO')}`, 50, 750, { align: 'center' });
 
     doc.end();
   } catch (err) {
