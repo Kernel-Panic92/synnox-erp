@@ -930,8 +930,8 @@ async function verRuta(id) {
     abrirModal(
       r.nombre || 'Ruta #' + r.id,
       `Vehículo: ${r.vehiculo_id} · Distancia: ${r.distancia_total_estimada||'—'} km · Tiempo: ${r.tiempo_estimado||'—'} min`,
-      `<div class="tbl-wrap" style="margin-bottom:12px;"><table class="tbl"><thead><tr><th>#</th><th>Cliente</th><th>Dir.</th><th>Estado</th></tr></thead><tbody>
-        ${paradas.map(p => `<tr><td>${p.secuencia}</td><td>${esc(p.cliente_nombre||'—')}</td><td class="truncate">${esc(p.direccion||'')}</td><td><span class="badge badge-${p.estado==='completada'?'success':'warning'}">${p.estado}</span></td></tr>`).join('')}
+      `<div class="tbl-wrap" style="margin-bottom:12px;"><table class="tbl"><thead><tr><th>#</th><th>Cliente</th><th>Dir.</th><th>Estado</th><th></th></tr></thead><tbody>
+        ${paradas.map(p => `<tr><td>${p.secuencia}</td><td>${esc(p.cliente_nombre||'—')}</td><td class="truncate">${esc(p.direccion||'')}</td><td><span class="badge badge-${p.estado==='completada'?'success':'warning'}">${p.estado}</span></td>${p.latitud && p.longitud ? `<td><a href="https://www.google.com/maps/@${p.latitud},${p.longitud},3a,75y,90t/data=!3m6!1e1!3m4!1s!2e0!7i13312!8i6656" target="_blank" title="Street View" style="color:var(--accent);text-decoration:none;font-size:13px;">🗺️</a></td>` : '<td></td>'}</tr>`).join('')}
       </tbody></table></div>
       ${tienenCoords ? '<div id="mapa-ruta-detalle" style="height:280px;border-radius:10px;border:1px solid var(--border);"></div>' : ''}`,
       `<button class="btn btn-secondary" onclick="exportarRutaGMaps(${id})"><svg viewBox="0 0 24 24" width="16" height="16" fill="#4285F4" style="vertical-align:middle;margin-right:4px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> Google Maps</button>
