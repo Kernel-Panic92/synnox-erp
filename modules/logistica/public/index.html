@@ -96,10 +96,11 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
 /* ── Modal ── */
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:center;justify-content:center;padding:20px}
 .modal-overlay.show{display:flex}
-.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:540px;max-height:80vh;overflow-y:auto}
-.modal h3{font-family:var(--font-head);font-size:18px;margin-bottom:4px}
-.modal .modal-desc{color:var(--muted);font-size:14px;margin-bottom:20px}
-.modal .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:540px;max-height:80vh;display:flex;flex-direction:column}
+.modal h3{font-family:var(--font-head);font-size:18px;margin-bottom:4px;flex-shrink:0}
+.modal .modal-desc{color:var(--muted);font-size:14px;margin-bottom:20px;flex-shrink:0}
+.modal #modal-body{overflow-y:auto;flex:1;min-height:0}
+.modal .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);flex-shrink:0}
 
 /* ── Toast ── */
 .toast-container{position:fixed;top:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:10px;max-width:420px}
