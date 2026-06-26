@@ -40,7 +40,7 @@ router.get('/:id/checklist.pdf', soloAdmin, async (req, res) => {
     const paradas = paradasRes.rows;
 
     const configRes = await pool.query(
-      "SELECT clave, valor FROM logistics.configuracion WHERE clave IN ('company_name', 'company_logo', 'company_address', 'company_phone')"
+      "SELECT clave, valor FROM logistics.configuracion WHERE clave IN ('company_name', 'company_logo', 'company_address', 'company_phone', 'company_nit')"
     );
     const cfg = {};
     for (const row of configRes.rows) cfg[row.clave] = row.valor;
@@ -66,33 +66,47 @@ router.get('/:id/checklist.pdf', soloAdmin, async (req, res) => {
     }
 
     if (logoImg) {
-      doc.image(logoImg, 50, 40, { width: 80, height: 80 });
+      doc.image(logoImg, 50, 35, { width: 100, height: 100, fit: [100, 100] });
     }
 
-    const textStartX = logoImg ? 140 : 50;
-    doc.fontSize(20).fillColor(primaryColor).font('Helvetica-Bold')
-       .text(cfg.company_name || 'SynnoxERP', textStartX, 45);
+    // Company info next to logo (only if no logo, or always show name below logo)
+    if (logoImg) {
+      // Logo present: show name centered below logo
+      doc.fontSize(14).fillColor(primaryColor).font('Helvetica-Bold')
+         .text(cfg.company_name || 'SynnoxERP', 50, 140, { align: 'center', width: 100 });
+    } else {
+      // No logo: show name prominently
+      doc.fontSize(22).fillColor(primaryColor).font('Helvetica-Bold')
+         .text(cfg.company_name || 'SynnoxERP', 50, 45);
+    }
     doc.fontSize(9).fillColor(darkGray).font('Helvetica')
-       .text(cfg.company_address || '', textStartX, 70)
-       .text(cfg.company_phone || '', textStartX, 82);
+       .text(cfg.company_address || '', 50, logoImg ? 158 : 75)
+       .text(cfg.company_phone || '', 50, logoImg ? 170 : 87)
+       .text(cfg.company_nit ? 'NIT: ' + cfg.company_nit : '', 50, logoImg ? 182 : 99);
 
-    doc.moveTo(50, 130).lineTo(562, 130).lineWidth(2).strokeColor(primaryColor).stroke();
+    doc.moveTo(50, 200).lineTo(562, 200).lineWidth(2).strokeColor(primaryColor).stroke();
 
     doc.fontSize(16).fillColor(primaryColor).font('Helvetica-Bold')
-       .text('LISTA DE VERIFICACIÓN DE RUTA', 50, 145);
+       .text('LISTA DE VERIFICACIÓN DE RUTA', 50, 210);
 
-    const infoY = 175;
+    const infoY = 235;
     doc.fontSize(10).fillColor(darkGray).font('Helvetica-Bold');
     doc.text('Ruta:', 50, infoY);
     doc.text('Fecha:', 50, infoY + 18);
     doc.text('Vehículo:', 50, infoY + 36);
     doc.text('Conductor:', 50, infoY + 54);
+    doc.text('Sede:', 300, infoY);
+    doc.text('Km inicial:', 300, infoY + 18);
+    doc.text('Km final:', 300, infoY + 36);
 
     doc.font('Helvetica').fillColor(darkGray);
     doc.text(ruta.nombre || `Ruta #${ruta.id}`, 120, infoY);
     doc.text(new Date().toLocaleDateString('es-CO', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }), 120, infoY + 18);
     doc.text(ruta.placa || '—', 120, infoY + 36);
     doc.text('___________________________', 120, infoY + 54);
+    doc.text(ruta.sede || '—', 370, infoY);
+    doc.text('___________', 370, infoY + 18);
+    doc.text('___________', 370, infoY + 36);
 
     doc.moveTo(50, infoY + 75).lineTo(562, infoY + 75).lineWidth(0.5).strokeColor('#bdc3c7').stroke();
 

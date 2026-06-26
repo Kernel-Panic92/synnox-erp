@@ -929,7 +929,7 @@ async function verRuta(id) {
     const tienenCoords = paradas.some(p => p.latitud && p.longitud);
     abrirModal(
       r.nombre || 'Ruta #' + r.id,
-      `Vehículo: ${r.vehiculo_id} · Distancia: ${r.distancia_total_estimada||'—'} km · Tiempo: ${r.tiempo_estimado||'—'} min`,
+      `Vehículo: ${r.vehiculo_id} · Conductor: ${r.conductor_nombre||'—'} · Distancia: ${r.distancia_total_estimada||'—'} km · Tiempo: ${r.tiempo_estimado||'—'} min`,
       `<div class="tbl-wrap" style="margin-bottom:12px;"><table class="tbl"><thead><tr><th>#</th><th>Cliente</th><th>Dir.</th><th>Estado</th><th></th></tr></thead><tbody>
         ${paradas.map(p => `<tr><td>${p.secuencia}</td><td>${esc(p.cliente_nombre||'—')}</td><td class="truncate">${esc(p.direccion||'')}</td><td><span class="badge badge-${p.estado==='completada'?'success':'warning'}">${p.estado}</span></td>${p.latitud && p.longitud ? `<td><a href="https://www.google.com/maps/@${p.latitud},${p.longitud},3a,75y,90t/data=!3m6!1e1!3m4!1s!2e0!7i13312!8i6656" target="_blank" title="Street View" style="color:var(--accent);text-decoration:none;font-size:13px;">🗺️</a></td>` : '<td></td>'}</tr>`).join('')}
       </tbody></table></div>
