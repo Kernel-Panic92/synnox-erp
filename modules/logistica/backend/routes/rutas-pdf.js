@@ -65,31 +65,32 @@ router.get('/:id/checklist.pdf', soloAdmin, async (req, res) => {
       try { logoImg = fs.readFileSync(LAUNCHER_LOGO); } catch {}
     }
 
+    const logoW = logoImg ? 70 : 0;
+    const textX = logoImg ? 130 : 50;
+
     if (logoImg) {
-      doc.image(logoImg, 50, 35, { width: 100, height: 100, fit: [100, 100] });
+      doc.image(logoImg, 50, 35, { width: logoW, height: logoW, fit: [logoW, logoW] });
     }
 
-    // Company info next to logo (only if no logo, or always show name below logo)
-    if (logoImg) {
-      // Logo present: show name centered below logo
-      doc.fontSize(14).fillColor(primaryColor).font('Helvetica-Bold')
-         .text(cfg.company_name || 'SynnoxERP', 50, 140, { align: 'center', width: 100 });
-    } else {
-      // No logo: show name prominently
-      doc.fontSize(22).fillColor(primaryColor).font('Helvetica-Bold')
-         .text(cfg.company_name || 'SynnoxERP', 50, 45);
-    }
-    doc.fontSize(9).fillColor(darkGray).font('Helvetica')
-       .text(cfg.company_address || '', 50, logoImg ? 158 : 75)
-       .text(cfg.company_phone || '', 50, logoImg ? 170 : 87)
-       .text(cfg.company_nit ? 'NIT: ' + cfg.company_nit : '', 50, logoImg ? 182 : 99);
+    // Company name
+    doc.fontSize(logoImg ? 16 : 20).fillColor(primaryColor).font('Helvetica-Bold')
+       .text(cfg.company_name || 'SynnoxERP', textX, 38);
 
-    doc.moveTo(50, 200).lineTo(562, 200).lineWidth(2).strokeColor(primaryColor).stroke();
+    // Company details with labels
+    let detY = 58;
+    doc.fontSize(9).fillColor(darkGray).font('Helvetica');
+    if (cfg.company_address) { doc.text(`Dirección: ${cfg.company_address}`, textX, detY); detY += 13; }
+    if (cfg.company_phone) { doc.text(`Teléfono: ${cfg.company_phone}`, textX, detY); detY += 13; }
+    if (cfg.company_nit) { doc.text(`NIT: ${cfg.company_nit}`, textX, detY); detY += 13; }
 
-    doc.fontSize(16).fillColor(primaryColor).font('Helvetica-Bold')
-       .text('LISTA DE VERIFICACIÓN DE RUTA', 50, 210);
+    const headerBottom = Math.max(logoImg ? 35 + logoW : 0, detY) + 8;
+    doc.moveTo(50, headerBottom).lineTo(562, headerBottom).lineWidth(2).strokeColor(primaryColor).stroke();
 
-    const infoY = 235;
+    const titleY = headerBottom + 8;
+    doc.fontSize(14).fillColor(primaryColor).font('Helvetica-Bold')
+       .text('LISTA DE VERIFICACIÓN DE RUTA', 50, titleY);
+
+    const infoY = titleY + 22;
     doc.fontSize(10).fillColor(darkGray).font('Helvetica-Bold');
     doc.text('Ruta:', 50, infoY);
     doc.text('Fecha:', 50, infoY + 18);
