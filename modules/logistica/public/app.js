@@ -1880,48 +1880,61 @@ function filtrarMapaRuta() {
 }
 
 /* ── Mapas Tab (Config) ── */
-function renderMapas(el) {
-  const key = localStorage.getItem('google_maps_key') || '';
-  el.innerHTML = `
-    <div class="card" style="max-width:600px;">
-      <h4 style="margin-bottom:16px;font-family:var(--font-head);">🗺️ Google Maps API Key</h4>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
-        Necesitas una clave de API de Google Maps con la biblioteca "Places" habilitada.
-        <br><a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent)">Obtener API Key →</a>
-      </p>
-      <div class="form-group">
-        <label>API Key</label>
-        <input id="cfg-gmaps-key" value="${esc(key)}" placeholder="AIzaSy..." style="font-family:monospace;">
-      </div>
-      <div class="flex">
-        <button class="btn btn-primary" onclick="guardarGmapsKey()">✓ Guardar</button>
-        <button class="btn btn-secondary" onclick="probarGmapsKey()">🧪 Probar</button>
-      </div>
-      <div id="gmaps-msg" style="margin-top:10px;font-size:13px;"></div>
-    </div>`;
+async function renderMapas(el) {
+  el.innerHTML = '<p class="text-muted">Cargando...</p>';
+  try {
+    const data = await api('/configuracion/gmaps/key');
+    const key = data.key || '';
+    el.innerHTML = `
+      <div class="card" style="max-width:600px;">
+        <h4 style="margin-bottom:16px;font-family:var(--font-head);">🗺️ Google Maps API Key</h4>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+          Necesitas una clave de API de Google Maps con la biblioteca "Places" habilitada.
+          <br><a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent)">Obtener API Key →</a>
+        </p>
+        <div class="form-group">
+          <label>API Key</label>
+          <input id="cfg-gmaps-key" value="${esc(key)}" placeholder="AIzaSy..." style="font-family:monospace;">
+        </div>
+        <div class="flex">
+          <button class="btn btn-primary" onclick="guardarGmapsKey()">✓ Guardar</button>
+          <button class="btn btn-secondary" onclick="probarGmapsKey()">🧪 Probar</button>
+          ${key ? '<button class="btn btn-danger" onclick="eliminarGmapsKey()">🗑️ Eliminar</button>' : ''}
+        </div>
+        <div id="gmaps-msg" style="margin-top:10px;font-size:13px;"></div>
+      </div>`;
+  } catch { el.innerHTML = '<p class="text-muted">Error al cargar configuración</p>'; }
 }
 
-function guardarGmapsKey() {
+async function guardarGmapsKey() {
   const key = document.getElementById('cfg-gmaps-key').value.trim();
   const msg = document.getElementById('gmaps-msg');
   if (!key) { msg.innerHTML = '<span style="color:var(--danger)">✗ Ingresa una API key</span>'; return; }
-  localStorage.setItem('google_maps_key', key);
-  msg.innerHTML = '<span style="color:var(--success)">✓ Guardada en localStorage. Recarga la página para aplicar.</span>';
+  try {
+    await api('/configuracion/gmaps/key', { method: 'PUT', body: JSON.stringify({ key }) });
+    msg.innerHTML = '<span style="color:var(--success)">✓ Guardada en el servidor. Recarga para aplicar.</span>';
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
 }
 
-function probarGmapsKey() {
+async function eliminarGmapsKey() {
+  const msg = document.getElementById('gmaps-msg');
+  try {
+    await api('/configuracion/gmaps/key', { method: 'DELETE' });
+    msg.innerHTML = '<span style="color:var(--success)">✓ Eliminada. Recarga para aplicar.</span>';
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
+}
+
+async function probarGmapsKey() {
   const key = document.getElementById('cfg-gmaps-key').value.trim();
   const msg = document.getElementById('gmaps-msg');
   if (!key) { msg.innerHTML = '<span style="color:var(--danger)">✗ Ingresa una API key primero</span>'; return; }
   msg.innerHTML = '<span class="text-muted">Probando...</span>';
-  fetch('https://maps.googleapis.com/maps/api/geocode/json?address=Medellin&key=' + key)
-    .then(r => r.json())
-    .then(d => {
-      if (d.status === 'OK') msg.innerHTML = '<span style="color:var(--success)">✓ API key válida</span>';
-      else if (d.status === 'REQUEST_DENIED') msg.innerHTML = '<span style="color:var(--danger)">✗ API key denegada — habilita Geocoding API y Places API</span>';
-      else msg.innerHTML = '<span style="color:var(--danger)">✗ Error: ' + d.status + '</span>';
-    })
-    .catch(e => msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>');
+  try {
+    const d = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=Medellin&key=${key}`).then(r=>r.json());
+    if (d.status === 'OK') msg.innerHTML = '<span style="color:var(--success)">✓ API key válida</span>';
+    else if (d.status === 'REQUEST_DENIED') msg.innerHTML = '<span style="color:var(--danger)">✗ API key denegada — habilita Geocoding API y Places API</span>';
+    else msg.innerHTML = '<span style="color:var(--danger)">✗ Error: ' + d.status + '</span>';
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
 }
 
 init();

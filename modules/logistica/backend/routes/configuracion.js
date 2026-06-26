@@ -159,4 +159,55 @@ router.post('/test', soloAdmin, async (req, res) => {
   }
 });
 
+/* ── Google Maps API Key (server-side) ── */
+router.get('/gmaps/key', soloAdmin, async (req, res) => {
+  try {
+    const result = await pool.query("SELECT valor FROM logistics.configuracion WHERE clave = 'google_maps_key'");
+    const key = result.rows[0]?.valor || '';
+    res.json({ key, configured: !!key });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/gmaps/key', soloAdmin, async (req, res) => {
+  try {
+    const { key } = req.body;
+    if (!key || typeof key !== 'string') return res.status(400).json({ error: 'API key requerida' });
+    await pool.query(
+      `INSERT INTO logistics.configuracion (clave, valor, updated_at) VALUES ('google_maps_key', $1, CURRENT_TIMESTAMP)
+       ON CONFLICT (clave) DO UPDATE SET valor = $1, updated_at = CURRENT_TIMESTAMP`,
+      [key.trim()]
+    );
+    res.json({ ok: true, mensaje: 'API key guardada' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/gmaps/key', soloAdmin, async (req, res) => {
+  try {
+    await pool.query("DELETE FROM logistics.configuracion WHERE clave = 'google_maps_key'");
+    res.json({ ok: true, mensaje: 'API key eliminada' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/gmaps/geocode', soloAdmin, async (req, res) => {
+  try {
+    const result = await pool.query("SELECT valor FROM logistics.configuracion WHERE clave = 'google_maps_key'");
+    const key = result.rows[0]?.valor;
+    if (!key) return res.status(400).json({ error: 'API key de Google Maps no configurada' });
+    const { address } = req.query;
+    if (!address) return res.status(400).json({ error: 'Parámetro address requerido' });
+    const gRes = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${key}`);
+    const data = await gRes.json();
+    res.json(data);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.get('/gmaps/js-url', soloAdmin, async (req, res) => {
+  try {
+    const result = await pool.query("SELECT valor FROM logistics.configuracion WHERE clave = 'google_maps_key'");
+    const key = result.rows[0]?.valor || '';
+    if (!key) return res.json({ url: '' });
+    res.json({ url: `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places` });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 export default router;

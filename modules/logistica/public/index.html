@@ -543,13 +543,16 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-var GOOGLE_MAPS_KEY = localStorage.getItem('google_maps_key') || '';
-if (GOOGLE_MAPS_KEY) {
-  var s = document.createElement('script');
-  s.src = 'https://maps.googleapis.com/maps/api/js?key='+GOOGLE_MAPS_KEY+'&libraries=places&callback=iniciarAutocompleteCliente';
-  s.async = true; s.defer = true;
-  document.head.appendChild(s);
-}
+var GOOGLE_MAPS_KEY = '';
+fetch('/logistica/api/configuracion/gmaps/js-url').then(r=>r.json()).then(d=>{
+  if(d.url){
+    GOOGLE_MAPS_KEY = d.url.match(/key=([^&]+)/)?.[1] || '';
+    var s = document.createElement('script');
+    s.src = d.url + '&callback=iniciarAutocompleteCliente';
+    s.async = true; s.defer = true;
+    document.head.appendChild(s);
+  }
+}).catch(()=>{});
 </script>
 <script src="app.js?v=20260625"></script>
 <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');</script>
