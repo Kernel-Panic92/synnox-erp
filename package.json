@@ -30,6 +30,7 @@
     "mailparser": "^3.7.1",
     "uuid": "^11.0.5",
     "pdf-parse": "^1.1.1",
+    "pdfkit": "^0.15.0",
     "xlsx": "^0.18.5",
     "axios": "^1.6.2",
     "@modelcontextprotocol/sdk": "^1.0.0"
