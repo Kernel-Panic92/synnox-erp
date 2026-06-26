@@ -41,7 +41,9 @@ router.get('/:id/checklist.pdf', soloAdmin, async (req, res) => {
 
     const doc = new PDFDocument({ size: 'letter', margin: 50 });
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="ruta_${ruta.id}_${new Date().toISOString().slice(0,10)}.pdf"`);
+    const preview = req.query.preview === '1';
+    const filename = `ruta_${ruta.id}_${new Date().toISOString().slice(0,10)}.pdf`;
+    res.setHeader('Content-Disposition', preview ? `inline; filename="${filename}"` : `attachment; filename="${filename}"`);
     doc.pipe(res);
 
     const primaryColor = '#1a5276';
