@@ -66,22 +66,21 @@ router.get('/:id/checklist.pdf', soloAdmin, async (req, res) => {
     }
 
     const logoW = logoImg ? 70 : 0;
-    const textX = logoImg ? 130 : 50;
+    const rightX = 562;
 
     if (logoImg) {
       doc.image(logoImg, 50, 35, { width: logoW, height: logoW, fit: [logoW, logoW] });
     }
 
-    // Company name
-    doc.fontSize(logoImg ? 16 : 20).fillColor(primaryColor).font('Helvetica-Bold')
-       .text(cfg.company_name || 'SynnoxERP', textX, 38);
+    // Company info aligned to right
+    doc.fontSize(16).fillColor(primaryColor).font('Helvetica-Bold')
+       .text(cfg.company_name || 'SynnoxERP', 50, 38, { align: 'right', width: 512 });
 
-    // Company details with labels
     let detY = 58;
     doc.fontSize(9).fillColor(darkGray).font('Helvetica');
-    if (cfg.company_address) { doc.text(`Dirección: ${cfg.company_address}`, textX, detY); detY += 13; }
-    if (cfg.company_phone) { doc.text(`Teléfono: ${cfg.company_phone}`, textX, detY); detY += 13; }
-    if (cfg.company_nit) { doc.text(`NIT: ${cfg.company_nit}`, textX, detY); detY += 13; }
+    if (cfg.company_address) { doc.text(`Dirección: ${cfg.company_address}`, 50, detY, { align: 'right', width: 512 }); detY += 13; }
+    if (cfg.company_phone) { doc.text(`Teléfono: ${cfg.company_phone}`, 50, detY, { align: 'right', width: 512 }); detY += 13; }
+    if (cfg.company_nit) { doc.text(`NIT: ${cfg.company_nit}`, 50, detY, { align: 'right', width: 512 }); detY += 13; }
 
     const headerBottom = Math.max(logoImg ? 35 + logoW : 0, detY) + 8;
     doc.moveTo(50, headerBottom).lineTo(562, headerBottom).lineWidth(2).strokeColor(primaryColor).stroke();
