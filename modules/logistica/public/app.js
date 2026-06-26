@@ -934,7 +934,8 @@ async function verRuta(id) {
         ${paradas.map(p => `<tr><td>${p.secuencia}</td><td>${esc(p.cliente_nombre||'—')}</td><td class="truncate">${esc(p.direccion||'')}</td><td><span class="badge badge-${p.estado==='completada'?'success':'warning'}">${p.estado}</span></td>${p.latitud && p.longitud ? `<td><a href="https://www.google.com/maps/@${p.latitud},${p.longitud},3a,75y,90t/data=!3m6!1e1!3m4!1s!2e0!7i13312!8i6656" target="_blank" title="Street View" style="color:var(--accent);text-decoration:none;font-size:13px;">🗺️</a></td>` : '<td></td>'}</tr>`).join('')}
       </tbody></table></div>
       ${tienenCoords ? '<div id="mapa-ruta-detalle" style="height:280px;border-radius:10px;border:1px solid var(--border);"></div>' : ''}`,
-      `<button class="btn btn-secondary" onclick="exportarRutaGMaps(${id})"><svg viewBox="0 0 24 24" width="16" height="16" fill="#4285F4" style="vertical-align:middle;margin-right:4px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> Google Maps</button>
+      `<button class="btn btn-primary" onclick="descargarRutaPDF(${id})">🖨️ PDF Checklist</button>
+       <button class="btn btn-secondary" onclick="exportarRutaGMaps(${id})"><svg viewBox="0 0 24 24" width="16" height="16" fill="#4285F4" style="vertical-align:middle;margin-right:4px;"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg> Google Maps</button>
        <button class="btn btn-secondary" onclick="cerrarRutaDetalle()">Cerrar</button>`
     );
     if (tienenCoords) setTimeout(() => {
@@ -982,6 +983,25 @@ function cerrarRutaDetalle() {
   const el = document.getElementById('mapa-ruta-detalle');
   if (el && el._leafletMap) { el._leafletMap.remove(); el._leafletMap = null; }
   cerrarModal();
+}
+
+function descargarRutaPDF(id) {
+  const token = getToken();
+  const url = API + '/rutas-pdf/' + id + '/checklist.pdf';
+  fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(res => {
+      if (!res.ok) throw new Error('Error al generar PDF');
+      return res.blob();
+    })
+    .then(blob => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'ruta_' + id + '_' + new Date().toISOString().slice(0,10) + '.pdf';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    })
+    .catch(e => mostrarAlerta(e.message, 'error'));
 }
 
 async function exportarRutaGMaps(id) {
@@ -1161,6 +1181,7 @@ async function rConfig() {
     const data = await api('/configuracion');
     const c = data.config || {};
     if (cfgTab === 'smtp') renderSmtp(el, c);
+    else if (cfgTab === 'empresa') renderEmpresa(el);
     else if (cfgTab === 'backup') renderBackup(el, c);
     else if (cfgTab === 'seguridad') renderSeguridad(el, c);
     else if (cfgTab === 'auditoria') renderAuditoria(el);
@@ -1877,6 +1898,97 @@ function filtrarMapaRuta() {
     if (!id) { m.setStyle({ opacity: 1 }); m.closeTooltip?.(); }
     else { m.setStyle({ opacity: m.rutaId == id ? 1 : 0.2 }); }
   });
+}
+
+/* ── Empresa Tab (Config) ── */
+async function renderEmpresa(el) {
+  el.innerHTML = '<p class="text-muted">Cargando...</p>';
+  try {
+    const [company, logoData] = await Promise.all([
+      api('/configuracion/company'),
+      api('/configuracion/logo')
+    ]);
+    const c = company;
+    const logoUrl = logoData.logo || '';
+    el.innerHTML = `
+      <div style="display:flex;flex-direction:column;gap:20px;max-width:600px;">
+        <div class="card">
+          <h4 style="margin-bottom:16px;font-family:var(--font-head);">🏢 Datos de la Empresa</h4>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Información que aparece en los PDFs de rutas.</p>
+          <div class="form-group"><label>Nombre</label><input id="cfg-company-name" value="${esc(c.company_name||'')}" placeholder="Mi Empresa"></div>
+          <div class="form-group"><label>Dirección</label><input id="cfg-company-address" value="${esc(c.company_address||'')}" placeholder="Cra 10 #20-30"></div>
+          <div style="display:flex;gap:12px;">
+            <div class="form-group" style="flex:1"><label>Teléfono</label><input id="cfg-company-phone" value="${esc(c.company_phone||'')}" placeholder="604 123 4567"></div>
+            <div class="form-group" style="flex:1"><label>NIT</label><input id="cfg-company-nit" value="${esc(c.company_nit||'')}" placeholder="900.123.456-7"></div>
+          </div>
+          <button class="btn btn-primary" onclick="guardarCompany()">✓ Guardar</button>
+          <div id="company-msg" style="margin-top:10px;font-size:13px;"></div>
+        </div>
+        <div class="card">
+          <h4 style="margin-bottom:16px;font-family:var(--font-head);">🖼️ Logo de la Empresa</h4>
+          <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Aparece en el encabezado de los PDFs. Formato PNG/JPG, máx 500KB.</p>
+          <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
+            <div id="logo-preview" style="width:100px;height:100px;border:2px dashed var(--border);border-radius:12px;display:flex;align-items:center;justify-content:center;overflow:hidden;background:var(--surface2);">
+              ${logoUrl ? `<img src="${logoUrl}" style="max-width:100%;max-height:100%;object-fit:contain;">` : '<span style="font-size:28px;color:var(--muted);">📷</span>'}
+            </div>
+            <div>
+              <input type="file" id="logo-file" accept="image/*" style="display:none;" onchange="previewLogo(this)">
+              <button class="btn btn-secondary" onclick="document.getElementById('logo-file').click()">📁 Seleccionar logo</button>
+              ${logoUrl ? '<button class="btn btn-danger" onclick="eliminarLogo()" style="margin-left:8px;">🗑️</button>' : ''}
+            </div>
+          </div>
+          <button class="btn btn-primary" onclick="guardarLogo()">✓ Guardar logo</button>
+          <div id="logo-msg" style="margin-top:10px;font-size:13px;"></div>
+        </div>
+      </div>`;
+  } catch { el.innerHTML = '<p class="text-muted">Error al cargar configuración</p>'; }
+}
+
+function previewLogo(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    document.getElementById('logo-preview').innerHTML = `<img src="${e.target.result}" style="max-width:100%;max-height:100%;object-fit:contain;">`;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function guardarCompany() {
+  const msg = document.getElementById('company-msg');
+  try {
+    await api('/configuracion/company', { method: 'PUT', body: JSON.stringify({
+      company_name: document.getElementById('cfg-company-name').value.trim(),
+      company_address: document.getElementById('cfg-company-address').value.trim(),
+      company_phone: document.getElementById('cfg-company-phone').value.trim(),
+      company_nit: document.getElementById('cfg-company-nit').value.trim(),
+    })});
+    msg.innerHTML = '<span style="color:var(--success)">✓ Guardado</span>';
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
+}
+
+async function guardarLogo() {
+  const input = document.getElementById('logo-file');
+  const msg = document.getElementById('logo-msg');
+  const file = input.files[0];
+  if (!file) { msg.innerHTML = '<span style="color:var(--danger)">✗ Selecciona un archivo</span>'; return; }
+  const reader = new FileReader();
+  reader.onload = async (e) => {
+    try {
+      await api('/configuracion/logo', { method: 'POST', body: JSON.stringify({ logo: e.target.result }) });
+      msg.innerHTML = '<span style="color:var(--success)">✓ Logo guardado</span>';
+    } catch (err) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + err.message + '</span>'; }
+  };
+  reader.readAsDataURL(file);
+}
+
+async function eliminarLogo() {
+  const msg = document.getElementById('logo-msg');
+  try {
+    await api('/configuracion/logo', { method: 'DELETE' });
+    document.getElementById('logo-preview').innerHTML = '<span style="font-size:28px;color:var(--muted);">📷</span>';
+    msg.innerHTML = '<span style="color:var(--success)">✓ Logo eliminado</span>';
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
 }
 
 /* ── Mapas Tab (Config) ── */

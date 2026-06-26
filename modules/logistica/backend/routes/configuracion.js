@@ -159,6 +159,71 @@ router.post('/test', soloAdmin, async (req, res) => {
   }
 });
 
+/* ── Company Logo (base64 in config) ── */
+router.get('/logo', soloAdmin, async (req, res) => {
+  try {
+    const result = await pool.query("SELECT valor FROM logistics.configuracion WHERE clave = 'company_logo'");
+    const logo = result.rows[0]?.valor || '';
+    res.json({ logo: logo ? `data:image/png;base64,${logo}` : '' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/logo', soloAdmin, async (req, res) => {
+  try {
+    const { logo } = req.body;
+    if (!logo || typeof logo !== 'string') return res.status(400).json({ error: 'Logo requerido (base64)' });
+    const base64 = logo.replace(/^data:image\/\w+;base64,/, '');
+    if (base64.length > 500000) return res.status(400).json({ error: 'Logo demasiado grande (máx 500KB)' });
+    await pool.query(
+      `INSERT INTO logistics.configuracion (clave, valor, updated_at) VALUES ('company_logo', $1, CURRENT_TIMESTAMP)
+       ON CONFLICT (clave) DO UPDATE SET valor = $1, updated_at = CURRENT_TIMESTAMP`,
+      [base64]
+    );
+    res.json({ ok: true, mensaje: 'Logo guardado' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.delete('/logo', soloAdmin, async (req, res) => {
+  try {
+    await pool.query("DELETE FROM logistics.configuracion WHERE clave = 'company_logo'");
+    res.json({ ok: true, mensaje: 'Logo eliminado' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+/* ── Company Info (for PDF branding) ── */
+router.get('/company', soloAdmin, async (req, res) => {
+  try {
+    const result = await pool.query(
+      "SELECT clave, valor FROM logistics.configuracion WHERE clave IN ('company_name','company_address','company_phone','company_nit')"
+    );
+    const cfg = {};
+    for (const row of result.rows) cfg[row.clave] = row.valor;
+    res.json(cfg);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.put('/company', soloAdmin, async (req, res) => {
+  try {
+    const { company_name, company_address, company_phone, company_nit } = req.body;
+    const updates = [
+      ['company_name', company_name],
+      ['company_address', company_address],
+      ['company_phone', company_phone],
+      ['company_nit', company_nit],
+    ];
+    for (const [clave, valor] of updates) {
+      if (valor !== undefined) {
+        await pool.query(
+          `INSERT INTO logistics.configuracion (clave, valor, updated_at) VALUES ($1, $2, CURRENT_TIMESTAMP)
+           ON CONFLICT (clave) DO UPDATE SET valor = $2, updated_at = CURRENT_TIMESTAMP`,
+          [clave, String(valor)]
+        );
+      }
+    }
+    res.json({ ok: true, mensaje: 'Datos de empresa guardados' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 /* ── Google Maps API Key (server-side) ── */
 router.get('/gmaps/key', soloAdmin, async (req, res) => {
   try {
