@@ -1952,8 +1952,23 @@ async function renderEmpresa(el) {
 function previewLogo(input) {
   const file = input.files[0];
   if (!file) return;
+  const msg = document.getElementById('logo-msg');
+  if (!file.type.match(/^image\/(png|jpe?g|svg\+xml)$/)) {
+    msg.innerHTML = '<span style="color:var(--danger)">✗ Formato no soportado. Usa PNG, JPG o SVG.</span>';
+    input.value = '';
+    return;
+  }
   const reader = new FileReader();
   reader.onload = (e) => {
+    const img = new Image();
+    img.onload = () => {
+      if (img.width > 500 || img.height > 500) {
+        msg.innerHTML = `<span style="color:var(--warning)">⚠ Dimensions: ${img.width}x${img.height}px. Recomendado: máx 500x500px.</span>`;
+      } else {
+        msg.innerHTML = `<span style="color:var(--muted)">Dimensions: ${img.width}x${img.height}px</span>`;
+      }
+    };
+    img.src = e.target.result;
     document.getElementById('logo-preview').innerHTML = `<img src="${e.target.result}" style="max-width:100%;max-height:100%;object-fit:contain;">`;
   };
   reader.readAsDataURL(file);
@@ -1977,6 +1992,10 @@ async function guardarLogo() {
   const msg = document.getElementById('logo-msg');
   const file = input.files[0];
   if (!file) { msg.innerHTML = '<span style="color:var(--danger)">✗ Selecciona un archivo</span>'; return; }
+  if (!file.type.match(/^image\/(png|jpe?g|svg\+xml)$/)) {
+    msg.innerHTML = '<span style="color:var(--danger)">✗ Formato no soportado. Usa PNG, JPG o SVG.</span>';
+    return;
+  }
   const reader = new FileReader();
   reader.onload = async (e) => {
     try {

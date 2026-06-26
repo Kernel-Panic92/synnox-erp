@@ -65,8 +65,7 @@ router.get('/:id/checklist.pdf', soloAdmin, async (req, res) => {
       try { logoImg = fs.readFileSync(LAUNCHER_LOGO); } catch {}
     }
 
-    const logoW = logoImg ? 70 : 0;
-    const rightX = 562;
+    const logoW = logoImg ? 90 : 0;
 
     if (logoImg) {
       doc.image(logoImg, 50, 35, { width: logoW, height: logoW, fit: [logoW, logoW] });
@@ -160,9 +159,6 @@ router.get('/:id/checklist.pdf', soloAdmin, async (req, res) => {
     doc.text('Firma del despachador:', 330, footerY + 70);
     doc.moveTo(450, footerY + 90).lineTo(562, footerY + 90).lineWidth(0.5).strokeColor('#bdc3c7').stroke();
 
-    if (logoImg) {
-      doc.image(logoImg, 260, footerY + 100, { width: 30, height: 30, opacity: 0.3 });
-    }
     doc.fontSize(7).fillColor('#95a5a6').font('Helvetica')
        .text(`Generado por SynnoxERP • ${new Date().toLocaleString('es-CO')}`, 50, 750, { align: 'center' });
 
