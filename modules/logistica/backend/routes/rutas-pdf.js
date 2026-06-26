@@ -162,7 +162,7 @@ router.get('/:id/checklist.pdf', soloAdmin, async (req, res) => {
     doc.moveTo(450, footerY + 90).lineTo(562, footerY + 90).lineWidth(0.5).strokeColor('#bdc3c7').stroke();
 
     doc.fontSize(7).fillColor('#95a5a6').font('Helvetica')
-       .text(`Generado por SynnoxERP • ${new Date().toLocaleString('es-CO')}`, 50, 750, { align: 'center' });
+       .text(`Generado por SynnoxERP • ${new Date().toLocaleString('es-CO')}`, 50, footerY + 110, { align: 'center' });
 
     doc.end();
   } catch (err) {
