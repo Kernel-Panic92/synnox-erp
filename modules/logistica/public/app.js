@@ -977,6 +977,8 @@ function initMapaRutaDetalle(paradas, geometria, colorRuta, sedeNombre) {
   el._leafletMap = map;
   requestAnimationFrame(() => requestAnimationFrame(() => map.invalidateSize()));
 }
+
+function cerrarRutaDetalle() {
   const el = document.getElementById('mapa-ruta-detalle');
   if (el && el._leafletMap) { el._leafletMap.remove(); el._leafletMap = null; }
   cerrarModal();
