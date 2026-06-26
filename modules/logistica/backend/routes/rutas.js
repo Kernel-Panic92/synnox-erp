@@ -178,9 +178,9 @@ router.post('/generar', async (req, res) => {
         const p = rOpt.paradas[i];
         await pool.query(
           `INSERT INTO logistics.paradas_ruta (ruta_id, pedido_id, secuencia, latitud, longitud,
-           cliente_nombre, estado)
-           VALUES ($1,$2,$3,$4,$5,$6,'pendiente')`,
-          [rutaId, p.id, i + 1, p.lat, p.lng, p.cliente_nombre || '']
+           cliente_nombre, direccion, estado)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,'pendiente')`,
+          [rutaId, p.id, i + 1, p.lat, p.lng, p.cliente_nombre || '', p.direccion || '']
         );
         await pool.query(
           `UPDATE logistics.pedidos_logistica SET ruta_id=$1, secuencia_en_ruta=$2, estado='asignado'

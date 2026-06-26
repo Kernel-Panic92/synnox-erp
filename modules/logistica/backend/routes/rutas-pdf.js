@@ -66,14 +66,16 @@ router.get('/:id/checklist.pdf', soloAdmin, async (req, res) => {
     }
 
     const logoW = logoImg ? 90 : 0;
+    const headerH = logoW || 60;
 
     if (logoImg) {
       doc.image(logoImg, 50, 35, { width: logoW, height: logoW, fit: [logoW, logoW] });
     }
 
-    // Company info aligned to right
+    // Company info aligned to right, vertically centered with logo
+    const nameY = 38;
     doc.fontSize(16).fillColor(primaryColor).font('Helvetica-Bold')
-       .text(cfg.company_name || 'SynnoxERP', 50, 38, { align: 'right', width: 512 });
+       .text(cfg.company_name || 'SynnoxERP', 50, nameY, { align: 'right', width: 512 });
 
     let detY = 58;
     doc.fontSize(9).fillColor(darkGray).font('Helvetica');
@@ -81,7 +83,7 @@ router.get('/:id/checklist.pdf', soloAdmin, async (req, res) => {
     if (cfg.company_phone) { doc.text(`Teléfono: ${cfg.company_phone}`, 50, detY, { align: 'right', width: 512 }); detY += 13; }
     if (cfg.company_nit) { doc.text(`NIT: ${cfg.company_nit}`, 50, detY, { align: 'right', width: 512 }); detY += 13; }
 
-    const headerBottom = Math.max(logoImg ? 35 + logoW : 0, detY) + 8;
+    const headerBottom = 35 + headerH + 5;
     doc.moveTo(50, headerBottom).lineTo(562, headerBottom).lineWidth(2).strokeColor(primaryColor).stroke();
 
     const titleY = headerBottom + 8;
