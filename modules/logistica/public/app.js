@@ -494,11 +494,14 @@ function abrirModalPedido(data) {
         <div class="form-group"><label>Teléfono</label><input id="p-telefono" value="${d.telefono||''}" placeholder="3001234567"></div>
         <div class="form-group"><label>Latitud</label><input type="number" step="any" id="p-lat" value="${d.latitud||''}" placeholder="6.2476"></div>
         <div class="form-group"><label>Longitud</label><input type="number" step="any" id="p-lng" value="${d.longitud||''}" placeholder="-75.5658"></div>
-        <div class="form-group"><label>Valor</label><input type="number" id="p-valor" value="${d.valor_credito||0}"></div>
+        <div class="form-group"><label>Valor Crédito</label><input type="number" id="p-valor" value="${d.valor_credito||0}"></div>
+        <div class="form-group"><label>Valor Contado</label><input type="number" id="p-valor-contado" value="${d.valor_contado||0}"></div>
         <div class="form-group"><label>Estado</label><select id="p-estado">
           <option value="pendiente" ${(d.estado||'pendiente')==='pendiente'?'selected':''}>Pendiente</option>
           <option value="asignado" ${d.estado==='asignado'?'selected':''}>Asignado</option>
+          <option value="en_ruta" ${d.estado==='en_ruta'?'selected':''}>En ruta</option>
           <option value="entregado" ${d.estado==='entregado'?'selected':''}>Entregado</option>
+          <option value="fallido" ${d.estado==='fallido'?'selected':''}>Fallido</option>
           <option value="cancelado" ${d.estado==='cancelado'?'selected':''}>Cancelado</option>
         </select></div>
       </div>
@@ -543,6 +546,7 @@ async function guardarPedido(id) {
     latitud: document.getElementById('p-lat').value ? +document.getElementById('p-lat').value : null,
     longitud: document.getElementById('p-lng').value ? +document.getElementById('p-lng').value : null,
     valor_credito: +document.getElementById('p-valor').value,
+    valor_contado: +document.getElementById('p-valor-contado').value,
     estado: document.getElementById('p-estado').value,
     sede: document.getElementById('p-sede').value,
     vehiculo_id: document.getElementById('p-vehiculo').value || null

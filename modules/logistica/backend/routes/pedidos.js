@@ -105,7 +105,7 @@ router.put('/asignar-masivo', async (req, res) => {
 
 router.put('/:id', async (req, res) => {
   try {
-    const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, ruta_id, secuencia_en_ruta, sede, latitud, longitud, vehiculo_id } = req.body;
+    const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, valor_contado, estado, ruta_id, secuencia_en_ruta, sede, latitud, longitud, vehiculo_id } = req.body;
     const result = await pool.query(
       `UPDATE logistics.pedidos_logistica SET
         numero_factura=COALESCE($1,numero_factura),
@@ -115,16 +115,17 @@ router.put('/:id', async (req, res) => {
         ciudad=COALESCE($5,ciudad),
         telefono=COALESCE($6,telefono),
         valor_credito=COALESCE($7,valor_credito),
-        estado=COALESCE($8,estado),
-        ruta_id=COALESCE($9,ruta_id),
-        secuencia_en_ruta=COALESCE($10,secuencia_en_ruta),
-        sede=COALESCE($11,sede),
-        latitud=COALESCE($12,latitud),
-        longitud=COALESCE($13,longitud),
-        vehiculo_id=COALESCE($14,vehiculo_id),
+        valor_contado=COALESCE($8,valor_contado),
+        estado=COALESCE($9,estado),
+        ruta_id=COALESCE($10,ruta_id),
+        secuencia_en_ruta=COALESCE($11,secuencia_en_ruta),
+        sede=COALESCE($12,sede),
+        latitud=COALESCE($13,latitud),
+        longitud=COALESCE($14,longitud),
+        vehiculo_id=COALESCE($15,vehiculo_id),
         updated_at=CURRENT_TIMESTAMP
-       WHERE id=$15 RETURNING *`,
-      [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, ruta_id, secuencia_en_ruta, sede, latitud, longitud, vehiculo_id, req.params.id]
+       WHERE id=$16 RETURNING *`,
+      [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, valor_contado, estado, ruta_id, secuencia_en_ruta, sede, latitud, longitud, vehiculo_id, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Pedido no encontrado' });
     res.json({ exitosa: true, pedido: result.rows[0] });
