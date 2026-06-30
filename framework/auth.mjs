@@ -21,11 +21,15 @@ export function verifyToken(req, res, next) {
   let token = cookies.launcher_jwt || null;
   const auth = req.headers.authorization;
   if (!token && auth && auth.startsWith('Bearer ')) token = auth.split(' ')[1];
-  if (!token) return res.status(401).json({ error: 'Token requerido' });
+  if (!token) {
+    console.log(`[auth] No token — path: ${req.path}, cookie: ${!!cookies.launcher_jwt}, auth: ${!!auth}`);
+    return res.status(401).json({ error: 'Token requerido' });
+  }
   try {
     req.user = jwt.verify(token, JWT_SECRET);
     next();
   } catch (err) {
+    console.log(`[auth] JWT error: ${err.message} — path: ${req.path}`);
     return res.status(401).json({ error: 'Token inválido o expirado' });
   }
 }
