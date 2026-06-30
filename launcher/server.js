@@ -20,6 +20,18 @@ app.get('/api/version', (req, res) => {
   res.json({ v: SERVER_START, version: APP_VER });
 });
 
+app.get('/api/admin/commits', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+    const log = execSync(`git log --oneline -${limit} --format=%H|%s|%ai`, { cwd: LAUNCHER_DIR, stdio: 'pipe' }).toString().trim();
+    const commits = log.split('\n').filter(Boolean).map(line => {
+      const [hash, message, date] = line.split('|');
+      return { hash, message, date };
+    });
+    res.json({ ok: true, commits });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
 const PORT = parseInt(process.env.PORT || '3002', 10);
 const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
 const SERVER_START = Date.now();

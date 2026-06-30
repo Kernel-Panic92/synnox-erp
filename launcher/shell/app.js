@@ -144,8 +144,37 @@ async function showLauncher() {
     grid.appendChild(adminCard);
   }
 
-  if (user?.rol === 'admin') cargarServerStats();
+  if (user?.rol === 'admin') {
+    cargarServerStats();
+    cargarCommits();
+  }
   show('launcher-screen');
+}
+
+async function cargarCommits() {
+  const w = document.getElementById('commits-widget');
+  if (!w) return;
+  try {
+    const res = await fetch('/api/admin/commits?limit=8', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) { w.style.display = 'none'; return; }
+    const data = await res.json();
+    if (!data.ok || !data.commits?.length) { w.style.display = 'none'; return; }
+    w.style.display = 'block';
+    w.innerHTML = `
+      <h2 style="margin-bottom:12px;">📝 Últimos cambios</h2>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${data.commits.map(c => {
+          const d = new Date(c.date);
+          const fecha = d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+          const hora = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+          return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:13px;">
+            <code style="color:var(--accent);font-size:11px;white-space:nowrap;">${c.hash.slice(0, 7)}</code>
+            <span style="flex:1;color:var(--text);">${c.message}</span>
+            <span style="color:var(--muted);font-size:11px;white-space:nowrap;">${fecha} ${hora}</span>
+          </div>`;
+        }).join('')}
+      </div>`;
+  } catch { w.style.display = 'none'; }
 }
 
 async function cargarServerStats() {
