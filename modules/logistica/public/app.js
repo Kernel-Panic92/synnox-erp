@@ -247,7 +247,7 @@ async function cargarDashboard() {
             const icons = { 0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️', 45: '🌫️', 51: '🌦️', 61: '🌧️', 71: '❄️', 95: '⛈️' };
             const icon = icons[c.weather_code] || '🌤️';
             return `
-              <div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;">
+              <div style="min-width:140px;padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;flex-shrink:0;">
                 <div style="font-size:12px;font-weight:600;margin-bottom:6px;">${icon} ${sede.nombre}</div>
                 <div style="font-size:20px;font-weight:700;">${c.temperature_2m}°C</div>
                 <div style="font-size:11px;color:var(--muted);">💧 ${c.relative_humidity_2m}% · 🌬️ ${c.wind_speed_10m}km/h</div>
@@ -259,7 +259,7 @@ async function cargarDashboard() {
             weatherEl.style.display = 'block';
             weatherEl.innerHTML = `
               <h4 style="margin-bottom:10px;font-family:var(--font-head);font-size:15px;">🌤️ Clima por sede</h4>
-              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;">
+              <div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;">
                 ${successful.join('')}
               </div>`;
           }
