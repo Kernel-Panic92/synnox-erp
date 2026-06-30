@@ -1826,6 +1826,39 @@ async function cargarMapa() {
 
     mapInstance = L.map(el).setView(center, zoom);
     agregarCapasMapa(mapInstance);
+
+    // Locate me button
+    const locateBtn = L.control({ position: 'topleft' });
+    locateBtn.onAdd = function() {
+      const btn = L.DomUtil.create('button', 'leaflet-bar leaflet-control');
+      btn.innerHTML = '📍';
+      btn.title = 'Mi ubicación';
+      btn.style.cssText = 'width:30px;height:30px;font-size:16px;cursor:pointer;background:var(--surface);border:2px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;';
+      btn.onclick = function(e) {
+        e.stopPropagation();
+        if (!navigator.geolocation) { alert('Geolocation no soportado'); return; }
+        btn.innerHTML = '⏳';
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            const latlng = [pos.coords.latitude, pos.coords.longitude];
+            mapInstance.setView(latlng, 15);
+            L.marker(latlng, { icon: L.divIcon({ html: '📍', className: '', iconSize: [24, 24], iconAnchor: [12, 24] }) })
+              .addTo(mapInstance).bindPopup('Tu ubicación');
+            localStorage.setItem('mapa_lat', pos.coords.latitude.toFixed(6));
+            localStorage.setItem('mapa_lng', pos.coords.longitude.toFixed(6));
+            btn.innerHTML = '📍';
+          },
+          (err) => {
+            btn.innerHTML = '📍';
+            alert('No se pudo obtener ubicación: ' + (err.message || 'Permiso denegado'));
+          },
+          { timeout: 5000, enableHighAccuracy: false }
+        );
+      };
+      return btn;
+    };
+    locateBtn.addTo(mapInstance);
+
     mapInstance.on('resize', () => mapInstance.invalidateSize());
     mapInstance.on('moveend', () => {
       const c = mapInstance.getCenter();
