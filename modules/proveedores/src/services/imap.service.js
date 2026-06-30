@@ -313,6 +313,9 @@ async function procesarCorreo(parsed, msgId) {
 
   if (!numeroFactura) {
     console.log(`  [IMAP] No se pudo extraer número de factura — omitiendo`);
+    // Clean up files that were already written
+    if (archivoPdf) { try { fs.unlinkSync(path.join(uploadDir, archivoPdf)); } catch {} }
+    if (archivoXml) { try { fs.unlinkSync(path.join(uploadDir, archivoXml)); } catch {} }
     return 'sin_numero';
   }
 
@@ -333,6 +336,9 @@ async function procesarCorreo(parsed, msgId) {
       console.log(`  [IMAP] Factura ${numeroFactura}${nitEmisor ? ' (' + nitEmisor + ')' : ''} ya existe — omitiendo`);
       await client.query('ROLLBACK');
       client.release();
+      // Clean up files that were already written
+      if (archivoPdf) { try { fs.unlinkSync(path.join(uploadDir, archivoPdf)); } catch {} }
+      if (archivoXml) { try { fs.unlinkSync(path.join(uploadDir, archivoXml)); } catch {} }
       return 'duplicada';
     }
 
@@ -468,10 +474,13 @@ async function pollCorreo(rescanAll = false) {
             
             if (resultado === 'creada') {
               totalCreados++;
-              await client.messageFlagsAdd(msg.seq, ['\\Seen']);
             } else if (resultado === 'duplicada') {
               totalDuplicados++;
+            } else if (resultado === 'sin_numero') {
+              totalDuplicados++;
             }
+            // Mark ALL processed emails as Seen to prevent infinite reprocessing
+            await client.messageFlagsAdd(msg.seq, ['\\Seen']);
             
             totalProcesados++;
             

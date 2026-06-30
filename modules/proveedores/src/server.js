@@ -149,7 +149,9 @@ if (require.main === module) {
       const { iniciarCronJobs }   = require('./services/cron.service');
       const { iniciarServicioImap } = require('./services/imap.service');
       iniciarCronJobs();
-      iniciarServicioImap();
+      // IMAP polling disabled — use cron job instead to avoid double processing
+      // To enable in-process polling, set IMAP_IN_PROCESS=true in .env
+      if (process.env.IMAP_IN_PROCESS === 'true') iniciarServicioImap();
     }
   });
   })().catch(err => {
