@@ -147,8 +147,221 @@ async function showLauncher() {
   if (user?.rol === 'admin') {
     cargarServerStats();
     cargarCommits();
+    cargarQuickActions();
+    cargarModuleSummary();
+    cargarPendingTasks();
+    cargarAlerts();
+    cargarUpcoming();
+    cargarWeather();
+    cargarActivity();
   }
   show('launcher-screen');
+}
+
+function cargarQuickActions() {
+  const w = document.getElementById('quick-actions-widget');
+  if (!w) return;
+  const actions = [
+    { icon: '📄', label: 'Nueva factura', module: 'proveedores', path: '/proveedores/#facturas' },
+    { icon: '🚚', label: 'Generar ruta', module: 'logistica', path: '/logistica/#rutas' },
+    { icon: '📝', label: 'Registrar horas', module: 'nomina', path: '/nomina/#registros' },
+    { icon: '👤', label: 'Nuevo empleado', module: 'nomina', path: '/nomina/#empleados' },
+    { icon: '📊', label: 'Dashboard', module: 'logistica', path: '/logistica/#dashboard' },
+    { icon: '⚙️', label: 'Configuración', module: 'proveedores', path: '/proveedores/#configuracion' },
+  ];
+  const visible = actions.filter(a => user?.modulos?.includes(a.module) || user?.rol === 'admin');
+  if (!visible.length) { w.style.display = 'none'; return; }
+  w.style.display = 'block';
+  w.innerHTML = `
+    <h2 style="margin-bottom:12px;">⚡ Accesos rápidos</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+      ${visible.map(a => `<a href="${a.path}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);text-decoration:none;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+        <span>${a.icon}</span> ${a.label}
+      </a>`).join('')}
+    </div>`;
+}
+
+async function cargarModuleSummary() {
+  const w = document.getElementById('module-summary-widget');
+  if (!w) return;
+  try {
+    const [prov, logi, nomi] = await Promise.allSettled([
+      fetch('/proveedores/api/dashboard', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
+      fetch('/logistica/api/dashboard/resumen', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
+      fetch('/nomina/api/dashboard/resumen', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
+    ]);
+    const cards = [];
+    if (prov.status === 'fulfilled' && prov.value) {
+      const p = prov.value;
+      cards.push({ icon: '📄', title: 'Proveedores', stats: [
+        { label: 'Facturas', value: p.totalFacturas || 0 },
+        { label: 'Pendientes', value: p.pendientes || 0 },
+        { label: 'Por pagar', value: p.porPagar || 0 },
+      ]});
+    }
+    if (logi.status === 'fulfilled' && logi.value) {
+      const l = logi.value;
+      cards.push({ icon: '🚚', title: 'Logística', stats: [
+        { label: 'Pedidos hoy', value: l.pedidosHoy || 0 },
+        { label: 'En ruta', value: l.enRuta || 0 },
+        { label: 'Entregados', value: l.entregados || 0 },
+      ]});
+    }
+    if (nomi.status === 'fulfilled' && nomi.value) {
+      const n = nomi.value;
+      cards.push({ icon: '📝', title: 'Nómina', stats: [
+        { label: 'Registros', value: n.totalRegistros || 0 },
+        { label: 'Pendientes', value: n.pendientes || 0 },
+        { label: 'Aprobados', value: n.aprobados || 0 },
+      ]});
+    }
+    if (!cards.length) { w.style.display = 'none'; return; }
+    w.style.display = 'block';
+    w.innerHTML = `
+      <h2 style="margin-bottom:12px;">📊 Resumen del día</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
+        ${cards.map(c => `<div style="padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+          <div style="font-size:14px;font-weight:600;margin-bottom:10px;">${c.icon} ${c.title}</div>
+          ${c.stats.map(s => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;"><span style="color:var(--muted);">${s.label}</span><strong>${s.value}</strong></div>`).join('')}
+        </div>`).join('')}
+      </div>`;
+  } catch { w.style.display = 'none'; }
+}
+
+async function cargarPendingTasks() {
+  const w = document.getElementById('pending-tasks-widget');
+  if (!w) return;
+  try {
+    const tasks = [];
+    const [prov, nomi] = await Promise.allSettled([
+      fetch('/proveedores/api/facturas?estado=pendiente', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
+      fetch('/nomina/api/registros?estado=pendiente', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
+    ]);
+    if (prov.status === 'fulfilled' && prov.value?.rows) {
+      const pending = prov.value.rows.length || prov.value.length || 0;
+      if (pending > 0) tasks.push({ icon: '📄', text: `${pending} factura(s) pendiente(s) por revisar`, link: '/proveedores/#pendientes' });
+    }
+    if (nomi.status === 'fulfilled' && nomi.value) {
+      const n = Array.isArray(nomi.value) ? nomi.value : nomi.value.rows || [];
+      const pending = n.filter(r => r.estado === 'pendiente').length;
+      if (pending > 0) tasks.push({ icon: '📝', text: `${pending} registro(s) de nómina pendiente(s)`, link: '/nomina/#registros' });
+    }
+    if (!tasks.length) { w.style.display = 'none'; return; }
+    w.style.display = 'block';
+    w.innerHTML = `
+      <h2 style="margin-bottom:12px;">📋 Tareas pendientes</h2>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${tasks.map(t => `<a href="${t.link}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(247,151,79,0.08);border:1px solid rgba(247,151,79,0.2);border-radius:8px;font-size:13px;color:var(--text);text-decoration:none;">
+          <span style="font-size:16px;">${t.icon}</span> ${t.text}
+        </a>`).join('')}
+      </div>`;
+  } catch { w.style.display = 'none'; }
+}
+
+async function cargarAlerts() {
+  const w = document.getElementById('alerts-widget');
+  if (!w) return;
+  try {
+    const alerts = [];
+    const diskRes = await fetch('/api/admin/server/stats', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null);
+    if (diskRes?.disk) {
+      const pct = parseInt(diskRes.disk.usePct);
+      if (pct > 90) alerts.push({ level: 'danger', icon: '🔴', text: `Disco al ${pct}% — espacio crítico` });
+      else if (pct > 80) alerts.push({ level: 'warning', icon: '🟡', text: `Disco al ${pct}% — considerar limpiar` });
+    }
+    const healthRes = await fetch('/api/admin/health', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null);
+    if (healthRes?.modules) {
+      for (const [id, status] of Object.entries(healthRes.modules)) {
+        if (status !== 'ok') alerts.push({ level: 'danger', icon: '🔴', text: `Módulo ${id}: ${status}` });
+      }
+    }
+    if (!alerts.length) { w.style.display = 'none'; return; }
+    w.style.display = 'block';
+    w.innerHTML = `
+      <h2 style="margin-bottom:12px;">⚠️ Alertas</h2>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${alerts.map(a => `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:${a.level === 'danger' ? 'rgba(231,76,60,0.08)' : 'rgba(247,151,79,0.08)'};border:1px solid ${a.level === 'danger' ? 'rgba(231,76,60,0.2)' : 'rgba(247,151,79,0.2)'};border-radius:8px;font-size:13px;">
+          <span>${a.icon}</span> ${a.text}
+        </div>`).join('')}
+      </div>`;
+  } catch { w.style.display = 'none'; }
+}
+
+async function cargarUpcoming() {
+  const w = document.getElementById('upcoming-widget');
+  if (!w) return;
+  try {
+    const res = await fetch('/proveedores/api/facturas?proximas=true', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) { w.style.display = 'none'; return; }
+    const data = await res.json();
+    const items = data.rows || data || [];
+    if (!items.length) { w.style.display = 'none'; return; }
+    w.style.display = 'block';
+    w.innerHTML = `
+      <h2 style="margin-bottom:12px;">📅 Próximos vencimientos</h2>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${items.slice(0, 5).map(f => `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:13px;">
+          <span>${f.proveedor || f.numero || '—'}</span>
+          <span style="color:var(--muted);">${f.fechaVencimiento || f.fecha_vencimiento || '—'}</span>
+        </div>`).join('')}
+      </div>`;
+  } catch { w.style.display = 'none'; }
+}
+
+function cargarWeather() {
+  const w = document.getElementById('weather-widget');
+  if (!w) return;
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      try {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=America/Bogota`);
+        const data = await res.json();
+        const c = data.current;
+        const weatherIcons = { 0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️', 45: '🌫️', 51: '🌦️', 61: '🌧️', 71: '❄️', 95: '⛈️' };
+        const icon = weatherIcons[c.weather_code] || '🌤️';
+        w.style.display = 'block';
+        w.innerHTML = `
+          <h2 style="margin-bottom:12px;">🌤️ Clima</h2>
+          <div style="padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <span style="font-size:32px;">${icon}</span>
+              <div>
+                <div style="font-size:24px;font-weight:700;">${c.temperature_2m}°C</div>
+                <div style="font-size:12px;color:var(--muted);">Humedad: ${c.relative_humidity_2m}% · Viento: ${c.wind_speed_10m} km/h</div>
+              </div>
+            </div>
+          </div>`;
+      } catch { w.style.display = 'none'; }
+    }, () => { w.style.display = 'none'; }, { timeout: 5000 });
+  } else { w.style.display = 'none'; }
+}
+
+async function cargarActivity() {
+  const w = document.getElementById('activity-widget');
+  if (!w) return;
+  try {
+    const res = await fetch('/api/admin/login-logs?limit=10', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) { w.style.display = 'none'; return; }
+    const data = await res.json();
+    const logs = data.rows || data || [];
+    if (!logs.length) { w.style.display = 'none'; return; }
+    w.style.display = 'block';
+    w.innerHTML = `
+      <h2 style="margin-bottom:12px;">👤 Actividad reciente</h2>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        ${logs.slice(0, 8).map(l => {
+          const d = new Date(l.timestamp || l.creado);
+          const hora = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+          const icon = l.tipo === 'login' ? '🔑' : l.tipo === 'logout' ? '🚪' : '📝';
+          return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;font-size:12px;">
+            <span>${icon}</span>
+            <span style="flex:1;color:var(--text);">${l.email || l.usuario || '—'}</span>
+            <span style="color:var(--muted);">${hora}</span>
+          </div>`;
+        }).join('')}
+      </div>`;
+  } catch { w.style.display = 'none'; }
 }
 
 async function cargarCommits() {
