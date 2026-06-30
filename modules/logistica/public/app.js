@@ -376,7 +376,7 @@ async function cargarPedidos() {
         <td style="white-space:nowrap">$${Number(p.valor_contado||0).toLocaleString()}</td>
         <td style="white-space:nowrap">$${Number(p.valor_credito||0).toLocaleString()}</td>
         <td>${p.placa || '—'}</td>
-        <td><span class="badge badge-${p.estado==='entregado'?'success':p.estado==='pendiente'?'warning':p.estado==='cancelado'?'danger':'info'}">${p.estado}</span></td>
+        <td><span class="badge badge-${p.estado==='entregado'?'success':p.estado==='pendiente'?'warning':p.estado==='fallido'?'danger':p.estado==='cancelado'?'danger':'info'}">${p.estado}</span></td>
         <td>${esc(p.cliente_ruta || p.cliente_ruta_moto || '') || (p.ruta_id ? 'Ruta #'+p.ruta_id : '—')}</td>
         <td><button class="btn btn-sm btn-secondary" onclick="verPedido(${p.id})" title="Ver">👁️</button> <button class="btn btn-sm btn-secondary" onclick="editarPedido(${p.id})" title="Editar">✏️</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('pedido',${p.id},'${p.numero_factura}')" title="Eliminar">🗑️</button></td>
       </tr>
