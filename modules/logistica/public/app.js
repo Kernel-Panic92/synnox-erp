@@ -165,28 +165,33 @@ async function cargarDashboard() {
   const vehiculosListEl = document.getElementById('dash-vehiculos-list');
   const pedidosListEl = document.getElementById('dash-pedidos-list');
   try {
-    const [vehiculos, pedidos, rutas, todosPedidos] = await Promise.all([
+    const [vehiculos, pedidos, rutas, todosPedidos] = await Promise.allSettled([
       api('/vehiculos'),
       api('/pedidos?estado=pendiente'),
       api('/rutas?fecha=' + new Date().toISOString().split('T')[0]),
       api('/pedidos?limit=5'),
     ]);
 
-    const enRuta = vehiculos.vehiculos.filter(v => v.estado === 'en_ruta').length;
-    const disponibles = vehiculos.vehiculos.filter(v => v.estado === 'disponible').length;
-    const mantencion = vehiculos.vehiculos.filter(v => v.estado === 'mantencion' || v.estado === 'inactivo').length;
+    const vehiculosData = vehiculos.status === 'fulfilled' ? vehiculos.value : { vehiculos: [], total: 0 };
+    const pedidosData = pedidos.status === 'fulfilled' ? pedidos.value : { total: 0 };
+    const rutasData = rutas.status === 'fulfilled' ? rutas.value : { rutas: [], total: 0 };
+    const todosPedidosData = todosPedidos.status === 'fulfilled' ? todosPedidos.value : { pedidos: [] };
+
+    const enRuta = (vehiculosData.vehiculos || []).filter(v => v.estado === 'en_ruta').length;
+    const disponibles = (vehiculosData.vehiculos || []).filter(v => v.estado === 'disponible').length;
+    const mantencion = (vehiculosData.vehiculos || []).filter(v => v.estado === 'mantencion' || v.estado === 'inactivo').length;
 
     // Stats cards
     statsEl.innerHTML = `
-      <div class="stat-card"><div class="stat-label">Vehículos</div><div class="stat-value">${vehiculos.total}</div><div class="stat-sub">${disponibles} disponibles · ${enRuta} en ruta</div></div>
-      <div class="stat-card"><div class="stat-label">Pedidos pendientes</div><div class="stat-value" style="color:${pedidos.total > 0 ? 'var(--warning)' : 'var(--success)'};">${pedidos.total}</div><div class="stat-sub">sin asignar a ruta</div></div>
-      <div class="stat-card"><div class="stat-label">Rutas hoy</div><div class="stat-value">${rutas.total}</div><div class="stat-sub">${rutas.rutas?.filter(r => r.estado === 'completada').length || 0} completadas</div></div>
-      <div class="stat-card"><div class="stat-label">Total pedidos</div><div class="stat-value">${todosPedidos.total || 0}</div><div class="stat-sub">en el sistema</div></div>
+      <div class="stat-card"><div class="stat-label">Vehículos</div><div class="stat-value">${vehiculosData.total || 0}</div><div class="stat-sub">${disponibles} disponibles · ${enRuta} en ruta</div></div>
+      <div class="stat-card"><div class="stat-label">Pedidos pendientes</div><div class="stat-value" style="color:${pedidosData.total > 0 ? 'var(--warning)' : 'var(--success)'};">${pedidosData.total || 0}</div><div class="stat-sub">sin asignar a ruta</div></div>
+      <div class="stat-card"><div class="stat-label">Rutas hoy</div><div class="stat-value">${rutasData.total || 0}</div><div class="stat-sub">${(rutasData.rutas || []).filter(r => r.estado === 'completada').length || 0} completadas</div></div>
+      <div class="stat-card"><div class="stat-label">Total pedidos</div><div class="stat-value">${todosPedidosData.pedidos?.length || 0}</div><div class="stat-sub">en el sistema</div></div>
     `;
 
     // Routes list
-    if (rutas.rutas?.length) {
-      listEl.innerHTML = rutas.rutas.map(r => `
+    if ((rutasData.rutas || []).length) {
+      listEl.innerHTML = rutasData.rutas.map(r => `
         <div class="flex" style="justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
           <span><strong>${r.nombre}</strong> · ${r.placa || '—'}</span>
           <span><span class="badge badge-${r.estado==='planificada'?'info':r.estado==='en_ejecucion'?'warning':r.estado==='completada'?'success':'danger'}">${r.estado}</span></span>
@@ -213,7 +218,7 @@ async function cargarDashboard() {
 
     // Recent orders
     if (pedidosListEl) {
-      const pedidosRows = pedidos.rows || pedidos || [];
+      const pedidosRows = pedidos.pedidos || [];
       if (pedidosRows.length) {
         pedidosListEl.innerHTML = pedidosRows.slice(0, 5).map(p => `
           <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">
@@ -250,9 +255,9 @@ async function cargarDashboard() {
     // Alerts
     if (alertsEl) {
       const alertItems = [];
-      if (pedidos.total > 10) alertItems.push({ icon: '⚠️', text: `${pedidos.total} pedidos sin ruta asignada`, color: 'var(--warning)' });
+      if (pedidosData.total > 10) alertItems.push({ icon: '⚠️', text: `${pedidosData.total} pedidos sin ruta asignada`, color: 'var(--warning)' });
       if (mantencion > 0) alertItems.push({ icon: '🔧', text: `${mantencion} vehículo(s) en mantenimiento`, color: 'var(--danger)' });
-      if (rutas.rutas?.some(r => r.estado === 'fallida')) alertItems.push({ icon: '❌', text: 'Hay rutas fallidas hoy', color: 'var(--danger)' });
+      if ((rutasData.rutas || []).some(r => r.estado === 'fallida')) alertItems.push({ icon: '❌', text: 'Hay rutas fallidas hoy', color: 'var(--danger)' });
       if (alertItems.length) {
         alertsEl.style.display = 'block';
         alertsEl.innerHTML = `
