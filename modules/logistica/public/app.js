@@ -1806,8 +1806,20 @@ async function cargarMapa() {
     const savedLng = parseFloat(localStorage.getItem('mapa_lng'));
     const savedZoom = parseInt(localStorage.getItem('mapa_zoom'));
     const hasSaved = savedLat && savedLng && savedZoom;
-    const center = hasSaved ? [savedLat, savedLng] : [6.2476, -75.5658];
+    let center = hasSaved ? [savedLat, savedLng] : null;
     const zoom = hasSaved ? savedZoom : 13;
+
+    // Try geolocation if no saved position
+    if (!center && navigator.geolocation) {
+      try {
+        const pos = await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000, enableHighAccuracy: false });
+        });
+        center = [pos.coords.latitude, pos.coords.longitude];
+      } catch {}
+    }
+    if (!center) center = [6.2476, -75.5658]; // Medellín fallback
+
     mapInstance = L.map(el).setView(center, zoom);
     agregarCapasMapa(mapInstance);
     mapInstance.on('resize', () => mapInstance.invalidateSize());
