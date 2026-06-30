@@ -230,7 +230,7 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
     res.cookie('launcher_jwt', token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000
     });
     console.log(`[LOGIN] Cookie set for ${email}, secret: ${JWT_SECRET.slice(0,8)}..., token: ${token.slice(0,20)}...`);
