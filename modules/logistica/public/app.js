@@ -247,11 +247,11 @@ async function cargarDashboard() {
             const icons = { 0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️', 45: '🌫️', 51: '🌦️', 61: '🌧️', 71: '❄️', 95: '⛈️' };
             const icon = icons[c.weather_code] || '🌤️';
             return `
-              <div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;">
-                <div style="font-size:12px;font-weight:600;margin-bottom:6px;">${icon} ${sede.nombre}</div>
-                <div style="font-size:20px;font-weight:700;">${c.temperature_2m}°C</div>
-                <div style="font-size:11px;color:var(--muted);">💧 ${c.relative_humidity_2m}% · 🌬️ ${c.wind_speed_10m}km/h</div>
-                <div style="font-size:10px;color:var(--muted);margin-top:4px;">${c.temperature_2m > 30 ? '🔥 Caluroso' : c.temperature_2m < 15 ? '❄️ Frío' : '✅ OK'}</div>
+              <div style="padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;">
+                <div style="font-size:11px;font-weight:600;margin-bottom:4px;">${icon} ${sede.nombre.length > 15 ? sede.nombre.slice(0,15)+'…' : sede.nombre}</div>
+                <div style="font-size:18px;font-weight:700;">${c.temperature_2m}°C</div>
+                <div style="font-size:10px;color:var(--muted);">💧${c.relative_humidity_2m}% 🌬️${c.wind_speed_10m}km/h</div>
+                <div style="font-size:9px;color:var(--muted);margin-top:2px;">${c.temperature_2m > 30 ? '🔥' : c.temperature_2m < 15 ? '❄️' : '✅'} ${c.temperature_2m > 30 ? 'Caluroso' : c.temperature_2m < 15 ? 'Frío' : 'OK'}</div>
               </div>`;
           }));
           const successful = weatherCards.filter(r => r.status === 'fulfilled').map(r => r.value);
@@ -259,7 +259,7 @@ async function cargarDashboard() {
             weatherEl.style.display = 'block';
             weatherEl.innerHTML = `
               <h4 style="margin-bottom:10px;font-family:var(--font-head);font-size:15px;">🌤️ Clima por sede</h4>
-              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;">
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:6px;">
                 ${successful.join('')}
               </div>`;
           }
