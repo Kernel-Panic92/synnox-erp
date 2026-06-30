@@ -1809,13 +1809,15 @@ async function cargarMapa() {
     let center = hasSaved ? [savedLat, savedLng] : null;
     const zoom = hasSaved ? savedZoom : 13;
 
-    // Try geolocation if no saved position
-    if (!center && navigator.geolocation) {
+    // Try geolocation (updates saved position)
+    if (navigator.geolocation) {
       try {
         const pos = await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000, enableHighAccuracy: false });
+          navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 5000, enableHighAccuracy: false });
         });
         center = [pos.coords.latitude, pos.coords.longitude];
+        localStorage.setItem('mapa_lat', pos.coords.latitude.toFixed(6));
+        localStorage.setItem('mapa_lng', pos.coords.longitude.toFixed(6));
       } catch {}
     }
     if (!center) center = [6.2476, -75.5658]; // Medellín fallback
