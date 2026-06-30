@@ -194,7 +194,7 @@ router.delete('/logo', soloAdmin, async (req, res) => {
 router.get('/company', soloAdmin, async (req, res) => {
   try {
     const result = await pool.query(
-      "SELECT clave, valor FROM logistics.configuracion WHERE clave IN ('company_name','company_address','company_phone','company_nit')"
+      "SELECT clave, valor FROM logistics.configuracion WHERE clave IN ('company_name','company_address','company_phone','company_nit','company_latitud','company_longitud')"
     );
     const cfg = {};
     for (const row of result.rows) cfg[row.clave] = row.valor;
@@ -204,12 +204,14 @@ router.get('/company', soloAdmin, async (req, res) => {
 
 router.put('/company', soloAdmin, async (req, res) => {
   try {
-    const { company_name, company_address, company_phone, company_nit } = req.body;
+    const { company_name, company_address, company_phone, company_nit, company_latitud, company_longitud } = req.body;
     const updates = [
       ['company_name', company_name],
       ['company_address', company_address],
       ['company_phone', company_phone],
       ['company_nit', company_nit],
+      ['company_latitud', company_latitud],
+      ['company_longitud', company_longitud],
     ];
     for (const [clave, valor] of updates) {
       if (valor !== undefined) {

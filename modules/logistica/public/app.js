@@ -231,25 +231,45 @@ async function cargarDashboard() {
       }
     }
 
-    // Weather (geolocation)
-    if (weatherEl && navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(async (pos) => {
+    // Weather — try geolocation, fallback to sede or Medellín
+    if (weatherEl) {
+      const DEFAULT_LAT = 6.2476, DEFAULT_LNG = -75.5658;
+      let lat = DEFAULT_LAT, lng = DEFAULT_LNG;
+
+      // Try to get sede coordinates from config
+      try {
+        const cfg = await api('/configuracion');
+        if (cfg.config?.sede_latitud && cfg.config?.sede_longitud) {
+          lat = parseFloat(cfg.config.sede_latitud);
+          lng = parseFloat(cfg.config.sede_longitud);
+        }
+      } catch {}
+
+      // Try geolocation (overrides sede)
+      if (navigator.geolocation) {
         try {
-          const { latitude: lat, longitude: lng } = pos.coords;
-          const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=America/Bogota`);
-          const data = await res.json();
-          const c = data.current;
-          const icons = { 0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️', 45: '🌫️', 51: '🌦️', 61: '🌧️', 71: '❄️', 95: '⛈️' };
-          const icon = icons[c.weather_code] || '🌤️';
-          weatherEl.style.display = 'block';
-          weatherEl.innerHTML = `
-            <h4 style="margin-bottom:8px;font-family:var(--font-head);font-size:15px;">${icon} Clima</h4>
-            <div style="font-size:28px;font-weight:700;">${c.temperature_2m}°C</div>
-            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Humedad: ${c.relative_humidity_2m}% · Viento: ${c.wind_speed_10m} km/h</div>
-            <div style="font-size:11px;color:var(--muted);margin-top:8px;">💡 ${c.temperature_2m > 30 ? 'Hace calor — considerar entregas tempranas' : c.temperature_2m < 15 ? 'Hace frío — verificar que los productos no se dañen' : 'Clima favorable para entregas'}</div>
-          `;
+          const pos = await new Promise((resolve, reject) => {
+            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000, enableHighAccuracy: false });
+          });
+          lat = pos.coords.latitude;
+          lng = pos.coords.longitude;
         } catch {}
-      }, () => {}, { timeout: 5000 });
+      }
+
+      try {
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=America/Bogota`);
+        const data = await res.json();
+        const c = data.current;
+        const icons = { 0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️', 45: '🌫️', 51: '🌦️', 61: '🌧️', 71: '❄️', 95: '⛈️' };
+        const icon = icons[c.weather_code] || '🌤️';
+        weatherEl.style.display = 'block';
+        weatherEl.innerHTML = `
+          <h4 style="margin-bottom:8px;font-family:var(--font-head);font-size:15px;">${icon} Clima</h4>
+          <div style="font-size:28px;font-weight:700;">${c.temperature_2m}°C</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Humedad: ${c.relative_humidity_2m}% · Viento: ${c.wind_speed_10m} km/h</div>
+          <div style="font-size:11px;color:var(--muted);margin-top:8px;">💡 ${c.temperature_2m > 30 ? 'Hace calor — considerar entregas tempranas' : c.temperature_2m < 15 ? 'Hace frío — verificar que los productos no se dañen' : 'Clima favorable para entregas'}</div>
+        `;
+      } catch {}
     }
 
     // Alerts
@@ -2068,6 +2088,10 @@ async function renderEmpresa(el) {
             <div class="form-group" style="flex:1"><label>Teléfono</label><input id="cfg-company-phone" value="${esc(c.company_phone||'')}" placeholder="604 123 4567"></div>
             <div class="form-group" style="flex:1"><label>NIT</label><input id="cfg-company-nit" value="${esc(c.company_nit||'')}" placeholder="900.123.456-7"></div>
           </div>
+          <div style="display:flex;gap:12px;">
+            <div class="form-group" style="flex:1"><label>Latitud sede</label><input type="number" step="any" id="cfg-company-lat" value="${esc(c.company_latitud||'')}" placeholder="6.2476"></div>
+            <div class="form-group" style="flex:1"><label>Longitud sede</label><input type="number" step="any" id="cfg-company-lng" value="${esc(c.company_longitud||'')}" placeholder="-75.5658"></div>
+          </div>
           <button class="btn btn-primary" onclick="guardarCompany()">✓ Guardar</button>
           <div id="company-msg" style="margin-top:10px;font-size:13px;"></div>
         </div>
@@ -2124,6 +2148,8 @@ async function guardarCompany() {
       company_address: document.getElementById('cfg-company-address').value.trim(),
       company_phone: document.getElementById('cfg-company-phone').value.trim(),
       company_nit: document.getElementById('cfg-company-nit').value.trim(),
+      company_latitud: document.getElementById('cfg-company-lat').value.trim(),
+      company_longitud: document.getElementById('cfg-company-lng').value.trim(),
     })});
     msg.innerHTML = '<span style="color:var(--success)">✓ Guardado</span>';
   } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
