@@ -160,18 +160,31 @@ document.getElementById('modal-forgot')?.addEventListener('click', function(e) {
 async function cargarDashboard() {
   const statsEl = document.getElementById('dash-stats');
   const listEl = document.getElementById('dash-rutas-list');
+  const weatherEl = document.getElementById('dash-weather');
+  const alertsEl = document.getElementById('dash-alerts');
+  const vehiculosListEl = document.getElementById('dash-vehiculos-list');
+  const pedidosListEl = document.getElementById('dash-pedidos-list');
   try {
-    const [vehiculos, pedidos, rutas] = await Promise.all([
+    const [vehiculos, pedidos, rutas, todosPedidos] = await Promise.all([
       api('/vehiculos'),
       api('/pedidos?estado=pendiente'),
-      api('/rutas?fecha=' + new Date().toISOString().split('T')[0])
+      api('/rutas?fecha=' + new Date().toISOString().split('T')[0]),
+      api('/pedidos?limit=5'),
     ]);
+
+    const enRuta = vehiculos.vehiculos.filter(v => v.estado === 'en_ruta').length;
+    const disponibles = vehiculos.vehiculos.filter(v => v.estado === 'disponible').length;
+    const mantencion = vehiculos.vehiculos.filter(v => v.estado === 'mantencion' || v.estado === 'inactivo').length;
+
+    // Stats cards
     statsEl.innerHTML = `
-      <div class="stat-card"><div class="stat-label">Vehículos</div><div class="stat-value">${vehiculos.total}</div><div class="stat-sub">en flota</div></div>
-      <div class="stat-card"><div class="stat-label">Pedidos pendientes</div><div class="stat-value">${pedidos.total}</div><div class="stat-sub">sin asignar</div></div>
-      <div class="stat-card"><div class="stat-label">Rutas hoy</div><div class="stat-value">${rutas.total}</div><div class="stat-sub">planificadas</div></div>
-      <div class="stat-card"><div class="stat-label">Vehículos activos</div><div class="stat-value">${vehiculos.vehiculos.filter(v=>v.estado==='disponible').length}</div><div class="stat-sub">disponibles</div></div>
+      <div class="stat-card"><div class="stat-label">Vehículos</div><div class="stat-value">${vehiculos.total}</div><div class="stat-sub">${disponibles} disponibles · ${enRuta} en ruta</div></div>
+      <div class="stat-card"><div class="stat-label">Pedidos pendientes</div><div class="stat-value" style="color:${pedidos.total > 0 ? 'var(--warning)' : 'var(--success)'};">${pedidos.total}</div><div class="stat-sub">sin asignar a ruta</div></div>
+      <div class="stat-card"><div class="stat-label">Rutas hoy</div><div class="stat-value">${rutas.total}</div><div class="stat-sub">${rutas.rutas?.filter(r => r.estado === 'completada').length || 0} completadas</div></div>
+      <div class="stat-card"><div class="stat-label">Total pedidos</div><div class="stat-value">${todosPedidos.total || 0}</div><div class="stat-sub">en el sistema</div></div>
     `;
+
+    // Routes list
     if (rutas.rutas?.length) {
       listEl.innerHTML = rutas.rutas.map(r => `
         <div class="flex" style="justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);">
@@ -182,6 +195,73 @@ async function cargarDashboard() {
     } else {
       listEl.innerHTML = '<p class="text-muted">No hay rutas para hoy</p>';
     }
+
+    // Vehicle status
+    if (vehiculosListEl) {
+      const statusGroups = [
+        { label: 'Disponibles', count: disponibles, color: 'var(--success)', icon: '🟢' },
+        { label: 'En ruta', count: enRuta, color: 'var(--warning)', icon: '🟡' },
+        { label: 'Mantenimiento', count: mantencion, color: 'var(--danger)', icon: '🔴' },
+      ];
+      vehiculosListEl.innerHTML = statusGroups.map(s => `
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);">
+          <span>${s.icon} ${s.label}</span>
+          <strong style="color:${s.color};">${s.count}</strong>
+        </div>
+      `).join('');
+    }
+
+    // Recent orders
+    if (pedidosListEl) {
+      const pedidosRows = pedidos.rows || pedidos || [];
+      if (pedidosRows.length) {
+        pedidosListEl.innerHTML = pedidosRows.slice(0, 5).map(p => `
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border);font-size:13px;">
+            <span>${esc(p.numero_factura || p.cliente_nombre || '—')}</span>
+            <span class="badge badge-${p.estado==='entregado'?'success':p.estado==='en_ruta'?'warning':'info'}" style="font-size:11px;">${p.estado}</span>
+          </div>
+        `).join('');
+      } else {
+        pedidosListEl.innerHTML = '<p class="text-muted">No hay pedidos recientes</p>';
+      }
+    }
+
+    // Weather (geolocation)
+    if (weatherEl && navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(async (pos) => {
+        try {
+          const { latitude: lat, longitude: lng } = pos.coords;
+          const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=America/Bogota`);
+          const data = await res.json();
+          const c = data.current;
+          const icons = { 0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️', 45: '🌫️', 51: '🌦️', 61: '🌧️', 71: '❄️', 95: '⛈️' };
+          const icon = icons[c.weather_code] || '🌤️';
+          weatherEl.style.display = 'block';
+          weatherEl.innerHTML = `
+            <h4 style="margin-bottom:8px;font-family:var(--font-head);font-size:15px;">${icon} Clima</h4>
+            <div style="font-size:28px;font-weight:700;">${c.temperature_2m}°C</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:4px;">Humedad: ${c.relative_humidity_2m}% · Viento: ${c.wind_speed_10m} km/h</div>
+            <div style="font-size:11px;color:var(--muted);margin-top:8px;">💡 ${c.temperature_2m > 30 ? 'Hace calor — considerar entregas tempranas' : c.temperature_2m < 15 ? 'Hace frío — verificar que los productos no se dañen' : 'Clima favorable para entregas'}</div>
+          `;
+        } catch {}
+      }, () => {}, { timeout: 5000 });
+    }
+
+    // Alerts
+    if (alertsEl) {
+      const alertItems = [];
+      if (pedidos.total > 10) alertItems.push({ icon: '⚠️', text: `${pedidos.total} pedidos sin ruta asignada`, color: 'var(--warning)' });
+      if (mantencion > 0) alertItems.push({ icon: '🔧', text: `${mantencion} vehículo(s) en mantenimiento`, color: 'var(--danger)' });
+      if (rutas.rutas?.some(r => r.estado === 'fallida')) alertItems.push({ icon: '❌', text: 'Hay rutas fallidas hoy', color: 'var(--danger)' });
+      if (alertItems.length) {
+        alertsEl.style.display = 'block';
+        alertsEl.innerHTML = `
+          <h4 style="margin-bottom:8px;font-family:var(--font-head);font-size:15px;">⚠️ Alertas</h4>
+          ${alertItems.map(a => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;color:${a.color};">${a.icon} ${a.text}</div>`).join('')}
+        `;
+      }
+    }
+
   } catch (e) {
     statsEl.innerHTML = '<p class="text-muted">Error al cargar dashboard</p>';
   }

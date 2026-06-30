@@ -276,9 +276,23 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
           <p>Resumen general del sistema de logística</p>
         </div>
         <div class="stats-row" id="dash-stats"></div>
-        <div class="card" id="dash-recientes">
-          <h4 style="margin-bottom:12px;font-family:var(--font-head);font-size:15px;">Rutas recientes</h4>
-          <div id="dash-rutas-list"><p class="text-muted">Cargando...</p></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:16px;">
+          <div class="card" id="dash-weather" style="display:none;"></div>
+          <div class="card" id="dash-alerts" style="display:none;"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">
+          <div class="card" id="dash-recientes">
+            <h4 style="margin-bottom:12px;font-family:var(--font-head);font-size:15px;">Rutas de hoy</h4>
+            <div id="dash-rutas-list"><p class="text-muted">Cargando...</p></div>
+          </div>
+          <div class="card" id="dash-vehiculos-estado">
+            <h4 style="margin-bottom:12px;font-family:var(--font-head);font-size:15px;">Estado de vehículos</h4>
+            <div id="dash-vehiculos-list"><p class="text-muted">Cargando...</p></div>
+          </div>
+          <div class="card" id="dash-pedidos-recientes">
+            <h4 style="margin-bottom:12px;font-family:var(--font-head);font-size:15px;">Pedidos recientes</h4>
+            <div id="dash-pedidos-list"><p class="text-muted">Cargando...</p></div>
+          </div>
         </div>
       </div>
 
