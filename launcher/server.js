@@ -146,6 +146,15 @@ try { db.exec("ALTER TABLE modulos_plataforma ADD COLUMN tipo TEXT NOT NULL DEFA
 // Seed tipo for internal modules
 db.prepare("UPDATE modulos_plataforma SET tipo = 'interno' WHERE id IN ('proveedores', 'nomina', 'logistica') AND tipo = 'externo'").run();
 
+// Migrate old module IDs to new names
+try { db.prepare("UPDATE modulos_plataforma SET id = 'nomina' WHERE id = 'horix'").run(); } catch {}
+try { db.prepare("UPDATE modulos_plataforma SET id = 'proveedores' WHERE id = 'docflow'").run(); } catch {}
+try { db.prepare("UPDATE modulos_plataforma SET id = 'logistica' WHERE id = 'logistics'").run(); } catch {}
+// Also migrate user_modulos references
+try { db.prepare("UPDATE user_modulos SET modulo_id = 'nomina' WHERE modulo_id = 'horix'").run(); } catch {}
+try { db.prepare("UPDATE user_modulos SET modulo_id = 'proveedores' WHERE modulo_id = 'docflow'").run(); } catch {}
+try { db.prepare("UPDATE user_modulos SET modulo_id = 'logistica' WHERE modulo_id = 'logistics'").run(); } catch {}
+
 // Seed public_url from url if empty
 db.prepare("UPDATE modulos_plataforma SET public_url = url WHERE public_url = '' AND url != ''").run();
 
