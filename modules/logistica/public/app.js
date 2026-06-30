@@ -234,44 +234,36 @@ async function cargarDashboard() {
       }
     }
 
-    // Weather — try geolocation, fallback to sede or Medellín
+    // Weather — one card per sede with coordinates
     if (weatherEl) {
-      const DEFAULT_LAT = 6.2476, DEFAULT_LNG = -75.5658;
-      let lat = DEFAULT_LAT, lng = DEFAULT_LNG;
-
-      // Try to get sede coordinates from config
       try {
-        const cfg = await api('/configuracion');
-        if (cfg.config?.sede_latitud && cfg.config?.sede_longitud) {
-          lat = parseFloat(cfg.config.sede_latitud);
-          lng = parseFloat(cfg.config.sede_longitud);
+        const sedesRes = await api('/sedes');
+        const sedes = (sedesRes.sedes || []).filter(s => s.latitud && s.longitud);
+        if (sedes.length) {
+          const weatherCards = await Promise.allSettled(sedes.map(async (sede) => {
+            const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${sede.latitud}&longitude=${sede.longitud}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=America/Bogota`);
+            const data = await res.json();
+            const c = data.current;
+            const icons = { 0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️', 45: '🌫️', 51: '🌦️', 61: '🌧️', 71: '❄️', 95: '⛈️' };
+            const icon = icons[c.weather_code] || '🌤️';
+            return `
+              <div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;">
+                <div style="font-size:12px;font-weight:600;margin-bottom:6px;">${icon} ${sede.nombre}</div>
+                <div style="font-size:20px;font-weight:700;">${c.temperature_2m}°C</div>
+                <div style="font-size:11px;color:var(--muted);">💧 ${c.relative_humidity_2m}% · 🌬️ ${c.wind_speed_10m}km/h</div>
+                <div style="font-size:10px;color:var(--muted);margin-top:4px;">${c.temperature_2m > 30 ? '🔥 Caluroso' : c.temperature_2m < 15 ? '❄️ Frío' : '✅ OK'}</div>
+              </div>`;
+          }));
+          const successful = weatherCards.filter(r => r.status === 'fulfilled').map(r => r.value);
+          if (successful.length) {
+            weatherEl.style.display = 'block';
+            weatherEl.innerHTML = `
+              <h4 style="margin-bottom:10px;font-family:var(--font-head);font-size:15px;">🌤️ Clima por sede</h4>
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;">
+                ${successful.join('')}
+              </div>`;
+          }
         }
-      } catch {}
-
-      // Try geolocation (overrides sede)
-      if (navigator.geolocation) {
-        try {
-          const pos = await new Promise((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject, { timeout: 3000, enableHighAccuracy: false });
-          });
-          lat = pos.coords.latitude;
-          lng = pos.coords.longitude;
-        } catch {}
-      }
-
-      try {
-        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=America/Bogota`);
-        const data = await res.json();
-        const c = data.current;
-        const icons = { 0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️', 45: '🌫️', 51: '🌦️', 61: '🌧️', 71: '❄️', 95: '⛈️' };
-        const icon = icons[c.weather_code] || '🌤️';
-        weatherEl.style.display = 'block';
-        weatherEl.innerHTML = `
-          <h4 style="margin-bottom:8px;font-family:var(--font-head);font-size:15px;">${icon} Clima</h4>
-          <div style="font-size:28px;font-weight:700;">${c.temperature_2m}°C</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:4px;">Humedad: ${c.relative_humidity_2m}% · Viento: ${c.wind_speed_10m} km/h</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:8px;">💡 ${c.temperature_2m > 30 ? 'Hace calor — considerar entregas tempranas' : c.temperature_2m < 15 ? 'Hace frío — verificar que los productos no se dañen' : 'Clima favorable para entregas'}</div>
-        `;
       } catch {}
     }
 
