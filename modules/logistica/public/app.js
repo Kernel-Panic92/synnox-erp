@@ -259,7 +259,7 @@ async function cargarDashboard() {
             weatherEl.style.display = 'block';
             weatherEl.innerHTML = `
               <h4 style="margin-bottom:10px;font-family:var(--font-head);font-size:15px;">🌤️ Clima por sede</h4>
-              <div style="display:grid;grid-template-columns:repeat(${successful.length},1fr);gap:8px;">
+              <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:8px;">
                 ${successful.join('')}
               </div>`;
           }
