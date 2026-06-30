@@ -33,7 +33,11 @@ app.get('/api/admin/commits', verificarToken, soloAdmin, (req, res) => {
 });
 
 const PORT = parseInt(process.env.PORT || '3002', 10);
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('ERROR: JWT_SECRET no está configurado. Establece la variable de entorno JWT_SECRET.');
+  process.exit(1);
+}
 const SERVER_START = Date.now();
 
 
@@ -223,7 +227,12 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
     const payload = { id: user.id, email: user.email, nombre: user.nombre, rol: user.rol, modulos };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
     db.prepare("UPDATE usuarios SET actualizado = datetime('now') WHERE id = ?").run(user.id);
-    res.cookie('launcher_jwt', token, { httpOnly: false, secure: false, sameSite: 'lax', maxAge: 24 * 60 * 60 * 1000 });
+    res.cookie('launcher_jwt', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'strict',
+      maxAge: 24 * 60 * 60 * 1000
+    });
     console.log(`[LOGIN] Cookie set for ${email}, secret: ${JWT_SECRET.slice(0,8)}..., token: ${token.slice(0,20)}...`);
     res.json({ jwt: token, usuario: payload, modulos });
   } catch (e) { console.error('[LOGIN]', e.stack || e.message); res.status(500).json({ error: 'Error interno' }); }
@@ -264,8 +273,11 @@ app.post('/api/admin/smtp/test', verificarToken, soloAdmin, async (req, res) => 
   }
 });
 
-// ── Internal endpoint for module SMTP inheritance ──
+// ── Internal endpoint for module SMTP inheritance (localhost only) ──
 app.get('/api/smtp/internal', (req, res) => {
+  const ip = req.ip || req.connection?.remoteAddress || '';
+  const isLocal = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || req.hostname === 'localhost';
+  if (!isLocal) return res.status(403).json({ error: 'Acceso denegado: solo localhost' });
   const rows = db.prepare("SELECT key, value FROM config WHERE key LIKE 'smtp_%' ORDER BY key").all();
   const cfg = {};
   for (const r of rows) cfg[r.key] = r.value;
@@ -300,6 +312,10 @@ app.put('/api/admin/config', verificarToken, soloAdmin, (req, res) => {
 app.post('/api/admin/config/test-ssh', verificarToken, soloAdmin, (req, res) => {
   const { host, user } = req.body;
   if (!host) return res.json({ ok: false, error: 'Host requerido' });
+  // Validate host: only alphanumeric, dots, hyphens, underscores
+  if (!/^[a-zA-Z0-9._-]+$/.test(host)) return res.json({ ok: false, error: 'Host inválido' });
+  // Validate user: only alphanumeric, hyphens, underscores
+  if (user && !/^[a-zA-Z0-9_-]+$/.test(user)) return res.json({ ok: false, error: 'Usuario inválido' });
   try {
     const out = execSync('ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 ' + (user || 'root') + '@' + host + ' "pm2 --version"', { stdio: 'pipe', timeout: 15000 }).toString().trim();
     res.json({ ok: true, version: out, message: 'Conexión SSH exitosa' });
@@ -364,7 +380,7 @@ app.post('/api/auth/forgot', loginRateLimit, (req, res) => {
     res.json({ ok: true, message: 'Si el email existe, recibirás un enlace de recuperación' });
   } else {
     console.log('[FORGOT] SMTP no configurado — token para', user.email, ':', resetUrl);
-    res.json({ ok: true, message: 'SMTP no configurado. Token generado.', resetUrl: '/reset?token=' + token });
+    res.json({ ok: true, message: 'SMTP no configurado. Contacta al administrador para restablecer tu contraseña.' });
   }
 });
 

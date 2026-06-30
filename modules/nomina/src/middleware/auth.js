@@ -1,7 +1,11 @@
 const { db } = require('../db');
 const jwt = require('jsonwebtoken');
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-jwt-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('ERROR: JWT_SECRET no está configurado en nómina');
+  process.exit(1);
+}
 
 function parseCookies(req) {
   const raw = req.headers['cookie'] || '';
@@ -40,7 +44,6 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
         req.usuario = user;
         next();
       } catch (err) {
-        console.log(`[nomina] JWT error: ${err?.name} — path: ${req.path}, token: ${token?.slice(0,20)}..., secret: ${JWT_SECRET.slice(0,8)}...`);
         return res.status(401).json({ error: 'Token inválido o expirado' });
       }
     };

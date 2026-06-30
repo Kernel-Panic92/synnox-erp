@@ -1,6 +1,10 @@
 import jwt from 'jsonwebtoken';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('ERROR: JWT_SECRET no está configurado en framework/auth.mjs');
+  process.exit(1);
+}
 
 function parseCookies(req) {
   const raw = req.headers['cookie'] || '';
@@ -18,12 +22,10 @@ export function verifyToken(req, res, next) {
   const auth = req.headers.authorization;
   if (!token && auth && auth.startsWith('Bearer ')) token = auth.split(' ')[1];
   if (!token) return res.status(401).json({ error: 'Token requerido' });
-  console.log(`[framework] token: ${token ? token.slice(0,25)+'... ('+token.length+' chars, '+token.split('.').length+' parts)' : 'null'} secret: ${JWT_SECRET.slice(0,12)}...`);
   try {
     req.user = jwt.verify(token, JWT_SECRET);
     next();
   } catch (err) {
-    console.log(`[framework] JWT error: ${err.message} — token ${token.slice(0,25)}...`);
     return res.status(401).json({ error: 'Token inválido o expirado' });
   }
 }
