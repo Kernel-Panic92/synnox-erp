@@ -1836,6 +1836,10 @@ async function cargarMapa() {
       btn.style.cssText = 'width:30px;height:30px;font-size:16px;cursor:pointer;background:var(--surface);border:2px solid var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;';
       btn.onclick = function(e) {
         e.stopPropagation();
+        if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
+          alert('Se requiere HTTPS para la ubicación');
+          return;
+        }
         if (!navigator.geolocation) { alert('Geolocation no soportado'); return; }
         btn.innerHTML = '⏳';
         navigator.geolocation.getCurrentPosition(
