@@ -53,8 +53,11 @@ function closeSidebar() {
   document.querySelector('.sidebar-overlay').classList.remove('show');
 }
 
+let _dashRefreshInterval = null;
+
 /* ── Navigation ── */
 function navigate(page) {
+  if (_dashRefreshInterval) { clearInterval(_dashRefreshInterval); _dashRefreshInterval = null; }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('page-' + page).classList.add('active');
@@ -285,6 +288,18 @@ async function cargarDashboard() {
           ${alertItems.map(a => `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;color:${a.color};">${a.icon} ${a.text}</div>`).join('')}
         `;
       }
+    }
+
+    // Auto-refresh every 30 seconds (only if not already set)
+    if (!_dashRefreshInterval) {
+      _dashRefreshInterval = setInterval(() => {
+        if (document.getElementById('page-dashboard')?.classList.contains('active')) {
+          cargarDashboard();
+        } else {
+          clearInterval(_dashRefreshInterval);
+          _dashRefreshInterval = null;
+        }
+      }, 30000);
     }
 
   } catch (e) {
