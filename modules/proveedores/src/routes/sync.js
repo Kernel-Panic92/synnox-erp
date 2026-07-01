@@ -41,7 +41,10 @@ router.post('/', requireRol('admin', 'contador'), (req, res) => {
   try {
     const imapService = require('../services/imap.service');
     if (imapService.pollCorreo) {
-      imapService.pollCorreo(req.body.rescanAll || false);
+      imapService.pollCorreo(req.body.rescanAll || false).catch(e => {
+        console.error('[Sync] Error en poll manual:', e.message);
+        syncState.terminarSync(0, 0, 1);
+      });
     }
     res.json({ ok: true, mensaje: 'Sincronización iniciada' });
   } catch (err) {
