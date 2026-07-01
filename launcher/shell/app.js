@@ -465,6 +465,7 @@ async function loadUsers() {
         <td>${u.nombre}</td>
         <td>${u.email}</td>
         <td><span class="badge badge-${u.rol}">${u.rol}</span></td>
+        <td>${u.perfil_nombre ? `<span style="color:var(--accent);">${esc(u.perfil_nombre)}</span>` : '—'}</td>
         <td>${u.activo ? '<span style="color:var(--success);">Activo</span>' : '<span class="badge badge-inactivo">Inactivo</span>'}</td>
         <td class="actions">
           <button class="btn btn-sm" onclick="editUser(${u.id})">Editar</button>
@@ -515,6 +516,12 @@ function showUserForm(data) {
   document.getElementById('form-submit-btn').textContent = data?.id ? 'Guardar cambios' : 'Crear usuario';
   document.getElementById('form-error').classList.remove('show');
   document.getElementById('admin-form-overlay').style.display = 'block';
+  // Load profiles for dropdown
+  fetch('/api/admin/perfiles', { headers: { 'Authorization': 'Bearer ' + jwtToken } })
+    .then(r => r.json()).then(perfiles => {
+      const sel = document.getElementById('form-perfil');
+      sel.innerHTML = '<option value="">Sin perfil</option>' + perfiles.map(p => `<option value="${p.id}" ${data?.perfil_id == p.id ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('');
+    }).catch(() => {});
   // Load modules for user
   toggleModulosSection();
   if (data?.id) {
@@ -549,7 +556,8 @@ async function saveUser() {
   try {
     const method = id ? 'PUT' : 'POST';
     const url = id ? `/api/admin/usuarios/${id}` : '/api/admin/usuarios';
-    const body = { nombre, email, rol };
+    const perfilId = document.getElementById('form-perfil').value || null;
+    const body = { nombre, email, rol, perfil_id: perfilId ? parseInt(perfilId) : null };
     if (password) body.password = password;
 
     const res = await fetch(url, {
@@ -1051,6 +1059,7 @@ function showAdminTab(tab) {
   document.querySelectorAll('#admin-screen .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.querySelectorAll('#admin-screen .tab-content').forEach(t => t.classList.toggle('active', t.id === 'tab-' + tab));
   if (tab === 'usuarios') loadUsers();
+  else if (tab === 'perfiles') loadPerfiles();
   else if (tab === 'modulos') loadModulos();
    else if (tab === 'mcp') { loadMcpConfig(); loadMcpUrl(); }
    else if (tab === 'smtp') loadSmtpConfig();
@@ -1603,4 +1612,105 @@ async function importarConfig() {
   }
 }
 
+// ── Perfiles ──
+async function loadPerfiles() {
+  const tbody = document.querySelector('#perfiles-table tbody');
+  try {
+    const res = await fetch('/api/admin/perfiles', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const perfiles = await res.json();
+    tbody.innerHTML = perfiles.map(p => `
+      <tr>
+        <td><strong>${esc(p.nombre)}</strong></td>
+        <td>${esc(p.descripcion || '—')}</td>
+        <td>${p.permisos.length} permiso(s)</td>
+        <td>${p.usuarios_count} usuario(s)</td>
+        <td>
+          <button class="btn btn-sm btn-secondary" onclick="editarPerfil(${p.id})">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarPerfil(${p.id},'${esc(p.nombre)}')" ${p.usuarios_count > 0 ? 'disabled title="Reasigna usuarios primero"' : ''}>🗑️</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) { tbody.innerHTML = '<tr><td colspan="5">Error al cargar perfiles</td></tr>'; }
+}
+
+async function editarPerfil(id) {
+  try {
+    const [perfilRes, modulosRes] = await Promise.all([
+      fetch('/api/admin/perfiles/' + id, { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.json()),
+      fetch('/api/admin/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.json())
+    ]);
+    const perfil = perfilRes;
+    const modulos = modulosRes;
+    const permisosMap = {};
+    perfil.permisos.forEach(p => {
+      if (!permisosMap[p.modulo_id]) permisosMap[p.modulo_id] = [];
+      permisosMap[p.modulo_id].push(p.permiso);
+    });
+    
+    const modal = document.getElementById('modal-perfil');
+    document.getElementById('perfil-name').value = perfil.nombre;
+    document.getElementById('perfil-desc').value = perfil.descripcion || '';
+    document.getElementById('perfil-id').value = id;
+    
+    const permisosEl = document.getElementById('perfil-permisos');
+    permisosEl.innerHTML = modulos.map(m => `
+      <div style="margin-bottom:12px;">
+        <div style="font-weight:600;margin-bottom:6px;">${esc(m.nombre)}</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+          ${['ver','crear','editar','eliminar'].map(perm => `
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;">
+              <input type="checkbox" class="perfil-perm" data-modulo="${m.id}" value="${perm}" ${(permisosMap[m.id]||[]).includes(perm) ? 'checked' : ''}>
+              ${perm}
+            </label>
+          `).join('')}
+        </div>
+      </div>
+    `).join('');
+    
+    modal.classList.add('show');
+  } catch (e) { mostrarAlerta('Error al cargar perfil', 'error'); }
+}
+
+async function guardarPerfil() {
+  const id = document.getElementById('perfil-id').value;
+  const nombre = document.getElementById('perfil-name').value.trim();
+  const descripcion = document.getElementById('perfil-desc').value.trim();
+  if (!nombre) { mostrarAlerta('Nombre requerido', 'warning'); return; }
+  
+  const permisos = [];
+  document.querySelectorAll('.perfil-perm:checked').forEach(cb => {
+    permisos.push({ modulo_id: cb.dataset.modulo, permiso: cb.value });
+  });
+  
+  try {
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `/api/admin/perfiles/${id}` : '/api/admin/perfiles';
+    const res = await fetch(url, {
+      method,
+      headers: { 'Authorization': 'Bearer ' + jwtToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre, descripcion, permisos })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    cerrarModal('modal-perfil');
+    loadPerfiles();
+    mostrarAlerta(id ? 'Perfil actualizado' : 'Perfil creado', 'success');
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
+}
+
+async function eliminarPerfil(id, nombre) {
+  if (!confirm(`¿Eliminar el perfil "${nombre}"?`)) return;
+  try {
+    const res = await fetch(`/api/admin/perfiles/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + jwtToken }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    loadPerfiles();
+    mostrarAlerta('Perfil eliminado', 'success');
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
+}
+
+function cerrarModal(id) { document.getElementById(id).classList.remove('show'); }
 

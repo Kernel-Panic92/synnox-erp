@@ -287,6 +287,7 @@
   <div class="dash-body">
     <div class="tabs">
       <div class="tab active" data-tab="usuarios" onclick="showAdminTab('usuarios')">Usuarios</div>
+      <div class="tab" data-tab="perfiles" onclick="showAdminTab('perfiles')">Perfiles</div>
       <div class="tab" data-tab="modulos" onclick="showAdminTab('modulos')">Módulos</div>
       <div class="tab" data-tab="mcp" onclick="showAdminTab('mcp')">MCP</div>
       <div class="tab" data-tab="smtp" onclick="showAdminTab('smtp')">SMTP</div>
@@ -304,7 +305,7 @@
     </div>
     <div style="overflow-x:auto;">
       <table id="users-table">
-        <thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead>
+        <thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Perfil</th><th>Estado</th><th>Acción</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -554,6 +555,8 @@
     <input type="password" id="form-password" placeholder="••••••••">
     <label>Rol</label>
     <select id="form-rol" onchange="toggleModulosSection()"><option value="operador">Operador</option><option value="admin">Admin</option></select>
+    <label style="margin-top:8px;">Perfil</label>
+    <select id="form-perfil"><option value="">Sin perfil</option></select>
     <div id="form-modulos-section" style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
       <label style="font-weight:600;">Módulos permitidos</label>
       <div id="form-modulos-list" style="display:flex;flex-wrap:wrap;gap:8px;margin-top:6px;"></div>
@@ -624,6 +627,30 @@
     <div style="display:flex;gap:10px;margin-top:12px;">
       <button class="btn" id="scaffold-btn" onclick="ejecutarScaffold()">⚡ Crear módulo</button>
       <button class="btn btn-sm" onclick="cerrarModal('modal-scaffold')" style="background:var(--surface2);color:var(--text);">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: Editar Perfil -->
+<div class="modal-overlay" id="modal-perfil">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-title" id="perfil-modal-title">Editar Perfil</div>
+    <input type="hidden" id="perfil-id">
+    <div style="margin-bottom:12px;">
+      <label style="font-size:13px;font-weight:600;">Nombre *</label>
+      <input type="text" id="perfil-name" placeholder="Ej: ANALISTA DE COMPRA" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;margin-top:4px;">
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:13px;font-weight:600;">Descripción</label>
+      <input type="text" id="perfil-desc" placeholder="Descripción del perfil" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;margin-top:4px;">
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:13px;font-weight:600;">Permisos por módulo</label>
+      <div id="perfil-permisos" style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;padding:12px;margin-top:8px;background:var(--surface2);"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-sm" onclick="cerrarModal('modal-perfil')" style="background:var(--surface2);color:var(--text);">Cancelar</button>
+      <button class="btn" onclick="guardarPerfil()">💾 Guardar</button>
     </div>
   </div>
 </div>

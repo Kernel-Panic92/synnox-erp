@@ -79,6 +79,39 @@ db.exec(`
   )
 `);
 
+// ── Perfiles (profiles with permissions) ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS perfiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL UNIQUE,
+    descripcion TEXT DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS perfil_permisos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    perfil_id INTEGER NOT NULL REFERENCES perfiles(id) ON DELETE CASCADE,
+    modulo_id TEXT NOT NULL,
+    permiso TEXT NOT NULL,
+    UNIQUE(perfil_id, modulo_id, permiso)
+  )
+`);
+
+// Add perfil_id to usuarios if not exists
+try { db.exec("ALTER TABLE usuarios ADD COLUMN perfil_id INTEGER REFERENCES perfiles(id)"); } catch {}
+
+// Seed default profiles
+const defaultProfiles = [
+  { nombre: 'ADMINISTRADOR', descripcion: 'Acceso total a todos los módulos y funciones' },
+  { nombre: 'OPERADOR', descripcion: 'Operaciones básicas de cada módulo' },
+  { nombre: 'CONSULTA', descripcion: 'Solo consulta, sin edición' },
+];
+for (const p of defaultProfiles) {
+  db.prepare("INSERT OR IGNORE INTO perfiles (nombre, descripcion) VALUES (?, ?)").run(p.nombre, p.descripcion);
+}
+
 // ── Config table (key-value) ──
 db.exec(`CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')`);
 
@@ -233,7 +266,14 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
     const modulos = (user.rol === 'admin')
       ? db.prepare("SELECT id FROM modulos_plataforma WHERE activo = 1").all().map(m => m.id)
       : db.prepare("SELECT modulo_id FROM user_modulos WHERE user_id = ?").all(user.id).map(m => m.modulo_id);
-    const payload = { id: user.id, email: user.email, nombre: user.nombre, rol: user.rol, modulos };
+    
+    // Get profile permissions
+    let permisos = [];
+    if (user.perfil_id) {
+      permisos = db.prepare('SELECT modulo_id, permiso FROM perfil_permisos WHERE perfil_id = ?').all(user.perfil_id);
+    }
+    
+    const payload = { id: user.id, email: user.email, nombre: user.nombre, rol: user.rol, modulos, perfil_id: user.perfil_id, permisos };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
     db.prepare("UPDATE usuarios SET actualizado = datetime('now') WHERE id = ?").run(user.id);
     res.cookie('launcher_jwt', token, {
@@ -429,17 +469,23 @@ app.get('/api/auth/me', verificarToken, (req, res) => {
 });
 
 app.get('/api/admin/usuarios', verificarToken, soloAdmin, (req, res) => {
-  res.json(db.prepare('SELECT id, nombre, email, rol, activo, creado, actualizado FROM usuarios ORDER BY id').all());
+  res.json(db.prepare(`
+    SELECT u.id, u.nombre, u.email, u.rol, u.activo, u.creado, u.actualizado, u.perfil_id,
+           p.nombre as perfil_nombre
+    FROM usuarios u
+    LEFT JOIN perfiles p ON u.perfil_id = p.id
+    ORDER BY u.id
+  `).all());
 });
 
 app.post('/api/admin/usuarios', verificarToken, soloAdmin, (req, res) => {
-  const { nombre, email, password, rol } = req.body;
+  const { nombre, email, password, rol, perfil_id } = req.body;
   if (!nombre || !email || !password) return res.status(400).json({ error: 'Campos requeridos' });
   const userRol = (rol === 'admin' || rol === 'operador') ? rol : 'operador';
   try {
     const hash = bcrypt.hashSync(password, 10);
-    const result = db.prepare('INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)').run(nombre, email.toLowerCase().trim(), hash, userRol);
-    res.json({ id: result.lastInsertRowid, nombre, email: email.toLowerCase().trim(), rol: userRol, activo: 1 });
+    const result = db.prepare('INSERT INTO usuarios (nombre, email, password_hash, rol, perfil_id) VALUES (?, ?, ?, ?, ?)').run(nombre, email.toLowerCase().trim(), hash, userRol, perfil_id || null);
+    res.json({ id: result.lastInsertRowid, nombre, email: email.toLowerCase().trim(), rol: userRol, activo: 1, perfil_id: perfil_id || null });
   } catch (e) {
     if (e.message.includes('UNIQUE')) return res.status(409).json({ error: 'El email ya existe' });
     console.error('[Create user]', e); res.status(500).json({ error: 'Error interno' });
@@ -447,7 +493,7 @@ app.post('/api/admin/usuarios', verificarToken, soloAdmin, (req, res) => {
 });
 
 app.put('/api/admin/usuarios/:id', verificarToken, soloAdmin, (req, res) => {
-  const { nombre, email, password, activo, rol } = req.body;
+  const { nombre, email, password, activo, rol, perfil_id } = req.body;
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
   const user = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(id);
@@ -458,6 +504,7 @@ app.put('/api/admin/usuarios/:id', verificarToken, soloAdmin, (req, res) => {
   if (password) { updates.push('password_hash = ?'); params.push(bcrypt.hashSync(password, 10)); }
   if (activo !== undefined) { updates.push('activo = ?'); params.push(activo ? 1 : 0); }
   if (rol && (rol === 'admin' || rol === 'operador')) { updates.push('rol = ?'); params.push(rol); }
+  if (perfil_id !== undefined) { updates.push('perfil_id = ?'); params.push(perfil_id || null); }
   if (!updates.length) return res.status(400).json({ error: 'Sin cambios' });
   updates.push("actualizado = datetime('now')"); params.push(id);
   try {
@@ -501,6 +548,64 @@ app.put('/api/admin/usuarios/:id/modulos', verificarToken, soloAdmin, (req, res)
   });
   transaction();
   res.json({ ok: true, modulos });
+});
+
+// ── API: Perfiles ──
+app.get('/api/admin/perfiles', verificarToken, soloAdmin, (req, res) => {
+  const perfiles = db.prepare('SELECT * FROM perfiles ORDER BY nombre').all();
+  for (const p of perfiles) {
+    p.permisos = db.prepare('SELECT modulo_id, permiso FROM perfil_permisos WHERE perfil_id = ?').all(p.id);
+    p.usuarios_count = db.prepare('SELECT COUNT(*) as c FROM usuarios WHERE perfil_id = ?').get(p.id).c;
+  }
+  res.json(perfiles);
+});
+
+app.post('/api/admin/perfiles', verificarToken, soloAdmin, (req, res) => {
+  const { nombre, descripcion, permisos } = req.body;
+  if (!nombre) return res.status(400).json({ error: 'Nombre requerido' });
+  try {
+    const result = db.prepare('INSERT INTO perfiles (nombre, descripcion) VALUES (?, ?)').run(nombre, descripcion || '');
+    const perfilId = result.lastInsertRowid;
+    if (Array.isArray(permisos)) {
+      const ins = db.prepare('INSERT INTO perfil_permisos (perfil_id, modulo_id, permiso) VALUES (?, ?, ?)');
+      for (const p of permisos) ins.run(perfilId, p.modulo_id, p.permiso);
+    }
+    res.json({ ok: true, id: perfilId });
+  } catch (e) {
+    if (e.message.includes('UNIQUE')) return res.status(409).json({ error: 'Ya existe un perfil con ese nombre' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/admin/perfiles/:id', verificarToken, soloAdmin, (req, res) => {
+  const { id } = req.params;
+  const { nombre, descripcion, permisos } = req.body;
+  const perfil = db.prepare('SELECT id FROM perfiles WHERE id = ?').get(id);
+  if (!perfil) return res.status(404).json({ error: 'Perfil no encontrado' });
+  try {
+    if (nombre) db.prepare('UPDATE perfiles SET nombre = ?, descripcion = ? WHERE id = ?').run(nombre, descripcion || '', id);
+    if (Array.isArray(permisos)) {
+      db.prepare('DELETE FROM perfil_permisos WHERE perfil_id = ?').run(id);
+      const ins = db.prepare('INSERT INTO perfil_permisos (perfil_id, modulo_id, permiso) VALUES (?, ?, ?)');
+      for (const p of permisos) ins.run(id, p.modulo_id, p.permiso);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/admin/perfiles/:id', verificarToken, soloAdmin, (req, res) => {
+  const { id } = req.params;
+  const usersWithProfile = db.prepare('SELECT COUNT(*) as c FROM usuarios WHERE perfil_id = ?').get(id).c;
+  if (usersWithProfile > 0) return res.status(400).json({ error: `${usersWithProfile} usuario(s) tienen este perfil. Reasigna primero.` });
+  db.prepare('DELETE FROM perfiles WHERE id = ?').run(id);
+  res.json({ ok: true });
+});
+
+app.get('/api/admin/perfiles/:id/usuarios', verificarToken, soloAdmin, (req, res) => {
+  const users = db.prepare('SELECT id, nombre, email, rol, activo FROM usuarios WHERE perfil_id = ?').all(req.params.id);
+  res.json(users);
 });
 
 // ── API: Módulos ──
