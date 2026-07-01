@@ -560,6 +560,13 @@ app.get('/api/admin/perfiles', verificarToken, soloAdmin, (req, res) => {
   res.json(perfiles);
 });
 
+app.get('/api/admin/perfiles/:id', verificarToken, soloAdmin, (req, res) => {
+  const perfil = db.prepare('SELECT * FROM perfiles WHERE id = ?').get(req.params.id);
+  if (!perfil) return res.status(404).json({ error: 'Perfil no encontrado' });
+  perfil.permisos = db.prepare('SELECT modulo_id, permiso FROM perfil_permisos WHERE perfil_id = ?').all(perfil.id);
+  res.json(perfil);
+});
+
 app.post('/api/admin/perfiles', verificarToken, soloAdmin, (req, res) => {
   const { nombre, descripcion, permisos } = req.body;
   if (!nombre) return res.status(400).json({ error: 'Nombre requerido' });

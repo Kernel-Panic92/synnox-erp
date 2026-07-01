@@ -1641,6 +1641,7 @@ async function editarPerfil(id) {
     ]);
     const perfil = perfilRes;
     const modulos = modulosRes;
+    if (perfil.error) throw new Error(perfil.error);
     const permisosMap = {};
     perfil.permisos.forEach(p => {
       if (!permisosMap[p.modulo_id]) permisosMap[p.modulo_id] = [];
@@ -1668,7 +1669,7 @@ async function editarPerfil(id) {
     `).join('');
     
     modal.classList.add('show');
-  } catch (e) { mostrarAlerta('Error al cargar perfil', 'error'); }
+  } catch (e) { alert('Error: ' + e.message); }
 }
 
 async function guardarPerfil() {
@@ -1694,8 +1695,8 @@ async function guardarPerfil() {
     if (!res.ok) throw new Error(data.error);
     cerrarModal('modal-perfil');
     loadPerfiles();
-    mostrarAlerta(id ? 'Perfil actualizado' : 'Perfil creado', 'success');
-  } catch (e) { mostrarAlerta(e.message, 'error'); }
+    alert(id ? 'Perfil actualizado' : 'Perfil creado');
+  } catch (e) { alert(e.message); }
 }
 
 async function eliminarPerfil(id, nombre) {
@@ -1708,8 +1709,8 @@ async function eliminarPerfil(id, nombre) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     loadPerfiles();
-    mostrarAlerta('Perfil eliminado', 'success');
-  } catch (e) { mostrarAlerta(e.message, 'error'); }
+    alert('Perfil eliminado');
+  } catch (e) { alert(e.message); }
 }
 
 function cerrarModal(id) { document.getElementById(id).classList.remove('show'); }
