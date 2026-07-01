@@ -422,7 +422,14 @@ async function pollCorreo(rescanAll = false) {
       user: config.imap_user,
       pass: config.imap_password,
     },
-    logger: false, // Desactivado para evitar filtrar credenciales en logs
+    logger: false,
+    socketTimeout: 30000,
+    connTimeout: 15000,
+  });
+
+  // Prevent unhandled error events from crashing the process
+  client.on('error', (err) => {
+    console.error('[IMAP] Error en conexión:', err.message);
   });
 
   const LOTE_SIZE = 50;
@@ -519,8 +526,10 @@ async function pollCorreo(rescanAll = false) {
 function iniciarServicioImap() {
   const minutos = parseInt(process.env.IMAP_POLL_MINUTES || '5');
   console.log(`[IMAP] Servicio iniciado — revisando cada ${minutos} minutos`);
-  pollCorreo();
-  setInterval(pollCorreo, minutos * 60 * 1000);
+  pollCorreo().catch(e => console.error('[IMAP] Error inicial:', e.message));
+  setInterval(() => {
+    pollCorreo().catch(e => console.error('[IMAP] Error en poll:', e.message));
+  }, minutos * 60 * 1000);
 }
 
 module.exports = { iniciarServicioImap, pollCorreo, clearConfigCache };
