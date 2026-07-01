@@ -1,10 +1,7 @@
 const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  console.error('ERROR: JWT_SECRET no está configurado en proveedores');
-  process.exit(1);
-}
+if (!JWT_SECRET) console.error('WARN: JWT_SECRET no configurado en proveedores');
 
 function parseCookies(req) {
   const raw = req.headers['cookie'] || '';

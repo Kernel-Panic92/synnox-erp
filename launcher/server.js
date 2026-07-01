@@ -1458,7 +1458,7 @@ if (!fs.existsSync(path.join(__dirname, 'logs'))) fs.mkdirSync(path.join(__dirna
 function logUpdater(msg) {
   const line = `[${new Date().toISOString()}] ${msg}`;
   console.log(line);
-  fs.appendFileSync(UPDATER_LOG, line + '\n');
+  try { fs.appendFileSync(UPDATER_LOG, line + '\n'); } catch {}
 }
 function getUpdaterLog() {
   try { return fs.readFileSync(UPDATER_LOG, 'utf8'); } catch { return ''; }
@@ -1679,6 +1679,13 @@ if (require.main === module) {
     if (fs.existsSync(htmlPath)) return res.sendFile(htmlPath);
     res.status(404).json({ error: 'Not found: ' + req.path });
   });
+
+  // Global error handler — prevent crashes
+  app.use((err, req, res, next) => {
+    console.error('[Launcher Error]', err.message);
+    if (!res.headersSent) res.status(500).json({ error: 'Error interno del servidor' });
+  });
+
   app.listen(PORT, () => console.log('Launcher on port ' + PORT));
 }
 

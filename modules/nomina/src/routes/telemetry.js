@@ -4,7 +4,7 @@ const jwt = require('jsonwebtoken');
 module.exports = function({ db, parseCookies, middlewares: { soloAdmin } }) {
   const router = express.Router();
   const JWT_SECRET = process.env.JWT_SECRET;
-  if (!JWT_SECRET) throw new Error('JWT_SECRET no configurado');
+  if (!JWT_SECRET) console.error('WARN: JWT_SECRET no configurado en telemetry');
   const insertTelemetria = db.prepare('INSERT INTO telemetria (evento, pagina, usuarioId, datos, ua, ip, creado) VALUES (?,?,?,?,?,?,?)');
 
   function getUserFromJwt(req) {

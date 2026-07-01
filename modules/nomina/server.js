@@ -137,7 +137,7 @@ app.get('/api/version', (req, res) => {
 // Seeds (tipos, permisos, roles, centros)
 const boot = (async () => {
   await require('./src/db/seeds')({ db, uid, encryptSmtp, BASE_URL, APP_NAME });
-})();
+})().catch(e => console.error('[nomina] Error en seeds:', e.message));
 
 const { soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles, soloAdminOBkp, autenticar, requierePermiso, requireModule } = createAuth({
   BACKUP_TOKEN,

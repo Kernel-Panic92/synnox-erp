@@ -2,10 +2,7 @@ const { db } = require('../db');
 const jwt = require('jsonwebtoken');
 
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) {
-  console.error('ERROR: JWT_SECRET no está configurado en nómina');
-  process.exit(1);
-}
+if (!JWT_SECRET) console.error('WARN: JWT_SECRET no configurado en nómina');
 
 function parseCookies(req) {
   const raw = req.headers['cookie'] || '';
