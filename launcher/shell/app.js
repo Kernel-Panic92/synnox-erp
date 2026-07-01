@@ -1615,6 +1615,7 @@ async function importarConfig() {
 // ── Perfiles ──
 async function loadPerfiles() {
   const tbody = document.querySelector('#perfiles-table tbody');
+  console.log('loadPerfiles called, tbody:', tbody);
   try {
     const res = await fetch('/api/admin/perfiles', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
     const perfiles = await res.json();
@@ -1634,6 +1635,7 @@ async function loadPerfiles() {
 }
 
 async function editarPerfil(id) {
+  console.log('editarPerfil called with id:', id);
   try {
     const modulosRes = await fetch('/api/admin/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.json());
     const modulos = modulosRes;
