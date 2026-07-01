@@ -310,6 +310,18 @@
       </table>
     </div>
   </div>
+  <div class="tab-content" id="tab-perfiles">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
+      <div style="font-size:var(--fs);font-weight:600;">Perfiles de permisos</div>
+      <button class="btn btn-sm" onclick="editarPerfil()">+ Nuevo</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table id="perfiles-table">
+        <thead><tr><th>Nombre</th><th>Descripción</th><th>Permisos</th><th>Usuarios</th><th>Acción</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
   <div class="tab-content" id="tab-modulos">
     <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
       <div style="font-size:var(--fs);font-weight:600;">Módulos de la plataforma</div>
