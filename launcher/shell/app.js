@@ -1635,13 +1635,16 @@ async function loadPerfiles() {
 
 async function editarPerfil(id) {
   try {
-    const [perfilRes, modulosRes] = await Promise.all([
-      fetch('/api/admin/perfiles/' + id, { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.json()),
-      fetch('/api/admin/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.json())
-    ]);
-    const perfil = perfilRes;
+    const modulosRes = await fetch('/api/admin/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.json());
     const modulos = modulosRes;
-    if (perfil.error) throw new Error(perfil.error);
+    let perfil = { nombre: '', descripcion: '', permisos: [] };
+    
+    if (id) {
+      const perfilRes = await fetch('/api/admin/perfiles/' + id, { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.json());
+      if (perfilRes.error) throw new Error(perfilRes.error);
+      perfil = perfilRes;
+    }
+    
     const permisosMap = {};
     perfil.permisos.forEach(p => {
       if (!permisosMap[p.modulo_id]) permisosMap[p.modulo_id] = [];
@@ -1651,7 +1654,8 @@ async function editarPerfil(id) {
     const modal = document.getElementById('modal-perfil');
     document.getElementById('perfil-name').value = perfil.nombre;
     document.getElementById('perfil-desc').value = perfil.descripcion || '';
-    document.getElementById('perfil-id').value = id;
+    document.getElementById('perfil-id').value = id || '';
+    document.getElementById('perfil-modal-title').textContent = id ? 'Editar Perfil' : 'Nuevo Perfil';
     
     const permisosEl = document.getElementById('perfil-permisos');
     permisosEl.innerHTML = modulos.map(m => `
