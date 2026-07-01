@@ -238,7 +238,7 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
     db.prepare("UPDATE usuarios SET actualizado = datetime('now') WHERE id = ?").run(user.id);
     res.cookie('launcher_jwt', token, {
       httpOnly: false,
-      secure: process.env.NODE_ENV === 'production',
+      secure: false,
       sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000
     });
