@@ -237,7 +237,7 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
     db.prepare("UPDATE usuarios SET actualizado = datetime('now') WHERE id = ?").run(user.id);
     res.cookie('launcher_jwt', token, {
-      httpOnly: true,
+      httpOnly: false,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000
