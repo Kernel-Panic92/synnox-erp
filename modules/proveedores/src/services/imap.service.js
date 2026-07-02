@@ -447,7 +447,7 @@ async function downloadEmails(config, rescanAll = false) {
       let errors = 0;
 
       // Process 5 messages in parallel
-      const PARALLEL = 5;
+      const PARALLEL = 10;
       for (let i = 0; i < seqNumbers.length; i += PARALLEL) {
         const batch = seqNumbers.slice(i, i + PARALLEL);
         const promises = batch.map(async (seq) => {
