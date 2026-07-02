@@ -107,7 +107,7 @@ async function exportarSiesa() {
     if (nominaId) params.set('nominaId', nominaId);
 
     const url = API + '/exportar/siesa?' + params.toString();
-    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + getToken() } });
+    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + getLauncherToken() } });
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Error desconocido' }));
