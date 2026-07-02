@@ -425,8 +425,9 @@ async function pollCorreo(rescanAll = false) {
       pass: config.imap_password,
     },
     logger: false,
-    socketTimeout: 60000,
+    socketTimeout: 120000,  // 2 minutes per operation
     connTimeout: 30000,
+    greetingTimeout: 15000,
   });
 
   // Prevent unhandled error events from crashing the process
@@ -434,7 +435,7 @@ async function pollCorreo(rescanAll = false) {
     console.error('[IMAP] Error en conexión:', err.message);
   });
 
-  const LOTE_SIZE = 50;
+  const LOTE_SIZE = 20;  // Smaller batches to prevent timeouts
   let totalProcesados = 0;
   let totalCreados = 0;
   let totalDuplicados = 0;
@@ -510,6 +511,10 @@ async function pollCorreo(rescanAll = false) {
             totalError++;
             totalProcesados++;
           }
+        }
+        // Small delay between batches to prevent server overload
+        if (mensajes.length > 0) {
+          await new Promise(resolve => setTimeout(resolve, 500));
         }
       }
 
