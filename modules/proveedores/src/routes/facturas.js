@@ -728,4 +728,43 @@ router.delete('/:id', requireRol('admin'), async (req, res) => {
   }
 });
 
+// ─── POST /api/facturas/borrar (bulk delete) ─────────────────────────────────
+router.post('/borrar', requireRol('admin'), async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids requerido' });
+  
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+    
+    // Get files to clean up
+    const { rows: old } = await client.query(
+      'SELECT id, archivo_pdf, archivo_xml, soporte_pago FROM facturas WHERE id = ANY($1)',
+      [ids]
+    );
+    
+    // Delete invoices
+    const { rows } = await client.query(
+      'DELETE FROM facturas WHERE id = ANY($1) RETURNING id',
+      [ids]
+    );
+    
+    await client.query('COMMIT');
+    
+    // Clean up files
+    for (const f of old) {
+      limpiarArchivo(f.archivo_pdf);
+      limpiarArchivo(f.archivo_xml);
+      limpiarSoporte(f.soporte_pago);
+    }
+    
+    res.json({ mensaje: `${rows.length} factura(s) eliminada(s)`, eliminadas: rows.length });
+  } catch (err) {
+    await client.query('ROLLBACK');
+    res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
+  }
+});
+
 module.exports = router;

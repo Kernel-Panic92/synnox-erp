@@ -141,9 +141,15 @@ async function rFacturas(filtro){
     </div>
     
     <div class="tbl">
-      <div class="tbl-head"><div class="tbl-title">${all.length} factura(s)</div></div>
-      <table><thead><tr><th># Factura</th><th>Centro</th><th>Proveedor</th><th>Categoría</th><th>Valor</th><th>Estado</th><th>Recibida</th><th></th></tr></thead>
-      <tbody>${all.length?all.map(f=>`<tr onclick="abrirF('${f.id}')"><td class="mono" data-label="Factura">${esc(f.numero_factura)}</td><td data-label="Centro" style="font-size:12px;color:var(--muted)">${esc(f.centro_operacion_nombre||'—')}</td><td data-label="Proveedor" style="font-weight:500">${esc(f.proveedor_nombre||f.nombre_emisor||'—')}</td><td data-label="Categoría">${ctag(f.categoria_color,f.categoria_nombre)}</td><td data-label="Valor" style="font-weight:500">${fmt(f.valor_total||f.valor||0)}</td><td data-label="Estado">${bdg(f.estado)}</td><td data-label="Recibida" style="color:var(--muted);font-size:12px">${fdatetime(f.recibida_en)}</td><td>${f.archivo_pdf?`<span onclick="event.stopPropagation();verPdf('${f.id}')" title="Ver PDF" style="color:var(--accent);font-size:16px;cursor:pointer">📄</span>`:''}${isAdmin?`<span onclick="event.stopPropagation();delFactura('${f.id}','${esc(f.numero_factura)}')" title="Eliminar" style="color:var(--danger);font-size:14px;cursor:pointer;margin-left:6px">🗑️</span>`:''}</td></tr>`).join(''):'<tr><td colspan="8" class="empty">Sin facturas</td></tr>'}</tbody></table>
+      <div class="tbl-head" style="display:flex;justify-content:space-between;align-items:center">
+        <div class="tbl-title">${all.length} factura(s)</div>
+        <div id="bulk-actions" style="display:none;gap:8px">
+          <span id="selected-count" style="font-size:12px;color:var(--muted)"></span>
+          <button class="btn btn-danger btn-sm" onclick="eliminarSeleccionadas()">🗑️ Eliminar seleccionadas</button>
+        </div>
+      </div>
+      <table><thead><tr>${isAdmin?'<th><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"></th>':''}<th># Factura</th><th>Centro</th><th>Proveedor</th><th>Categoría</th><th>Valor</th><th>Estado</th><th>Recibida</th><th></th></tr></thead>
+      <tbody>${all.length?all.map(f=>`<tr onclick="abrirF('${f.id}')">${isAdmin?`<td><input type="checkbox" class="factura-cb" value="${f.id}" onclick="event.stopPropagation();updateBulkActions()"></td>`:''}<td class="mono" data-label="Factura">${esc(f.numero_factura)}</td><td data-label="Centro" style="font-size:12px;color:var(--muted)">${esc(f.centro_operacion_nombre||'—')}</td><td data-label="Proveedor" style="font-weight:500">${esc(f.proveedor_nombre||f.nombre_emisor||'—')}</td><td data-label="Categoría">${ctag(f.categoria_color,f.categoria_nombre)}</td><td data-label="Valor" style="font-weight:500">${fmt(f.valor_total||f.valor||0)}</td><td data-label="Estado">${bdg(f.estado)}</td><td data-label="Recibida" style="color:var(--muted);font-size:12px">${fdatetime(f.recibida_en)}</td><td>${f.archivo_pdf?`<span onclick="event.stopPropagation();verPdf('${f.id}')" title="Ver PDF" style="color:var(--accent);font-size:16px;cursor:pointer">📄</span>`:''}${isAdmin?`<span onclick="event.stopPropagation();delFactura('${f.id}','${esc(f.numero_factura)}')" title="Eliminar" style="color:var(--danger);font-size:14px;cursor:pointer;margin-left:6px">🗑️</span>`:''}</td></tr>`).join(''):'<tr><td colspan="9" class="empty">Sin facturas</td></tr>'}</tbody></table>
     </div>`;
   refreshBadges();
 }
@@ -165,6 +171,39 @@ function aplicarFiltrosF(){
 }
 function guardarFiltros(){
   localStorage.setItem(getFiltrosKey(),JSON.stringify(fBusqueda))}
+
+function toggleSelectAll(cb){
+  document.querySelectorAll('.factura-cb').forEach(c=>c.checked=cb.checked);
+  updateBulkActions();
+}
+
+function updateBulkActions(){
+  const checked=document.querySelectorAll('.factura-cb:checked').length;
+  const el=document.getElementById('bulk-actions');
+  const cnt=document.getElementById('selected-count');
+  if(el)el.style.display=checked>0?'flex':'none';
+  if(cnt)cnt.textContent=`${checked} seleccionada(s)`;
+}
+
+async function delFactura(id,num){
+  if(!confirm(`¿Eliminar factura ${num}?`))return;
+  try{
+    await api('DELETE',`/facturas/${id}`);
+    toast('Factura eliminada','success');
+    rFacturas();
+  }catch(e){toast(e.message,'error')}
+}
+
+async function eliminarSeleccionadas(){
+  const ids=[...document.querySelectorAll('.factura-cb:checked')].map(cb=>cb.value);
+  if(!ids.length){toast('Selecciona al menos una factura','warning');return}
+  if(!confirm(`¿Eliminar ${ids.length} factura(s)?`))return;
+  try{
+    await api('POST','/facturas/borrar',{ids});
+    toast(`${ids.length} factura(s) eliminada(s)`,'success');
+    rFacturas();
+  }catch(e){toast(e.message,'error')}
+}
 
 function limpiarFiltrosF(){
   fBusqueda={numero:'',nit:'',fecha_desde:'',fecha_hasta:'',valor_min:'',valor_max:'',proveedor_id:'',categoria_id:'',buscar:''};
