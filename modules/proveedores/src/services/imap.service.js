@@ -331,7 +331,8 @@ async function procesarCorreo(parsed, msgId) {
     return 'omitido';
   }
 
-  const { numeroFactura, nitEmisor, nombreEmisor, valorTotal, iva, valorBruto, fecha, cufe, ordenCompra, limitePago } = datosFactura;
+  const { numeroFactura, nombreEmisor, valorTotal, iva, valorBruto, fecha, cufe, ordenCompra, limitePago } = datosFactura;
+  nitEmisor = nitEmisor || datosFactura.nitEmisor || null;
   const fechaFactura = fecha ? new Date(fecha.replace(/(\d{4})-(\d{2})-(\d{2})/, '$1-$2-$3')) : null;
   const emailOrigen = parsed.from?.value?.[0]?.address || null;
   const asunto = parsed.subject || '';
