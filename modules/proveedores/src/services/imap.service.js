@@ -437,6 +437,7 @@ async function downloadEmails(config, rescanAll = false) {
 
       if (seqNumbers.length === 0) return 0;
 
+      syncState.iniciarSync(seqNumbers.length);
       let descargados = 0;
       let skipped = 0;
       let errors = 0;
@@ -466,7 +467,10 @@ async function downloadEmails(config, rescanAll = false) {
 
           fs.writeFileSync(emlFile, msg.source);
           descargados++;
-          if (descargados % 10 === 0) console.log(`[IMAP-Download] Progreso: ${descargados}/${seqNumbers.length}`);
+          if (descargados % 10 === 0) {
+            console.log(`[IMAP-Download] Progreso: ${descargados}/${seqNumbers.length}`);
+            syncState.actualizarProgreso(descargados, 0, 0, 0, `Descargando emails: ${descargados}/${seqNumbers.length}...`);
+          }
 
           // Mark as seen
           await client.messageFlagsAdd(seq, ['\\Seen']);
@@ -477,6 +481,7 @@ async function downloadEmails(config, rescanAll = false) {
       }
 
       console.log(`[IMAP-Download] ✓ ${descargados} descargados, ${skipped} omitidos, ${errors} errores`);
+      syncState.actualizarProgreso(seqNumbers.length, descargados, skipped, errors, `Descarga completada: ${descargados} emails`);
       return descargados;
     } finally {
       lock.release();
