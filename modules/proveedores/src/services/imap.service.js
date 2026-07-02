@@ -435,9 +435,13 @@ async function downloadEmails(config, rescanAll = false) {
       const seqNumbers = await client.search(searchCriteria);
       console.log(`[IMAP-Download] ${seqNumbers.length} mensajes encontrados`);
 
-      if (seqNumbers.length === 0) return 0;
+      if (seqNumbers.length === 0) {
+        console.log('[IMAP-Download] Sin mensajes para descargar');
+        return 0;
+      }
 
       syncState.iniciarSync(seqNumbers.length);
+      console.log(`[IMAP-Download] Iniciando descarga de ${seqNumbers.length} mensajes...`);
       let descargados = 0;
       let skipped = 0;
       let errors = 0;
@@ -446,6 +450,7 @@ async function downloadEmails(config, rescanAll = false) {
       for (let i = 0; i < seqNumbers.length; i++) {
         const seq = seqNumbers[i];
         try {
+          console.log(`[IMAP-Download] Descargando mensaje ${i+1}/${seqNumbers.length} (seq: ${seq})...`);
           // Use sequence number directly, fetch only source
           const msgs = [];
           for await (const msg of client.fetch([seq], { source: true })) {
