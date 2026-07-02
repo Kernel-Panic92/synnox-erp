@@ -2,7 +2,7 @@
 
 async function verPdf(id){
   try {
-    const resp = await fetch(`/api/facturas/${id}/pdf`);
+    const resp = await fetch(`${BASE}/api/facturas/${id}/pdf`);
     if (!resp.ok) {
       const err = await resp.json().catch(()=>({error:'Error'}));
       toast(err.error || 'Error cargando PDF', 'error');
