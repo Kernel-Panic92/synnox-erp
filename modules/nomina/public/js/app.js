@@ -234,12 +234,13 @@ async function iniciarApp() {
 
 async function loadAll() {
   try {
-    const [empl, nom, reg, ctr, tip] = await Promise.all([
+    const [empl, nom, reg, ctr, tip, usr] = await Promise.all([
       GET('/api/empleados'),
       GET('/api/nominas'),
       GET('/api/registros'),
       GET('/api/centros'),
-      GET('/api/tipos')
+      GET('/api/tipos'),
+      GET('/api/usuarios')
     ]);
     
     if (empl.ok) { empleados = await empl.json(); rebuildEmpMap(); }
@@ -247,6 +248,7 @@ async function loadAll() {
     if (reg.ok) registros = await reg.json();
     if (ctr.ok) centros = await ctr.json();
     if (tip.ok) tipos = await tip.json();
+    if (usr.ok) usuarios = await usr.json();
   } catch (e) {
     console.error('Error loading data:', e);
     showToast('Error cargando datos', 'error');

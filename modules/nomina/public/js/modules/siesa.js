@@ -19,8 +19,9 @@ let _sieNominaLoaded = false;
 
 function poblarSelectNominaSiesa() {
   const sel = document.getElementById('sie-nomina');
-  if (!sel || _sieNominaLoaded) return;
-  _sieNominaLoaded = true;
+  if (!sel) return;
+  // Reset to allow re-population if data changed
+  _sieNominaLoaded = false;
   let html = '<option value="">Todos los períodos</option>';
   if (typeof nominas !== 'undefined') {
     for (let i = 0; i < nominas.length; i++) {
@@ -29,6 +30,7 @@ function poblarSelectNominaSiesa() {
   }
   sel.innerHTML = html;
   seleccionarNominaActualSiesa();
+  _sieNominaLoaded = true;
 }
 
 async function cargarSiesa() {
@@ -107,8 +109,8 @@ async function exportarSiesa() {
     if (vinculo) params.set('vinculo', vinculo);
     if (nominaId) params.set('nominaId', nominaId);
 
-    const url = '/api/exportar/siesa?' + params.toString();
-    const res = await fetch(url);
+    const url = API + '/exportar/siesa?' + params.toString();
+    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + getToken() } });
 
     if (!res.ok) {
       const err = await res.json().catch(() => ({ error: 'Error desconocido' }));

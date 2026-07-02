@@ -35,7 +35,7 @@ async function cargarDiagnostico() {
   } catch { showToast('Error de conexión', 'error'); }
 }
 
-function esc(s) { return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+// esc() is provided by helpers.js
 
 function renderDiagnostico(data) {
   const cont = document.getElementById('diag-content');
