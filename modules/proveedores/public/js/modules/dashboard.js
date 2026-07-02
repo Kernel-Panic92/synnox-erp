@@ -210,20 +210,21 @@ async function iniciarSync(){
   try{
     await api('POST','/sync');
     toast('Sincronizacion iniciada','info');
-    if(S.view==='dashboard')rDash();
+    startSyncPoll();
   }catch(e){toast(e.message,'error')}
 }
 async function rescanearTodo(){
   try{
     await api('POST','/sync',{rescanAll:true});
     toast('Reescaneo iniciado','info');
-    if(S.view==='dashboard')rDash();
+    startSyncPoll();
   }catch(e){toast(e.message,'error')}
 }
 async function reiniciarSync(){
   try{
     await api('POST','/sync/reset');
     toast('Sincronización reiniciada','success');
+    stopSyncPoll();
     if(S.view==='dashboard')rDash();
   }catch(e){toast(e.message,'error')}
 }
