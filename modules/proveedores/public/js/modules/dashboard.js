@@ -190,7 +190,7 @@ async function checkSyncStatus(){
       </div>`};
     }else{
       return{sincronizando:false,bar:`<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between">
-        <div style="font-size:13px;color:var(--muted)">Ultima sync: ${r.ultimoSyncFormateado||'Nunca'} — ${r.mensaje||''}</div>
+        <div style="font-size:13px;color:var(--muted)">Última sync: ${r.ultimoSyncFormateado||'Nunca'}${r.proximaSyncFormateado ? ` · Próxima: ${r.proximaSyncFormateado}` : ''} — ${r.mensaje||''}</div>
         <div style="display:flex;gap:8px">
           <button class="btn btn-secondary btn-sm" onclick="rescanearTodo()" title="Re-escanear todos los mensajes (incluye leídos)"><span style="font-size:12px">⟲</span> Rescanear</button>
           <button class="btn btn-secondary btn-sm" onclick="iniciarSync()" title="Sincronizar solo mensajes no leídos"><span style="font-size:14px">↻</span> Sync</button>

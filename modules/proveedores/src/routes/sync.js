@@ -9,10 +9,17 @@ router.get('/status', async (req, res) => {
   const estado = syncState.obtenerEstado();
   
   let ultimoSyncFormateado = null;
+  let proximaSyncFormateado = null;
   if (estado.ultimoSync) {
     const fecha = new Date(estado.ultimoSync);
     ultimoSyncFormateado = fecha.toLocaleString('es-CO', {
       day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+    // Calculate next sync time
+    const minutos = parseInt(process.env.IMAP_POLL_MINUTES || '5');
+    const proxima = new Date(fecha.getTime() + minutos * 60 * 1000);
+    proximaSyncFormateado = proxima.toLocaleString('es-CO', {
       hour: '2-digit', minute: '2-digit'
     });
   }
@@ -21,6 +28,7 @@ router.get('/status', async (req, res) => {
     sincronizando: estado.sincronizando,
     ultimoSync: estado.ultimoSync,
     ultimoSyncFormateado,
+    proximaSyncFormateado,
     totalMensajes: estado.totalMensajes,
     procesando: estado.procesando,
     creadas: estado.creadas,
