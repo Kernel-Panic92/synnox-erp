@@ -441,36 +441,38 @@ async function downloadEmails(config, rescanAll = false) {
       let skipped = 0;
       let errors = 0;
 
-      // Process in small batches to avoid timeout
-      const BATCH = 10;
-      for (let i = 0; i < seqNumbers.length; i += BATCH) {
-        const batch = seqNumbers.slice(i, i + BATCH);
-        console.log(`[IMAP-Download] Procesando lote ${Math.floor(i/BATCH)+1}/${Math.ceil(seqNumbers.length/BATCH)}...`);
-
-        for await (const msg of client.fetch(batch, { uid: true, source: true })) {
-          try {
-            const uid = msg.uid;
-            if (!uid) { errors++; continue; }
-
-            const emlFile = path.join(pendingDir, `${uid}.eml`);
-            if (fs.existsSync(emlFile)) {
-              skipped++;
-              await client.messageFlagsAdd(uid, ['\\Seen']);
-              continue;
-            }
-
-            if (msg.source) {
-              fs.writeFileSync(emlFile, msg.source);
-              descargados++;
-            } else {
-              errors++;
-            }
-
-            await client.messageFlagsAdd(uid, ['\\Seen']);
-          } catch (err) {
-            console.error(`[IMAP-Download] Error mensaje:`, err.message);
-            errors++;
+      // Process ONE at a time to avoid timeout
+      for (let i = 0; i < seqNumbers.length; i++) {
+        const seq = seqNumbers[i];
+        try {
+          // Use sequence number directly, fetch only source
+          const msgs = [];
+          for await (const msg of client.fetch([seq], { source: true })) {
+            msgs.push(msg);
           }
+          const msg = msgs[0];
+
+          if (!msg || !msg.source) {
+            errors++;
+            continue;
+          }
+
+          // Generate filename from sequence number
+          const emlFile = path.join(pendingDir, `msg_${seq}.eml`);
+          if (fs.existsSync(emlFile)) {
+            skipped++;
+            continue;
+          }
+
+          fs.writeFileSync(emlFile, msg.source);
+          descargados++;
+          if (descargados % 10 === 0) console.log(`[IMAP-Download] Progreso: ${descargados}/${seqNumbers.length}`);
+
+          // Mark as seen
+          await client.messageFlagsAdd(seq, ['\\Seen']);
+        } catch (err) {
+          console.error(`[IMAP-Download] Error seq ${seq}:`, err.message);
+          errors++;
         }
       }
 
