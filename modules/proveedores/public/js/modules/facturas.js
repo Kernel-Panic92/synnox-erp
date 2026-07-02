@@ -24,6 +24,29 @@ async function verPdf(id){
   }
 }
 
+async function verXml(id){
+  try {
+    const resp = await fetch(`${BASE}/api/facturas/${id}/xml`);
+    if (!resp.ok) {
+      const err = await resp.json().catch(()=>({error:'Error'}));
+      toast(err.error || 'Error cargando XML', 'error');
+      return;
+    }
+    const text = await resp.text();
+    $('mroot').innerHTML=`<div class="modal-overlay open" onclick="if(event.target===this){closeM();}">
+      <div class="modal" style="width:90vw;max-width:900px;height:85vh;display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+          <span style="font-family:var(--font-head);font-size:16px;font-weight:700">Factura XML</span>
+          <button class="btn btn-secondary btn-sm" onclick="closeM()">✕ Cerrar</button>
+        </div>
+        <pre style="flex:1;overflow:auto;padding:16px;background:var(--surface2);border-radius:8px;font-size:12px;font-family:monospace;white-space:pre-wrap">${esc(text)}</pre>
+      </div>
+    </div>`;
+  } catch(e) {
+    toast('Error cargando XML', 'error');
+  }
+}
+
 let fFiltro='todas';
 function getFiltrosKey(){return'vd_f_'+(S?.usuario?.id||'0')}
 let fBusqueda=null;
@@ -194,7 +217,7 @@ async function abrirF(id){
     <div style="max-height:200px;overflow-y:auto;display:flex;flex-direction:column;gap:8px">
       ${(f.eventos||[]).map(ev=>`<div style="display:flex;gap:10px;font-size:13px;padding:8px;background:var(--surface2);border-radius:6px"><span style="color:var(--muted);white-space:nowrap">${fdate(ev.creado_en)}</span><span style="color:var(--accent)">${ev.tipo}</span><span style="color:var(--text);flex:1">${esc(ev.comentario||'')}${ev.usuario_nombre?` <em style="color:var(--muted)">— ${esc(ev.usuario_nombre)}</em>`:''}</span></div>`).join('')||'<div style="color:var(--muted);font-size:13px">Sin eventos</div>'}
     </div></div>
-    <div class="modal-footer">${f.archivo_pdf?`<button onclick="verPdf('${id}')" class="btn btn-secondary btn-sm">📄 Ver PDF</button>`:''}<button class="btn btn-secondary btn-sm" onclick="closeM()">Cerrar</button>${acc.join('')}</div>`,640);
+    <div class="modal-footer">${f.archivo_pdf?`<button onclick="verPdf('${id}')" class="btn btn-secondary btn-sm">📄 Ver PDF</button>`:''}${f.archivo_xml?`<button onclick="verXml('${id}')" class="btn btn-secondary btn-sm">📋 Ver XML</button>`:''}<button class="btn btn-secondary btn-sm" onclick="closeM()">Cerrar</button>${acc.join('')}</div>`,640);
 }
 
 async function mAprobar(id){

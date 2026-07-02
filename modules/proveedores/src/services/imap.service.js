@@ -249,13 +249,42 @@ async function crearProveedorSiNoExiste(client, nitEmisor, nombreEmisor, emailOr
 const MAX_ATTACHMENT_MB = parseInt(process.env.MAX_ATTACHMENT_MB || '50');
 
 async function procesarCorreo(parsed, msgId) {
-  const uploadDir = process.env.UPLOAD_DIR || './uploads/facturas';
-  if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
+  const baseUploadDir = process.env.UPLOAD_DIR || './uploads/facturas';
+  if (!fs.existsSync(baseUploadDir)) fs.mkdirSync(baseUploadDir, { recursive: true });
 
   let archivoPdf = null;
   let archivoXml = null;
   let datosFactura = {};
+  let nitEmisor = null;
 
+  // First pass: extract XML to get NIT for folder organization
+  for (const att of parsed.attachments || []) {
+    const filename = att.filename || '';
+    const ext = path.extname(filename).toLowerCase();
+    
+    if ((ext === '.xml' || filename.toLowerCase().includes('.xml')) && !archivoXml) {
+      datosFactura = parsearXml(att.content);
+      nitEmisor = datosFactura.nitEmisor || null;
+      break;
+    }
+    
+    if (ext === '.zip' || filename.toLowerCase().includes('.zip')) {
+      const archivos = extraerZip(att.content);
+      if (archivos.xml) {
+        datosFactura = parsearXml(archivos.xml.contenido);
+        nitEmisor = datosFactura.nitEmisor || null;
+        break;
+      }
+    }
+  }
+
+  // Create provider-specific directory
+  const providerDir = nitEmisor 
+    ? path.join(baseUploadDir, nitEmisor)
+    : baseUploadDir;
+  if (!fs.existsSync(providerDir)) fs.mkdirSync(providerDir, { recursive: true });
+
+  // Second pass: save files to provider directory
   for (const att of parsed.attachments || []) {
     const filename = att.filename || '';
     const ext = path.extname(filename).toLowerCase();
@@ -269,33 +298,31 @@ async function procesarCorreo(parsed, msgId) {
       console.log(`  [IMAP] Procesando ZIP: ${filename}`);
       const archivos = extraerZip(att.content);
       
-      if (archivos.xml) {
+      if (archivos.xml && !archivoXml) {
         const xmlNombre = `${uuidv4()}.xml`;
-        fs.writeFileSync(path.join(uploadDir, xmlNombre), archivos.xml.contenido);
-        archivoXml = xmlNombre;
-        console.log(`  [IMAP] XML guardado: ${xmlNombre}`);
-        
-        datosFactura = parsearXml(archivos.xml.contenido);
-        console.log(`  [IMAP] Datos:`, JSON.stringify(datosFactura));
+        fs.writeFileSync(path.join(providerDir, xmlNombre), archivos.xml.contenido);
+        archivoXml = nitEmisor ? `${nitEmisor}/${xmlNombre}` : xmlNombre;
+        console.log(`  [IMAP] XML guardado: ${archivoXml}`);
       }
       
       if (archivos.pdf && !archivoPdf) {
         const pdfNombre = `${uuidv4()}.pdf`;
-        fs.writeFileSync(path.join(uploadDir, pdfNombre), archivos.pdf.contenido);
-        archivoPdf = pdfNombre;
-        console.log(`  [IMAP] PDF guardado: ${pdfNombre}`);
+        fs.writeFileSync(path.join(providerDir, pdfNombre), archivos.pdf.contenido);
+        archivoPdf = nitEmisor ? `${nitEmisor}/${pdfNombre}` : pdfNombre;
+        console.log(`  [IMAP] PDF guardado: ${archivoPdf}`);
       }
     } else if ((ext === '.pdf' || filename.toLowerCase().includes('pdf')) && !archivoPdf) {
       const nombre = `${uuidv4()}.pdf`;
-      fs.writeFileSync(path.join(uploadDir, nombre), att.content);
-      archivoPdf = nombre;
-      console.log(`  [IMAP] PDF directo guardado: ${nombre}`);
+      fs.writeFileSync(path.join(providerDir, nombre), att.content);
+      archivoPdf = nitEmisor ? `${nitEmisor}/${nombre}` : nombre;
+      console.log(`  [IMAP] PDF directo guardado: ${archivoPdf}`);
     } else if ((ext === '.xml' || filename.toLowerCase().includes('xml')) && !archivoXml) {
       const nombre = `${uuidv4()}.xml`;
-      fs.writeFileSync(path.join(uploadDir, nombre), att.content);
-      archivoXml = nombre;
+      fs.writeFileSync(path.join(providerDir, nombre), att.content);
+      archivoXml = nitEmisor ? `${nitEmisor}/${nombre}` : nombre;
       datosFactura = parsearXml(att.content);
-      console.log(`  [IMAP] XML directo guardado: ${nombre}`);
+      nitEmisor = nitEmisor || datosFactura.nitEmisor || null;
+      console.log(`  [IMAP] XML directo guardado: ${archivoXml}`);
     }
   }
 
@@ -314,8 +341,8 @@ async function procesarCorreo(parsed, msgId) {
   if (!numeroFactura) {
     console.log(`  [IMAP] No se pudo extraer número de factura — omitiendo`);
     // Clean up files that were already written
-    if (archivoPdf) { try { fs.unlinkSync(path.join(uploadDir, archivoPdf)); } catch {} }
-    if (archivoXml) { try { fs.unlinkSync(path.join(uploadDir, archivoXml)); } catch {} }
+    if (archivoPdf) { try { fs.unlinkSync(path.join(baseUploadDir, archivoPdf)); } catch {} }
+    if (archivoXml) { try { fs.unlinkSync(path.join(baseUploadDir, archivoXml)); } catch {} }
     return 'sin_numero';
   }
 
@@ -337,8 +364,8 @@ async function procesarCorreo(parsed, msgId) {
       await client.query('ROLLBACK');
       client.release();
       // Clean up files that were already written
-      if (archivoPdf) { try { fs.unlinkSync(path.join(uploadDir, archivoPdf)); } catch {} }
-      if (archivoXml) { try { fs.unlinkSync(path.join(uploadDir, archivoXml)); } catch {} }
+      if (archivoPdf) { try { fs.unlinkSync(path.join(baseUploadDir, archivoPdf)); } catch {} }
+      if (archivoXml) { try { fs.unlinkSync(path.join(baseUploadDir, archivoXml)); } catch {} }
       return 'duplicada';
     }
 

@@ -670,6 +670,23 @@ router.get('/:id/pdf', requireRol('admin','contador','tesorero','comprador','aud
   }
 });
 
+// ─── GET /api/facturas/:id/xml ─────────────────────────────────────────────────
+router.get('/:id/xml', requireRol('admin','contador','tesorero','comprador','auditor'), async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT archivo_xml FROM facturas WHERE id=$1', [req.params.id]);
+    if (!rows[0]?.archivo_xml) return res.status(404).json({ error: 'XML no disponible' });
+
+    const filePath = path.join(process.env.UPLOAD_DIR || './uploads/facturas', rows[0].archivo_xml);
+    if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'Archivo no encontrado' });
+
+    res.setHeader('Content-Type', 'application/xml');
+    res.setHeader('Content-Disposition', `inline; filename="${rows[0].archivo_xml}"`);
+    fs.createReadStream(filePath).pipe(res);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── DELETE /api/facturas/:id ──────────────────────────────────────────────────
 const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads';
 
