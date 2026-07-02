@@ -438,10 +438,13 @@ async function downloadEmails(config, rescanAll = false) {
       if (mensajes.length === 0) return 0;
 
       let descargados = 0;
+      let skipped = 0;
+      let errors = 0;
       for (const msg of mensajes) {
         try {
           const emlFile = path.join(pendingDir, `${msg.uid}.eml`);
           if (fs.existsSync(emlFile)) {
+            skipped++;
             await client.messageFlagsAdd(msg.uid, ['\\Seen']);
             continue;
           }
@@ -450,15 +453,20 @@ async function downloadEmails(config, rescanAll = false) {
           if (fullMsg && fullMsg.source) {
             fs.writeFileSync(emlFile, fullMsg.source);
             descargados++;
+            if (descargados % 10 === 0) console.log(`[IMAP-Download] Progreso: ${descargados} descargados...`);
+          } else {
+            console.log(`[IMAP-Download] Mensaje ${msg.uid}: sin contenido`);
+            errors++;
           }
 
           await client.messageFlagsAdd(msg.uid, ['\\Seen']);
         } catch (err) {
           console.error(`[IMAP-Download] Error mensaje ${msg.uid}:`, err.message);
+          errors++;
         }
       }
 
-      console.log(`[IMAP-Download] ✓ ${descargados} mensajes descargados`);
+      console.log(`[IMAP-Download] ✓ ${descargados} descargados, ${skipped} omitidos, ${errors} errores`);
       return descargados;
     } finally {
       lock.release();
