@@ -15,13 +15,11 @@ function seleccionarNominaActualSiesa() {
   if (mejor) sel.value = mejor;
 }
 
-let _sieNominaLoaded = false;
-
 function poblarSelectNominaSiesa() {
   const sel = document.getElementById('sie-nomina');
   if (!sel) return;
-  // Reset to allow re-population if data changed
-  _sieNominaLoaded = false;
+  // Only populate if empty (don't reset user selection)
+  if (sel.options.length > 1) return;
   let html = '<option value="">Todos los períodos</option>';
   if (typeof nominas !== 'undefined') {
     for (let i = 0; i < nominas.length; i++) {
@@ -30,7 +28,6 @@ function poblarSelectNominaSiesa() {
   }
   sel.innerHTML = html;
   seleccionarNominaActualSiesa();
-  _sieNominaLoaded = true;
 }
 
 async function cargarSiesa() {
