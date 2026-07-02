@@ -61,4 +61,10 @@ router.post('/', requireRol('admin', 'contador'), (req, res) => {
   }
 });
 
+// Reset sync state (for stuck syncs)
+router.post('/reset', requireRol('admin'), (req, res) => {
+  syncState.reset();
+  res.json({ ok: true, mensaje: 'Estado de sincronización reiniciado' });
+});
+
 module.exports = router;

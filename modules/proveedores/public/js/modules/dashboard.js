@@ -175,6 +175,8 @@ async function checkSyncStatus(){
   try{
     const r=await api('GET','/sync/status');
     if(r.sincronizando){
+      // Show restart button if stuck (0 progress)
+      const stuck = r.procesando === 0 && r.totalMensajes > 0;
       return{sincronizando:true,bar:`<div style="background:rgba(79,142,247,.1);border:1px solid rgba(79,142,247,.3);border-radius:12px;padding:16px;margin-bottom:20px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <span style="font-weight:600;color:var(--accent)">Sincronizando correo...</span>
@@ -184,6 +186,7 @@ async function checkSyncStatus(){
           <div style="background:var(--accent);height:100%;width:${r.progreso}%;transition:width .3s"></div>
         </div>
         <div style="margin-top:8px;font-size:12px;color:var(--muted)">${r.mensaje}</div>
+        ${stuck ? '<div style="margin-top:10px"><button class="btn btn-danger btn-sm" onclick="reiniciarSync()">🔄 Reiniciar sincronización</button></div>' : ''}
       </div>`};
     }else{
       return{sincronizando:false,bar:`<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 16px;margin-bottom:20px;display:flex;align-items:center;justify-content:space-between">
@@ -214,6 +217,13 @@ async function rescanearTodo(){
   try{
     await api('POST','/sync',{rescanAll:true});
     toast('Reescaneo iniciado','info');
+    if(S.view==='dashboard')rDash();
+  }catch(e){toast(e.message,'error')}
+}
+async function reiniciarSync(){
+  try{
+    await api('POST','/sync/reset');
+    toast('Sincronización reiniciada','success');
     if(S.view==='dashboard')rDash();
   }catch(e){toast(e.message,'error')}
 }

@@ -81,10 +81,26 @@ function obtenerEstado() {
   return { ...syncState };
 }
 
+function reset() {
+  syncState = {
+    ultimoSync: null,
+    sincronizando: false,
+    totalMensajes: 0,
+    procesando: 0,
+    creadas: 0,
+    duplicadas: 0,
+    errores: 0,
+    mensaje: ''
+  };
+  guardarEstado();
+  console.log('[SyncState] Estado reiniciado manualmente');
+}
+
 module.exports = {
   cargarEstado,
   iniciarSync,
   actualizarProgreso,
   terminarSync,
-  obtenerEstado
+  obtenerEstado,
+  reset
 };
