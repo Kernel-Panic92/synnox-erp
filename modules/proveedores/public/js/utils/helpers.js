@@ -6,7 +6,7 @@ const PASOS=[{id:'recepcion',l:'Recepción',d:'Sistema recibe'},{id:'revision',l
 const EORD=['recibida','revision','aprobada','causada','pagada'];
 const EM={recibida:{l:'Recibida',c:'#60A5FA'},revision:{l:'En revisión',c:'#FBBF24'},aprobada:{l:'Aprobada',c:'#34D399'},causada:{l:'Causada',c:'#A78BFA'},rechazada:{l:'Rechazada',c:'#F87171'},pagada:{l:'Pagada',c:'#6EE7B7'}};
 
-function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;')}
+function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;')}
 function fmt(v){return '$'+Math.round(parseFloat(v)||0).toLocaleString('es-CO')}
 function fdate(d){if(!d)return'—';return new Date(d).toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'})}
 function fdatetime(d){if(!d)return'—';const dt=new Date(d);return dt.toLocaleDateString('es-CO',{day:'2-digit',month:'short',year:'numeric'})+' '+dt.toLocaleTimeString('es-CO',{hour:'2-digit',minute:'2-digit'})}
