@@ -85,7 +85,7 @@ async function getFromAddress() {
 
 function getBaseUrl(reqHost) {
   const proto = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-  return `${proto}://${reqHost || 'localhost:${PORT}'}`;
+  return `${proto}://${reqHost || `localhost:${process.env.PORT || 3100}`}`;
 }
 
 async function enviar({ para, asunto, html, text }) {

@@ -185,7 +185,7 @@ async function descargarBackup(tipo='completo'){
       document.getElementById('backup-terminal').innerHTML+='<div>[DESCARGANDO] Descargando archivo...</div>';
       (async function(){
         try{
-        const dlUrl=`/api/backup?action=download&filename=${encodeURIComponent(data.filename)}`;
+        const dlUrl=`${BASE}/api/backup?action=download&filename=${encodeURIComponent(data.filename)}`;
         const dlResp=await fetch(dlUrl,{headers:{Authorization:`Bearer ${token}`}});
         if(!dlResp.ok)throw new Error('Error descargando');
         
@@ -204,8 +204,8 @@ async function descargarBackup(tipo='completo'){
         closeM();
         toast(e.message,'error');
       }
-      })();
       btn.disabled=false;btn.textContent=label;
+      })();
     },500);
     
     // Polling para progreso mientras genera

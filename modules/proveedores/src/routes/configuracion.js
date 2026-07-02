@@ -520,8 +520,8 @@ router.post('/backups-auto/test', requireRol('admin'), async (req, res) => {
       user = user.replace(/[^a-zA-Z0-9._\-@]/g, '');
       pass = (pass || '').replace(/["`$]/g, '');
       
-      // Try smbclient first (always available on Linux with samba-client)
-      const share = backupPath || '/';
+      // Sanitize share path to prevent command injection
+      const share = (backupPath || '/').replace(/[^a-zA-Z0-9._\-\/]/g, '');
       const userArg = user + (pass ? '%' + pass : '');
       let test;
       try {

@@ -25,7 +25,7 @@ async function doSubirSoporte(id){
   }catch(e){toast(e.message,'error')}
 }
 
-function verSoporte(id){window.open(`/api/facturas/${id}/soporte-pago`,'_blank')}
+function verSoporte(id){window.open(`${BASE}/api/facturas/${id}/soporte-pago`,'_blank')}
 
 function mPagar(id){
   showM('Confirmar pago',`

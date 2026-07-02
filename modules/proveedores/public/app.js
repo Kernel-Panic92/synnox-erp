@@ -157,7 +157,7 @@ function _mostrarBannerVersion(msg){
 }
 function recargarApp(){localStorage.removeItem('vd_last_page');location.reload()}
 function _pollVersion(){
-  fetch('/api/version').then(r=>r.json()).then(d=>{
+  fetch(BASE+'/api/version').then(r=>r.json()).then(d=>{
     if(window._appVersion&&d.version&&d.version!==window._appVersion){
       _mostrarBannerVersion('📦 Nueva versión disponible: '+d.version+(d.branch?' ['+d.branch+']':'')+' (actual: '+window._appVersion+(window._appBranch?' ['+window._appBranch+']':'')+')');
     }

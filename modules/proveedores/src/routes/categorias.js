@@ -4,11 +4,36 @@ const { authMiddleware, requireRol } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
-// GET /api/categorias
+// ─── GET /api/categorias/todas (incluye inactivas) ────────────────────────
+// Must be BEFORE /:id to avoid Express matching /todas as an ID
+router.get('/todas', requireRol('admin'), async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT * FROM categorias_compra ORDER BY nombre`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/categorias (solo activas)
 router.get('/', async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT * FROM categorias_compra WHERE activo = TRUE ORDER BY nombre`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── GET /api/categorias/todas (incluye inactivas) ────────────────────────
+router.get('/todas', requireRol('admin'), async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT * FROM categorias_compra ORDER BY nombre`
     );
     res.json(rows);
   } catch (err) {

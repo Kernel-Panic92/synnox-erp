@@ -57,7 +57,7 @@ async function mArea(id){
     <div class="field"><label>NOMBRE *</label><input id="an" value="${esc(area?.nombre||'')}" placeholder="Ej: Sistemas"/></div>
     <div class="field"><label>JEFE</label><select id="aj"><option value="">— Sin asignar —</option>${opts}</select></div>
     <div class="field"><label>CORREO</label><input id="ae" type="email" value="${esc(area?.email||'')}" placeholder="area@tu-dominio.com"/></div>
-    ${id?`<div class="field"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="aa-activo" ${area?.ativo!==false?'checked':''}/> Área activa</label></div>`:''}
+    ${id?`<div class="field"><label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="aa-activo" ${area?.activo!==false?'checked':''}/> Área activa</label></div>`:''}
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeM()">Cancelar</button><button class="btn btn-primary" onclick="saveArea()">Guardar</button></div>
   `,400);
 }

@@ -29,7 +29,7 @@ function showApp(){
   $('u-badge').textContent=S.usuario?.rol||'';
   initFiltros();
   
-  fetch('/api/version').then(r=>r.json()).then(d=>{
+  fetch(BASE+'/api/version').then(r=>r.json()).then(d=>{
     const el=document.getElementById('app-version');
     if(el&&d.version)el.textContent='v'+d.version+(d.branch?' ['+d.branch+']':'');
     const cr=document.getElementById('app-copyright');

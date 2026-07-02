@@ -24,11 +24,12 @@ async function verificarEscalaciones() {
        LEFT JOIN areas a ON a.id = f.area_responsable_id
        LEFT JOIN usuarios u ON u.id = a.jefe_id AND u.activo = TRUE
        WHERE f.estado IN ('recibida','revision')
-         AND f.recibida_en < NOW() - INTERVAL '${horasNivel1} hours'
+         AND f.recibida_en < NOW() - ($1 || ' hours')::interval
          AND NOT EXISTS (
            SELECT 1 FROM escalaciones e
            WHERE e.factura_id = f.id AND e.nivel = 1
-         )`
+         )`,
+      [horasNivel1]
     );
 
     for (const f of paraEscalar1.rows) {
@@ -55,6 +56,7 @@ async function verificarEscalaciones() {
     }
 
     // Facturas con escalación nivel 1 resuelta=false que superaron otras N horas
+    const horasEntre = horasNivel2 - horasNivel1;
     const paraEscalar2 = await client.query(
       `SELECT f.id, f.numero_factura
        FROM facturas f
@@ -62,12 +64,13 @@ async function verificarEscalaciones() {
          AND EXISTS (
            SELECT 1 FROM escalaciones e
            WHERE e.factura_id = f.id AND e.nivel = 1 AND e.resuelta = FALSE
-             AND e.enviada_en < NOW() - INTERVAL '${horasNivel2 - horasNivel1} hours'
+             AND e.enviada_en < NOW() - ($1 || ' hours')::interval
          )
          AND NOT EXISTS (
            SELECT 1 FROM escalaciones e
            WHERE e.factura_id = f.id AND e.nivel = 2
-         )`
+         )`,
+      [horasEntre]
     );
 
     for (const f of paraEscalar2.rows) {
