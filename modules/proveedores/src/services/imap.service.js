@@ -414,6 +414,8 @@ async function pollCorreo(rescanAll = false) {
     return;
   }
 
+  console.log(`[IMAP] Iniciando poll — host: ${config.imap_host}, user: ${config.imap_user}, folder: ${config.imap_folder || 'INBOX'}, rescan: ${rescanAll}`);
+
   const client = new ImapFlow({
     host:   config.imap_host,
     port:   parseInt(config.imap_port || '993'),
@@ -423,8 +425,8 @@ async function pollCorreo(rescanAll = false) {
       pass: config.imap_password,
     },
     logger: false,
-    socketTimeout: 30000,
-    connTimeout: 15000,
+    socketTimeout: 60000,
+    connTimeout: 30000,
   });
 
   // Prevent unhandled error events from crashing the process
@@ -442,6 +444,7 @@ async function pollCorreo(rescanAll = false) {
     await client.connect();
     console.log('[IMAP] ✓ Conexión exitosa');
     const lock = await client.getMailboxLock(config.imap_folder || 'INBOX');
+    console.log('[IMAP] ✓ Lock adquirido');
 
     try {
       let mensajes;
@@ -451,7 +454,10 @@ async function pollCorreo(rescanAll = false) {
         console.log(`[IMAP] Rescan: ${mensajes.length} mensajes (últimos 500)`);
       } else {
         mensajes = await client.search({ unseen: true });
-        console.log(`[IMAP] Procesando ${mensajes.length} mensajes nuevo(s) del buzón`);
+        console.log(`[IMAP] Búsqueda unseen: ${mensajes.length} mensajes encontrados`);
+        // Also show total messages for debugging
+        const allMsgs = await client.search({ all: true });
+        console.log(`[IMAP] Total mensajes en buzón: ${allMsgs.length}`);
       }
       
       if (mensajes.length === 0) {
@@ -464,7 +470,7 @@ async function pollCorreo(rescanAll = false) {
 
       while (mensajes.length > 0) {
         const lote = mensajes.splice(0, LOTE_SIZE);
-        console.log(`[IMAP] Procesando lote de ${lote.length} mensaje(s)...`);
+        console.log(`[IMAP] Procesando lote de ${lote.length} mensaje(s)... (quedan: ${mensajes.length})`);
 
         for await (const msg of client.fetch(lote, { source: true, flags: true })) {
           try {
