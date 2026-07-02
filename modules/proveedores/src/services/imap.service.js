@@ -406,136 +406,133 @@ async function procesarCorreo(parsed, msgId) {
   }
 }
 
-async function pollCorreo(rescanAll = false) {
-  const config = await getConfig();
-  
-  if (!config.imap_host || !config.imap_user) {
-    console.log('[IMAP] Configuración IMAP no definida en BD — servicio desactivado');
-    return;
-  }
-
-  console.log(`[IMAP] Iniciando poll — host: ${config.imap_host}, user: ${config.imap_user}, folder: ${config.imap_folder || 'INBOX'}, rescan: ${rescanAll}`);
+// ── Step 1: Download emails from IMAP to local directory ──
+async function downloadEmails(config, rescanAll = false) {
+  const pendingDir = process.env.UPLOAD_DIR
+    ? path.join(process.env.UPLOAD_DIR, 'pending')
+    : './uploads/pending';
+  if (!fs.existsSync(pendingDir)) fs.mkdirSync(pendingDir, { recursive: true });
 
   const client = new ImapFlow({
     host:   config.imap_host,
     port:   parseInt(config.imap_port || '993'),
     secure: config.imap_tls !== 'false',
-    auth: {
-      user: config.imap_user,
-      pass: config.imap_password,
-    },
+    auth: { user: config.imap_user, pass: config.imap_password },
     logger: false,
-    socketTimeout: 300000,  // 5 minutes per operation for very slow servers
+    socketTimeout: 60000,
     connTimeout: 30000,
-    greetingTimeout: 15000,
   });
 
-  // Prevent unhandled error events from crashing the process
-  client.on('error', (err) => {
-    console.error('[IMAP] Error en conexión:', err.message);
-  });
-
-  const LOTE_SIZE = 1;  // Process ONE message at a time for very slow servers
-  let totalProcesados = 0;
-  let totalCreados = 0;
-  let totalDuplicados = 0;
-  let totalError = 0;
+  client.on('error', (err) => console.error('[IMAP-Download] Error:', err.message));
 
   try {
     await client.connect();
-    console.log('[IMAP] ✓ Conexión exitosa');
+    console.log('[IMAP-Download] ✓ Conexión exitosa');
     const lock = await client.getMailboxLock(config.imap_folder || 'INBOX');
-    console.log('[IMAP] ✓ Lock adquirido');
 
     try {
-      let mensajes;
-      if (rescanAll) {
-        mensajes = await client.search({ all: true });
-        mensajes = mensajes.slice(-20);  // Very small batch for rescan
-        console.log(`[IMAP] Rescan: ${mensajes.length} mensajes`);
-      } else {
-        mensajes = await client.search({ unseen: true });
-        console.log(`[IMAP] Búsqueda unseen: ${mensajes.length} mensajes encontrados`);
-        // Process only 10 messages per poll for slow servers
-        if (mensajes.length > 10) {
-          console.log(`[IMAP] Limitando a 10 mensajes (de ${mensajes.length} totales)`);
-          mensajes = mensajes.slice(0, 10);
-        }
-        const allMsgs = await client.search({ all: true });
-        console.log(`[IMAP] Total mensajes en buzón: ${allMsgs.length}`);
-      }
-      
-      if (mensajes.length === 0) {
-        console.log('[IMAP] Sin mensajes para procesar');
-        syncState.terminarSync(0, 0, 0);
-        return;
-      }
+      const searchCriteria = rescanAll ? { all: true } : { unseen: true };
+      const mensajes = await client.search(searchCriteria);
+      console.log(`[IMAP-Download] ${mensajes.length} mensajes encontrados`);
 
-      syncState.iniciarSync(mensajes.length);
+      if (mensajes.length === 0) return 0;
 
-      while (mensajes.length > 0) {
-        const lote = mensajes.splice(0, LOTE_SIZE);
-        console.log(`[IMAP] Procesando lote de ${lote.length} mensaje(s)... (quedan: ${mensajes.length})`);
-
-        for await (const msg of client.fetch(lote, { source: true, flags: true })) {
-          try {
-            const flags = msg.flags || [];
-            const seen = Array.isArray(flags) && flags.includes('\\Seen');
-            if (seen) {
-              totalDuplicados++;
-              totalProcesados++;
-              continue;
-            }
-
-            const parsed = await simpleParser(msg.source);
-            const resultado = await procesarCorreo(parsed, msg.envelope?.messageId);
-            
-            if (resultado === 'creada') {
-              totalCreados++;
-            } else if (resultado === 'duplicada') {
-              totalDuplicados++;
-            } else if (resultado === 'sin_numero') {
-              totalDuplicados++;
-            }
-            // Mark ALL processed emails as Seen to prevent infinite reprocessing
-            await client.messageFlagsAdd(msg.seq, ['\\Seen']);
-            
-            totalProcesados++;
-            
-            const restantes = mensajes.length;
-            const progreso = `${totalProcesados}/${syncState.obtenerEstado().totalMensajes}`;
-            syncState.actualizarProgreso(
-              totalProcesados, totalCreados, totalDuplicados, totalError,
-              `Procesando ${totalProcesados}/${syncState.obtenerEstado().totalMensajes}...`
-            );
-            
-            console.log(`[IMAP] Progreso: ${progreso} (${totalCreados} creadas)`);
-          } catch (err) {
-            console.error(`[IMAP] Error mensaje ${msg.seq}:`, err.message);
-            totalError++;
-            totalProcesados++;
+      let descargados = 0;
+      for (const msg of mensajes) {
+        try {
+          const emlFile = path.join(pendingDir, `${msg.uid}.eml`);
+          if (fs.existsSync(emlFile)) {
+            await client.messageFlagsAdd(msg.uid, ['\\Seen']);
+            continue;
           }
-        }
-        // Delay between messages to prevent server overload
-        if (mensajes.length > 0) {
-          await new Promise(resolve => setTimeout(resolve, 3000));
+
+          const fullMsg = await client.fetchOne(msg.uid, { source: true }, { uid: true });
+          if (fullMsg && fullMsg.source) {
+            fs.writeFileSync(emlFile, fullMsg.source);
+            descargados++;
+          }
+
+          await client.messageFlagsAdd(msg.uid, ['\\Seen']);
+        } catch (err) {
+          console.error(`[IMAP-Download] Error mensaje ${msg.uid}:`, err.message);
         }
       }
 
-      syncState.terminarSync(totalCreados, totalDuplicados, totalError);
-      console.log(`[IMAP] ✓ Resumen: ${totalCreados} creadas, ${totalDuplicados} duplicadas, ${totalError} errores`);
-
+      console.log(`[IMAP-Download] ✓ ${descargados} mensajes descargados`);
+      return descargados;
     } finally {
       lock.release();
     }
-
-    await client.logout();
   } catch (err) {
-    console.error('[IMAP] Error de conexión:', err.message);
-    console.error('[IMAP] Stack:', err.stack);
-    console.error('[IMAP] Objeto completo:', JSON.stringify(err, null, 2));
-    syncState.terminarSync(0, 0, 0);
+    console.error('[IMAP-Download] Error:', err.message);
+    return 0;
+  } finally {
+    try { await client.logout(); } catch {}
   }
+}
+
+// ── Step 2: Process downloaded emails ──
+async function processDownloadedEmails() {
+  const pendingDir = process.env.UPLOAD_DIR
+    ? path.join(process.env.UPLOAD_DIR, 'pending')
+    : './uploads/pending';
+
+  if (!fs.existsSync(pendingDir)) return { creadas: 0, duplicadas: 0, errores: 0 };
+
+  const emlFiles = fs.readdirSync(pendingDir).filter(f => f.endsWith('.eml'));
+  console.log(`[IMAP-Process] ${emlFiles.length} emails pendientes de procesar`);
+
+  if (emlFiles.length === 0) return { creadas: 0, duplicadas: 0, errores: 0 };
+
+  let creadas = 0, duplicadas = 0, errores = 0;
+
+  for (const emlFile of emlFiles) {
+    const filePath = path.join(pendingDir, emlFile);
+    try {
+      const raw = fs.readFileSync(filePath);
+      const parsed = await simpleParser(raw);
+      const msgId = parsed.messageId || emlFile.replace('.eml', '');
+
+      const resultado = await procesarCorreo(parsed, msgId);
+
+      fs.unlinkSync(filePath);
+
+      if (resultado === 'creada') creadas++;
+      else duplicadas++;
+    } catch (err) {
+      console.error(`[IMAP-Process] Error procesando ${emlFile}:`, err.message);
+      errores++;
+      try {
+        const errorDir = path.join(pendingDir, 'error');
+        if (!fs.existsSync(errorDir)) fs.mkdirSync(errorDir, { recursive: true });
+        fs.renameSync(filePath, path.join(errorDir, emlFile));
+      } catch {}
+    }
+  }
+
+  console.log(`[IMAP-Process] ✓ ${creadas} creadas, ${duplicadas} duplicadas, ${errores} errores`);
+  return { creadas, duplicadas, errores };
+}
+
+// ── Main sync function (both steps) ──
+async function pollCorreo(rescanAll = false) {
+  const config = await getConfig();
+
+  if (!config.imap_host || !config.imap_user) {
+    console.log('[IMAP] Configuración IMAP no definida — servicio desactivado');
+    return;
+  }
+
+  console.log(`[IMAP] Iniciando sync — host: ${config.imap_host}, folder: ${config.imap_folder || 'INBOX'}`);
+
+  // Step 1: Download emails from IMAP (fast - just saves raw .eml files)
+  const descargados = await downloadEmails(config, rescanAll);
+
+  // Step 2: Process downloaded emails (can be retried independently)
+  const resultado = await processDownloadedEmails();
+
+  syncState.terminarSync(resultado.creadas, resultado.duplicadas, resultado.errores);
+  console.log(`[IMAP] ✓ Sync completado: ${resultado.creadas} creadas, ${resultado.duplicadas} duplicadas, ${resultado.errores} errores`);
 }
 
 function iniciarServicioImap() {
@@ -547,4 +544,4 @@ function iniciarServicioImap() {
   }, minutos * 60 * 1000);
 }
 
-module.exports = { iniciarServicioImap, pollCorreo, clearConfigCache };
+module.exports = { iniciarServicioImap, pollCorreo, processDownloadedEmails, clearConfigCache };

@@ -41,7 +41,6 @@ router.post('/', requireRol('admin', 'contador'), (req, res) => {
   try {
     const imapService = require('../services/imap.service');
     if (imapService.pollCorreo) {
-      // Add timeout to prevent hanging
       const timeout = setTimeout(() => {
         console.error('[Sync] Timeout after 5 minutes');
         syncState.terminarSync(0, 0, 1);
@@ -55,7 +54,22 @@ router.post('/', requireRol('admin', 'contador'), (req, res) => {
           syncState.terminarSync(0, 0, 1);
         });
     }
-    res.json({ ok: true, mensaje: 'Sincronización iniciada' });
+    res.json({ ok: true, mensaje: 'Sincronización iniciada (descarga + procesamiento)' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Process only (no IMAP download)
+router.post('/process', requireRol('admin'), async (req, res) => {
+  try {
+    const imapService = require('../services/imap.service');
+    if (imapService.processDownloadedEmails) {
+      const resultado = await imapService.processDownloadedEmails();
+      res.json({ ok: true, ...resultado });
+    } else {
+      res.status(500).json({ error: 'Función no disponible' });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
