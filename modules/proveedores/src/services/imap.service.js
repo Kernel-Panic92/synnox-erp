@@ -432,37 +432,45 @@ async function downloadEmails(config, rescanAll = false) {
 
     try {
       const searchCriteria = rescanAll ? { all: true } : { unseen: true };
-      const mensajes = await client.search(searchCriteria);
-      console.log(`[IMAP-Download] ${mensajes.length} mensajes encontrados`);
+      const seqNumbers = await client.search(searchCriteria);
+      console.log(`[IMAP-Download] ${seqNumbers.length} mensajes encontrados`);
 
-      if (mensajes.length === 0) return 0;
+      if (seqNumbers.length === 0) return 0;
 
       let descargados = 0;
       let skipped = 0;
       let errors = 0;
-      for (const msg of mensajes) {
-        try {
-          const emlFile = path.join(pendingDir, `${msg.uid}.eml`);
-          if (fs.existsSync(emlFile)) {
-            skipped++;
-            await client.messageFlagsAdd(msg.uid, ['\\Seen']);
-            continue;
-          }
 
-          const fullMsg = await client.fetchOne(msg.uid, { source: true }, { uid: true });
-          if (fullMsg && fullMsg.source) {
-            fs.writeFileSync(emlFile, fullMsg.source);
-            descargados++;
-            if (descargados % 10 === 0) console.log(`[IMAP-Download] Progreso: ${descargados} descargados...`);
-          } else {
-            console.log(`[IMAP-Download] Mensaje ${msg.uid}: sin contenido`);
+      // Process in small batches to avoid timeout
+      const BATCH = 10;
+      for (let i = 0; i < seqNumbers.length; i += BATCH) {
+        const batch = seqNumbers.slice(i, i + BATCH);
+        console.log(`[IMAP-Download] Procesando lote ${Math.floor(i/BATCH)+1}/${Math.ceil(seqNumbers.length/BATCH)}...`);
+
+        for await (const msg of client.fetch(batch, { uid: true, source: true })) {
+          try {
+            const uid = msg.uid;
+            if (!uid) { errors++; continue; }
+
+            const emlFile = path.join(pendingDir, `${uid}.eml`);
+            if (fs.existsSync(emlFile)) {
+              skipped++;
+              await client.messageFlagsAdd(uid, ['\\Seen']);
+              continue;
+            }
+
+            if (msg.source) {
+              fs.writeFileSync(emlFile, msg.source);
+              descargados++;
+            } else {
+              errors++;
+            }
+
+            await client.messageFlagsAdd(uid, ['\\Seen']);
+          } catch (err) {
+            console.error(`[IMAP-Download] Error mensaje:`, err.message);
             errors++;
           }
-
-          await client.messageFlagsAdd(msg.uid, ['\\Seen']);
-        } catch (err) {
-          console.error(`[IMAP-Download] Error mensaje ${msg.uid}:`, err.message);
-          errors++;
         }
       }
 
