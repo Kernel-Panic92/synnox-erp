@@ -441,7 +441,7 @@ async function downloadEmails(config, rescanAll = false) {
       }
 
       syncState.iniciarSync(seqNumbers.length);
-      console.log(`[IMAP-Download] Iniciando descarga de ${seqNumbers.length} mensajes (5 en paralelo)...`);
+      console.log(`[IMAP-Download] Iniciando descarga de ${seqNumbers.length} mensajes (${PARALLEL} en paralelo)...`);
       let descargados = 0;
       let skipped = 0;
       let errors = 0;

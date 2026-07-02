@@ -40,6 +40,7 @@ function iniciarSync(totalMensajes) {
   syncState.sincronizando = true;
   syncState._startedAt = Date.now();
   syncState.totalMensajes = totalMensajes;
+  syncState._startTime = Date.now();
   syncState.procesando = 0;
   syncState.creadas = 0;
   syncState.duplicadas = 0;
@@ -78,7 +79,18 @@ function obtenerEstado() {
       guardarEstado();
     }
   }
-  return { ...syncState };
+  
+  // Calculate ETA
+  let eta = null;
+  if (syncState.sincronizando && syncState._startTime && syncState.procesando > 0 && syncState.totalMensajes > 0) {
+    const elapsed = Date.now() - syncState._startTime;
+    const perMessage = elapsed / syncState.procesando;
+    const remaining = syncState.totalMensajes - syncState.procesando;
+    const etaMs = remaining * perMessage;
+    eta = new Date(Date.now() + etaMs).toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+  }
+  
+  return { ...syncState, eta };
 }
 
 function reset() {

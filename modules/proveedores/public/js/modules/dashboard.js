@@ -180,7 +180,7 @@ async function checkSyncStatus(){
       return{sincronizando:true,bar:`<div style="background:rgba(79,142,247,.1);border:1px solid rgba(79,142,247,.3);border-radius:12px;padding:16px;margin-bottom:20px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <span style="font-weight:600;color:var(--accent)">${r.mensaje && r.mensaje.includes('Descargando') ? '⬇️ Descargando correo...' : '⚙️ Procesando correo...'}</span>
-          <span style="color:var(--muted);font-size:13px">${r.procesando}/${r.totalMensajes} — ${r.creadas} nuevas</span>
+          <span style="color:var(--muted);font-size:13px">${r.procesando}/${r.totalMensajes} — ${r.creadas} nuevas${r.eta ? ' · ETA: ' + r.eta : ''}</span>
         </div>
         <div style="background:var(--surface2);border-radius:6px;height:8px;overflow:hidden">
           <div style="background:var(--accent);height:100%;width:${r.progreso}%;transition:width .3s"></div>

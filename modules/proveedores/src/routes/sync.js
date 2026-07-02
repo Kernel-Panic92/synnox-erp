@@ -35,6 +35,7 @@ router.get('/status', async (req, res) => {
     duplicadas: estado.duplicadas,
     errores: estado.errores,
     mensaje: estado.mensaje,
+    eta: estado.eta,
     progreso: estado.totalMensajes > 0 
       ? Math.round((estado.procesando / estado.totalMensajes) * 100) 
       : 0
