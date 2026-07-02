@@ -441,48 +441,41 @@ async function downloadEmails(config, rescanAll = false) {
       }
 
       syncState.iniciarSync(seqNumbers.length);
-      console.log(`[IMAP-Download] Iniciando descarga de ${seqNumbers.length} mensajes...`);
+      console.log(`[IMAP-Download] Iniciando descarga de ${seqNumbers.length} mensajes (5 en paralelo)...`);
       let descargados = 0;
       let skipped = 0;
       let errors = 0;
 
-      // Process ONE at a time to avoid timeout
-      for (let i = 0; i < seqNumbers.length; i++) {
-        const seq = seqNumbers[i];
-        try {
-          console.log(`[IMAP-Download] Descargando mensaje ${i+1}/${seqNumbers.length} (seq: ${seq})...`);
-          // Use sequence number directly, fetch only source
-          const msgs = [];
-          for await (const msg of client.fetch([seq], { source: true })) {
-            msgs.push(msg);
-          }
-          const msg = msgs[0];
+      // Process 5 messages in parallel
+      const PARALLEL = 5;
+      for (let i = 0; i < seqNumbers.length; i += PARALLEL) {
+        const batch = seqNumbers.slice(i, i + PARALLEL);
+        const promises = batch.map(async (seq) => {
+          try {
+            const msgs = [];
+            for await (const msg of client.fetch([seq], { source: true })) {
+              msgs.push(msg);
+            }
+            const msg = msgs[0];
+            if (!msg || !msg.source) { errors++; return; }
 
-          if (!msg || !msg.source) {
+            const emlFile = path.join(pendingDir, `msg_${seq}.eml`);
+            if (fs.existsSync(emlFile)) { skipped++; return; }
+
+            fs.writeFileSync(emlFile, msg.source);
+            descargados++;
+            await client.messageFlagsAdd(seq, ['\\Seen']);
+          } catch (err) {
+            console.error(`[IMAP-Download] Error seq ${seq}:`, err.message);
             errors++;
-            continue;
           }
+        });
+        await Promise.all(promises);
 
-          // Generate filename from sequence number
-          const emlFile = path.join(pendingDir, `msg_${seq}.eml`);
-          if (fs.existsSync(emlFile)) {
-            skipped++;
-            continue;
-          }
-
-          fs.writeFileSync(emlFile, msg.source);
-          descargados++;
-          if (descargados % 10 === 0) {
-            console.log(`[IMAP-Download] Progreso: ${descargados}/${seqNumbers.length}`);
-            syncState.actualizarProgreso(descargados, 0, 0, 0, `Descargando emails: ${descargados}/${seqNumbers.length}...`);
-          }
-
-          // Mark as seen
-          await client.messageFlagsAdd(seq, ['\\Seen']);
-        } catch (err) {
-          console.error(`[IMAP-Download] Error seq ${seq}:`, err.message);
-          errors++;
-        }
+        // Update progress every batch
+        const total = Math.min(i + PARALLEL, seqNumbers.length);
+        console.log(`[IMAP-Download] Progreso: ${total}/${seqNumbers.length} (${descargados} descargados)`);
+        syncState.actualizarProgreso(total, descargados, skipped, errors, `Descargando: ${total}/${seqNumbers.length}...`);
       }
 
       console.log(`[IMAP-Download] ✓ ${descargados} descargados, ${skipped} omitidos, ${errors} errores`);

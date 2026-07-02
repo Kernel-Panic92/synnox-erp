@@ -179,7 +179,7 @@ async function checkSyncStatus(){
       const stuck = r.procesando === 0 && r.totalMensajes > 0;
       return{sincronizando:true,bar:`<div style="background:rgba(79,142,247,.1);border:1px solid rgba(79,142,247,.3);border-radius:12px;padding:16px;margin-bottom:20px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-          <span style="font-weight:600;color:var(--accent)">Sincronizando correo...</span>
+          <span style="font-weight:600;color:var(--accent)">${r.mensaje && r.mensaje.includes('Descargando') ? '⬇️ Descargando correo...' : '⚙️ Procesando correo...'}</span>
           <span style="color:var(--muted);font-size:13px">${r.procesando}/${r.totalMensajes} — ${r.creadas} nuevas</span>
         </div>
         <div style="background:var(--surface2);border-radius:6px;height:8px;overflow:hidden">
