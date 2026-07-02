@@ -425,7 +425,7 @@ async function pollCorreo(rescanAll = false) {
       pass: config.imap_password,
     },
     logger: false,
-    socketTimeout: 180000,  // 3 minutes per operation for very slow servers
+    socketTimeout: 300000,  // 5 minutes per operation for very slow servers
     connTimeout: 30000,
     greetingTimeout: 15000,
   });
@@ -435,7 +435,7 @@ async function pollCorreo(rescanAll = false) {
     console.error('[IMAP] Error en conexión:', err.message);
   });
 
-  const LOTE_SIZE = 5;  // Very small batches for slow servers
+  const LOTE_SIZE = 1;  // Process ONE message at a time for very slow servers
   let totalProcesados = 0;
   let totalCreados = 0;
   let totalDuplicados = 0;
@@ -451,15 +451,15 @@ async function pollCorreo(rescanAll = false) {
       let mensajes;
       if (rescanAll) {
         mensajes = await client.search({ all: true });
-        mensajes = mensajes.slice(-100);  // Limit to 100 for rescan
-        console.log(`[IMAP] Rescan: ${mensajes.length} mensajes (últimos 100)`);
+        mensajes = mensajes.slice(-20);  // Very small batch for rescan
+        console.log(`[IMAP] Rescan: ${mensajes.length} mensajes`);
       } else {
         mensajes = await client.search({ unseen: true });
         console.log(`[IMAP] Búsqueda unseen: ${mensajes.length} mensajes encontrados`);
-        // Limit to 50 unseen messages per poll to prevent timeout
-        if (mensajes.length > 50) {
-          console.log(`[IMAP] Limitando a 50 mensajes (de ${mensajes.length} totales)`);
-          mensajes = mensajes.slice(0, 50);
+        // Process only 10 messages per poll for slow servers
+        if (mensajes.length > 10) {
+          console.log(`[IMAP] Limitando a 10 mensajes (de ${mensajes.length} totales)`);
+          mensajes = mensajes.slice(0, 10);
         }
         const allMsgs = await client.search({ all: true });
         console.log(`[IMAP] Total mensajes en buzón: ${allMsgs.length}`);
@@ -516,9 +516,9 @@ async function pollCorreo(rescanAll = false) {
             totalProcesados++;
           }
         }
-        // Small delay between batches to prevent server overload
+        // Delay between messages to prevent server overload
         if (mensajes.length > 0) {
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await new Promise(resolve => setTimeout(resolve, 3000));
         }
       }
 
