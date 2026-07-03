@@ -3,18 +3,21 @@ let user = null;
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s||'')); return d.innerHTML; }
 
-function confirmModal(msg) {
+function confirmModal(msg, title = 'Confirmar') {
   return new Promise(resolve => {
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay';
     overlay.style.display = 'flex';
     overlay.innerHTML = `
-      <div class="modal" style="max-width:420px;text-align:center">
-        <div style="font-size:40px;margin-bottom:12px">⚠️</div>
-        <p style="font-size:14px;margin-bottom:20px;color:var(--text)">${esc(msg)}</p>
-        <div style="display:flex;gap:10px;justify-content:center">
-          <button class="btn btn-sm" style="background:var(--surface2);color:var(--text)" onclick="this.closest('.modal-overlay').remove();window._confirmResolve(false)">Cancelar</button>
-          <button class="btn btn-sm btn-danger" onclick="this.closest('.modal-overlay').remove();window._confirmResolve(true)">Confirmar</button>
+      <div class="modal" style="max-width:400px;text-align:center;padding:32px">
+        <div style="width:64px;height:64px;margin:0 auto 16px;background:rgba(239,68,68,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center">
+          <span style="font-size:28px">🗑️</span>
+        </div>
+        <h3 style="font-size:18px;font-weight:700;margin-bottom:8px;color:var(--text)">${esc(title)}</h3>
+        <p style="font-size:14px;color:var(--muted);margin-bottom:24px;line-height:1.5">${esc(msg)}</p>
+        <div style="display:flex;gap:12px;justify-content:center">
+          <button class="btn btn-sm" style="background:var(--surface2);color:var(--text);min-width:120px" onclick="this.closest('.modal-overlay').remove();window._confirmResolve(false)">Cancelar</button>
+          <button class="btn btn-sm btn-danger" style="min-width:120px" onclick="this.closest('.modal-overlay').remove();window._confirmResolve(true)">Confirmar</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
