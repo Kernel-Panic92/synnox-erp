@@ -282,7 +282,7 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
       sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000
     });
-    console.log(`[LOGIN] Cookie set for ${email}, secret: ${JWT_SECRET.slice(0,8)}..., token: ${token.slice(0,20)}...`);
+    console.log(`[LOGIN] Cookie set for ${email}`);
     res.json({ jwt: token, usuario: payload, modulos });
   } catch (e) { console.error('[LOGIN]', e.stack || e.message); res.status(500).json({ error: 'Error interno' }); }
 });
@@ -907,7 +907,7 @@ async function login() {
   const password = document.getElementById('login-pass').value;
   try {
     const data = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-    TOKEN = data.token; USER = data.usuario;
+    TOKEN = data.jwt || data.token; USER = data.usuario;
     localStorage.setItem('${id}_token', TOKEN);
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-screen').style.display = 'block';
@@ -1440,10 +1440,13 @@ app.get('/.well-known/oauth-protected-resource', requireOauth, (req, res) => {
 const LAUNCHER_DIR = path.resolve(__dirname, '..');
 
 function pm2Exec(args) {
+  // Validate args to prevent command injection
+  if (typeof args !== 'string' || /[;&|`$]/.test(args)) throw new Error('Invalid args');
+  const argsArr = args.split(/\s+/);
   // 1) Try local pm2
-  try { return execSync('pm2 ' + args, { stdio: 'pipe' }); } catch {}
+  try { return execFileSync('pm2', argsArr, { stdio: 'pipe' }); } catch {}
   // 2) Try local sudo pm2
-  try { return execSync('sudo pm2 ' + args, { stdio: 'pipe' }); } catch {}
+  try { return execFileSync('sudo', ['pm2', ...argsArr], { stdio: 'pipe' }); } catch {}
   // 3) Try remote via SSH if configured
   const sshHost = db.prepare("SELECT value FROM config WHERE key = 'ssh_host'").get()?.value;
   const sshUser = db.prepare("SELECT value FROM config WHERE key = 'ssh_user'").get()?.value || 'root';

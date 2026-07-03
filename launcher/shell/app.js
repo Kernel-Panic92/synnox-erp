@@ -108,7 +108,7 @@ const MODULOS_FIJOS = [
 ];
 
 async function showLauncher() {
-  document.getElementById('launcher-user').innerHTML = (user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
+  document.getElementById('launcher-user').innerHTML = esc(user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
   document.getElementById('launcher-role').textContent = user?.rol || '';
 
   const grid = document.getElementById('module-grid');
@@ -341,22 +341,22 @@ async function cargarActivity() {
   const w = document.getElementById('activity-widget');
   if (!w) return;
   try {
-    const res = await fetch('/api/admin/login-logs?limit=10', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const res = await fetch('/api/admin/login-logs', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
     if (!res.ok) { w.style.display = 'none'; return; }
     const data = await res.json();
-    const logs = data.rows || data || [];
+    const logs = data.logs || data.rows || data || [];
     if (!logs.length) { w.style.display = 'none'; return; }
     w.style.display = 'block';
     w.innerHTML = `
       <h2 style="margin-bottom:12px;">👤 Actividad reciente</h2>
       <div style="display:flex;flex-direction:column;gap:4px;">
         ${logs.slice(0, 8).map(l => {
-          const d = new Date(l.timestamp || l.creado);
+          const d = new Date(l.fecha || l.timestamp || l.creado);
           const hora = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
-          const icon = l.tipo === 'login' ? '🔑' : l.tipo === 'logout' ? '🚪' : '📝';
+          const icon = l.exitoso ? '🔑' : '🚫';
           return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;font-size:12px;">
             <span>${icon}</span>
-            <span style="flex:1;color:var(--text);">${l.email || l.usuario || '—'}</span>
+            <span style="flex:1;color:var(--text);">${esc(l.email || l.usuario || '—')}</span>
             <span style="color:var(--muted);">${hora}</span>
           </div>`;
         }).join('')}
@@ -382,7 +382,7 @@ async function cargarCommits() {
           const hora = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
           return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:13px;">
             <code style="color:var(--accent);font-size:11px;white-space:nowrap;">${c.hash.slice(0, 7)}</code>
-            <span style="flex:1;color:var(--text);">${c.message}</span>
+            <span style="flex:1;color:var(--text);">${esc(c.message)}</span>
             <span style="color:var(--muted);font-size:11px;white-space:nowrap;">${fecha} ${hora}</span>
           </div>`;
         }).join('')}
@@ -462,8 +462,8 @@ async function loadUsers() {
     tbody.innerHTML = users.map(u => `
       <tr>
         <td>${u.id}</td>
-        <td>${u.nombre}</td>
-        <td>${u.email}</td>
+        <td>${esc(u.nombre)}</td>
+        <td>${esc(u.email)}</td>
         <td><span class="badge badge-${u.rol}">${u.rol}</span></td>
         <td>${u.perfil_nombre ? `<span style="color:var(--accent);">${esc(u.perfil_nombre)}</span>` : '—'}</td>
         <td>${u.activo ? '<span style="color:var(--success);">Activo</span>' : '<span class="badge badge-inactivo">Inactivo</span>'}</td>
@@ -497,7 +497,7 @@ async function renderModulosCheckboxes(selectedModulos = []) {
   container.innerHTML = cachedModulos.map(m => `
     <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:400;">
       <input type="checkbox" value="${m.id}" ${selectedModulos.includes(m.id) ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
-      ${m.icon} ${m.nombre}
+      ${esc(m.icon)} ${esc(m.nombre)}
     </label>
   `).join('');
 }
@@ -643,9 +643,9 @@ async function loadModulos() {
     tbody.innerHTML = modulos.map(m => `
       <tr>
         <td>${m.id}</td>
-        <td>${m.icon} ${m.nombre}</td>
-        <td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;" title="${m.public_url || m.url}">${m.public_url || m.url}</td>
-        <td style="font-size:11px;color:var(--muted);">${m.proxy_prefix || '—'}</td>
+        <td>${esc(m.icon)} ${esc(m.nombre)}</td>
+        <td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;" title="${esc(m.public_url || m.url)}">${esc(m.public_url || m.url)}</td>
+        <td style="font-size:11px;color:var(--muted);">${esc(m.proxy_prefix || '—')}</td>
         <td>${m.mcp_enabled ? '<span style="color:var(--success);">Sí</span>' : '<span style="color:var(--muted);">No</span>'}</td>
         <td id="health-${m.id}"><span style="color:var(--muted);">—</span></td>
         <td class="actions">
@@ -1323,7 +1323,7 @@ async function loadLoginLogs() {
       var badge = r.exitoso
         ? '<span class="badge badge-admin">Exitoso</span>'
         : '<span class="badge badge-inactivo">Fallido</span>';
-      return '<tr><td style="white-space:nowrap;">' + r.fecha + '</td><td>' + r.ip + '</td><td>' + r.email + '</td><td>' + badge + '</td></tr>';
+      return '<tr><td style="white-space:nowrap;">' + esc(r.fecha) + '</td><td>' + esc(r.ip) + '</td><td>' + esc(r.email) + '</td><td>' + badge + '</td></tr>';
     }).join('');
   } catch (e) {}
 }
@@ -1615,7 +1615,6 @@ async function importarConfig() {
 // ── Perfiles ──
 async function loadPerfiles() {
   const tbody = document.querySelector('#perfiles-table tbody');
-  console.log('loadPerfiles called, tbody:', tbody);
   try {
     const res = await fetch('/api/admin/perfiles', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
     const perfiles = await res.json();
@@ -1635,7 +1634,6 @@ async function loadPerfiles() {
 }
 
 async function editarPerfil(id) {
-  console.log('editarPerfil called with id:', id);
   try {
     const modulosRes = await fetch('/api/admin/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.json());
     const modulos = modulosRes;
