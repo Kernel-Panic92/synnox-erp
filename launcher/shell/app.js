@@ -580,10 +580,10 @@ async function renderModulosCheckboxes(selectedModulos = []) {
     } catch { container.innerHTML = '<span style="color:var(--danger);font-size:13px;">Error al cargar módulos</span>'; return; }
   }
   container.innerHTML = cachedModulos.map(m => `
-    <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:400;">
-      <input type="checkbox" value="${m.id}" ${selectedModulos.includes(m.id) ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
-      ${esc(m.icon)} ${esc(m.nombre)}
-    </label>
+    <div style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;padding:4px 0;">
+      <input type="checkbox" value="${m.id}" ${selectedModulos.includes(m.id) ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;margin:0;vertical-align:middle;">
+      <span style="vertical-align:middle;">${esc(m.icon)} ${esc(m.nombre)}</span>
+    </div>
   `).join('');
 }
 
