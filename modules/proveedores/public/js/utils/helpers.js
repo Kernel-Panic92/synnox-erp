@@ -50,15 +50,15 @@ function confirmModal(msg, title = 'Confirmar'){
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:1000';
     overlay.innerHTML = `
-      <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;width:340px;text-align:center;flex-shrink:0">
+      <div data-confirm="1" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;width:340px;text-align:center;flex-shrink:0">
         <div style="width:64px;height:64px;margin:0 auto 16px;background:rgba(239,68,68,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center">
           <span style="font-size:28px">🗑️</span>
         </div>
         <h3 style="font-size:18px;font-weight:700;margin-bottom:8px;color:var(--text)">${esc(title)}</h3>
         <p style="font-size:14px;color:var(--muted);margin-bottom:24px;line-height:1.5">${esc(msg)}</p>
         <div style="display:flex;gap:12px;justify-content:center">
-          <button class="btn" style="background:var(--surface2);color:var(--text);min-width:100px" onclick="this.closest('div[style]').remove();window._confirmResolve(false)">Cancelar</button>
-          <button class="btn btn-danger" style="min-width:100px" onclick="this.closest('div[style]').remove();window._confirmResolve(true)">Confirmar</button>
+          <button class="btn" style="background:var(--surface2);color:var(--text);min-width:100px" onclick="this.closest('[data-confirm]').parentElement.remove();window._confirmResolve(false)">Cancelar</button>
+          <button class="btn btn-danger" style="min-width:100px" onclick="this.closest('[data-confirm]').parentElement.remove();window._confirmResolve(true)">Confirmar</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
