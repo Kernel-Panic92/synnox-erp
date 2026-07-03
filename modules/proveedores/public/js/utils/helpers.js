@@ -50,7 +50,7 @@ function confirmModal(msg, title = 'Confirmar'){
     const overlay = document.createElement('div');
     overlay.className = 'modal-overlay show';
     overlay.innerHTML = `
-      <div class="modal" style="max-width:400px;text-align:center;padding:32px">
+      <div class="modal" style="width:auto;max-width:360px;text-align:center;padding:32px">
         <div style="width:64px;height:64px;margin:0 auto 16px;background:rgba(239,68,68,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center">
           <span style="font-size:28px">🗑️</span>
         </div>
