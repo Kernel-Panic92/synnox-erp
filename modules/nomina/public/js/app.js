@@ -168,7 +168,7 @@ async function iniciarApp() {
   if (sesion?.usuario) {
     document.getElementById('ui-nombre').textContent = sesion.usuario.nombre;
     document.getElementById('ui-email').textContent = sesion.usuario.email;
-    document.getElementById('ui-rol-badge').textContent = rolLabel(sesion.usuario.rol);
+    document.getElementById('ui-rol-badge').textContent = sesion.usuario.perfil_nombre || rolLabel(sesion.usuario.rol);
     document.getElementById('ui-rol-badge').className = 'role-badge role-' + sesion.usuario.rol;
     const sedeEl = document.getElementById('ui-sede');
     if (sedeEl) sedeEl.textContent = sesion.usuario.sede;

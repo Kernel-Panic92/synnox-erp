@@ -87,7 +87,7 @@ app.get('/api/auth/me', verifyToken, async (req, res) => {
       user.nombre = req.user.nombre || req.user.email;
       user.rol = updateRol;
     }
-    res.json(user);
+    res.json({ ...user, perfil_nombre: req.user.perfil_nombre || null });
   } catch (err) {
     console.error('[auth/me]', err);
     res.status(500).json({ error: 'Error interno' });

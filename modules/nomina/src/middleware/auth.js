@@ -39,6 +39,7 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
         if (rolesPermitidos.length && !rolesPermitidos.includes(user.rol))
           return res.status(403).json({ error: 'Sin permisos para esta acción' });
         req.usuario = user;
+        req.perfil_nombre = payload.perfil_nombre || null;
         next();
       } catch (err) {
         return res.status(401).json({ error: 'Token inválido o expirado' });
