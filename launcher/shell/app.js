@@ -1762,10 +1762,10 @@ async function editarPerfil(id) {
           </div>
           <div id="perms-${m.id}" style="display:none;padding:4px 0 4px 28px;">
             ${perms.map(perm => `
-              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:3px 0;">
+              <div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 0;">
                 <input type="checkbox" class="perfil-perm" data-modulo="${m.id}" value="${perm}" ${(permisosMap[m.id]||[]).includes(perm) ? 'checked' : ''} onchange="updatePermCount('${m.id}')" style="accent-color:var(--accent);">
-                ${perm}
-              </label>
+                <span>${perm}</span>
+              </div>
             `).join('')}
           </div>
         </div>`;
