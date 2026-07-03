@@ -265,7 +265,7 @@ async function confirmarGenerarNomina() {
 
   const periodos = generarPeriodos(anio, tipo);
 
-  if (!confirm(`¿Generar ${periodos.length} períodos de nómina para ${anio}?`)) return;
+  if (!await confirmModal(`¿Generar ${periodos.length} períodos de nómina para ${anio}?`)) return;
 
   setLoading('btn-confirmar-generar', true);
 
