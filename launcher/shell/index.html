@@ -114,27 +114,6 @@
   .dash-body h2{font-size:22px;font-weight:700;margin-bottom:4px;}
   .dash-body p{font-size:var(--fs);color:var(--muted);margin-bottom:8px;}
 
-  /* Sidebar */
-  .launcher-sidebar{width:280px;flex-shrink:0;display:flex;flex-direction:column;gap:16px;}
-  .lsb-section{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;}
-  .lsb-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:12px;text-transform:uppercase;letter-spacing:0.5px;}
-  .lsb-content{font-size:13px;color:var(--muted);}
-  .lsb-user-info .lsb-name{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px;}
-  .lsb-user-info .lsb-role{font-size:12px;color:var(--muted);margin-bottom:8px;}
-  .lsb-user-info .lsb-email{font-size:12px;color:var(--accent);}
-  .lsb-link{display:flex;align-items:center;gap:8px;padding:8px 10px;border-radius:8px;color:var(--text);text-decoration:none;font-size:13px;transition:background 0.15s;}
-  .lsb-link:hover{background:var(--surface2);}
-  .lsb-link .lsb-icon{font-size:16px;width:20px;text-align:center;}
-  .lsb-link .lsb-badge{margin-left:auto;background:var(--danger);color:#fff;font-size:10px;padding:2px 6px;border-radius:10px;font-weight:600;}
-  .lsb-status-item{display:flex;align-items:center;justify-content:space-between;padding:6px 0;font-size:12px;}
-  .lsb-status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
-  .lsb-status-dot.online{background:var(--success);}
-  .lsb-status-dot.offline{background:var(--danger);}
-  .lsb-pending-item{padding:8px 0;border-bottom:1px solid var(--border);font-size:12px;}
-  .lsb-pending-item:last-child{border-bottom:none;}
-  .lsb-activity-item{display:flex;align-items:center;gap:8px;padding:6px 0;font-size:12px;}
-  .lsb-activity-time{color:var(--muted);white-space:nowrap;font-size:11px;}
-
 
   .tabs{display:flex;gap:0;margin-bottom:16px;border-bottom:1px solid var(--border);}
   .tab{padding:12px 24px;cursor:pointer;font-size:var(--fs);font-weight:600;color:var(--muted);border-bottom:2px solid transparent;transition:all 0.2s;}
@@ -187,8 +166,6 @@
     .dash-header{padding:14px 16px;flex-wrap:wrap;gap:8px;}
     .dash-body{padding:16px;max-width:100%;}
     .dash-body h2{font-size:18px;}
-    .launcher-sidebar{width:100%;flex-direction:row;overflow-x:auto;gap:12px;}
-    .launcher-sidebar .lsb-section{min-width:200px;flex-shrink:0;}
     .grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:12px;}
     .card{padding:24px 12px 18px;border-radius:14px;}
     .card-icon{font-size:36px;}
@@ -280,45 +257,19 @@
       <span class="dash-logout" onclick="logout()">Cerrar sesión</span>
     </div>
   </div>
-  <div style="display:flex;gap:24px;padding:32px;max-width:1400px;margin:0 auto;">
-    <!-- Sidebar -->
-    <aside class="launcher-sidebar" id="launcher-sidebar">
-      <div class="lsb-section">
-        <div class="lsb-title">👤 Mi cuenta</div>
-        <div id="lsb-user-info" class="lsb-content">Cargando...</div>
-      </div>
-      <div class="lsb-section">
-        <div class="lsb-title">⚡ Accesos rápidos</div>
-        <div id="lsb-quick-access" class="lsb-content">Cargando...</div>
-      </div>
-      <div class="lsb-section">
-        <div class="lsb-title">📊 Estado</div>
-        <div id="lsb-status" class="lsb-content">Cargando...</div>
-      </div>
-      <div class="lsb-section">
-        <div class="lsb-title">📋 Pendientes</div>
-        <div id="lsb-pending" class="lsb-content">Cargando...</div>
-      </div>
-      <div class="lsb-section">
-        <div class="lsb-title">🕐 Actividad</div>
-        <div id="lsb-activity" class="lsb-content">Cargando...</div>
-      </div>
-    </aside>
-    <!-- Main content -->
-    <main class="dash-body" style="flex:1;min-width:0;">
-      <h2>Aplicaciones</h2>
-      <p>Selecciona un módulo para abrirlo</p>
-      <div class="grid" id="module-grid"></div>
-      <div id="quick-actions-widget" style="margin-top:24px;display:none;"></div>
-      <div id="module-summary-widget" style="margin-top:24px;display:none;"></div>
-      <div id="pending-tasks-widget" style="margin-top:24px;display:none;"></div>
-      <div id="alerts-widget" style="margin-top:24px;display:none;"></div>
-      <div id="upcoming-widget" style="margin-top:24px;display:none;"></div>
-      <div id="weather-widget" style="margin-top:24px;display:none;"></div>
-      <div id="activity-widget" style="margin-top:24px;display:none;"></div>
-      <div id="server-stats-widget" style="margin-top:32px;display:none;"></div>
-      <div id="commits-widget" style="margin-top:24px;display:none;"></div>
-    </main>
+  <div class="dash-body">
+    <h2>Aplicaciones</h2>
+    <p>Selecciona un módulo para abrirlo</p>
+    <div class="grid" id="module-grid"></div>
+    <div id="quick-actions-widget" style="margin-top:24px;display:none;"></div>
+    <div id="module-summary-widget" style="margin-top:24px;display:none;"></div>
+    <div id="pending-tasks-widget" style="margin-top:24px;display:none;"></div>
+    <div id="alerts-widget" style="margin-top:24px;display:none;"></div>
+    <div id="upcoming-widget" style="margin-top:24px;display:none;"></div>
+    <div id="weather-widget" style="margin-top:24px;display:none;"></div>
+    <div id="activity-widget" style="margin-top:24px;display:none;"></div>
+    <div id="server-stats-widget" style="margin-top:32px;display:none;"></div>
+    <div id="commits-widget" style="margin-top:24px;display:none;"></div>
   </div>
 </div>
 
