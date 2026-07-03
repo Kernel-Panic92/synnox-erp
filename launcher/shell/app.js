@@ -1743,28 +1743,34 @@ async function editarPerfil(id) {
     document.getElementById('perfil-modal-title').textContent = id ? 'Editar Perfil' : 'Nuevo Perfil';
     
     const permisosEl = document.getElementById('perfil-permisos');
-    permisosEl.innerHTML = modulos.map(m => {
-      const perms = ['ver','crear','editar','eliminar'];
-      const allChecked = perms.every(p => (permisosMap[m.id]||[]).includes(p));
-      return `
-      <div style="margin-bottom:4px;">
-        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.arrow').textContent=this.nextElementSibling.style.display==='none'?'▶':'▼'">
-          <span class="arrow" style="font-size:10px;color:var(--muted);">▶</span>
-          <input type="checkbox" class="perfil-perm-all" data-modulo="${m.id}" ${allChecked ? 'checked' : ''} onclick="event.stopPropagation();toggleAllPerms('${m.id}',this.checked)" style="accent-color:var(--accent);">
-          <span style="font-size:16px;">${esc(m.icon || '📦')}</span>
-          <span style="font-weight:600;font-size:13px;">${esc(m.nombre)}</span>
-          <span style="margin-left:auto;font-size:11px;color:var(--muted);">${(permisosMap[m.id]||[]).length}/${perms.length}</span>
-        </div>
-        <div style="display:none;padding:8px 10px 8px 36px;border-left:2px solid var(--border);margin-left:18px;">
-          ${perms.map(perm => `
-            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:4px 0;">
-              <input type="checkbox" class="perfil-perm" data-modulo="${m.id}" value="${perm}" ${(permisosMap[m.id]||[]).includes(perm) ? 'checked' : ''} onchange="updatePermCount('${m.id}')" style="accent-color:var(--accent);">
-              ${perm}
-            </label>
-          `).join('')}
-        </div>
-      </div>`;
-    }).join('');
+    permisosEl.innerHTML = `
+      <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--muted);">
+        <input type="checkbox" id="perm-all-toggle" onclick="toggleAllModules(this.checked)" style="accent-color:var(--accent);">
+        <span>Módulos disponibles</span>
+      </div>
+      ${modulos.map(m => {
+        const perms = ['ver','crear','editar','eliminar'];
+        const allChecked = perms.every(p => (permisosMap[m.id]||[]).includes(p));
+        return `
+        <div style="border-bottom:1px solid var(--border);">
+          <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;cursor:pointer;background:var(--surface2);border-radius:6px;margin:4px 0;" onclick="toggleModule('${m.id}')">
+            <span id="arrow-${m.id}" style="font-size:10px;color:var(--muted);width:12px;">▶</span>
+            <input type="checkbox" class="perfil-perm-all" data-modulo="${m.id}" ${allChecked ? 'checked' : ''} onclick="event.stopPropagation();toggleAllPerms('${m.id}',this.checked)" style="accent-color:var(--accent);">
+            <span style="font-size:14px;">${esc(m.icon || '📦')}</span>
+            <span style="font-weight:600;font-size:13px;">${esc(m.nombre)}</span>
+            <span style="margin-left:auto;font-size:11px;color:var(--muted);">${(permisosMap[m.id]||[]).length}/${perms.length}</span>
+          </div>
+          <div id="perms-${m.id}" style="display:none;padding:4px 0 4px 28px;">
+            ${perms.map(perm => `
+              <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:3px 0;">
+                <input type="checkbox" class="perfil-perm" data-modulo="${m.id}" value="${perm}" ${(permisosMap[m.id]||[]).includes(perm) ? 'checked' : ''} onchange="updatePermCount('${m.id}')" style="accent-color:var(--accent);">
+                ${perm}
+              </label>
+            `).join('')}
+          </div>
+        </div>`;
+      }).join('')}
+    `;
     
     modal.classList.add('show');
   } catch (e) { alert('Error al cargar perfil: ' + e.message); }
@@ -1818,6 +1824,23 @@ function toggleAllPerms(moduloId, checked) {
     cb.checked = checked;
   });
   updatePermCount(moduloId);
+}
+
+function toggleModule(moduloId) {
+  const el = document.getElementById('perms-' + moduloId);
+  const arrow = document.getElementById('arrow-' + moduloId);
+  if (el) {
+    const isHidden = el.style.display === 'none';
+    el.style.display = isHidden ? 'block' : 'none';
+    if (arrow) arrow.textContent = isHidden ? '▼' : '▶';
+  }
+}
+
+function toggleAllModules(checked) {
+  document.querySelectorAll('.perfil-perm-all').forEach(cb => {
+    cb.checked = checked;
+    toggleAllPerms(cb.dataset.modulo, checked);
+  });
 }
 
 function updatePermCount(moduloId) {
