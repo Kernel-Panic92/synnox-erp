@@ -1758,8 +1758,8 @@ async function editarPerfil(id) {
         <div id="perms-${m.id}" style="display:none;padding:6px 0 6px 36px;">
           ${perms.map(perm => `
             <div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
-              <input type="checkbox" class="perfil-perm" data-modulo="${m.id}" value="${perm.toLowerCase()}" ${(permisosMap[m.id]||[]).includes(perm.toLowerCase()) ? 'checked' : ''} onchange="updatePermCount('${m.id}')" style="accent-color:var(--accent);width:16px;height:16px;">
-              <span style="font-size:13px;">${perm}</span>
+              <input type="checkbox" class="perfil-perm" data-modulo="${m.id}" value="${perm.toLowerCase()}" ${(permisosMap[m.id]||[]).includes(perm.toLowerCase()) ? 'checked' : ''} onchange="updatePermCount('${m.id}')" style="accent-color:var(--accent);width:16px;height:16px;margin:0;vertical-align:middle;">
+              <span style="font-size:13px;vertical-align:middle;">${perm}</span>
             </div>
           `).join('')}
         </div>
