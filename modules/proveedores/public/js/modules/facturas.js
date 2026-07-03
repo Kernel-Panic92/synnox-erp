@@ -74,7 +74,7 @@ async function rFacturas(filtro){
   if(fBusqueda.proveedor_id)params.set('proveedor_id',fBusqueda.proveedor_id);
   if(fBusqueda.categoria_id)params.set('categoria_id',fBusqueda.categoria_id);
   if(fBusqueda.buscar)params.set('buscar',fBusqueda.buscar);
-  params.set('limit','100');
+  params.set('limit',fBusqueda.limit||'100');
 
   const f=await api('GET',`/facturas?${params.toString()}`);S.facturas=f.data||[];
   const all=f.data||[];
@@ -141,16 +141,28 @@ async function rFacturas(filtro){
     </div>
     
     <div class="tbl">
-      <div class="tbl-head" style="display:flex;justify-content:space-between;align-items:center">
-        <div class="tbl-title">${all.length} factura(s)</div>
-        <div id="bulk-actions" style="display:none;gap:8px;align-items:center">
-          <span id="selected-count" style="font-size:12px;color:var(--muted)"></span>
-          <button class="btn btn-danger btn-sm" onclick="eliminarSeleccionadas()">🗑️ Eliminar seleccionadas</button>
-          ${hayFiltros?`<button class="btn btn-danger btn-sm" onclick="eliminarFiltradas()">🗑️ Eliminar todas (${f.total||0})</button>`:''}
+      <div class="tbl-head" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+        <div class="tbl-title">${f.total||all.length} factura(s)</div>
+        <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <div id="bulk-actions" style="display:none;gap:8px;align-items:center">
+            <span id="selected-count" style="font-size:12px;color:var(--muted)"></span>
+            <button class="btn btn-danger btn-sm" onclick="eliminarSeleccionadas()">🗑️ Eliminar</button>
+            ${hayFiltros?`<button class="btn btn-danger btn-sm" onclick="eliminarFiltradas()">🗑️ Todas (${f.total||0})</button>`:''}
+          </div>
+          <div style="display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)">
+            <span>Mostrar</span>
+            <select id="ff-limit" onchange="fBusqueda.limit=this.value;guardarFiltros();rFacturas()" style="padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:13px">
+              <option value="25" ${fBusqueda.limit==='25'?'selected':''}>25</option>
+              <option value="50" ${fBusqueda.limit==='50'?'selected':''}>50</option>
+              <option value="100" ${(fBusqueda.limit||'100')==='100'?'selected':''}>100</option>
+              <option value="500" ${fBusqueda.limit==='500'?'selected':''}>500</option>
+            </select>
+            <span>registros</span>
+          </div>
         </div>
       </div>
-      <table><thead><tr>${isAdmin?'<th><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"></th>':''}<th># Factura</th><th>Centro</th><th>Proveedor</th><th>Categoría</th><th>Valor</th><th>Estado</th><th>Recibida</th><th></th></tr></thead>
-      <tbody>${all.length?all.map(f=>`<tr onclick="abrirF('${f.id}')">${isAdmin?`<td><input type="checkbox" class="factura-cb" value="${f.id}" onclick="event.stopPropagation();updateBulkActions()"></td>`:''}<td class="mono" data-label="Factura">${esc(f.numero_factura)}</td><td data-label="Centro" style="font-size:12px;color:var(--muted)">${esc(f.centro_operacion_nombre||'—')}</td><td data-label="Proveedor" style="font-weight:500">${esc(f.proveedor_nombre||f.nombre_emisor||'—')}</td><td data-label="Categoría">${ctag(f.categoria_color,f.categoria_nombre)}</td><td data-label="Valor" style="font-weight:500">${fmt(f.valor_total||f.valor||0)}</td><td data-label="Estado">${bdg(f.estado)}</td><td data-label="Recibida" style="color:var(--muted);font-size:12px">${fdatetime(f.recibida_en)}</td><td>${f.archivo_pdf?`<span onclick="event.stopPropagation();verPdf('${f.id}')" title="Ver PDF" style="color:var(--accent);font-size:16px;cursor:pointer">📄</span>`:''}${isAdmin?`<span onclick="event.stopPropagation();delFactura('${f.id}','${esc(f.numero_factura)}')" title="Eliminar" style="color:var(--danger);font-size:14px;cursor:pointer;margin-left:6px">🗑️</span>`:''}</td></tr>`).join(''):'<tr><td colspan="9" class="empty">Sin facturas</td></tr>'}</tbody></table>
+      <table><thead><tr>${isAdmin?'<th style="width:40px"><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"></th>':''}<th># Factura</th><th>Centro</th><th>Proveedor</th><th>Categoría</th><th>Valor</th><th>Estado</th><th>Recibida</th><th style="width:100px">Acciones</th></tr></thead>
+      <tbody>${all.length?all.map(f=>`<tr onclick="abrirF('${f.id}')">${isAdmin?`<td style="width:40px"><input type="checkbox" class="factura-cb" value="${f.id}" onclick="event.stopPropagation();updateBulkActions()"></td>`:''}<td class="mono" data-label="Factura">${esc(f.numero_factura)}</td><td data-label="Centro" style="font-size:12px;color:var(--muted)">${esc(f.centro_operacion_nombre||'—')}</td><td data-label="Proveedor" style="font-weight:500">${esc(f.proveedor_nombre||f.nombre_emisor||'—')}</td><td data-label="Categoría">${ctag(f.categoria_color,f.categoria_nombre)}</td><td data-label="Valor" style="font-weight:500">${fmt(f.valor_total||f.valor||0)}</td><td data-label="Estado">${bdg(f.estado)}</td><td data-label="Recibida" style="color:var(--muted);font-size:12px">${fdatetime(f.recibida_en)}</td><td data-label="Acciones" style="display:flex;gap:4px">${f.archivo_pdf?`<button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();verPdf('${f.id}')" title="Ver PDF" style="padding:4px 8px;font-size:12px">📄</button>`:''}${f.archivo_xml?`<button class="btn btn-sm btn-secondary" onclick="event.stopPropagation();verXml('${f.id}')" title="Ver XML" style="padding:4px 8px;font-size:12px">📋</button>`:''}${isAdmin?`<button class="btn btn-sm btn-danger" onclick="event.stopPropagation();delFactura('${f.id}','${esc(f.numero_factura)}')" title="Eliminar" style="padding:4px 8px;font-size:12px">🗑️</button>`:''}</td></tr>`).join(''):'<tr><td colspan="9" class="empty">Sin facturas</td></tr>'}</tbody></table>
     </div>`;
   refreshBadges();
 }
