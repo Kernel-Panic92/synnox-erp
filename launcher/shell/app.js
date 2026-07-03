@@ -1743,34 +1743,28 @@ async function editarPerfil(id) {
     document.getElementById('perfil-modal-title').textContent = id ? 'Editar Perfil' : 'Nuevo Perfil';
     
     const permisosEl = document.getElementById('perfil-permisos');
-    permisosEl.innerHTML = `
-      <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;border-bottom:1px solid var(--border);font-size:12px;font-weight:600;color:var(--muted);">
-        <input type="checkbox" id="perm-all-toggle" onclick="toggleAllModules(this.checked)" style="accent-color:var(--accent);">
-        <span>Módulos disponibles</span>
-      </div>
-      ${modulos.map(m => {
-        const perms = ['ver','crear','editar','eliminar'];
-        const allChecked = perms.every(p => (permisosMap[m.id]||[]).includes(p));
-        return `
-        <div style="border-bottom:1px solid var(--border);">
-          <div style="display:flex;align-items:center;gap:6px;padding:6px 8px;cursor:pointer;background:var(--surface2);border-radius:6px;margin:4px 0;" onclick="toggleModule('${m.id}')">
-            <span id="arrow-${m.id}" style="font-size:10px;color:var(--muted);width:12px;">▶</span>
-            <input type="checkbox" class="perfil-perm-all" data-modulo="${m.id}" ${allChecked ? 'checked' : ''} onclick="event.stopPropagation();toggleAllPerms('${m.id}',this.checked)" style="accent-color:var(--accent);">
-            <span style="font-size:14px;">${esc(m.icon || '📦')}</span>
-            <span style="font-weight:600;font-size:13px;">${esc(m.nombre)}</span>
-            <span style="margin-left:auto;font-size:11px;color:var(--muted);">${(permisosMap[m.id]||[]).length}/${perms.length}</span>
-          </div>
-          <div id="perms-${m.id}" style="display:none;padding:4px 0 4px 28px;">
-            ${perms.map(perm => `
-              <div style="display:flex;align-items:center;gap:6px;font-size:12px;padding:3px 0;">
-                <input type="checkbox" class="perfil-perm" data-modulo="${m.id}" value="${perm}" ${(permisosMap[m.id]||[]).includes(perm) ? 'checked' : ''} onchange="updatePermCount('${m.id}')" style="accent-color:var(--accent);">
-                <span>${perm}</span>
-              </div>
-            `).join('')}
-          </div>
-        </div>`;
-      }).join('')}
-    `;
+    permisosEl.innerHTML = modulos.map(m => {
+      const perms = ['Ver','Crear','Editar','Eliminar'];
+      const allChecked = perms.every(p => (permisosMap[m.id]||[]).includes(p.toLowerCase()));
+      return `
+      <div style="margin-bottom:6px;">
+        <div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:6px;cursor:pointer;" onclick="toggleModule('${m.id}')">
+          <span id="arrow-${m.id}" style="font-size:10px;color:var(--muted);">▶</span>
+          <input type="checkbox" class="perfil-perm-all" data-modulo="${m.id}" ${allChecked ? 'checked' : ''} onclick="event.stopPropagation();toggleAllPerms('${m.id}',this.checked)" style="accent-color:var(--accent);width:16px;height:16px;">
+          <span style="font-size:14px;">${esc(m.icon || '📦')}</span>
+          <span style="font-weight:600;font-size:13px;flex:1;">${esc(m.nombre)}</span>
+          <span style="font-size:11px;color:var(--muted);">${(permisosMap[m.id]||[]).length}/${perms.length}</span>
+        </div>
+        <div id="perms-${m.id}" style="display:none;padding:6px 0 6px 36px;">
+          ${perms.map(perm => `
+            <div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
+              <input type="checkbox" class="perfil-perm" data-modulo="${m.id}" value="${perm.toLowerCase()}" ${(permisosMap[m.id]||[]).includes(perm.toLowerCase()) ? 'checked' : ''} onchange="updatePermCount('${m.id}')" style="accent-color:var(--accent);width:16px;height:16px;">
+              <span style="font-size:13px;">${perm}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+    }).join('');
     
     modal.classList.add('show');
   } catch (e) { alert('Error al cargar perfil: ' + e.message); }
@@ -1848,7 +1842,10 @@ function updatePermCount(moduloId) {
   const checked = document.querySelectorAll(`.perfil-perm[data-modulo="${moduloId}"]:checked`);
   const parent = document.querySelector(`.perfil-perm-all[data-modulo="${moduloId}"]`);
   if (parent) parent.checked = all.length === checked.length;
-  const countEl = parent?.closest('[style]')?.querySelector('[style*="margin-left:auto"]');
-  if (countEl) countEl.textContent = `${checked.length}/${all.length}`;
+  const countEl = parent?.closest('[style]')?.querySelector('[style*="flex:1"]');
+  if (countEl) {
+    const nextEl = countEl.nextElementSibling;
+    if (nextEl) nextEl.textContent = `${checked.length}/${all.length}`;
+  }
 }
 
