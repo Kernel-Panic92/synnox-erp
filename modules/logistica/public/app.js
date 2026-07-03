@@ -91,6 +91,11 @@ async function init() {
     if (roleEl) roleEl.textContent = data.perfil_nombre || data.rol || '';
     const emailEl = document.getElementById('user-email');
     if (emailEl) emailEl.textContent = data.email || '';
+    const badgeEl = document.getElementById('user-badge');
+    if (badgeEl) {
+      badgeEl.textContent = data.perfil_nombre || data.rol || '';
+      badgeEl.className = 'badge role-badge role-' + (data.rol || '').toLowerCase();
+    }
     cargarDashboard();
   } catch { logout(); }
 }

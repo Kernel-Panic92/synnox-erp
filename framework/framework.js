@@ -111,7 +111,11 @@ function mostrarApp() {
     if (nameEl) nameEl.textContent = HF.USER.nombre || HF.USER.name || '';
     if (roleEl) roleEl.textContent = HF.USER.perfil_nombre || HF.USER.rol || HF.USER.role || '';
     if (emailEl) emailEl.textContent = HF.USER.email || '';
-    if (badgeEl) badgeEl.textContent = HF.USER.perfil_nombre || HF.USER.rol || HF.USER.role || '';
+    if (badgeEl) {
+      const perfil = HF.USER.perfil_nombre || HF.USER.rol || HF.USER.role || '';
+      badgeEl.textContent = perfil;
+      badgeEl.className = 'role-badge role-' + (HF.USER.rol || '').toLowerCase();
+    }
   }
   navigate(HF.themePages[0] || 'dashboard');
 }
