@@ -1758,7 +1758,7 @@ async function editarPerfil(id) {
     `).join('');
     
     modal.classList.add('show');
-  } catch (e) { alert('Error: ' + e.message); }
+  } catch (e) { alert('Error al cargar perfil: ' + e.message); }
 }
 
 async function guardarPerfil() {
@@ -1785,7 +1785,7 @@ async function guardarPerfil() {
     cerrarModal('modal-perfil');
     loadPerfiles();
     alert(id ? 'Perfil actualizado' : 'Perfil creado');
-  } catch (e) { alert(e.message); }
+  } catch (e) { alert('Error al guardar: ' + e.message); }
 }
 
 async function eliminarPerfil(id, nombre) {
