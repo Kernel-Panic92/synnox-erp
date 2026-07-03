@@ -139,15 +139,21 @@ async function showLauncher() {
     ? MODULOS_FIJOS
     : MODULOS_FIJOS.filter(m => user?.modulos?.includes(m.id));
 
+  // Sort by usage frequency (most visited first)
+  const usage = JSON.parse(localStorage.getItem('module_usage') || '{}');
+  modulosDisponibles.sort((a, b) => (usage[b.id] || 0) - (usage[a.id] || 0));
+
   for (const mod of modulosDisponibles) {
     const card = document.createElement('a');
     card.className = 'card';
     card.href = window.location.origin + mod.ruta;
     card.target = '_blank';
     card.rel = 'noopener';
+    card.onclick = () => trackModuleVisit(mod.id);
+    const count = usage[mod.id] || 0;
     card.innerHTML = `
       <div class="card-icon">${mod.icon}</div>
-      <div class="card-title">${mod.nombre}</div>
+      <div class="card-title">${mod.nombre}${count > 0 ? ` <span style="font-size:11px;color:var(--muted);font-weight:400;">(${count})</span>` : ''}</div>
       <div class="card-desc">${mod.desc}</div>
     `;
     grid.appendChild(card);
@@ -179,8 +185,26 @@ async function showLauncher() {
   show('launcher-screen');
 }
 
+function trackModuleVisit(moduleId) {
+  const usage = JSON.parse(localStorage.getItem('module_usage') || '{}');
+  usage[moduleId] = (usage[moduleId] || 0) + 1;
+  localStorage.setItem('module_usage', JSON.stringify(usage));
+}
+
 function cargarQuickActions() {
   const w = document.getElementById('quick-actions-widget');
+  const usage = JSON.parse(localStorage.getItem('module_usage') || '{}');
+  const hasUsage = Object.keys(usage).length > 0;
+
+  if (!hasUsage) {
+    w.style.display = 'block';
+    w.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+        <span style="font-size:18px;">💡</span>
+        <span style="font-size:13px;color:var(--muted);">Los módulos más visitados aparecerán aquí automáticamente</span>
+      </div>`;
+    return;
+  }
   if (!w) return;
   const actions = [
     { icon: '📄', label: 'Nueva factura', module: 'proveedores', path: '/proveedores/#facturas' },
