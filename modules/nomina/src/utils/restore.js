@@ -19,6 +19,11 @@ module.exports = function createRestoreUtils({ db, encryptSmtp }) {
         const ins = db.prepare('INSERT OR REPLACE INTO nominas VALUES (?,?,?,?,?)');
         data.nominas.forEach(n => { ins.run(n.id, n.nombre, n.tipo, n.inicio, n.fin); nominas++; });
       }
+      if (data.tipos?.length) {
+        db.prepare('DELETE FROM tipos').run();
+        const ins = db.prepare('INSERT OR REPLACE INTO tipos (id, nombre, es_valor, activo) VALUES (?,?,?,?)');
+        data.tipos.forEach(t => { ins.run(t.id, t.nombre, t.es_valor??0, t.activo??1); });
+      }
       if (data.registros?.length) {
         db.prepare('DELETE FROM registros').run();
         const ins = db.prepare('INSERT OR REPLACE INTO registros (id,empleadoId,nominaId,fecha,horas,tipo,aprobador,motivo,creado,concepto,sede,creadoPor,observaciones,transporte,estado,aprobadoPor,fechaAprobado) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');

@@ -23,6 +23,7 @@ module.exports = function createBackupRouter({
         empleados: db.prepare('SELECT * FROM empleados').all(),
         nominas: db.prepare('SELECT * FROM nominas').all(),
         registros: db.prepare('SELECT * FROM registros').all(),
+        tipos: db.prepare('SELECT * FROM tipos').all(),
         usuario_empleados: db.prepare('SELECT * FROM usuario_empleados').all(),
         dashboard_layout: db.prepare('SELECT * FROM dashboard_layout').all(),
         centros: db.prepare('SELECT * FROM centros').all(),
