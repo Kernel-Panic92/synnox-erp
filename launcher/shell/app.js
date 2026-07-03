@@ -3,6 +3,25 @@ let user = null;
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s||'')); return d.innerHTML; }
 
+function confirmModal(msg) {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay';
+    overlay.style.display = 'flex';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:420px;text-align:center">
+        <div style="font-size:40px;margin-bottom:12px">⚠️</div>
+        <p style="font-size:14px;margin-bottom:20px;color:var(--text)">${esc(msg)}</p>
+        <div style="display:flex;gap:10px;justify-content:center">
+          <button class="btn btn-sm" style="background:var(--surface2);color:var(--text)" onclick="this.closest('.modal-overlay').remove();window._confirmResolve(false)">Cancelar</button>
+          <button class="btn btn-sm btn-danger" onclick="this.closest('.modal-overlay').remove();window._confirmResolve(true)">Confirmar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    window._confirmResolve = resolve;
+  });
+}
+
 // ─── Theme toggle (universal: synnox_theme en localStorage) ────
 (function initTheme() {
   const theme = localStorage.getItem('synnox_theme') || 'light';
@@ -392,6 +411,7 @@ async function cargarCommits() {
 
 async function cargarServerStats() {
   const w = document.getElementById('server-stats-widget');
+  if (!w) return;
   try {
     const res = await fetch('/api/admin/server/stats', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
     if (!res.ok) { w.style.display = 'none'; return; }
@@ -446,7 +466,7 @@ function logout() {
 
 // ── Admin ──
 function showAdmin() {
-  document.getElementById('admin-header-user').innerHTML = (user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
+  document.getElementById('admin-header-user').innerHTML = esc(user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
   show('admin-screen');
   showAdminTab('usuarios');
 }
@@ -598,7 +618,7 @@ function editUser(id) {
 }
 
 async function deleteUser(id) {
-  if (!confirm('¿Desactivar este usuario?')) return;
+  if (!await confirmModal('¿Desactivar este usuario?')) return;
   try {
     const res = await fetch(`/api/admin/usuarios/${id}`, {
       method: 'DELETE',
@@ -615,7 +635,7 @@ async function deleteUser(id) {
 }
 
 async function deleteUserPermanent(id) {
-  if (!confirm('¿Eliminar permanentemente este usuario? Esta acción no se puede deshacer.')) return;
+  if (!await confirmModal('¿Eliminar permanentemente este usuario? Esta acción no se puede deshacer.')) return;
   try {
     const res = await fetch(`/api/admin/usuarios/${id}/permanent`, {
       method: 'DELETE',
@@ -753,7 +773,7 @@ function editModulo(id) {
 }
 
 async function deleteModulo(id) {
-  if (!confirm(`¿Eliminar módulo ${id}?`)) return;
+  if (!await confirmModal(`¿Eliminar módulo ${id}?`)) return;
   try {
     const res = await fetch(`/api/admin/modulos/${id}`, {
       method: 'DELETE',
@@ -1182,7 +1202,7 @@ async function doUpdate() {
   const statusEl = document.getElementById('upd-status');
   const updateBtn = document.getElementById('upd-update-btn');
   const checkBtn = document.getElementById('upd-check-btn');
-  if (!confirm('¿Aplicar actualización? Se descargarán los cambios, se instalarán dependencias y deberás reiniciar el servicio.')) return;
+  if (!await confirmModal('¿Aplicar actualización? Se descargarán los cambios, se instalarán dependencias y deberás reiniciar el servicio.')) return;
   updateBtn.disabled = true;
   updateBtn.textContent = 'Actualizando...';
   checkBtn.disabled = true;
@@ -1553,7 +1573,7 @@ function closeMcpModuleDetail() {
 }
 
 async function restartMcpModule(moduleId) {
-  if (!confirm('¿Reiniciar ' + moduleId + '?')) return;
+  if (!await confirmModal('¿Reiniciar ' + moduleId + '?')) return;
   try {
     const res = await fetch('/api/admin/mcp-modules/' + encodeURIComponent(moduleId) + '/restart', {
       method: 'POST',
@@ -1704,7 +1724,7 @@ async function guardarPerfil() {
 }
 
 async function eliminarPerfil(id, nombre) {
-  if (!confirm(`¿Eliminar el perfil "${nombre}"?`)) return;
+  if (!await confirmModal(`¿Eliminar el perfil "${nombre}"?`)) return;
   try {
     const res = await fetch(`/api/admin/perfiles/${id}`, {
       method: 'DELETE',

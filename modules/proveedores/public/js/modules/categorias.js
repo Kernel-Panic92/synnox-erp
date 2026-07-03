@@ -44,4 +44,4 @@ async function mCat(id){
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeM()">Cancelar</button><button class="btn btn-primary" onclick="saveCat()">Guardar</button></div>`,560);
   rr();
 }
-async function delCat(id){if(!confirm('¿Desactivar esta categoría?'))return;try{await api('DELETE',`/categorias/${id}`);toast('Categoría desactivada','success');await rCats()}catch(e){toast(e.message,'error')}}
+async function delCat(id){if(!await confirmModal('¿Desactivar esta categoría?'))return;try{await api('DELETE',`/categorias/${id}`);toast('Categoría desactivada','success');await rCats()}catch(e){toast(e.message,'error')}}

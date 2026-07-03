@@ -63,7 +63,7 @@ async function mArea(id){
 }
 
 async function delArea(id,nombre){
-  if(!confirm(`¿Eliminar el área "${nombre}"?`))return;
+  if(!await confirmModal(`¿Eliminar el área "${nombre}"?`))return;
   try{
     await api('DELETE',`/areas/${id}`);
     toast('Área eliminada','success');

@@ -276,7 +276,7 @@ async function descargarBackupLocal(n){
 }
 
 async function restaurarBackupLocal(n){
-  if(!confirm('¿Restaurar el backup "'+n+'"?\n\nLos datos actuales serán reemplazados. Tu sesión no se verá afectada.'))return;
+  if(!await confirmModal('¿Restaurar el backup "'+n+'"? Los datos actuales serán reemplazados. Tu sesión no se verá afectada.'))return;
   const ok=document.getElementById('restore-ok');
   const err=document.getElementById('restore-err');
   ok.style.display='none';err.style.display='none';
@@ -302,7 +302,7 @@ async function restaurarBackup(){
   const ok=document.getElementById('restore-ok');
   const err=document.getElementById('restore-err');
   ok.style.display='none';err.style.display='none';
-  if(!confirm('¿Restaurar el backup "'+archivoARestaurar.name+'"?\n\nLos datos actuales serán reemplazados.'))return;
+  if(!await confirmModal('¿Restaurar el backup "'+archivoARestaurar.name+'"? Los datos actuales serán reemplazados.'))return;
   try{
     const token=getToken();
     const form=new FormData();
@@ -324,7 +324,7 @@ async function restaurarBackup(){
   }
 }
 
-async function eliminarBackup(n){if(!confirm('¿Eliminar este backup?'))return;try{await api('DELETE',`/backup/${n}`);toast('Backup eliminado','success');await cargarListaBackups()}catch(e){toast(e.message,'error')}}
+async function eliminarBackup(n){if(!await confirmModal('¿Eliminar este backup?'))return;try{await api('DELETE',`/backup/${n}`);toast('Backup eliminado','success');await cargarListaBackups()}catch(e){toast(e.message,'error')}}
 
 let backupPollingTimer=null;
 async function generarBackupServidor(){

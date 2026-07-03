@@ -393,7 +393,7 @@ function toggleNasCreds(){
 }
 
 async function ejecutarBackupAhora(){
-  if(!confirm('¿Ejecutar backup ahora?'))return;
+  if(!await confirmModal('¿Ejecutar backup ahora?'))return;
   try{
     const r=await api('POST','/configuracion/backups-auto/now');
     if(r.path){

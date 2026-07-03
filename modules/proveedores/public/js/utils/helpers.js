@@ -44,3 +44,21 @@ function formatBytes(b){
   const i=Math.floor(Math.log(b)/Math.log(k));
   return parseFloat((b/Math.pow(k,i)).toFixed(1))+' '+sizes[i];
 }
+
+function confirmModal(msg){
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-overlay show';
+    overlay.innerHTML = `
+      <div class="modal" style="max-width:420px;text-align:center">
+        <div style="font-size:40px;margin-bottom:12px">⚠️</div>
+        <p style="font-size:14px;margin-bottom:20px;color:var(--text)">${esc(msg)}</p>
+        <div style="display:flex;gap:10px;justify-content:center">
+          <button class="btn btn-secondary" onclick="this.closest('.modal-overlay').remove();window._confirmResolve(false)">Cancelar</button>
+          <button class="btn btn-danger" onclick="this.closest('.modal-overlay').remove();window._confirmResolve(true)">Confirmar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    window._confirmResolve = resolve;
+  });
+}

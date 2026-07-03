@@ -127,7 +127,7 @@ async function mCentro(id){
 }
 
 async function delCentro(id,nombre){
-  if(!confirm(`¿Eliminar el centro "${nombre}"?`))return;
+  if(!await confirmModal(`¿Eliminar el centro "${nombre}"?`))return;
   try{await api('DELETE',`/centros/${id}`);toast('Centro eliminado','success');rCentros()}catch(e){toast(e.message,'error')}
 }
 
@@ -221,7 +221,7 @@ async function guardarArea(id){
 }
 
 async function eliminarArea(id){
-  if(!confirm('¿Eliminar esta área? Los usuarios quedan sin área asignada.'))return;
+  if(!await confirmModal('¿Eliminar esta área? Los usuarios quedan sin área asignada.'))return;
   try{
     await api('DELETE',`/areas/${id}`);
     toast('Área eliminada','success');

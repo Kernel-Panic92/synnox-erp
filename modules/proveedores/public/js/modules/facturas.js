@@ -211,7 +211,7 @@ function updateBulkActions(){
 }
 
 async function delFactura(id,num){
-  if(!confirm(`¿Eliminar factura ${num}?`))return;
+  if(!await confirmModal(`¿Eliminar factura ${num}?`))return;
   try{
     await api('DELETE',`/facturas/${id}`);
     toast('Factura eliminada','success');
@@ -222,7 +222,7 @@ async function delFactura(id,num){
 async function eliminarSeleccionadas(){
   const ids=[...document.querySelectorAll('.factura-cb:checked')].map(cb=>cb.value);
   if(!ids.length){toast('Selecciona al menos una factura','warning');return}
-  if(!confirm(`¿Eliminar ${ids.length} factura(s)?`))return;
+  if(!await confirmModal(`¿Eliminar ${ids.length} factura(s)?`))return;
   try{
     await api('POST','/facturas/borrar',{ids});
     toast(`${ids.length} factura(s) eliminada(s)`,'success');
@@ -231,7 +231,7 @@ async function eliminarSeleccionadas(){
 }
 
 async function eliminarFiltradas(){
-  if(!confirm(`¿Eliminar TODAS las facturas filtradas (${document.querySelectorAll('.factura-cb').length})? Esta acción no se puede deshacer.`))return;
+  if(!await confirmModal(`¿Eliminar TODAS las facturas filtradas (${document.querySelectorAll('.factura-cb').length})? Esta acción no se puede deshacer.`))return;
   try{
     await api('POST','/facturas/borrar',{filters:fBusqueda});
     toast('Facturas filtradas eliminadas','success');

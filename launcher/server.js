@@ -649,7 +649,10 @@ app.put('/api/admin/modulos/:id', verificarToken, soloAdmin, (req, res) => {
 });
 
 app.delete('/api/admin/modulos/:id', verificarToken, soloAdmin, (req, res) => {
-  db.prepare('DELETE FROM modulos_plataforma WHERE id = ?').run(req.params.id);
+  const { id } = req.params;
+  db.prepare('DELETE FROM modulos_plataforma WHERE id = ?').run(id);
+  db.prepare('DELETE FROM user_modulos WHERE modulo_id = ?').run(id);
+  db.prepare('DELETE FROM perfil_permisos WHERE modulo_id = ?').run(id);
   res.json({ ok: true });
 });
 
