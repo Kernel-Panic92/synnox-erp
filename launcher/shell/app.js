@@ -264,26 +264,6 @@ async function cargarQuickActions() {
       `).join('')}
     </div>`;
 }
-  if (!w) return;
-  const actions = [
-    { icon: '📄', label: 'Nueva factura', module: 'proveedores', path: '/proveedores/#facturas' },
-    { icon: '🚚', label: 'Generar ruta', module: 'logistica', path: '/logistica/#rutas' },
-    { icon: '📝', label: 'Registrar horas', module: 'nomina', path: '/nomina/#registros' },
-    { icon: '👤', label: 'Nuevo empleado', module: 'nomina', path: '/nomina/#empleados' },
-    { icon: '📊', label: 'Dashboard', module: 'logistica', path: '/logistica/#dashboard' },
-    { icon: '⚙️', label: 'Configuración', module: 'proveedores', path: '/proveedores/#configuracion' },
-  ];
-  const visible = actions.filter(a => user?.modulos?.includes(a.module) || user?.rol === 'admin');
-  if (!visible.length) { w.style.display = 'none'; return; }
-  w.style.display = 'block';
-  w.innerHTML = `
-    <h2 style="margin-bottom:12px;">⚡ Accesos rápidos</h2>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;">
-      ${visible.map(a => `<a href="${a.path}" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);text-decoration:none;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-        <span>${a.icon}</span> ${a.label}
-      </a>`).join('')}
-    </div>`;
-}
 
 async function cargarModuleSummary() {
   const w = document.getElementById('module-summary-widget');
