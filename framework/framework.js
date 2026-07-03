@@ -106,9 +106,11 @@ function mostrarApp() {
   if (HF.USER) {
     const nameEl = document.getElementById('user-name');
     const roleEl = document.getElementById('user-role');
+    const emailEl = document.getElementById('user-email');
     const badgeEl = document.getElementById('user-badge');
     if (nameEl) nameEl.textContent = HF.USER.nombre || HF.USER.name || '';
-    if (roleEl) roleEl.textContent = HF.USER.email || HF.USER.role || '';
+    if (roleEl) roleEl.textContent = HF.USER.perfil_nombre || HF.USER.rol || HF.USER.role || '';
+    if (emailEl) emailEl.textContent = HF.USER.email || '';
     if (badgeEl) badgeEl.textContent = HF.USER.perfil_nombre || HF.USER.rol || HF.USER.role || '';
   }
   navigate(HF.themePages[0] || 'dashboard');
