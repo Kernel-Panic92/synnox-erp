@@ -1744,12 +1744,15 @@ async function editarPerfil(id) {
     
     const permisosEl = document.getElementById('perfil-permisos');
     permisosEl.innerHTML = modulos.map(m => `
-      <div style="margin-bottom:12px;">
-        <div style="font-weight:600;margin-bottom:6px;">${esc(m.nombre)}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;">
+      <div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+          <span style="font-size:18px;">${esc(m.icon || '📦')}</span>
+          <span style="font-weight:700;font-size:14px;">${esc(m.nombre)}</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
           ${['ver','crear','editar','eliminar'].map(perm => `
-            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;">
-              <input type="checkbox" class="perfil-perm" data-modulo="${m.id}" value="${perm}" ${(permisosMap[m.id]||[]).includes(perm) ? 'checked' : ''}>
+            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--border);transition:all 0.15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+              <input type="checkbox" class="perfil-perm" data-modulo="${m.id}" value="${perm}" ${(permisosMap[m.id]||[]).includes(perm) ? 'checked' : ''} style="accent-color:var(--accent);">
               ${perm}
             </label>
           `).join('')}
