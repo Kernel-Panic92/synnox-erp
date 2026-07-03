@@ -469,13 +469,12 @@ async function downloadEmails(config, rescanAll = false) {
       }
 
       syncState.iniciarSync(seqNumbers.length);
+      const PARALLEL = 10;
       console.log(`[IMAP-Download] Iniciando descarga de ${seqNumbers.length} mensajes (${PARALLEL} en paralelo)...`);
       let descargados = 0;
       let skipped = 0;
       let errors = 0;
 
-      // Process 5 messages in parallel
-      const PARALLEL = 10;
       for (let i = 0; i < seqNumbers.length; i += PARALLEL) {
         const batch = seqNumbers.slice(i, i + PARALLEL);
         const promises = batch.map(async (seq) => {
