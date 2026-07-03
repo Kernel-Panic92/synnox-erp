@@ -490,9 +490,9 @@ async function loadUsers() {
         <td>${u.perfil_nombre ? `<span style="color:var(--accent);">${esc(u.perfil_nombre)}</span>` : '—'}</td>
         <td>${u.activo ? '<span style="color:var(--success);">Activo</span>' : '<span class="badge badge-inactivo">Inactivo</span>'}</td>
         <td class="actions">
-          <button class="btn btn-sm" onclick="editUser(${u.id})">Editar</button>
-          ${u.activo ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">Desactivar</button>` : ''}
-          ${!u.activo ? `<button class="btn btn-sm btn-danger" onclick="deleteUserPermanent(${u.id})">Eliminar</button>` : ''}
+          <button class="btn btn-sm btn-secondary" onclick="editUser(${u.id})">✏️ Editar</button>
+          ${u.activo ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">🗑️ Desactivar</button>` : ''}
+          ${!u.activo ? `<button class="btn btn-sm btn-danger" onclick="deleteUserPermanent(${u.id})">🗑️ Eliminar</button>` : ''}
         </td>
       </tr>
     `).join('');
@@ -671,8 +671,8 @@ async function loadModulos() {
         <td>${m.mcp_enabled ? '<span style="color:var(--success);">Sí</span>' : '<span style="color:var(--muted);">No</span>'}</td>
         <td id="health-${m.id}"><span style="color:var(--muted);">—</span></td>
         <td class="actions">
-          <button class="btn btn-sm" onclick="editModulo('${m.id}')">Editar</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteModulo('${m.id}')">Eliminar</button>
+          <button class="btn btn-sm btn-secondary" onclick="editModulo('${m.id}')">✏️ Editar</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteModulo('${m.id}')">🗑️ Eliminar</button>
         </td>
       </tr>
     `).join('');
