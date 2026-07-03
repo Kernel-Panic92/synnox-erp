@@ -142,7 +142,7 @@ const SUBMODULOS = [
 
 async function showLauncher() {
   document.getElementById('launcher-user').innerHTML = esc(user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
-  document.getElementById('launcher-role').textContent = user?.rol || '';
+  document.getElementById('launcher-role').textContent = user?.perfil_nombre || user?.rol || '';
 
   const grid = document.getElementById('module-grid');
   grid.innerHTML = '';

@@ -296,11 +296,14 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
     
     // Get profile permissions
     let permisos = [];
+    let perfilNombre = null;
     if (user.perfil_id) {
+      const perfil = db.prepare('SELECT nombre FROM perfiles WHERE id = ?').get(user.perfil_id);
+      perfilNombre = perfil?.nombre || null;
       permisos = db.prepare('SELECT modulo_id, permiso FROM perfil_permisos WHERE perfil_id = ?').all(user.perfil_id);
     }
     
-    const payload = { id: user.id, email: user.email, nombre: user.nombre, rol: user.rol, modulos, perfil_id: user.perfil_id, permisos };
+    const payload = { id: user.id, email: user.email, nombre: user.nombre, rol: user.rol, modulos, perfil_id: user.perfil_id, perfil_nombre: perfilNombre, permisos };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
     db.prepare("UPDATE usuarios SET actualizado = datetime('now') WHERE id = ?").run(user.id);
     res.cookie('launcher_jwt', token, {

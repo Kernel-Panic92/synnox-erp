@@ -109,7 +109,7 @@ function mostrarApp() {
     const badgeEl = document.getElementById('user-badge');
     if (nameEl) nameEl.textContent = HF.USER.nombre || HF.USER.name || '';
     if (roleEl) roleEl.textContent = HF.USER.email || HF.USER.role || '';
-    if (badgeEl) badgeEl.textContent = HF.USER.rol || HF.USER.role || '';
+    if (badgeEl) badgeEl.textContent = HF.USER.perfil_nombre || HF.USER.rol || HF.USER.role || '';
   }
   navigate(HF.themePages[0] || 'dashboard');
 }

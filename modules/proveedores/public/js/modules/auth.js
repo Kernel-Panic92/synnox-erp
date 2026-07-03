@@ -23,10 +23,8 @@ function showApp(){
   document.body.className=S.theme;
   const tb=$('theme-btn');if(tb)tb.textContent=S.theme==='dark'?'🌙':'☀️';
   $('u-name').textContent=S.usuario?.nombre||'—';
-  $('u-role').textContent=S.usuario?.rol||'—';
-  const rolClass={'admin':'role-admin','contador':'role-contador','tesorero':'role-tesorero','comprador':'role-comprador','auditor':'role-auditor'};
-  $('u-badge').className=`role-badge ${rolClass[S.usuario?.rol]||'role-comprador'}`;
-  $('u-badge').textContent=S.usuario?.rol||'';
+  $('u-role').textContent=S.usuario?.perfil_nombre||S.usuario?.rol||'—';
+  $('u-badge').textContent=S.usuario?.perfil_nombre||S.usuario?.rol||'';
   initFiltros();
   
   fetch(BASE+'/api/version').then(r=>r.json()).then(d=>{
