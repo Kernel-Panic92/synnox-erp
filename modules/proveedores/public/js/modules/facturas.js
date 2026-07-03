@@ -143,9 +143,10 @@ async function rFacturas(filtro){
     <div class="tbl">
       <div class="tbl-head" style="display:flex;justify-content:space-between;align-items:center">
         <div class="tbl-title">${all.length} factura(s)</div>
-        <div id="bulk-actions" style="display:none;gap:8px">
+        <div id="bulk-actions" style="display:none;gap:8px;align-items:center">
           <span id="selected-count" style="font-size:12px;color:var(--muted)"></span>
           <button class="btn btn-danger btn-sm" onclick="eliminarSeleccionadas()">🗑️ Eliminar seleccionadas</button>
+          ${hayFiltros?`<button class="btn btn-danger btn-sm" onclick="eliminarFiltradas()">🗑️ Eliminar todas (${f.total||0})</button>`:''}
         </div>
       </div>
       <table><thead><tr>${isAdmin?'<th><input type="checkbox" id="select-all" onchange="toggleSelectAll(this)"></th>':''}<th># Factura</th><th>Centro</th><th>Proveedor</th><th>Categoría</th><th>Valor</th><th>Estado</th><th>Recibida</th><th></th></tr></thead>
@@ -201,6 +202,15 @@ async function eliminarSeleccionadas(){
   try{
     await api('POST','/facturas/borrar',{ids});
     toast(`${ids.length} factura(s) eliminada(s)`,'success');
+    rFacturas();
+  }catch(e){toast(e.message,'error')}
+}
+
+async function eliminarFiltradas(){
+  if(!confirm(`¿Eliminar TODAS las facturas filtradas (${document.querySelectorAll('.factura-cb').length})? Esta acción no se puede deshacer.`))return;
+  try{
+    await api('POST','/facturas/borrar',{filters:fBusqueda});
+    toast('Facturas filtradas eliminadas','success');
     rFacturas();
   }catch(e){toast(e.message,'error')}
 }

@@ -730,35 +730,50 @@ router.delete('/:id', requireRol('admin'), async (req, res) => {
 
 // ─── POST /api/facturas/borrar (bulk delete) ─────────────────────────────────
 router.post('/borrar', requireRol('admin'), async (req, res) => {
-  const { ids } = req.body;
-  if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids requerido' });
+  const { ids, filters } = req.body;
+  
+  let query = 'SELECT id, archivo_pdf, archivo_xml, soporte_pago FROM facturas WHERE 1=1';
+  const params = [];
+  let idx = 1;
+  
+  if (Array.isArray(ids) && ids.length) {
+    query += ` AND id = ANY($${idx++})`;
+    params.push(ids);
+  } else if (filters && typeof filters === 'object') {
+    // Build WHERE from filters (same as GET /facturas)
+    if (filters.estado) { query += ` AND estado=$${idx++}`; params.push(filters.estado); }
+    if (filters.numero) { query += ` AND numero_factura ILIKE $${idx++}`; params.push(`%${filters.numero}%`); }
+    if (filters.nit) { query += ` AND nit_emisor ILIKE $${idx++}`; params.push(`%${filters.nit}%`); }
+    if (filters.fecha_desde) { query += ` AND recibida_en >= $${idx++}`; params.push(filters.fecha_desde); }
+    if (filters.fecha_hasta) { query += ` AND recibida_en <= $${idx++}::date + interval '1 day'`; params.push(filters.fecha_hasta); }
+    if (filters.valor_min) { query += ` AND valor_total >= $${idx++}`; params.push(filters.valor_min); }
+    if (filters.valor_max) { query += ` AND valor_total <= $${idx++}`; params.push(filters.valor_max); }
+    if (filters.proveedor_id) { query += ` AND proveedor_id=$${idx++}`; params.push(filters.proveedor_id); }
+    if (filters.categoria_id) { query += ` AND categoria_id=$${idx++}`; params.push(filters.categoria_id); }
+    if (filters.buscar) { query += ` AND (numero_factura ILIKE $${idx} OR nombre_emisor ILIKE $${idx} OR nit_emisor ILIKE $${idx})`; params.push(`%${filters.buscar}%`); idx++; }
+  } else {
+    return res.status(400).json({ error: 'ids o filters requerido' });
+  }
   
   const client = await db.getClient();
   try {
     await client.query('BEGIN');
-    
-    // Get files to clean up
-    const { rows: old } = await client.query(
-      'SELECT id, archivo_pdf, archivo_xml, soporte_pago FROM facturas WHERE id = ANY($1)',
-      [ids]
-    );
-    
-    // Delete invoices
-    const { rows } = await client.query(
-      'DELETE FROM facturas WHERE id = ANY($1) RETURNING id',
-      [ids]
-    );
-    
+    const { rows: old } = await client.query(query, params);
+    if (!old.length) {
+      await client.query('ROLLBACK');
+      return res.json({ mensaje: 'No hay facturas para eliminar', eliminadas: 0 });
+    }
+    const delIds = old.map(r => r.id);
+    await client.query('DELETE FROM facturas WHERE id = ANY($1)', [delIds]);
     await client.query('COMMIT');
     
-    // Clean up files
     for (const f of old) {
       limpiarArchivo(f.archivo_pdf);
       limpiarArchivo(f.archivo_xml);
       limpiarSoporte(f.soporte_pago);
     }
     
-    res.json({ mensaje: `${rows.length} factura(s) eliminada(s)`, eliminadas: rows.length });
+    res.json({ mensaje: `${old.length} factura(s) eliminada(s)`, eliminadas: old.length });
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
