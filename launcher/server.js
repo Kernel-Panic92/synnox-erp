@@ -20,6 +20,33 @@ app.get('/api/version', (req, res) => {
   res.json({ v: SERVER_START, version: APP_VER });
 });
 
+// Track submodule visits from modules
+app.post('/api/track', (req, res) => {
+  const { submodule } = req.body;
+  if (!submodule) return res.status(400).json({ error: 'submodule required' });
+  // Store in a simple file-based counter
+  const trackFile = path.join(LAUNCHER_DIR, 'logs', 'track.json');
+  try {
+    let track = {};
+    if (fs.existsSync(trackFile)) track = JSON.parse(fs.readFileSync(trackFile, 'utf8'));
+    track[submodule] = (track[submodule] || 0) + 1;
+    fs.writeFileSync(trackFile, JSON.stringify(track, null, 2));
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/track', (req, res) => {
+  const trackFile = path.join(LAUNCHER_DIR, 'logs', 'track.json');
+  try {
+    if (!fs.existsSync(trackFile)) return res.json({});
+    res.json(JSON.parse(fs.readFileSync(trackFile, 'utf8')));
+  } catch (e) {
+    res.json({});
+  }
+});
+
 app.get('/api/admin/commits', verificarToken, soloAdmin, (req, res) => {
   try {
     const limit = Math.min(parseInt(req.query.limit) || 10, 50);

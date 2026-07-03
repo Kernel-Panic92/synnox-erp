@@ -128,6 +128,18 @@ const MODULOS_FIJOS = [
   { id: 'nomina', nombre: 'Nómina', icon: '💰', desc: 'Horas extra y novedades', ruta: '/nomina/' },
 ];
 
+const SUBMODULOS = [
+  { id: 'facturas', mod: 'proveedores', nombre: 'Facturas', icon: '📄', ruta: '/proveedores/#facturas' },
+  { id: 'pendientes', mod: 'proveedores', nombre: 'Pendientes', icon: '⏰', ruta: '/proveedores/#pendientes' },
+  { id: 'porpagar', mod: 'proveedores', nombre: 'Por Pagar', icon: '💳', ruta: '/proveedores/#porpagar' },
+  { id: 'rutas', mod: 'logistica', nombre: 'Rutas', icon: '🛣️', ruta: '/logistica/#rutas' },
+  { id: 'pedidos', mod: 'logistica', nombre: 'Pedidos', icon: '📦', ruta: '/logistica/#pedidos' },
+  { id: 'clientes', mod: 'logistica', nombre: 'Clientes', icon: '👥', ruta: '/logistica/#clientes' },
+  { id: 'registros', mod: 'nomina', nombre: 'Registros', icon: '📝', ruta: '/nomina/#registros' },
+  { id: 'empleados', mod: 'nomina', nombre: 'Empleados', icon: '👤', ruta: '/nomina/#empleados' },
+  { id: 'nominas', mod: 'nomina', nombre: 'Nóminas', icon: '💰', ruta: '/nomina/#nominas' },
+];
+
 async function showLauncher() {
   document.getElementById('launcher-user').innerHTML = esc(user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
   document.getElementById('launcher-role').textContent = user?.rol || '';
@@ -149,7 +161,12 @@ async function showLauncher() {
     card.href = window.location.origin + mod.ruta;
     card.target = '_blank';
     card.rel = 'noopener';
-    card.onclick = () => trackModuleVisit(mod.id);
+    card.onclick = () => {
+      trackModuleVisit(mod.id);
+      // Also track submodule if hash is present
+      const hash = window.location.hash?.replace('#', '');
+      if (hash) trackModuleVisit(hash);
+    };
     const count = usage[mod.id] || 0;
     card.innerHTML = `
       <div class="card-icon">${mod.icon}</div>
@@ -186,14 +203,39 @@ async function showLauncher() {
 }
 
 function trackModuleVisit(moduleId) {
-  const usage = JSON.parse(localStorage.getItem('module_usage') || '{}');
+  // Save to localStorage immediately for instant UI update
+  const usage = JSON.parse(localStorage.getItem('submodule_usage') || '{}');
   usage[moduleId] = (usage[moduleId] || 0) + 1;
-  localStorage.setItem('module_usage', JSON.stringify(usage));
+  localStorage.setItem('submodule_usage', JSON.stringify(usage));
+  // Also send to server for persistence
+  fetch('/api/track', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ submodule: moduleId })
+  }).catch(() => {});
 }
 
-function cargarQuickActions() {
+async function getTopSubmodules(limit = 6) {
+  // Merge localStorage and server data
+  const localUsage = JSON.parse(localStorage.getItem('submodule_usage') || '{}');
+  let serverUsage = {};
+  try {
+    const res = await fetch('/api/track');
+    serverUsage = await res.json();
+  } catch {}
+  // Merge: max of local and server counts
+  const merged = {};
+  for (const [k, v] of Object.entries(localUsage)) merged[k] = Math.max(merged[k] || 0, v);
+  for (const [k, v] of Object.entries(serverUsage)) merged[k] = Math.max(merged[k] || 0, v);
+  return Object.entries(merged)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([id, count]) => ({ id, count }));
+}
+
+async function cargarQuickActions() {
   const w = document.getElementById('quick-actions-widget');
-  const usage = JSON.parse(localStorage.getItem('module_usage') || '{}');
+  const usage = JSON.parse(localStorage.getItem('submodule_usage') || '{}');
   const hasUsage = Object.keys(usage).length > 0;
 
   if (!hasUsage) {
@@ -201,10 +243,27 @@ function cargarQuickActions() {
     w.innerHTML = `
       <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
         <span style="font-size:18px;">💡</span>
-        <span style="font-size:13px;color:var(--muted);">Los módulos más visitados aparecerán aquí automáticamente</span>
+        <span style="font-size:13px;color:var(--muted);">Los accesos frecuentes aparecerán aquí automáticamente</span>
       </div>`;
     return;
   }
+
+  const top = await getTopSubmodules(6);
+  const visible = top.map(t => SUBMODULOS.find(s => s.id === t.id)).filter(Boolean);
+
+  if (!visible.length) { w.style.display = 'none'; return; }
+
+  w.style.display = 'block';
+  w.innerHTML = `
+    <h2 style="margin-bottom:12px;">⚡ Accesos frecuentes</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+      ${visible.map(s => `
+        <a href="${window.location.origin + s.ruta}" target="_blank" onclick="trackModuleVisit('${s.id}')" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);text-decoration:none;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+          <span>${s.icon}</span> ${s.nombre}
+        </a>
+      `).join('')}
+    </div>`;
+}
   if (!w) return;
   const actions = [
     { icon: '📄', label: 'Nueva factura', module: 'proveedores', path: '/proveedores/#facturas' },
