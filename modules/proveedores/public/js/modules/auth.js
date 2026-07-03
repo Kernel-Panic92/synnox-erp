@@ -24,6 +24,7 @@ function showApp(){
   const tb=$('theme-btn');if(tb)tb.textContent=S.theme==='dark'?'🌙':'☀️';
   $('u-name').textContent=S.usuario?.nombre||'—';
   $('u-role').textContent=S.usuario?.perfil_nombre||S.usuario?.rol||'—';
+  if ($('u-email')) $('u-email').textContent=S.usuario?.email||'';
   $('u-badge').textContent=S.usuario?.perfil_nombre||S.usuario?.rol||'';
   initFiltros();
   

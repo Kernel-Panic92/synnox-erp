@@ -89,6 +89,8 @@ async function init() {
     if (nameEl) nameEl.textContent = data.nombre || data.email;
     const roleEl = document.getElementById('user-role');
     if (roleEl) roleEl.textContent = data.perfil_nombre || data.rol || '';
+    const emailEl = document.getElementById('user-email');
+    if (emailEl) emailEl.textContent = data.email || '';
     cargarDashboard();
   } catch { logout(); }
 }
