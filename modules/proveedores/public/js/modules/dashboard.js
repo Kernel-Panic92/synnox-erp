@@ -169,6 +169,20 @@ async function renderCharts(){
 }
 
 async function refreshBadges(){
+  try{
+    const f=await api('GET','/facturas?limit=1');
+    if(f.total){
+      const badges=document.querySelectorAll('.nb');
+      badges.forEach(b=>{
+        const id=b.id?.replace('nb-','');
+        if(id&&f.data){
+          const cnt=f.data.filter(x=>x.estado===id).length;
+          b.textContent=cnt||'';
+          b.style.display=cnt?'inline':'none';
+        }
+      });
+    }
+  }catch{}
 }
 
 async function checkSyncStatus(){

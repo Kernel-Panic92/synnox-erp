@@ -2,6 +2,8 @@
 
 let pendFiltro='todas';
 let pendBusqueda='';
+let _pendDebounce=null;
+function pendSearchDebounce(v){pendBusqueda=v;clearTimeout(_pendDebounce);_pendDebounce=setTimeout(()=>rPend(),300)}
 async function rPend(){
   const savedSearch=pendBusqueda;
   let savedCursorPos=0;
@@ -68,7 +70,7 @@ function renderItem(f){
   $('content').innerHTML=`
     <div class="page-header"><div><div class="page-title">Pendientes</div><div class="page-sub">${all.length} factura(s) requieren atención</div></div></div>
     <div style="display:flex;gap:10px;margin-bottom:20px;flex-wrap:wrap">
-      <input type="text" id="pend-buscar" placeholder="🔍 Buscar factura o proveedor..." value="${esc(pendBusqueda)}" style="flex:1;min-width:200px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text)" oninput="pendBusqueda=this.value;rPend()"/>
+      <input type="text" id="pend-buscar" placeholder="🔍 Buscar factura o proveedor..." value="${esc(pendBusqueda)}" style="flex:1;min-width:200px;padding:10px 14px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text)" oninput="pendSearchDebounce(this.value)"/>
       <button class="fb${pendFiltro==='todas'?' active':''}" onclick="pendFiltro='todas';rPend()">Todas</button>
       <button class="fb${pendFiltro==='sinaprobar'?' active':''}" onclick="pendFiltro='sinaprobar';rPend()">⏳ Sin aprobar</button>
       <button class="fb${pendFiltro==='sinpagar'?' active':''}" onclick="pendFiltro='sinpagar';rPend()">💳 Sin pagar</button>

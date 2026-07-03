@@ -60,7 +60,6 @@ window.addEventListener('popstate',()=>{
   const v=getPageFromHash();
   if(v!==S.view)goTo(v);
 });
-syncPollInterval=null;
 
 // ─── CENTROS DE OPERACIÓN ─────────────────────────────────────────────────
 async function rCentros(){
