@@ -82,8 +82,8 @@ db.exec(`
     actualizado TEXT NOT NULL DEFAULT (datetime('now'))
   )
 `);
-// Migrate: rename comprador → operador
-db.prepare("UPDATE usuarios SET rol = 'operador' WHERE rol = 'comprador'").run();
+// Migrate: all roles except admin → operador
+db.prepare("UPDATE usuarios SET rol = 'operador' WHERE rol != 'admin'").run();
 
 const adminEmail = process.env.ADMIN_EMAIL || 'admin@horix.com';
 const adminPass = process.env.ADMIN_PASS || 'admin123';
