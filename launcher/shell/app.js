@@ -1743,22 +1743,28 @@ async function editarPerfil(id) {
     document.getElementById('perfil-modal-title').textContent = id ? 'Editar Perfil' : 'Nuevo Perfil';
     
     const permisosEl = document.getElementById('perfil-permisos');
-    permisosEl.innerHTML = modulos.map(m => `
-      <div style="padding:12px;background:var(--surface);border:1px solid var(--border);border-radius:10px;margin-bottom:8px;">
-        <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
-          <span style="font-size:18px;">${esc(m.icon || '📦')}</span>
-          <span style="font-weight:700;font-size:14px;">${esc(m.nombre)}</span>
+    permisosEl.innerHTML = modulos.map(m => {
+      const perms = ['ver','crear','editar','eliminar'];
+      const allChecked = perms.every(p => (permisosMap[m.id]||[]).includes(p));
+      return `
+      <div style="margin-bottom:4px;">
+        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:8px;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none';this.querySelector('.arrow').textContent=this.nextElementSibling.style.display==='none'?'▶':'▼'">
+          <span class="arrow" style="font-size:10px;color:var(--muted);">▶</span>
+          <input type="checkbox" class="perfil-perm-all" data-modulo="${m.id}" ${allChecked ? 'checked' : ''} onclick="event.stopPropagation();toggleAllPerms('${m.id}',this.checked)" style="accent-color:var(--accent);">
+          <span style="font-size:16px;">${esc(m.icon || '📦')}</span>
+          <span style="font-weight:600;font-size:13px;">${esc(m.nombre)}</span>
+          <span style="margin-left:auto;font-size:11px;color:var(--muted);">${(permisosMap[m.id]||[]).length}/${perms.length}</span>
         </div>
-        <div style="display:flex;flex-wrap:wrap;gap:8px;">
-          ${['ver','crear','editar','eliminar'].map(perm => `
-            <label style="display:flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;padding:4px 8px;border-radius:6px;border:1px solid var(--border);transition:all 0.15s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
-              <input type="checkbox" class="perfil-perm" data-modulo="${m.id}" value="${perm}" ${(permisosMap[m.id]||[]).includes(perm) ? 'checked' : ''} style="accent-color:var(--accent);">
+        <div style="display:none;padding:8px 10px 8px 36px;border-left:2px solid var(--border);margin-left:18px;">
+          ${perms.map(perm => `
+            <label style="display:flex;align-items:center;gap:6px;font-size:12px;cursor:pointer;padding:4px 0;">
+              <input type="checkbox" class="perfil-perm" data-modulo="${m.id}" value="${perm}" ${(permisosMap[m.id]||[]).includes(perm) ? 'checked' : ''} onchange="updatePermCount('${m.id}')" style="accent-color:var(--accent);">
               ${perm}
             </label>
           `).join('')}
         </div>
-      </div>
-    `).join('');
+      </div>`;
+    }).join('');
     
     modal.classList.add('show');
   } catch (e) { alert('Error al cargar perfil: ' + e.message); }
@@ -1806,4 +1812,20 @@ async function eliminarPerfil(id, nombre) {
 }
 
 function cerrarModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function toggleAllPerms(moduloId, checked) {
+  document.querySelectorAll(`.perfil-perm[data-modulo="${moduloId}"]`).forEach(cb => {
+    cb.checked = checked;
+  });
+  updatePermCount(moduloId);
+}
+
+function updatePermCount(moduloId) {
+  const all = document.querySelectorAll(`.perfil-perm[data-modulo="${moduloId}"]`);
+  const checked = document.querySelectorAll(`.perfil-perm[data-modulo="${moduloId}"]:checked`);
+  const parent = document.querySelector(`.perfil-perm-all[data-modulo="${moduloId}"]`);
+  if (parent) parent.checked = all.length === checked.length;
+  const countEl = parent?.closest('[style]')?.querySelector('[style*="margin-left:auto"]');
+  if (countEl) countEl.textContent = `${checked.length}/${all.length}`;
+}
 
