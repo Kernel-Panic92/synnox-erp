@@ -37,7 +37,10 @@ async function verXml(id){
       <div class="modal" style="width:90vw;max-width:900px;height:85vh;display:flex;flex-direction:column">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
           <span style="font-family:var(--font-head);font-size:16px;font-weight:700">Factura XML</span>
-          <button class="btn btn-secondary btn-sm" onclick="closeM()">✕ Cerrar</button>
+          <div style="display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" onclick="descargarXml('${id}')">⬇️ Descargar</button>
+            <button class="btn btn-secondary btn-sm" onclick="closeM()">✕ Cerrar</button>
+          </div>
         </div>
         <pre style="flex:1;overflow:auto;padding:16px;background:var(--surface2);border-radius:8px;font-size:12px;font-family:monospace;white-space:pre-wrap">${esc(text)}</pre>
       </div>
@@ -45,6 +48,15 @@ async function verXml(id){
   } catch(e) {
     toast('Error cargando XML', 'error');
   }
+}
+
+function descargarXml(id){
+  const a=document.createElement('a');
+  a.href=`${BASE}/api/facturas/${id}/xml`;
+  a.download='factura.xml';
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
 }
 
 let fFiltro='todas';
