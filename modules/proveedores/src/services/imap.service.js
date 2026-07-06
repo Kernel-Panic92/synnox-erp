@@ -355,9 +355,9 @@ async function procesarCorreo(parsed, msgId) {
           const newPath = path.join(baseUploadDir, nuevoPath);
           fs.renameSync(originalPath, newPath);
           // Link to original invoice if it exists
-          const dup = db.prepare('SELECT id FROM facturas WHERE numero_factura = ?').get(facturaId);
-          if (dup) {
-            db.prepare('UPDATE facturas SET archivo_acuse = ? WHERE id = ?').run(nuevoPath, dup.id);
+          const dup = await db.query('SELECT id FROM facturas WHERE numero_factura = $1', [facturaId]);
+          if (dup.rows.length > 0) {
+            await db.query('UPDATE facturas SET archivo_acuse = $1 WHERE id = $2', [nuevoPath, dup.rows[0].id]);
             console.log(`  [IMAP] ✓ Acuse guardado y ligado a factura ${facturaId}`);
           } else {
             console.log(`  [IMAP] Acuse guardado (factura ${facturaId} no encontrada — puede llegar después)`);
