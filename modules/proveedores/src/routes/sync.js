@@ -62,12 +62,6 @@ router.post('/', requireRol('admin', 'contador'), (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-    }
-    res.json({ ok: true, mensaje: 'Sincronización iniciada (descarga + procesamiento)' });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
 
 // Process only (no IMAP download)
 router.post('/process', requireRol('admin'), async (req, res) => {
