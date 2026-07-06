@@ -69,16 +69,8 @@ function terminarSync(creadas, duplicadas, errores) {
 }
 
 function obtenerEstado() {
-  // Safety: if sincronizando has been true for >5 minutes, reset it (crash recovery)
-  if (syncState.sincronizando && syncState._startedAt) {
-    const elapsed = Date.now() - syncState._startedAt;
-    if (elapsed > 5 * 60 * 1000) {
-      console.warn('[SyncState] Sincronización stuck por >5min — reseteando');
-      syncState.sincronizando = false;
-      syncState.mensaje = 'Sincronización abortada por timeout';
-      guardarEstado();
-    }
-  }
+  // No timeout - let IMAP finish naturally
+  // The IMAP download has its own error handling
   
   // Calculate ETA
   let eta = null;
