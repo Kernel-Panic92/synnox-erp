@@ -704,6 +704,21 @@ router.get('/:id/acuse', requireRol('admin','contador','tesorero','comprador','a
   }
 });
 
+// ─── GET /api/facturas/acuses-huerfanos ──────────────────────────────────────
+router.get('/acuses-huerfanos', requireRol('admin'), async (req, res) => {
+  try {
+    const { rows } = await db.query(
+      `SELECT id, numero_factura, nombre_emisor, archivo_acuse 
+       FROM facturas 
+       WHERE archivo_acuse IS NOT NULL 
+       AND archivo_acuse LIKE '%suelto%'`
+    );
+    res.json(rows);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ─── DELETE /api/facturas/:id ──────────────────────────────────────────────────
 const UPLOAD_DIR = process.env.UPLOAD_DIR || './uploads';
 

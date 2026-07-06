@@ -341,7 +341,7 @@ async function procesarCorreo(parsed, msgId) {
     const parentMatch = xml.match(/<cbc:ParentDocumentID>([^<]+)<\/cbc:ParentDocumentID>/);
     if (parentMatch) {
       const facturaId = parentMatch[1].trim();
-      console.log(`  [IMAP] Buscando factura original: ${facturaId}`);
+      console.log(`  [IMAP] Referencia factura: ${facturaId}`);
       // Save the acuse file
       if (archivoXml) {
         const acuseNombre = `acuse_${facturaId}_${Date.now()}.xml`;
@@ -355,19 +355,29 @@ async function procesarCorreo(parsed, msgId) {
           if (dup) {
             db.prepare('UPDATE facturas SET archivo_acuse = ? WHERE id = ?').run(nuevoPath, dup.id);
             console.log(`  [IMAP] ✓ Acuse guardado y ligado a factura ${facturaId}`);
-            return 'creada';
+          } else {
+            console.log(`  [IMAP] Acuse guardado (factura ${facturaId} no encontrada — puede llegar después)`);
           }
-          console.log(`  [IMAP] Acuse guardado (factura ${facturaId} no encontrada en DB)`);
+          return 'creada';
         } catch (e) {
           console.error(`  [IMAP] Error guardando acuse:`, e.message);
         }
       }
       return 'omitido';
     }
-    // No parent document reference - just skip
-    console.log(`  [IMAP] Acuse sin referencia a factura — omitiendo`);
-    if (archivoPdf) { try { fs.unlinkSync(path.join(baseUploadDir, archivoPdf)); } catch {} }
-    if (archivoXml) { try { fs.unlinkSync(path.join(baseUploadDir, archivoXml)); } catch {} }
+    // No parent document reference - save as orphan acuse
+    if (archivoXml) {
+      const acuseNombre = `acuse_suelto_${Date.now()}.xml`;
+      const nuevoPath = nitEmisor ? `${nitEmisor}/${acuseNombre}` : acuseNombre;
+      try {
+        const originalPath = path.join(baseUploadDir, archivoXml);
+        const newPath = path.join(baseUploadDir, nuevoPath);
+        fs.renameSync(originalPath, newPath);
+        console.log(`  [IMAP] Acuse sin referencia guardado: ${nuevoPath}`);
+      } catch (e) {
+        console.error(`  [IMAP] Error guardando acuse:`, e.message);
+      }
+    }
     return 'omitido';
   }
 
