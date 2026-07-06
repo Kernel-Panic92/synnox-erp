@@ -337,8 +337,12 @@ async function procesarCorreo(parsed, msgId) {
   // Handle ApplicationResponse (acuse de recibo DIAN) - save linked to original invoice
   if (datosFactura.esAcuse) {
     console.log(`  [IMAP] Acuse de recibo detectado`);
+    // Get raw XML content for parsing
+    const rawXml = archivoXml ? (() => {
+      try { return fs.readFileSync(path.join(baseUploadDir, archivoXml), 'utf8'); } catch { return ''; }
+    })() : '';
     // Try to find the original invoice by parent document reference
-    const parentMatch = xml.match(/<cbc:ParentDocumentID>([^<]+)<\/cbc:ParentDocumentID>/);
+    const parentMatch = rawXml.match(/<cbc:ParentDocumentID>([^<]+)<\/cbc:ParentDocumentID>/);
     if (parentMatch) {
       const facturaId = parentMatch[1].trim();
       console.log(`  [IMAP] Referencia factura: ${facturaId}`);
