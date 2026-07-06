@@ -432,6 +432,8 @@ async function procesarCorreo(parsed, msgId) {
     const proveedor = await crearProveedorSiNoExiste(client, nitEmisor, nombreEmisor, emailOrigen);
     const proveedorId = proveedor?.id;
     const categoriaSugerida = proveedor?.categoria_default_id;
+    
+    console.log(`  [IMAP] Pre-INSERT: factura=${numeroFactura}, proveedor=${proveedorId}, nit=${nitEmisor}`);
 
     const ahora = new Date();
     const referencia = fechaFactura ? fechaFactura.toISOString().split('T')[0] : ahora.toISOString().split('T')[0];
