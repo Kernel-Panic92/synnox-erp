@@ -241,6 +241,7 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
 `ALTER TABLE facturas ADD COLUMN IF NOT EXISTS soporte_pago VARCHAR(255)`,
 `ALTER TABLE facturas ADD COLUMN IF NOT EXISTS soporte_pago_nombre VARCHAR(255)`,
 `ALTER TABLE facturas ADD COLUMN IF NOT EXISTS pagada_en TIMESTAMPTZ`,
+`ALTER TABLE facturas ADD COLUMN IF NOT EXISTS archivo_acuse VARCHAR(500)`,
 
 // ─── 023: Proveedor → Categoría (aprendizaje automático) ──────────────────
 `CREATE TABLE IF NOT EXISTS proveedor_categoria_preferencia (

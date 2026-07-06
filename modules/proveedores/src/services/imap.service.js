@@ -334,9 +334,38 @@ async function procesarCorreo(parsed, msgId) {
     }
   }
 
-  // Skip ApplicationResponse (acuse de recibo DIAN) - no es factura
+  // Handle ApplicationResponse (acuse de recibo DIAN) - save linked to original invoice
   if (datosFactura.esAcuse) {
-    console.log(`  [IMAP] Acuse de recibo detectado — omitiendo`);
+    console.log(`  [IMAP] Acuse de recibo detectado`);
+    // Try to find the original invoice by parent document reference
+    const parentMatch = xml.match(/<cbc:ParentDocumentID>([^<]+)<\/cbc:ParentDocumentID>/);
+    if (parentMatch) {
+      const facturaId = parentMatch[1].trim();
+      console.log(`  [IMAP] Buscando factura original: ${facturaId}`);
+      // Save the acuse file
+      if (archivoXml) {
+        const acuseNombre = `acuse_${facturaId}_${Date.now()}.xml`;
+        const nuevoPath = nitEmisor ? `${nitEmisor}/${acuseNombre}` : acuseNombre;
+        try {
+          const originalPath = path.join(baseUploadDir, archivoXml);
+          const newPath = path.join(baseUploadDir, nuevoPath);
+          fs.renameSync(originalPath, newPath);
+          // Link to original invoice if it exists
+          const dup = db.prepare('SELECT id FROM facturas WHERE numero_factura = ?').get(facturaId);
+          if (dup) {
+            db.prepare('UPDATE facturas SET archivo_acuse = ? WHERE id = ?').run(nuevoPath, dup.id);
+            console.log(`  [IMAP] ✓ Acuse guardado y ligado a factura ${facturaId}`);
+            return 'creada';
+          }
+          console.log(`  [IMAP] Acuse guardado (factura ${facturaId} no encontrada en DB)`);
+        } catch (e) {
+          console.error(`  [IMAP] Error guardando acuse:`, e.message);
+        }
+      }
+      return 'omitido';
+    }
+    // No parent document reference - just skip
+    console.log(`  [IMAP] Acuse sin referencia a factura — omitiendo`);
     if (archivoPdf) { try { fs.unlinkSync(path.join(baseUploadDir, archivoPdf)); } catch {} }
     if (archivoXml) { try { fs.unlinkSync(path.join(baseUploadDir, archivoXml)); } catch {} }
     return 'omitido';
