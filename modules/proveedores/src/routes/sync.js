@@ -50,18 +50,18 @@ router.post('/', requireRol('admin', 'contador'), (req, res) => {
   try {
     const imapService = require('../services/imap.service');
     if (imapService.pollCorreo) {
-      const timeout = setTimeout(() => {
-        console.error('[Sync] Timeout after 5 minutes');
-        syncState.terminarSync(0, 0, 1);
-      }, 5 * 60 * 1000);
-      
+      // No timeout — let IMAP finish naturally, sync state tracks progress
       imapService.pollCorreo(req.body.rescanAll || false)
-        .then(() => clearTimeout(timeout))
         .catch(e => {
-          clearTimeout(timeout);
           console.error('[Sync] Error en poll manual:', e.message);
           syncState.terminarSync(0, 0, 1);
         });
+    }
+    res.json({ ok: true, mensaje: 'Sincronización iniciada' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
     }
     res.json({ ok: true, mensaje: 'Sincronización iniciada (descarga + procesamiento)' });
   } catch (err) {
