@@ -53,11 +53,19 @@ function parsearXml(xmlContent) {
     iva: 0,
     valorTotal: 0,
     ordenCompra: null,
-    limitePago: null
+    limitePago: null,
+    esAcuse: false  // Flag para acuses de recibo
   };
 
   try {
     const xml = xmlContent.toString('utf8');
+    
+    // Detectar ApplicationResponse (acuse de recibo DIAN)
+    if (xml.includes('ApplicationResponse') || xml.includes('DocumentType>ApplicationResponse')) {
+      console.log(`  [Parser] ApplicationResponse detectado — no es factura`);
+      data.esAcuse = true;
+      return data;
+    }
     
     const invoiceEmbebido = extraerInvoiceEmbebido(xml);
     const xmlFinal = invoiceEmbebido || xml;
@@ -324,6 +332,14 @@ async function procesarCorreo(parsed, msgId) {
       nitEmisor = nitEmisor || datosFactura.nitEmisor || null;
       console.log(`  [IMAP] XML directo guardado: ${archivoXml}`);
     }
+  }
+
+  // Skip ApplicationResponse (acuse de recibo DIAN) - no es factura
+  if (datosFactura.esAcuse) {
+    console.log(`  [IMAP] Acuse de recibo detectado — omitiendo`);
+    if (archivoPdf) { try { fs.unlinkSync(path.join(baseUploadDir, archivoPdf)); } catch {} }
+    if (archivoXml) { try { fs.unlinkSync(path.join(baseUploadDir, archivoXml)); } catch {} }
+    return 'omitido';
   }
 
   if (!archivoPdf && !archivoXml) {
