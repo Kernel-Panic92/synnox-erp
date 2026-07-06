@@ -420,7 +420,7 @@ async function procesarCorreo(parsed, msgId) {
           [numeroFactura]
         );
     if (dup.rows.length > 0) {
-      console.log(`  [IMAP] Factura ${numeroFactura}${nitEmisor ? ' (' + nitEmisor + ')' : ''} ya existe — omitiendo`);
+      console.log(`  [IMAP] Factura ${numeroFactura}${nitEmisor ? ' (NIT: ' + nitEmisor + ')' : ''} DUPLICADA — ya existe en DB`);
       await client.query('ROLLBACK');
       client.release();
       // Clean up files that were already written
@@ -481,7 +481,14 @@ async function procesarCorreo(parsed, msgId) {
     );
 
     await client.query('COMMIT');
-    console.log(`  [IMAP] ✓ Factura creada: ${rows[0].numero_factura} (${rows[0].id})`);
+    
+    // Verify the insert actually worked
+    const verify = await client.query('SELECT COUNT(*) FROM facturas WHERE numero_factura = $1', [numeroFactura]);
+    if (verify.rows[0].count === 0) {
+      console.error(`  [IMAP] ⚠️ VERIFICACIÓN FALLÓ: factura ${numeroFactura} no encontrada post-INSERT`);
+    } else {
+      console.log(`  [IMAP] ✓ Factura creada: ${rows[0].numero_factura} (${rows[0].id})`);
+    }
     client.release();
     return 'creada';
 
