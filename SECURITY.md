@@ -167,3 +167,24 @@ Requires OAuth client registration and secret validation. Deferred to OAuth refa
 2. Audit logging for all admin actions
 3. Penetration testing
 4. Security training for development team
+
+---
+
+## CVE-2025-009: IMAP Infinite File Creation (DoS)
+
+**Severity:** High (CVSS 7.5)
+**Date:** 2025-07-01
+**Status:** Fixed
+**Affected:** modules/proveedores/src/services/imap.service.js
+
+### Description
+The IMAP service processed emails but never marked duplicate messages as `\Seen`. Each duplicate email was reprocessed on every 5-minute poll cycle, writing new files to disk. With 1000+ duplicate emails, this created ~45GB/day of files.
+
+### Impact
+Denial of Service via disk exhaustion. Server crashes when disk is full.
+
+### Fix
+1. Mark ALL processed emails as `\Seen` (not just created ones)
+2. Delete orphaned files on duplicate/error
+3. Split IMAP into download + process steps
+4. Add 5-minute timeout for stuck syncs
