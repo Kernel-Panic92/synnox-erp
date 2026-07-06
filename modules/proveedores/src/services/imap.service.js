@@ -639,14 +639,20 @@ async function pollCorreo(rescanAll = false) {
 
   console.log(`[IMAP] Iniciando sync — host: ${config.imap_host}, folder: ${config.imap_folder || 'INBOX'}`);
 
-  // Step 1: Download emails from IMAP (fast - just saves raw .eml files)
-  const descargados = await downloadEmails(config, rescanAll);
+  try {
+    // Step 1: Download emails from IMAP (fast - just saves raw .eml files)
+    const descargados = await downloadEmails(config, rescanAll);
+    console.log(`[IMAP] ✓ ${descargados} emails descargados`);
 
-  // Step 2: Process downloaded emails (can be retried independently)
-  const resultado = await processDownloadedEmails();
+    // Step 2: Process downloaded emails (can be retried independently)
+    const resultado = await processDownloadedEmails();
 
-  syncState.terminarSync(resultado.creadas, resultado.duplicadas, resultado.errores);
-  console.log(`[IMAP] ✓ Sync completado: ${resultado.creadas} creadas, ${resultado.duplicadas} duplicadas, ${resultado.errores} errores`);
+    syncState.terminarSync(resultado.creadas, resultado.duplicadas, resultado.errores);
+    console.log(`[IMAP] ✓ Sync completado: ${resultado.creadas} creadas, ${resultado.duplicadas} duplicadas, ${resultado.errores} errores`);
+  } catch (err) {
+    console.error('[IMAP] Error en sync:', err.message);
+    syncState.terminarSync(0, 0, 1);
+  }
 }
 
 function iniciarServicioImap() {
