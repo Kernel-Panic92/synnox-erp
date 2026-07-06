@@ -18,14 +18,18 @@ function filtrarEmpleados() {
   const lista = document.getElementById('reg-emp-dropdown');
   if (!lista) return;
   
-  const filtrados = empleados.filter(e => e.nombre.toLowerCase().includes(q));
+  const filtrados = empleados.filter(e => e.activo !== 0 && e.nombre.toLowerCase().includes(q));
+  const inactivosCount = empleados.filter(e => e.activo === 0).length;
   let html = '';
   for (let i = 0; i < filtrados.length; i++) {
     const emp = filtrados[i];
     html += `<div class="dropdown-item" onclick="seleccionarEmpleado('${esc(emp.id)}','${esc(emp.nombre)}')">${esc(emp.nombre)}</div>`;
   }
+  if (inactivosCount > 0) {
+    html += `<div style="padding:6px 10px;font-size:11px;color:var(--muted);border-top:1px solid var(--border);">ℹ️ ${inactivosCount} empleado(s) inactivo(s) ocultos</div>`;
+  }
   lista.innerHTML = html;
-  lista.style.display = filtrados.length ? 'block' : 'none';
+  lista.style.display = (filtrados.length || inactivosCount) ? 'block' : 'none';
 }
 
 function seleccionarEmpleado(id, nombre) {
@@ -185,7 +189,9 @@ function populateRegistroSelects() {
     let html = '<option value="">Todos los empleados</option>';
     for (let i = 0; i < empleados.length; i++) {
       const e = empleados[i];
-      html += `<option value="${esc(e.id)}">${esc(e.nombre)}</option>`;
+      if (e.activo !== 0) {
+        html += `<option value="${esc(e.id)}">${esc(e.nombre)}</option>`;
+      }
     }
     selEmp.innerHTML = html;
   }
