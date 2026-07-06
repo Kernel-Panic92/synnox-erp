@@ -31,6 +31,17 @@ function actualizarBannerCorruptos() {
     msg.textContent = `⚠️ ${n} empleado${n > 1 ? 's' : ''} con caracteres corruptos (�) en el nombre. Edítalo${n > 1 ? 's' : ''} para corregirl${n > 1 ? 'os' : 'o'}.`;
   } else {
     banner.style.display = 'none';
+}
+
+async function toggleActivoEmpleado(id, activo) {
+  const msg = activo ? '¿Activar este empleado?' : '¿Inactivar este empleado?';
+  if (!await confirmModal(msg)) return;
+  try {
+    await PUT('/api/empleados/' + id + '/activo', { activo });
+    showToast(activo ? 'Empleado activado' : 'Empleado inactivado', 'success');
+    await cargarEmpleados();
+  } catch (e) {
+    showToast(e.message, 'error');
   }
 }
 
@@ -117,6 +128,8 @@ function buscarEmpleados() {
     const activo = e.activo !== 0;
     const acciones = puedoEditar()
       ? '<button class="btn btn-secondary btn-sm" onclick="editarEmpleado(\'' + esc(e.id) + '\')">✏ Editar</button>'
+        + (activo ? ' <button class="btn btn-danger btn-sm" onclick="toggleActivoEmpleado(\'' + esc(e.id) + '\', false)">🚫 Inactivar</button>' : '')
+        + (!activo ? ' <button class="btn btn-sm" style="background:rgba(79,190,150,.15);color:var(--success);border:1px solid rgba(79,190,150,.2)" onclick="toggleActivoEmpleado(\'' + esc(e.id) + '\', true)">✓ Activar</button>' : '')
       : '<span style="font-size:12px;color:var(--muted)">Solo lectura</span>';
 
     const badgeInactivo = !activo ? '<span style="display:inline-block;background:rgba(247,97,79,0.12);color:var(--danger);border-radius:6px;padding:1px 8px;font-size:10px;font-weight:700;margin-left:6px;vertical-align:middle;">INACTIVO</span>' : '';
