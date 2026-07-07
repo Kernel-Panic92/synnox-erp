@@ -1,3 +1,4 @@
+console.log('[IMAP] Módulo cargado - versión 2026-07-07');
 require('dotenv').config();
 const { ImapFlow } = require('imapflow');
 const { simpleParser } = require('mailparser');
@@ -257,6 +258,7 @@ async function crearProveedorSiNoExiste(client, nitEmisor, nombreEmisor, emailOr
 const MAX_ATTACHMENT_MB = parseInt(process.env.MAX_ATTACHMENT_MB || '50');
 
 async function procesarCorreo(parsed, msgId) {
+  console.log(`  [IMAP] procesarCorreo INICIADO - msgId: ${msgId}`);
   const baseUploadDir = process.env.UPLOAD_DIR || './uploads/facturas';
   if (!fs.existsSync(baseUploadDir)) fs.mkdirSync(baseUploadDir, { recursive: true });
 
