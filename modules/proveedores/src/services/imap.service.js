@@ -257,7 +257,6 @@ async function crearProveedorSiNoExiste(client, nitEmisor, nombreEmisor, emailOr
 const MAX_ATTACHMENT_MB = parseInt(process.env.MAX_ATTACHMENT_MB || '50');
 
 async function procesarCorreo(parsed, msgId) {
-  console.log(`  [IMAP] procesarCorreo INICIADO - msgId: ${msgId}`);
   const baseUploadDir = process.env.UPLOAD_DIR || './uploads/facturas';
   if (!fs.existsSync(baseUploadDir)) fs.mkdirSync(baseUploadDir, { recursive: true });
 
@@ -529,8 +528,14 @@ async function downloadEmails(config, rescanAll = false) {
 
     try {
       const searchCriteria = rescanAll ? { all: true } : { unseen: true };
-      const seqNumbers = await client.search(searchCriteria);
+      let seqNumbers = await client.search(searchCriteria);
       console.log(`[IMAP-Download] ${seqNumbers.length} mensajes encontrados`);
+
+      // Limit to most recent 100 messages to prevent timeout
+      if (seqNumbers.length > 100) {
+        console.log(`[IMAP-Download] Limitando a 100 mensajes más recientes`);
+        seqNumbers = seqNumbers.slice(-100);
+      }
 
       if (seqNumbers.length === 0) {
         console.log('[IMAP-Download] Sin mensajes para descargar');
@@ -612,7 +617,10 @@ async function processDownloadedEmails() {
 
       const resultado = await procesarCorreo(parsed, msgId);
 
-      fs.unlinkSync(filePath);
+      // Only delete file if successfully processed or omitted
+      if (resultado === 'creada' || resultado === 'duplicada' || resultado === 'omitido') {
+        fs.unlinkSync(filePath);
+      }
 
       if (resultado === 'creada') creadas++;
       else duplicadas++;
