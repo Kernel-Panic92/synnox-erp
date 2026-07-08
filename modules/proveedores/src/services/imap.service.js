@@ -336,135 +336,11 @@ async function procesarCorreo(parsed, msgId) {
     }
   }
 
-  // Handle ApplicationResponse (acuse de recibo DIAN) - save linked to original invoice
+  // Skip ApplicationResponse (acuse de recibo DIAN) — no son facturas
   if (datosFactura.esAcuse) {
-    console.log(`  [IMAP] Acuse de recibo detectado`);
-    // Get raw XML content for parsing
-    const rawXml = archivoXml ? (() => {
-      try { return fs.readFileSync(path.join(baseUploadDir, archivoXml), 'utf8'); } catch { return ''; }
-    })() : '';
-    // Try to find the original invoice by parent document reference
-    const parentMatch = rawXml.match(/<cbc:ParentDocumentID>([^<]+)<\/cbc:ParentDocumentID>/);
-    if (parentMatch) {
-      const facturaId = parentMatch[1].trim();
-      console.log(`  [IMAP] Referencia factura: ${facturaId}`);
-
-      // If there's a PDF, create the invoice using ParentDocumentID + PDF
-      if (archivoPdf) {
-        console.log(`  [IMAP] PDF encontrado con acuse — creando factura ${facturaId} desde PDF`);
-        // Rename acuse XML and save it linked to the invoice
-        let archivoAcuse = null;
-        if (archivoXml) {
-          const acuseNombre = `acuse_${facturaId}_${Date.now()}.xml`;
-          const acusePath = nitEmisor ? `${nitEmisor}/${acuseNombre}` : acuseNombre;
-          try {
-            fs.renameSync(path.join(baseUploadDir, archivoXml), path.join(baseUploadDir, acusePath));
-            archivoAcuse = acusePath;
-            console.log(`  [IMAP] Acuse guardado: ${acusePath}`);
-          } catch (e) {
-            console.error(`  [IMAP] Error guardando acuse:`, e.message);
-          }
-        }
-
-        // Check if invoice already exists
-        const dup = nitEmisor
-          ? await db.query('SELECT id FROM facturas WHERE nit_emisor = $1 AND numero_factura = $2', [nitEmisor, facturaId])
-          : await db.query('SELECT id FROM facturas WHERE numero_factura = $1', [facturaId]);
-        if (dup.rows.length > 0) {
-          // Invoice exists — just link the acuse
-          if (archivoAcuse) {
-            await db.query('UPDATE facturas SET archivo_acuse = $1 WHERE id = $2', [archivoAcuse, dup.rows[0].id]);
-            console.log(`  [IMAP] ✓ Acuse ligado a factura existente ${facturaId}`);
-          }
-          return 'acuse';
-        }
-
-        // Create the invoice from PDF
-        const client = await db.getClient();
-        try {
-          await client.query('BEGIN');
-          const emailOrigen = parsed.from?.value?.[0]?.address || null;
-          const asunto = parsed.subject || '';
-          const ahora = new Date();
-          const limiteDian = new Date(ahora.getTime() + 48 * 60 * 60 * 1000);
-          const proveedor = await crearProveedorSiNoExiste(client, nitEmisor, null, emailOrigen);
-
-          const { rows } = await client.query(
-            `INSERT INTO facturas (
-                numero_factura, proveedor_id, categoria_id, archivo_pdf, archivo_xml,
-                email_origen, email_asunto,
-                limite_dian, estado,
-                nit_emisor, nombre_emisor, archivo_acuse, referencia
-              ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-              RETURNING id, numero_factura`,
-            [
-              facturaId,
-              proveedor?.id || null,
-              proveedor?.categoria_default_id || null,
-              archivoPdf,
-              null,  // no invoice XML, only acuse XML
-              emailOrigen,
-              asunto.substring(0, 499),
-              limiteDian,
-              'recibida',
-              nitEmisor,
-              null,  // no nombreEmisor from XML
-              archivoAcuse,
-              facturaId
-            ]
-          );
-
-          await client.query(
-            `INSERT INTO eventos_flujo (factura_id, usuario_id, tipo, comentario, metadata)
-             VALUES ($1, NULL, 'recibida', $2, $3)`,
-            [rows[0].id, `Factura importada desde acuse DIAN (${emailOrigen})`, JSON.stringify({ message_id: msgId })]
-          );
-
-          await client.query('COMMIT');
-          console.log(`  [IMAP] ✓ Factura creada desde acuse: ${facturaId} (PDF: ${archivoPdf})`);
-          client.release();
-          return 'creada';
-        } catch (e) {
-          await client.query('ROLLBACK');
-          console.error(`  [IMAP] Error creando factura desde acuse:`, e.message);
-          client.release();
-          return 'error';
-        }
-      }
-
-      // No PDF — just save the acuse XML
-      if (archivoXml) {
-        const acuseNombre = `acuse_${facturaId}_${Date.now()}.xml`;
-        const nuevoPath = nitEmisor ? `${nitEmisor}/${acuseNombre}` : acuseNombre;
-        try {
-          fs.renameSync(path.join(baseUploadDir, archivoXml), path.join(baseUploadDir, nuevoPath));
-          const dup = await db.query('SELECT id FROM facturas WHERE numero_factura = $1', [facturaId]);
-          if (dup.rows.length > 0) {
-            await db.query('UPDATE facturas SET archivo_acuse = $1 WHERE id = $2', [nuevoPath, dup.rows[0].id]);
-            console.log(`  [IMAP] ✓ Acuse guardado y ligado a factura ${facturaId}`);
-          } else {
-            console.log(`  [IMAP] Acuse guardado (factura ${facturaId} no encontrada — puede llegar después)`);
-          }
-          return 'acuse';
-        } catch (e) {
-          console.error(`  [IMAP] Error guardando acuse:`, e.message);
-        }
-      }
-      return 'omitido';
-    }
-    // No parent document reference - save as orphan acuse
-    if (archivoXml) {
-      const acuseNombre = `acuse_suelto_${Date.now()}.xml`;
-      const nuevoPath = nitEmisor ? `${nitEmisor}/${acuseNombre}` : acuseNombre;
-      try {
-        const originalPath = path.join(baseUploadDir, archivoXml);
-        const newPath = path.join(baseUploadDir, nuevoPath);
-        fs.renameSync(originalPath, newPath);
-        console.log(`  [IMAP] Acuse sin referencia guardado: ${nuevoPath}`);
-      } catch (e) {
-        console.error(`  [IMAP] Error guardando acuse:`, e.message);
-      }
-    }
+    console.log(`  [IMAP] Acuse de recibo detectado — omitiendo`);
+    if (archivoXml) try { fs.unlinkSync(path.join(baseUploadDir, archivoXml)); } catch {}
+    if (archivoPdf) try { fs.unlinkSync(path.join(baseUploadDir, archivoPdf)); } catch {}
     return 'omitido';
   }
 
@@ -702,7 +578,7 @@ async function processDownloadedEmails() {
       const resultado = await procesarCorreo(parsed, msgId);
 
       // Only delete file if successfully processed or omitted
-      if (resultado === 'creada' || resultado === 'duplicada' || resultado === 'omitido' || resultado === 'acuse') {
+      if (resultado === 'creada' || resultado === 'duplicada' || resultado === 'omitido') {
         fs.unlinkSync(filePath);
       }
 

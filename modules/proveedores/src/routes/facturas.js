@@ -733,7 +733,7 @@ router.delete('/:id', requireRol('admin'), async (req, res) => {
   const client = await db.getClient();
   try {
     const { rows: old } = await client.query(
-      'SELECT archivo_pdf, archivo_xml, soporte_pago FROM facturas WHERE id=$1',
+      'SELECT archivo_pdf, archivo_xml, archivo_acuse, soporte_pago FROM facturas WHERE id=$1',
       [req.params.id]
     );
     await client.query('BEGIN');
@@ -749,6 +749,7 @@ router.delete('/:id', requireRol('admin'), async (req, res) => {
     if (old[0]) {
       limpiarArchivo(old[0].archivo_pdf);
       limpiarArchivo(old[0].archivo_xml);
+      limpiarArchivo(old[0].archivo_acuse);
       limpiarSoporte(old[0].soporte_pago);
     }
     res.json({ mensaje: 'Factura eliminada', id: rows[0].id, numero_factura: rows[0].numero_factura });
@@ -764,7 +765,7 @@ router.delete('/:id', requireRol('admin'), async (req, res) => {
 router.post('/borrar', requireRol('admin'), async (req, res) => {
   const { ids, filters } = req.body;
   
-  let query = 'SELECT id, archivo_pdf, archivo_xml, soporte_pago FROM facturas WHERE 1=1';
+  let query = 'SELECT id, archivo_pdf, archivo_xml, archivo_acuse, soporte_pago FROM facturas WHERE 1=1';
   const params = [];
   let idx = 1;
   
@@ -802,6 +803,7 @@ router.post('/borrar', requireRol('admin'), async (req, res) => {
     for (const f of old) {
       limpiarArchivo(f.archivo_pdf);
       limpiarArchivo(f.archivo_xml);
+      limpiarArchivo(f.archivo_acuse);
       limpiarSoporte(f.soporte_pago);
     }
     
