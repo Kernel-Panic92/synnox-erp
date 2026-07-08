@@ -122,19 +122,29 @@ location /nomina/ { proxy_pass http://nomina; }
 
 | Módulo | Tablas Principales | Estado |
 |--------|-------------------|--------|
-| Launcher | `usuarios`, `perfiles`, `perfil_permisos`, `modulos_plataforma` | ✅ PostgreSQL |
-| Proveedores | `facturas`, `proveedores`, `categorias_compra`, `areas`, `eventos_flujo` | ✅ PostgreSQL |
-| Logística | `vehiculos`, `pedidos`, `rutas`, `clientes`, `sedes` | ✅ PostgreSQL |
-| Nómina | `empleados`, `registros`, `nominas`, `tipos`, `permisos_roles` | ⚠️ SQLite (pendiente migración) |
+| Launcher | `usuarios`, `perfiles`, `perfil_permisos`, `modulos_plataforma` | PostgreSQL |
+| Proveedores | `facturas`, `proveedores`, `categorias_compra`, `areas`, `eventos_flujo` | PostgreSQL |
+| Logística | `vehiculos`, `pedidos`, `rutas`, `clientes`, `sedes` | PostgreSQL |
+| Nómina | `empleados`, `registros`, `nominas`, `tipos`, `permisos_roles` | SQLite (pendiente migración) |
 
 **Conexión:** Pool compartido via `DATABASE_URL`
 
 ```javascript
 // framework/db.js
 const { Pool } = require('pg');
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({ 
+  connectionString: process.env.DATABASE_URL,
+  max: parseInt(process.env.PG_POOL_MAX || '5', 10),  // 5 por proceso
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000
+});
 module.exports = pool;
 ```
+
+**Pool sizing:**
+- 4 procesos × 5 conexiones = 20 conexiones máximo
+- Deja margen para: PgBouncer, backups, consultas manuales
+- `max_connections=100` (default PostgreSQL) es suficiente
 
 ### 2.4 Estructura de Directorios
 
@@ -142,8 +152,12 @@ module.exports = pool;
 horix-erp/
 ├── server.js                    # Entry point principal
 ├── framework/
-│   ├── auth.mjs                 # JWT verification (ESM)
-│   └── db.js                    # PostgreSQL pool compartido
+│   ├── auth.js                  # JWT verification + buildPayload
+│   ├── auth.mjs                 # JWT verification (ESM, para logistica)
+│   ├── db.js                    # PostgreSQL pool compartido
+│   ├── internal-api.js          # API interna entre módulos
+│   ├── cache.js                 # Caché simple con TTL
+│   └── audit.js                 # Logger de auditoría
 ├── launcher/
 │   ├── server.js                # Auth, perfiles, módulos
 │   └── shell/                   # Frontend SPA launcher
@@ -180,44 +194,39 @@ horix-erp/
 
 **Solución:** JWT con permisos funcionales de todos los módulos embebidos.
 
-```
-Login Flow:
-┌──────────┐     ┌──────────────┐     ┌──────────────┐
-│ Launcher │────▶│ query permisos│────▶│  JWT firmado │
-│          │     │ de todos los  │     │  con todos los│
-│          │     │ módulos       │     │  permisos     │
-└──────────┘     └──────────────┘     └──────────────┘
-```
-
 **Estructura del JWT:**
 
 ```javascript
 {
   // Identidad
-  id: 2,
-  email: "edgar@horix.com",
-  rol: "admin",                    // admin | operador
+  "id": 2,
+  "email": "edgar@horix.com",
+  "nombre": "Edgar Velasquez",
   
-  // Launcher permissions
-  modulos: ["nomina", "proveedores", "logistica"],
-  perfil_id: 1,
-  perfil_nombre: "ADMINISTRADOR",
-  permisos: [
-    { modulo_id: "nomina", permiso: "crear" },
-    { modulo_id: "nomina", permiso: "editar" },
-    // ...
+  // Rol y módulos
+  "rol": "admin",
+  "modulos": ["nomina", "proveedores", "logistica"],
+  
+  // Perfil y permisos launcher
+  "perfil_id": 1,
+  "perfil_nombre": "ADMINISTRADOR",
+  "permisos": [
+    { "modulo_id": "nomina", "permiso": "crear" },
+    { "modulo_id": "nomina", "permiso": "editar" },
+    { "modulo_id": "proveedores", "permiso": "crear" }
   ],
   
-  // Module-specific functional permissions (NUEVO)
-  modulos_permisos: {
-    nomina: ["aprobar", "editar", "revertir", "ver_todos"],
-    proveedores: ["aprobar_factura", "causar", "pagar"],
-    logistica: ["admin"]
+  // Permisos funcionales por módulo (solo para módulos con acceso)
+  "modulos_permisos": {
+    "nomina": ["aprobar", "editar", "revertir", "ver_todos"],
+    "proveedores": ["aprobar_factura", "causar", "pagar"],
+    "logistica": ["admin"]
   },
   
-  // Metadata
-  iat: 1783521697,
-  exp: 1783525297  // 1 hora (no 8 horas)
+  // Token metadata
+  "jti": "abc-123-def-456",
+  "iat": 1783521697,
+  "exp": 1783525297
 }
 ```
 
@@ -225,132 +234,64 @@ Login Flow:
 
 **Problema:** JWT de 8 horas crea ventana de seguridad cuando se revoca un permiso.
 
-**Solución:** JWT de 1 hora + refresh token silencioso.
+**Solución:** JWT de 1 hora + refresh token silencioso con rotación y reuse detection.
 
-```
-Flujo de Refresh:
-┌──────────┐     ┌──────────────┐
-│ Frontend │────▶│ POST /refresh│
-│ (timer)  │     │ cookie:      │
-│ 50 min   │     │ refresh_token│
-└──────────┘     └──────┬───────┘
-                        │
-                        ▼
-               ┌──────────────┐
-               │ Nuevo JWT    │
-               │ (1h exp)     │
-               │ + nuevos     │
-               │ permisos     │
-               └──────────────┘
-```
+**Límites de diseño:**
 
-**Implementación:**
+| Límite | Valor | Acción si se supera |
+|--------|-------|---------------------|
+| JWT size | ~3KB | Mover permisos a endpoint separado |
+| JWT expiry | 1 hora | Refresh automático |
+| Refresh expiry | 7 días | Re-login |
+| Grace period | 5 segundos | Request duplicado tolerado |
+| Cache TTL | 5 segundos | Staleness aceptable |
 
-```javascript
-// launcher/server.js
-const JWT_EXPIRY = '1h';
-const REFRESH_EXPIRY = '7d';
-
-// Login: emitir JWT + refresh token
-app.post('/api/auth/login', (req, res) => {
-  const jwt = sign({ ...payload }, SECRET, { expiresIn: JWT_EXPIRY });
-  const refreshToken = sign({ userId: user.id }, SECRET, { expiresIn: REFRESH_EXPIRY });
-  
-  res.cookie('launcher_jwt', jwt, { 
-    httpOnly: true, 
-    maxAge: 3600000,  // 1 hora
-    secure: process.env.NODE_ENV === 'production'
-  });
-  
-  res.cookie('refresh_token', refreshToken, {
-    httpOnly: true,
-    maxAge: 604800000,  // 7 días
-    secure: process.env.NODE_ENV === 'production',
-    path: '/api/auth'  // Solo accesible por refresh endpoint
-  });
-  
-  res.json({ ok: true });
-});
-
-// Refresh: generar nuevo JWT con permisos actualizados
-app.post('/api/auth/refresh', (req, res) => {
-  const refreshToken = req.cookies.refresh_token;
-  if (!refreshToken) return res.status(401).json({ error: 'No refresh token' });
-  
-  try {
-    const decoded = verify(refreshToken, SECRET);
-    const user = await getUserWithPermissions(decoded.userId);
-    const newJwt = sign(buildPayload(user), SECRET, { expiresIn: JWT_EXPIRY });
-    
-    res.cookie('launcher_jwt', newJwt, { /* ... */ });
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(401).json({ error: 'Refresh token inválido' });
-  }
-});
-```
-
-**Invalidación inmediata (para revocaciones críticas):**
-
-```javascript
-// Tabla de invalidación
-CREATE TABLE jwt_blacklist (
-  jti VARCHAR(255) PRIMARY KEY,
-  expirado_en TIMESTAMPTZ DEFAULT NOW()
-);
-
-// Al cambiar permisos críticos
-app.put('/api/admin/usuarios/:id/permisos', async (req, res) => {
-  // 1. Actualizar permisos
-  await updatePermissions(req.params.id, req.body);
-  
-  // 2. Invalidar JWT actual del usuario
-  const currentJwt = req.cookies.launcher_jwt;
-  const decoded = verify(currentJwt, SECRET);
-  await pool.query(
-    'INSERT INTO jwt_blacklist (jti, expirado_en) VALUES ($1, NOW())',
-    [decoded.jti]
-  );
-  
-  // 3. El frontend detectará 401 y redirigirá a login
-  res.json({ ok: true, message: 'Permisos actualizados. Sesión requiere re-login.' });
-});
-
-// Middleware: verificar blacklist
-function verifyToken(req, res, next) {
-  const token = req.cookies.launcher_jwt;
-  const decoded = verify(token, SECRET);
-  
-  // Verificar si está en blacklist
-  const blacklisted = await pool.query(
-    'SELECT 1 FROM jwt_blacklist WHERE jti = $1 AND expirado_en > NOW()',
-    [decoded.jti]
-  );
-  
-  if (blacklisted.rows.length > 0) {
-    return res.status(401).json({ error: 'Sesión invalidada' });
-  }
-  
-  req.usuario = decoded;
-  next();
-}
-```
-
-### 3.4 Tablas de Permisos
+### 3.4 Tablas de Auth
 
 ```sql
--- Configuración de permisos disponibles por módulo
+-- 1. user_modulos: Acceso a módulos por usuario
+CREATE TABLE user_modulos (
+  usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
+  modulo_id VARCHAR(50) NOT NULL,
+  activo BOOLEAN DEFAULT TRUE,
+  PRIMARY KEY (usuario_id, modulo_id)
+);
+
+-- 2. jwt_blacklist: Tokens JWT revocados manualmente
+CREATE TABLE jwt_blacklist (
+  jti VARCHAR(255) PRIMARY KEY,
+  expirado_en TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX idx_jwt_blacklist_expirado ON jwt_blacklist(expirado_en);
+
+-- 3. refresh_token_blacklist: Refresh tokens usados (single-use)
+CREATE TABLE refresh_token_blacklist (
+  jti VARCHAR(255) PRIMARY KEY,
+  usuario_id INTEGER NOT NULL,
+  creado_en TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  expirado_en TIMESTAMPTZ NOT NULL
+);
+CREATE INDEX idx_refresh_blacklist_expirado ON refresh_token_blacklist(expirado_en);
+CREATE INDEX idx_refresh_blacklist_usuario ON refresh_token_blacklist(usuario_id);
+
+-- 4. usuario_sesion_invalidada: Sesiones comprometidas
+CREATE TABLE usuario_sesion_invalidada (
+  usuario_id INTEGER PRIMARY KEY,
+  invalidado_en TIMESTAMPTZ NOT NULL
+);
+
+-- 5. modulos_permisos_config: Permisos disponibles por módulo
 CREATE TABLE modulos_permisos_config (
   id SERIAL PRIMARY KEY,
   modulo_id VARCHAR(50) NOT NULL,
   permiso_id VARCHAR(100) NOT NULL,
   label VARCHAR(200) NOT NULL,
-  tipo VARCHAR(50) DEFAULT 'action',  -- action, visibility, page
+  tipo VARCHAR(50) DEFAULT 'action',
   activo BOOLEAN DEFAULT TRUE,
   UNIQUE(modulo_id, permiso_id)
 );
 
--- Permisos por perfil (rol)
+-- 6. modulos_permisos_perfil: Permisos por perfil
 CREATE TABLE modulos_permisos_perfil (
   id SERIAL PRIMARY KEY,
   perfil_id INTEGER REFERENCES perfiles(id) ON DELETE CASCADE,
@@ -360,7 +301,7 @@ CREATE TABLE modulos_permisos_perfil (
   UNIQUE(perfil_id, modulo_id, permiso_id)
 );
 
--- Permisos individuales por usuario (sobreescriben los del perfil)
+-- 7. modulos_permisos_usuario: Permisos individuales
 CREATE TABLE modulos_permisos_usuario (
   id SERIAL PRIMARY KEY,
   usuario_id INTEGER REFERENCES usuarios(id) ON DELETE CASCADE,
@@ -371,13 +312,131 @@ CREATE TABLE modulos_permisos_usuario (
 );
 ```
 
-### 3.5 Módulos: Lectura del JWT
+### 3.5 Jerarquía de Permisos
+
+```
+1. user_modulos           → ¿Puede acceder al módulo? (fuente de verdad)
+2. modulos_permisos_perfil → ¿Qué puede hacer? (solo para módulos con acceso)
+3. modulos_permisos_usuario → Excepciones individuales (solo para módulos con acceso)
+```
+
+**Regla:** `user_modulos` ES la fuente de verdad para acceso a módulos. El perfil NO determina a qué módulos tiene acceso un usuario.
+
+### 3.6 buildPayload y getUserWithPermissions
+
+```javascript
+// framework/auth.js
+const crypto = require('crypto');
+
+function buildPayload(user, jti) {
+  return {
+    id: user.id,
+    email: user.email,
+    nombre: user.nombre,
+    rol: user.rol,
+    modulos: user.modulos,
+    perfil_id: user.perfil_id,
+    perfil_nombre: user.perfil_nombre,
+    permisos: user.permisos,
+    modulos_permisos: user.modulos_permisos,
+    jti
+  };
+}
+
+async function getUserWithPermissions(pool, userId) {
+  // 1. Datos básicos del usuario
+  const { rows: userRows } = await pool.query(
+    `SELECT id, email, nombre, rol, perfil_id 
+     FROM usuarios WHERE id = $1 AND activo = TRUE`,
+    [userId]
+  );
+  
+  if (userRows.length === 0) return null;
+  const user = userRows[0];
+  
+  // 2. Módulos asignados (user_modulos es la fuente de verdad)
+  if (user.rol === 'admin') {
+    const { rows: allModulos } = await pool.query(
+      'SELECT id FROM modulos_plataforma WHERE activo = TRUE'
+    );
+    user.modulos = allModulos.map(m => m.id);
+  } else {
+    const { rows: modulos } = await pool.query(
+      `SELECT modulo_id FROM user_modulos 
+       WHERE usuario_id = $1 AND activo = TRUE`,
+      [userId]
+    );
+    user.modulos = modulos.map(m => m.modulo_id);
+  }
+  
+  // 3. Perfil y permisos launcher
+  if (user.perfil_id) {
+    const { rows: perfil } = await pool.query(
+      'SELECT nombre FROM perfiles WHERE id = $1',
+      [user.perfil_id]
+    );
+    user.perfil_nombre = perfil[0]?.nombre || null;
+    
+    const { rows: permisos } = await pool.query(
+      `SELECT modulo_id, permiso FROM perfil_permisos 
+       WHERE perfil_id = $1 AND activo = TRUE`,
+      [user.perfil_id]
+    );
+    user.permisos = permisos;
+  } else {
+    user.perfil_nombre = null;
+    user.permisos = [];
+  }
+  
+  // 4. Permisos funcionales por módulo
+  user.modulos_permisos = {};
+  
+  // Permisos del perfil (solo para módulos con acceso)
+  if (user.perfil_id) {
+    const { rows: perfilPerms } = await pool.query(
+      `SELECT modulo_id, permiso_id FROM modulos_permisos_perfil 
+       WHERE perfil_id = $1 AND activo = TRUE`,
+      [user.perfil_id]
+    );
+    
+    for (const row of perfilPerms) {
+      if (!user.modulos.includes(row.modulo_id)) continue;
+      if (!user.modulos_permisos[row.modulo_id]) {
+        user.modulos_permisos[row.modulo_id] = [];
+      }
+      user.modulos_permisos[row.modulo_id].push(row.permiso_id);
+    }
+  }
+  
+  // Permisos individuales (solo para módulos con acceso)
+  const { rows: userPerms } = await pool.query(
+    `SELECT modulo_id, permiso_id FROM modulos_permisos_usuario 
+     WHERE usuario_id = $1 AND activo = TRUE`,
+    [userId]
+  );
+  
+  for (const row of userPerms) {
+    if (!user.modulos.includes(row.modulo_id)) continue;
+    if (!user.modulos_permisos[row.modulo_id]) {
+      user.modulos_permisos[row.modulo_id] = [];
+    }
+    if (!user.modulos_permisos[row.modulo_id].includes(row.permiso_id)) {
+      user.modulos_permisos[row.modulo_id].push(row.permiso_id);
+    }
+  }
+  
+  return user;
+}
+
+module.exports = { buildPayload, getUserWithPermissions };
+```
+
+### 3.7 Módulos: Lectura del JWT
 
 ```javascript
 // Nomina: middleware/permisos.js
 function requierePermiso(permiso) {
   return (req, res, next) => {
-    // Admin tiene todos los permisos
     if (req.usuario?.rol === 'admin') return next();
     
     const nominaPerms = req.usuario?.modulos_permisos?.nomina || [];
@@ -388,541 +447,287 @@ function requierePermiso(permiso) {
     });
   };
 }
-
-// Uso en rutas
-router.post('/:id/aprobar', requierePermiso('aprobar'), async (req, res) => {
-  // ...
-});
 ```
 
 ---
 
-## 4. Migración Nómina SQLite → PostgreSQL
+## 4. Autenticación: Endpoints
 
-### 4.1 Impacto Estimado
-
-| Aspecto | Cantidad |
-|---------|----------|
-| Archivos a modificar | 26 |
-| Llamadas síncronas → asíncronas | ~175 |
-| Transacciones a reescribir | 4 |
-| Tablas a migrar | 13 |
-| Sintaxis específica SQLite | ~15 tipos |
-
-### 4.2 Cambios Críticos
-
-**Síncrono → Asíncrono:**
+### 4.1 Login
 
 ```javascript
-// ANTES (SQLite - better-sqlite3)
-const rows = db.prepare('SELECT * FROM registros').all();
-db.prepare('INSERT INTO registros VALUES (?,?)').run(id, fecha);
-
-// DESPUÉS (PostgreSQL - pg)
-const { rows } = await pool.query('SELECT * FROM registros');
-await pool.query('INSERT INTO registros VALUES ($1,$2)', [id, fecha]);
-```
-
-**Sintaxis SQLite → PostgreSQL:**
-
-| SQLite | PostgreSQL |
-|--------|------------|
-| `INSERT OR REPLACE INTO ...` | `INSERT INTO ... ON CONFLICT (pk) DO UPDATE SET ...` |
-| `INSERT OR IGNORE INTO ...` | `INSERT INTO ... ON CONFLICT DO NOTHING` |
-| `AUTOINCREMENT` | `SERIAL` o `GENERATED AS IDENTITY` |
-| `datetime('now','-30 days')` | `NOW() - INTERVAL '30 days'` |
-| `PRAGMA table_info(...)` | `information_schema.columns` |
-| `LIKE ?` (case-insensitive) | `ILIKE ?` |
-| `INTEGER` (0/1 boolean) | `BOOLEAN` (true/false) |
-
-### 4.3 Plan de Migración por Fases
-
-#### Fase 0: Preparación y Rollback (1 día)
-
-**Objetivo:** Tener backup fresco y script de rollback probado.
-
-```bash
-# 1. Generar backup de SQLite
-curl -X GET http://localhost:3005/api/backup -o backup_pre_migracion.zip
-
-# 2. Verificar backup
-unzip -l backup_pre_migracion.zip
-
-# 3. Script de rollback (rollback.sh)
-#!/bin/bash
-echo "⚠️  ROLLBACK: Restaurando SQLite..."
-# Detener módulo nómina
-pm2 stop horix-nomina
-# Restaurar SQLite desde backup
-cp backups/horas_extra.db.pre-migration backups/horas_extra.db
-# Reiniciar
-pm2 start horix-nomina
-echo "✅ Rollback completado"
-```
-
-**Verificar:**
-- [ ] Backup generado correctamente
-- [ ] Script de rollback ejecuta sin errores
-- [ ] Datos verificados post-rollback
-
-#### Fase 1: Tablas PostgreSQL (1 día)
-
-**Objetivo:** Crear tablas en PostgreSQL con esquema correcto.
-
-```sql
--- migrations/nomina_to_pg.sql
-
--- Empleados
-CREATE TABLE IF NOT EXISTS nomina_empleados (
-  id UUID PRIMARY KEY,
-  nombre VARCHAR NOT NULL,
-  cedula VARCHAR NOT NULL,
-  cargo VARCHAR NOT NULL,
-  departamento VARCHAR NOT NULL,
-  sede VARCHAR NOT NULL DEFAULT 'Principal',
-  email VARCHAR,
-  telefono VARCHAR,
-  tipo_vinculacion VARCHAR NOT NULL DEFAULT 'vinculado',
-  activo BOOLEAN NOT NULL DEFAULT true
-);
-
--- Registros
-CREATE TABLE IF NOT EXISTS nomina_registros (
-  id UUID PRIMARY KEY,
-  empleado_id UUID NOT NULL REFERENCES nomina_empleados(id),
-  nomina_id UUID NOT NULL,
-  fecha DATE NOT NULL,
-  horas NUMERIC NOT NULL,
-  tipo VARCHAR NOT NULL,
-  aprobador VARCHAR NOT NULL,
-  motivo TEXT NOT NULL,
-  creado TIMESTAMPTZ NOT NULL,
-  concepto TEXT DEFAULT '',
-  observaciones TEXT DEFAULT '',
-  transporte NUMERIC DEFAULT 0,
-  sede VARCHAR DEFAULT 'Principal',
-  estado VARCHAR DEFAULT 'pendiente',
-  aprobado_por VARCHAR DEFAULT '',
-  fecha_aprobado TIMESTAMPTZ,
-  creado_por VARCHAR DEFAULT ''
-);
-
--- ... más tablas
-```
-
-**Verificar:**
-- [ ] Todas las tablas creadas
-- [ ] Índices creados
-- [ ] Foreign keys configuradas
-
-#### Fase 2: Refactorización DB (2-3 días)
-
-**Objetivo:** Reemplazar `better-sqlite3` por `pg` en capa de datos.
-
-```javascript
-// modules/nomina/src/db/index.js (NUEVO)
-const { Pool } = require('pg');
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
-
-module.exports = {
-  query: (text, params) => pool.query(text, params),
-  getClient: () => pool.connect(),
-  pool
-};
-```
-
-**Verificar:**
-- [ ] Pool de conexiones funciona
-- [ ] Migraciones ejecutan correctamente
-- [ ] Seeds ejecutan correctamente
-
-#### Fase 3: Rutas Async/Await (3-4 días)
-
-**Objetivo:** Convertir todas las rutas a async/await.
-
-```javascript
-// ANTES (sync)
-router.get('/', (req, res) => {
-  const rows = db.prepare('SELECT * FROM registros').all();
-  res.json(rows);
-});
-
-// DESPUÉS (async)
-router.get('/', async (req, res) => {
-  try {
-    const { rows } = await db.query('SELECT * FROM nomina_registros');
-    res.json(rows);
-  } catch (err) {
-    console.error('[registros]', err.message);
-    res.status(500).json({ error: err.message });
-  }
-});
-```
-
-**Verificar:**
-- [ ] Todas las rutas funcionan
-- [ ] Transacciones con BEGIN/COMMIT/ROLLBACK
-- [ ] No hay errores de concurrencia
-
-#### Fase 4: Integración Permisos (1 día)
-
-**Objetivo:** Migrar `permisos_roles` a tablas centrales del launcher.
-
-```javascript
-// 1. Migrar datos existentes
-INSERT INTO modulos_permisos_perfil (perfil_id, modulo_id, permiso_id)
-SELECT 
-  p.id,
-  'nomina',
-  pr.permiso
-FROM permisos_roles pr
-JOIN perfiles p ON p.nombre = pr.rol;
-
-// 2. Actualizar middleware
-function requierePermiso(permiso) {
-  return (req, res, next) => {
-    if (req.usuario?.rol === 'admin') return next();
-    const perms = req.usuario?.modulos_permisos?.nomina || [];
-    if (perms.includes(permiso)) return next();
-    res.status(403).json({ error: `Permiso requerido: ${permiso}` });
-  };
-}
-```
-
-**Verificar:**
-- [ ] Permisos migrados correctamente
-- [ ] JWT incluye permisos de nómina
-- [ ] Restricciones funcionan
-
-#### Fase 5: Testing (1-2 días)
-
-**Objetivo:** Validar cada funcionalidad.
-
-**Checklist de Testing:**
-- [ ] Login/Logout
-- [ ] CRUD Empleados
-- [ ] CRUD Registros (crear, editar, eliminar)
-- [ ] Aprobación de registros
-- [ ] Revertir registros
-- [ ] Generar nómina
-- [ ] Exportar SIESA
-- [ ] Dashboard y reportes
-- [ ] Backup/Restore
-- [ ] Permisos por rol
-
-### 4.4 Estrategia de Rollback
-
-**Si algo falla en Fase 3 o posterior:**
-
-```bash
-# 1. Detener módulo nómina
-pm2 stop horix-nomina
-
-# 2. Restaurar código anterior
-git checkout HEAD~1 -- modules/nomina/
-
-# 3. Restaurar SQLite desde backup
-cp backups/horas_extra.db.pre-migration modules/nomina/horas_extra.db
-
-# 4. Reiniciar
-pm2 start horix-nomina
-
-# 5. Verificar
-curl http://localhost:3005/api/health
-```
-
----
-
-## 5. Backup/Restore
-
-### 5.1 Formato Actual
-
-**Archivo:** ZIP con `backup.json` + CSVs
-
-```json
-{
-  "version": "1.0",
-  "generado": "2026-07-08T...",
-  "app": "HorasExtra",
-  "configuracion": { "smtp_host": "...", ... },
-  "usuarios": [...],
-  "empleados": [...],
-  "nominas": [...],
-  "registros": [...],
-  "tipos": [...],
-  "usuario_empleados": [...],
-  "dashboard_layout": [...],
-  "centros": [...]
-}
-```
-
-### 5.2 Compatibilidad SQLite ↔ PostgreSQL
-
-**Detección automática de motor:**
-
-```javascript
-// modules/nomina/src/routes/backup.js
-const isPostgreSQL = !!process.env.DATABASE_URL;
-
-router.post('/restore', soloAdmin, async (req, res) => {
-  const data = parseBackup(req.file);
+app.post('/api/auth/login', async (req, res) => {
+  const { email, password } = req.body;
   
-  if (isPostgreSQL) {
-    const resumen = await restoreDataPG(data, req.usuario.id, pool);
-  } else {
-    const resumen = restoreData(data, req.usuario.id);
-  }
+  const user = await authenticateUser(email, password);
+  if (!user) return res.status(401).json({ error: 'Credenciales invalidas' });
   
-  res.json({ ok: true, resumen });
-});
-```
-
-**Función restoreDataPG:**
-
-```javascript
-async function restoreDataPG(data, currentUserId, pool) {
-  const client = await pool.connect();
-  try {
-    await client.query('BEGIN');
-    
-    // Configuracion
-    if (data.configuracion) {
-      for (const [clave, valor] of Object.entries(data.configuracion)) {
-        await client.query(
-          `INSERT INTO configuracion (clave, valor) 
-           VALUES ($1, $2) 
-           ON CONFLICT (clave) 
-           DO UPDATE SET valor = EXCLUDED.valor`,
-          [clave, clave === 'smtp_password' ? encryptSmtp(valor) : valor]
-        );
-      }
-    }
-    
-    // Empleados
-    if (data.empleados?.length) {
-      await client.query('DELETE FROM nomina_empleados');
-      for (const e of data.empleados) {
-        await client.query(
-          `INSERT INTO nomina_empleados 
-           (id, nombre, cedula, cargo, departamento, sede, email, telefono) 
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-          [e.id, e.nombre, e.cedula, e.cargo, e.departamento, 
-           e.sede || 'Principal', e.email || '', e.telefono || '']
-        );
-      }
-    }
-    
-    // Registros (con transformación de tipos)
-    if (data.registros?.length) {
-      await client.query('DELETE FROM nomina_registros');
-      for (const r of data.registros) {
-        await client.query(
-          `INSERT INTO nomina_registros 
-           (id, empleado_id, nomina_id, fecha, horas, tipo, aprobador, 
-            motivo, creado, concepto, sede, creado_por, observaciones, 
-            transporte, estado, aprobado_por, fecha_aprobado) 
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17)`,
-          [
-            r.id, r.empleadoId, r.nominaId, r.fecha, r.horas, r.tipo,
-            r.aprobador, r.motivo, r.creado, r.concepto || '',
-            r.sede || 'Principal', r.creadoPor || '', r.observaciones || '',
-            parseFloat(r.transporte || 0), r.estado || 'pendiente',
-            r.aprobadoPor || '', r.fechaAprobado || null
-          ]
-        );
-      }
-    }
-    
-    await client.query('COMMIT');
-    return { success: true, counts: { ... } };
-  } catch (err) {
-    await client.query('ROLLBACK');
-    throw err;
-  } finally {
-    client.release();
-  }
-}
-```
-
----
-
-## 6. Observabilidad Centralizada
-
-### 6.1 Problemática
-
-Con 4+ módulos compartiendo DB, cuando algo falla necesitas trazar rápido:
-- ¿De qué módulo vino el error?
-- ¿Qué usuario ejecutó la acción?
-- ¿Cuándo ocurrió exactamente?
-
-### 6.2 Solución: Tabla Unificada de Auditoría
-
-```sql
--- Tabla central de auditoría (en launcher)
-CREATE TABLE auditoria_central (
-  id BIGSERIAL PRIMARY KEY,
-  modulo VARCHAR(50) NOT NULL,
-  evento VARCHAR(100) NOT NULL,
-  usuario_id INTEGER,
-  usuario_email VARCHAR(255),
-  entidad VARCHAR(100),
-  entidad_id VARCHAR(255),
-  accion VARCHAR(50),  -- CREATE, UPDATE, DELETE, LOGIN, etc.
-  datos_anteriores JSONB,
-  datos_nuevos JSONB,
-  ip INET,
-  user_agent TEXT,
-  creado_en TIMESTAMPTZ DEFAULT NOW()
-);
-
--- Índices para búsqueda rápida
-CREATE INDEX idx_auditoria_modulo ON auditoria_central(modulo);
-CREATE INDEX idx_auditoria_usuario ON auditoria_central(usuario_id);
-CREATE INDEX idx_auditoria_fecha ON auditoria_central(creado_en);
-CREATE INDEX idx_auditoria_entidad ON auditoria_central(entidad, entidad_id);
-```
-
-### 6.3 SDK de Auditoría
-
-```javascript
-// framework/audit.js
-class AuditLogger {
-  constructor(pool) {
-    this.pool = pool;
-  }
-
-  async log({ modulo, evento, usuario, entidad, entidadId, accion, 
-              datosAnteriores, datosNuevos, ip, userAgent }) {
-    await this.pool.query(
-      `INSERT INTO auditoria_central 
-       (modulo, evento, usuario_id, usuario_email, entidad, entidad_id, 
-        accion, datos_anteriores, datos_nuevos, ip, user_agent)
-       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-      [modulo, evento, usuario?.id, usuario?.email, entidad, entidadId,
-       accion, datosAnteriores ? JSON.stringify(datosAnteriores) : null,
-       datosNuevos ? JSON.stringify(datosNuevos) : null, ip, userAgent]
-    );
-  }
-}
-
-module.exports = AuditLogger;
-```
-
-**Uso en módulos:**
-
-```javascript
-// modules/proveedores/src/routes/facturas.js
-const audit = require('../../../framework/audit');
-
-router.patch('/:id/aprobar', requireRol('admin', 'contador'), async (req, res) => {
-  const { rows: antes } = await db.query(
-    'SELECT * FROM facturas WHERE id = $1', [req.params.id]
-  );
+  const fullUser = await getUserWithPermissions(pool, user.id);
+  if (!fullUser) return res.status(401).json({ error: 'Usuario no encontrado' });
   
-  await db.query(
-    'UPDATE facturas SET estado = $1 WHERE id = $2',
-    ['aprobada', req.params.id]
-  );
+  const jti = crypto.randomUUID();
+  const refreshJti = crypto.randomUUID();
   
-  await audit.log({
-    modulo: 'proveedores',
-    evento: 'factura_aprobada',
-    usuario: req.usuario,
-    entidad: 'facturas',
-    entidadId: req.params.id,
-    accion: 'UPDATE',
-    datosAnteriores: antes[0],
-    datosNuevos: { estado: 'aprobada' },
-    ip: req.ip,
-    userAgent: req.get('user-agent')
+  const jwt = sign(buildPayload(fullUser, jti), SECRET, { expiresIn: '1h' });
+  const refreshToken = sign({
+    userId: fullUser.id,
+    jti: refreshJti
+  }, SECRET, { expiresIn: '7d' });
+  
+  res.cookie('launcher_jwt', jwt, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 3600000
   });
   
-  res.json({ ok: true });
+  res.cookie('refresh_token', refreshToken, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 604800000,
+    path: '/api/auth'
+  });
+  
+  res.json({ ok: true, usuario: { id: fullUser.id, email: fullUser.email, rol: fullUser.rol } });
 });
 ```
 
-### 6.4 Dashboard de Auditoría
+### 4.2 Refresh (con reuse detection)
 
-```sql
--- Últimas 24 horas por módulo
-SELECT 
-  modulo,
-  COUNT(*) as eventos,
-  COUNT(DISTINCT usuario_id) as usuarios_unicos
-FROM auditoria_central
-WHERE creado_en > NOW() - INTERVAL '24 hours'
-GROUP BY modulo
-ORDER BY eventos DESC;
+```javascript
+app.post('/api/auth/refresh', async (req, res) => {
+  const oldRefreshToken = req.cookies.refresh_token;
+  if (!oldRefreshToken) return res.status(401).json({ error: 'No refresh token' });
 
--- Actividad sospechosa (muchos deletes)
-SELECT 
-  usuario_email,
-  COUNT(*) as deletes
-FROM auditoria_central
-WHERE accion = 'DELETE'
-  AND creado_en > NOW() - INTERVAL '1 hour'
-GROUP BY usuario_email
-HAVING COUNT(*) > 10;
+  try {
+    const decoded = verify(oldRefreshToken, SECRET);
+
+    // 1. Verificar si la sesion fue invalidada
+    const { rows: invalidada } = await pool.query(
+      'SELECT 1 FROM usuario_sesion_invalidada WHERE usuario_id = $1 AND invalidado_en > to_timestamp($2)',
+      [decoded.userId, decoded.iat]
+    );
+
+    if (invalidada.length > 0) {
+      res.clearCookie('launcher_jwt');
+      res.clearCookie('refresh_token');
+      return res.status(401).json({ error: 'Sesion invalidada', reason: 'sesion_invalidada' });
+    }
+
+    // 2. Verificar si el refresh token ya fue usado
+    const { rows } = await pool.query(
+      'SELECT 1 FROM refresh_token_blacklist WHERE jti = $1',
+      [decoded.jti]
+    );
+
+    if (rows.length > 0) {
+      // Reuso detectado: ventana de gracia de 5 segundos
+      const { rows: graceRows } = await pool.query(
+        `SELECT 1 FROM refresh_token_blacklist 
+         WHERE jti = $1 AND creado_en > NOW() - INTERVAL '5 seconds'`,
+        [decoded.jti]
+      );
+      
+      if (graceRows.length > 0) {
+        // Dentro de ventana de gracia: request duplicado
+        return res.status(401).json({ error: 'Token ya procesado' });
+      }
+      
+      // Ataque real: invalidar toda la sesion
+      await pool.query(
+        `INSERT INTO usuario_sesion_invalidada (usuario_id, invalidado_en) 
+         VALUES ($1, NOW()) 
+         ON CONFLICT (usuario_id) 
+         DO UPDATE SET invalidado_en = NOW()`,
+        [decoded.userId]
+      );
+      
+      sesionCache.invalidate(`sesion:${decoded.userId}`);
+      
+      res.clearCookie('launcher_jwt');
+      res.clearCookie('refresh_token');
+      
+      return res.status(401).json({ 
+        error: 'Sesion comprometida', 
+        reason: 'refresh_token_reuse' 
+      });
+    }
+
+    // 3. Todo OK: emitir nuevos tokens
+    await pool.query(
+      `INSERT INTO refresh_token_blacklist (jti, usuario_id, creado_en, expirado_en) 
+       VALUES ($1, $2, NOW(), NOW() + INTERVAL '7 days')`,
+      [decoded.jti, decoded.userId]
+    );
+
+    const fullUser = await getUserWithPermissions(pool, decoded.userId);
+    if (!fullUser) return res.status(401).json({ error: 'Usuario no encontrado' });
+
+    const newJti = crypto.randomUUID();
+    const newRefreshJti = crypto.randomUUID();
+    
+    const newJwt = sign(buildPayload(fullUser, newJti), SECRET, { expiresIn: '1h' });
+    const newRefreshToken = sign({
+      userId: fullUser.id,
+      jti: newRefreshJti
+    }, SECRET, { expiresIn: '7d' });
+
+    res.cookie('launcher_jwt', newJwt, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 3600000
+    });
+    
+    res.cookie('refresh_token', newRefreshToken, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      maxAge: 604800000,
+      path: '/api/auth'
+    });
+
+    res.json({ ok: true });
+  } catch (err) {
+    res.status(401).json({ error: 'Refresh token invalido' });
+  }
+});
+```
+
+### 4.3 Verify Token (con caché)
+
+```javascript
+const SimpleCache = require('./cache');
+const sesionCache = new SimpleCache(5000);
+
+async function verifyToken(req, res, next) {
+  const token = req.cookies.launcher_jwt;
+  if (!token) return res.status(401).json({ error: 'No token' });
+
+  try {
+    const decoded = verify(token, SECRET);
+    const userId = decoded.id;
+
+    // Verificar invalidacion de sesion (con cache)
+    let sesionInvalida = sesionCache.get(`sesion:${userId}`);
+    
+    if (sesionInvalida === null) {
+      const { rows } = await pool.query(
+        'SELECT 1 FROM usuario_sesion_invalidada WHERE usuario_id = $1 AND invalidado_en > to_timestamp($2)',
+        [userId, decoded.iat]
+      );
+      sesionInvalida = rows.length > 0;
+      sesionCache.set(`sesion:${userId}`, sesionInvalida);
+    }
+
+    if (sesionInvalida) {
+      res.clearCookie('launcher_jwt');
+      res.clearCookie('refresh_token');
+      return res.status(401).json({ error: 'Sesion invalidada' });
+    }
+
+    // Verificar blacklist individual
+    const { rows: blacklisted } = await pool.query(
+      'SELECT 1 FROM jwt_blacklist WHERE jti = $1',
+      [decoded.jti]
+    );
+
+    if (blacklisted.length > 0) {
+      return res.status(401).json({ error: 'Token invalidado' });
+    }
+
+    req.usuario = decoded;
+    next();
+  } catch (err) {
+    res.status(401).json({ error: 'Token invalido' });
+  }
+}
+```
+
+### 4.4 Flujos de Seguridad
+
+```
+LOGIN
+  → Autenticar usuario
+  → getUserWithPermissions (filtra por user_modulos)
+  → buildPayload (incluye modulos_permisos filtrados)
+  → Emitir JWT (1h) + refresh token (7d)
+  → NO tocar ninguna blacklist
+
+REFRESH
+  → Verificar refresh token
+  → ¿Sesion invalidada? → SÍ: rechazar
+  → ¿Refresh token usado?
+     → NO: insertar en blacklist + emitir nuevos tokens
+     → SÍ: ¿creado_en > NOW() - INTERVAL '5 seconds'?
+            → SÍ (duplicado): rechazar
+            → NO (ataque): invalidar sesion + caché + rechazar
+
+REQUEST
+  → verifyToken (cache 5s)
+  → proceed
+```
+
+### 4.5 Frontend Handling
+
+```javascript
+async function silentRefresh() {
+  const res = await fetch('/api/auth/refresh', { method: 'POST' });
+  
+  if (res.ok) return true;
+  
+  if (res.status === 401) {
+    const data = await res.json();
+    
+    if (data.reason === 'refresh_token_reuse' || data.reason === 'sesion_invalidada') {
+      showSecurityAlert('Tu sesion fue comprometida. Inicia sesion nuevamente.');
+      logout();
+      return false;
+    }
+    
+    if (data.error === 'Token ya procesado') {
+      return true;  // Reintentar request
+    }
+    
+    logout();
+    return false;
+  }
+  
+  return false;
+}
 ```
 
 ---
 
-## 7. Contratos de API Internos
+## 5. Internal API
 
-### 7.1 Problemática
-
-Los módulos pueden necesitar comunicarse entre sí:
-- ¿Logística consulta proveedores para obtener datos de facturación?
-- ¿Nómina consulta logística para viáticos?
-- ¿Proveedores necesita datos de empleados de nómina?
-
-### 7.2 Diseño: API Interna via HTTP
-
-**Principio:** Los módulos se comunican via HTTP usando el pool de conexiones compartido, no via archivos o IPC.
-
-**Endpoints internos (solo accesibles desde localhost):**
+### 5.1 Seguridad
 
 ```javascript
 // framework/internal-api.js
-const express = require('express');
-const router = express.Router();
+const INTERNAL_SECRET = process.env.INTERNAL_API_SECRET;
 
-// Middleware: solo permitir requests de localhost
 router.use((req, res, next) => {
-  const ip = req.ip || req.connection.remoteAddress;
-  if (!ip.includes('127.0.0.1') && !ip.includes('::1')) {
-    return res.status(403).json({ error: 'Solo accesible internamente' });
+  // Exigir secret SIEMPRE (AND, no OR)
+  const secret = req.headers['x-internal-secret'];
+  
+  if (!INTERNAL_SECRET) {
+    console.error('[Internal API] INTERNAL_API_SECRET no configurado');
+    return res.status(500).json({ error: 'Internal API no configurada' });
   }
+  
+  if (secret !== INTERNAL_SECRET) {
+    return res.status(403).json({ error: 'Acceso no autorizado' });
+  }
+  
   next();
 });
-
-// Obtener datos de empleado (para logística, proveedores, etc.)
-router.get('/api/internal/empleados/:id', async (req, res) => {
-  const { rows } = await pool.query(
-    'SELECT id, nombre, email, departamento, sede FROM nomina_empleados WHERE id = $1',
-    [req.params.id]
-  );
-  res.json(rows[0] || null);
-});
-
-// Obtener datos de proveedor (para logística)
-router.get('/api/internal/proveedores/:id', async (req, res) => {
-  const { rows } = await pool.query(
-    'SELECT id, nombre, nit, email FROM proveedores WHERE id = $1',
-    [req.params.id]
-  );
-  res.json(rows[0] || null);
-});
-
-module.exports = router;
 ```
 
-### 7.3 Contrato de Datos
-
-**Formato estándar de respuesta:**
+### 5.2 Contratos de Datos
 
 ```typescript
-// Tipos TypeScript para contratos internos
 interface InternalResponse<T> {
   ok: boolean;
   data?: T;
@@ -945,152 +750,198 @@ interface Proveedor {
 }
 ```
 
-### 7.4 Documentación de Contratos
+---
 
-Cada módulo que expone endpoints internos debe documentarlos en:
+## 6. Observabilidad
 
-```markdown
-# modules/{nombre}/INTERNAL_API.md
+### 6.1 Tabla de Auditoría
 
-## Endpoints Internos
+```sql
+CREATE TABLE auditoria_central (
+  id BIGSERIAL PRIMARY KEY,
+  modulo VARCHAR(50) NOT NULL,
+  evento VARCHAR(100) NOT NULL,
+  usuario_id INTEGER,
+  usuario_email VARCHAR(255),
+  entidad VARCHAR(100),
+  entidad_id VARCHAR(255),
+  accion VARCHAR(50),
+  datos_anteriores JSONB,
+  datos_nuevos JSONB,
+  ip INET,
+  user_agent TEXT,
+  creado_en TIMESTAMPTZ DEFAULT NOW()
+);
 
-### GET /api/internal/empleados/:id
-- **Descripción:** Obtener datos básicos de empleado
-- **Parámetros:** id (UUID)
-- **Respuesta:** Empleado o null
-- **Uso:** Logística (viáticos), Proveedores (asignación)
+CREATE INDEX idx_auditoria_modulo ON auditoria_central(modulo);
+CREATE INDEX idx_auditoria_usuario ON auditoria_central(usuario_id);
+CREATE INDEX idx_auditoria_fecha ON auditoria_central(creado_en);
+```
 
-### GET /api/internal/proveedores/:id
-- **Descripción:** Obtener datos de proveedor
-- **Parámetros:** id (UUID)
-- **Respuesta:** Proveedor o null
-- **Uso:** Logística (rutas de entrega)
+### 6.2 Retención de Datos
+
+**Corto plazo:** No implementar retención.
+
+**Mediano plazo (6-12 meses):** Evaluar volumen.
+
+**Largo plazo (si es necesario):**
+- Opción A: Particionar por mes
+- Opción B: Archivar a tabla historica
+- Opción C: Exportar a S3/parquet
+
+**Trigger:** Si la tabla supera 10M de filas o las consultas tardan >2s.
+
+---
+
+## 7. Migración Nómina SQLite → PostgreSQL
+
+### 7.1 Impacto
+
+| Aspecto | Cantidad |
+|---------|----------|
+| Archivos a modificar | 26 |
+| Llamadas síncronas → asíncronas | ~175 |
+| Transacciones a reescribir | 4 |
+| Tablas a migrar | 13 |
+
+### 7.2 Sintaxis a Cambiar
+
+| SQLite | PostgreSQL |
+|--------|------------|
+| `INSERT OR REPLACE INTO ...` | `INSERT INTO ... ON CONFLICT (pk) DO UPDATE SET ...` |
+| `INSERT OR IGNORE INTO ...` | `INSERT INTO ... ON CONFLICT DO NOTHING` |
+| `AUTOINCREMENT` | `SERIAL` o `GENERATED AS IDENTITY` |
+| `datetime('now','-30 days')` | `NOW() - INTERVAL '30 days'` |
+| `LIKE ?` (case-insensitive) | `ILIKE ?` |
+
+### 7.3 Plan de Migración por Fases
+
+**Fase 0: Preparación y Rollback (1 día)**
+- Backup de SQLite
+- Script de rollback probado
+
+**Fase 1: Tablas PostgreSQL (1 día)**
+- Crear tablas con esquema correcto
+- Crear índices
+
+**Fase 2: Refactorización DB (2-3 días)**
+- Reemplazar better-sqlite3 por pg
+- Reescribir migrations y seeds
+
+**Fase 3: Rutas Async/Await (3-4 días)**
+- Convertir todas las rutas a async/await
+- Transacciones con BEGIN/COMMIT/ROLLBACK
+
+**Fase 4: Integración Permisos (1 día)**
+- Migrar permisos a tablas centrales
+- Actualizar middleware
+
+**Fase 5: Testing (1-2 días)**
+- Testing completo de funcionalidad
+- Buffer para imprevistos: 3-5 días
+
+**Timeline total: 3-4 semanas**
+
+---
+
+## 8. Backup/Restore
+
+### 8.1 Formato
+
+ZIP con `backup.json` + CSVs. Formato agnóstico a motor de DB.
+
+### 8.2 Compatibilidad SQLite ↔ PostgreSQL
+
+```javascript
+const isPostgreSQL = !!process.env.DATABASE_URL;
+
+router.post('/restore', soloAdmin, async (req, res) => {
+  const data = parseBackup(req.file);
+  
+  if (isPostgreSQL) {
+    const resumen = await restoreDataPG(data, req.usuario.id, pool);
+  } else {
+    const resumen = restoreData(data, req.usuario.id);
+  }
+  
+  res.json({ ok: true, resumen });
+});
 ```
 
 ---
 
-## 8. Seguridad
+## 9. Cron de Purga
 
-### 8.1 JWT
+```javascript
+// framework/cron/purge-blacklist.js
+const cron = require('node-cron');
 
-| Aspecto | Configuración |
-|---------|---------------|
-| Algoritmo | HS256 |
-| Secret | Compartido via `JWT_SECRET` en `.env` |
-| Expiración | 1 hora (access token) |
-| Refresh | 7 días (refresh token) |
-| Cookie | `httpOnly: true`, `secure: true` (producción) |
-| Invalidación | Blacklist en `jwt_blacklist` table |
+cron.schedule('0 3 * * *', async () => {
+  const { rowCount: jwt } = await pool.query(
+    'DELETE FROM jwt_blacklist WHERE expirado_en < NOW()'
+  );
+  const { rowCount: refresh } = await pool.query(
+    'DELETE FROM refresh_token_blacklist WHERE expirado_en < NOW()'
+  );
+  const { rowCount: sesiones } = await pool.query(
+    'DELETE FROM usuario_sesion_invalidada WHERE invalidado_en < NOW() - INTERVAL \'30 days\''
+  );
+  console.log(`[Purge] JWT: ${jwt}, Refresh: ${refresh}, Sesiones: ${sesiones}`);
+});
+```
 
-### 8.2 Permisos
-
-| Regla | Implementación |
-|-------|----------------|
-| Admin | Todos los permisos implícitos |
-| Perfil | Permisos base por rol |
-| Individual | Sobreescriben perfil (para excepciones) |
-| Auditoría | Todos los cambios se registran |
-
-### 8.3 Datos Sensibles
-
-| Dato | Protección |
-|------|------------|
-| Passwords | bcrypt (12 rounds) |
-| SMTP password | AES-256 encryption |
-| JWT secret | Nunca en código, solo en `.env` |
-| API keys | Solo en `.env`, nunca en logs |
-
-### 8.4 Network
-
-| Aspecto | Configuración |
-|---------|---------------|
-| HTTPS | Obligatorio en producción |
-| CORS | `CORS_ORIGIN` en `.env` |
-| Rate limiting | Login: 5 intentos/15min |
-| Internal API | Solo accesible desde localhost |
+| Tabla | Purga |
+|-------|-------|
+| `jwt_blacklist` | Diario (>1h) |
+| `refresh_token_blacklist` | Diario (>7d) |
+| `usuario_sesion_invalidada` | Mensual (>30d) |
 
 ---
 
-## 9. Decisiones de Arquitectura
+## 10. Decisiones de Arquitectura
 
-### 9.1 Monorepo vs Multi-repo
+### 10.1 Monorepo vs Multi-repo
 
 **Decisión:** Monorepo
 
-**Justificación:**
-- Uso interno, no se exponen módulos a terceros
-- Despliegue atómico (un solo `git pull`)
-- DB compartida facilita consultas cruzadas
-- Permisos centralizados en un solo JWT
+**Justificación:** Uso interno, despliegue atómico, DB compartida, permisos centralizados.
 
-### 9.2 Multi-proceso vs Monoproceso
+### 10.2 Multi-proceso vs Monoproceso
 
 **Decisión:** Multi-proceso (PM2)
 
-**Justificación:**
-- Aislamiento de fallos
-- Un módulo crashear no afecta a otros
-- Fácil de escalar independientemente
-- Logs separados por módulo
+**Justificación:** Aislamiento de fallos, escalabilidad independiente, logs separados.
 
-### 9.3 PostgreSQL vs SQLite
+### 10.3 PostgreSQL vs SQLite
 
 **Decisión:** PostgreSQL (migración Nómina pendiente)
 
-**Justificación:**
-- Consistencia en todos los módulos
-- Mejor concurrencia (multi-writer)
-- Funcionalidades avanzadas (JSONB, FULL TEXT SEARCH)
-- Backups unificados con `pg_dump`
+**Justificación:** Consistencia, concurrencia, funcionalidades avanzadas, backups unificados.
 
-### 9.4 JWT Enriquecido vs API Calls
+### 10.4 JWT Enriquecido vs API Calls
 
 **Decisión:** JWT Enriquecido
 
-**Justificación:**
-- 0 latencia adicional en cada request
-- JWT firmado, no tamperable
-- Permisos siempre frescos (1h expiry + refresh)
-- Simple de implementar en módulos
+**Justificación:** 0 latencia adicional, JWT firmado, simple de implementar.
 
 ---
 
-## 10. Roadmap de Implementación
+## 11. Roadmap de Implementación
 
-### Corto Plazo (1-2 semanas)
+### Corto Plazo (3-4 semanas)
 
-- [ ] **Migración Nómina SQLite → PostgreSQL**
-  - Fase 0: Backup y rollback
-  - Fase 1: Tablas PostgreSQL
-  - Fase 2: Refactorización DB
-  - Fase 3: Rutas async/await
-  - Fase 4: Integración permisos
-  - Fase 5: Testing
+- [ ] Migración Nómina SQLite → PostgreSQL
+- [ ] Sistema de permisos centralizado (JWT enriquecido)
 
 ### Mediano Plazo (2-4 semanas)
 
-- [ ] **Sistema de Permisos Centralizado**
-  - Crear tablas `modulos_permisos_*`
-  - JWT corto (1h) + refresh token
-  - Migrar permisos de nómina
-  - UI de gestión de perfiles
-
-- [ ] **Observabilidad**
-  - Tabla `auditoria_central`
-  - SDK de auditoría
-  - Dashboard de auditoría
+- [ ] Observabilidad centralizada (tabla auditoria_central)
+- [ ] Multi-proceso PM2 (separar módulos)
 
 ### Largo Plazo (1-2 meses)
 
-- [ ] **APIs Internas**
-  - Documentar contratos
-  - Implementar endpoints internos
-  - Testing de integración
-
-- [ ] **Multi-proceso PM2**
-  - Separar módulos en procesos
-  - Configurar Nginx routing
-  - Monitoreo de procesos
+- [ ] APIs internas entre módulos
+- [ ] JWT corto (1h) + refresh token
 
 ---
 
@@ -1099,11 +950,15 @@ Cada módulo que expone endpoints internos debe documentarlos en:
 ```bash
 # Base de datos
 DATABASE_URL=postgresql://user:pass@localhost:5432/horix_erp
+PG_POOL_MAX=5
 
 # JWT
 JWT_SECRET=tu_secret_aqui
 JWT_EXPIRY=1h
 REFRESH_EXPIRY=7d
+
+# Internal API
+INTERNAL_API_SECRET=uuid-v4-aqui
 
 # Servidor
 PORT=3002
@@ -1111,43 +966,8 @@ NODE_ENV=production
 
 # CORS
 CORS_ORIGIN=https://erp.horix.com
-
-# IMAP (Proveedores)
-IMAP_HOST=mail.example.com
-IMAP_PORT=993
-IMAP_USER=inbox@horix.com
-IMAP_PASS=password
-IMAP_FOLDER=INBOX
-
-# OSRM (Logística)
-OSRM_URL=https://router.project-osrm.org
-```
-
----
-
-## Apéndice B: Comandos Útiles
-
-```bash
-# Ver estado de procesos PM2
-pm2 list
-
-# Logs de un módulo específico
-pm2 logs horix-nomina
-
-# Restart un módulo
-pm2 restart horix-nomina
-
-# Backup de PostgreSQL
-pg_dump -U synnox_user horix_erp > backup.sql
-
-# Restore de PostgreSQL
-psql -U synnox_user horix_erp < backup.sql
-
-# Verificar conexión a DB
-psql -h localhost -U synnox_user -d horix_erp -c "SELECT 1"
 ```
 
 ---
 
 *Documento mantenido por el equipo de desarrollo SynnoxERP.*
-*Para sugerencias o correcciones, abrir un issue en el repositorio.*
