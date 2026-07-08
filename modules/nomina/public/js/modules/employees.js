@@ -31,6 +31,7 @@ function actualizarBannerCorruptos() {
     msg.textContent = `⚠️ ${n} empleado${n > 1 ? 's' : ''} con caracteres corruptos (�) en el nombre. Edítalo${n > 1 ? 's' : ''} para corregirl${n > 1 ? 'os' : 'o'}.`;
   } else {
     banner.style.display = 'none';
+  }
 }
 
 async function toggleActivoEmpleado(id, activo) {
