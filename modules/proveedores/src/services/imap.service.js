@@ -336,12 +336,30 @@ async function procesarCorreo(parsed, msgId) {
     }
   }
 
-  // Skip ApplicationResponse (acuse de recibo DIAN) — no son facturas
+  // Handle ApplicationResponse (acuse de recibo DIAN)
+  // The XML is just a receipt confirmation, but the PDF may still be the invoice
   if (datosFactura.esAcuse) {
-    console.log(`  [IMAP] Acuse de recibo detectado — omitiendo`);
-    if (archivoXml) try { fs.unlinkSync(path.join(baseUploadDir, archivoXml)); } catch {}
-    if (archivoPdf) try { fs.unlinkSync(path.join(baseUploadDir, archivoPdf)); } catch {}
-    return 'omitido';
+    if (archivoPdf) {
+      // Extract invoice number from PDF filename (e.g., FV08350010610112600004361.pdf → 08350010610112600004361)
+      const pdfName = path.basename(archivoPdf, '.pdf');
+      const numeroFromPdf = pdfName.replace(/^fv/i, '').replace(/^ad/i, '');
+      if (numeroFromPdf && numeroFromPdf.length >= 5) {
+        console.log(`  [IMAP] Acuse detectado pero hay PDF — creando factura ${numeroFromPdf} desde PDF`);
+        // Delete the acuse XML, keep the PDF
+        if (archivoXml) try { fs.unlinkSync(path.join(baseUploadDir, archivoXml)); } catch {}
+        // Fall through to invoice creation with numeroFromPdf
+        datosFactura.numeroFactura = numeroFromPdf;
+      } else {
+        console.log(`  [IMAP] Acuse de recibo detectado — omitiendo`);
+        if (archivoXml) try { fs.unlinkSync(path.join(baseUploadDir, archivoXml)); } catch {}
+        if (archivoPdf) try { fs.unlinkSync(path.join(baseUploadDir, archivoPdf)); } catch {}
+        return 'omitido';
+      }
+    } else {
+      console.log(`  [IMAP] Acuse de recibo sin PDF — omitiendo`);
+      if (archivoXml) try { fs.unlinkSync(path.join(baseUploadDir, archivoXml)); } catch {}
+      return 'omitido';
+    }
   }
 
   if (!archivoPdf && !archivoXml) {
