@@ -491,10 +491,11 @@ async function downloadEmails(config, rescanAll = false) {
       let seqNumbers = await client.search(searchCriteria);
       console.log(`[IMAP-Download] ${seqNumbers.length} mensajes encontrados`);
 
-      // Limit to most recent 100 messages to prevent timeout
-      if (seqNumbers.length > 100) {
-        console.log(`[IMAP-Download] Limitando a 100 mensajes más recientes`);
-        seqNumbers = seqNumbers.slice(-100);
+      // Limit messages to prevent timeout (configurable via IMAP_MAX_MESSAGES, 0 = sin límite)
+      const maxMessages = parseInt(process.env.IMAP_MAX_MESSAGES || '0', 10);
+      if (maxMessages > 0 && seqNumbers.length > maxMessages) {
+        console.log(`[IMAP-Download] Limitando a ${maxMessages} mensajes más recientes`);
+        seqNumbers = seqNumbers.slice(-maxMessages);
       }
 
       if (seqNumbers.length === 0) {
