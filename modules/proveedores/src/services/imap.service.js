@@ -364,7 +364,7 @@ async function procesarCorreo(parsed, msgId) {
           } else {
             console.log(`  [IMAP] Acuse guardado (factura ${facturaId} no encontrada — puede llegar después)`);
           }
-          return 'creada';
+          return 'acuse';
         } catch (e) {
           console.error(`  [IMAP] Error guardando acuse:`, e.message);
         }
@@ -437,10 +437,13 @@ async function procesarCorreo(parsed, msgId) {
     
     console.log(`  [IMAP] Pre-INSERT: factura=${numeroFactura}, proveedor=${proveedorId}, nit=${nitEmisor}`);
 
+    console.log(`  [IMAP] Pre-INSERT: factura=${numeroFactura}, proveedor=${proveedorId}, nit=${nitEmisor}`);
+
     const ahora = new Date();
     const referencia = fechaFactura ? fechaFactura.toISOString().split('T')[0] : ahora.toISOString().split('T')[0];
     const limiteDian = new Date((fechaFactura || ahora).getTime() + 48 * 60 * 60 * 1000);
 
+    console.log(`  [IMAP] Ejecutando INSERT...`);
     const { rows } = await client.query(
       `INSERT INTO facturas (
           numero_factura, proveedor_id, categoria_id, archivo_pdf, archivo_xml,
@@ -620,7 +623,7 @@ async function processDownloadedEmails() {
       const resultado = await procesarCorreo(parsed, msgId);
 
       // Only delete file if successfully processed or omitted
-      if (resultado === 'creada' || resultado === 'duplicada' || resultado === 'omitido') {
+      if (resultado === 'creada' || resultado === 'duplicada' || resultado === 'omitido' || resultado === 'acuse') {
         fs.unlinkSync(filePath);
       }
 
