@@ -1,6 +1,60 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (08 Jul 2026 — sesión 5)
+## Estado (08 Jul 2026 — sesión 6)
+
+### Arquitectura
+- **Servidor multi-proceso**: PM2 por módulo (launcher:3002, proveedores:3003, logística:3004, nómina:3005)
+- **Módulos**: Launcher + Proveedores + Logística + Nómina
+- **Auth**: JWT cookie `launcher_jwt` (1h expiry) + refresh token (7d) con rotación
+- **Permisos**: JWT enriquecido con `modulos_permisos` por módulo
+- **DB**: PostgreSQL unificado (`horix_erp`), Nómina pendiente migración SQLite
+
+### Auth System (Sesión 6)
+- **Reuse detection**: Refresh token reuse detectado con ventana de gracia de 5 segundos
+- **Invalidación masiva**: `usuario_sesion_invalidada` check en `/refresh` Y en requests
+- **Cache**: SimpleCache con TTL de 5 segundos (por proceso)
+- **Internal API**: Secret header (AND, no OR con IP-check)
+- **Cookies**: `sameSite: 'lax'` en todas las cookies de auth
+- **Tablas auth**: `jwt_blacklist`, `refresh_token_blacklist`, `usuario_sesion_invalidada`
+
+### Migración Nómina (Sesión 6)
+- **ETL**: `migrate-nomina.js` (12 tablas, sin usuarios)
+- **Reconciliación**: `reconcile-usuarios.js` (dry run + --apply)
+- **Cutover**: Script con git pull ANTES de ejecutar migrate
+- **Rollback**: Script documentado y probado
+- **Validación**: Checklist pre-cutover (roles huérfanos, UUIDs, FKs)
+
+### Documentación Creada (Sesión 6)
+- `ARCHITECTURE.md` §7 — Plan completo de migración Nómina
+- `MIGRATION_NOMINA.md` — Guía de ejecución paso a paso
+- Incluye: DDL, scripts, cutover, rollback, bugs corregidos, timeline
+
+### Cambios Sesión 6
+- **Auth**: Fix verifyToken async (bug de sintaxis)
+- **Auth**: Fix expirado_en consistency (NOW() + INTERVAL)
+- **Auth**: Fix refresh token reuse detection (ventana de gracia 5s)
+- **Auth**: Fix usuario_sesion_invalidada check en /refresh
+- **Auth**: Fix buildPayload con modulos_permisos
+- **Auth**: Fix sameSite: 'lax' en cookies
+- **Auth**: Fix jwt_blacklist purge (diario >1h)
+- **Auth**: Fix refresh_token_blacklist purge (diario >7d)
+- **Nomina**: Fix syntax error en employees.js (faltaba })
+- **Docs**: ARCHITECTURE.md §7 reescrito con plan completo
+- **Docs**: MIGRATION_NOMINA.md creado
+- **Docs**: AGENTS.md actualizado con sesión 6
+
+### Pendientes
+- [ ] Ejecutar Fase 0: Backup + rollback probado
+- [ ] Ejecutar checklist pre-cutover (1-2 días antes)
+- [ ] Ejecutar migración en PostgreSQL de prueba
+- [ ] Ejecutar cutover real en producción
+- [ ] Observabilidad centralizada (tabla `auditoria_central`)
+- [ ] APIs internas entre módulos
+- [ ] Probar HTTPS en producción
+
+---
+
+## Estado Anterior (08 Jul 2026 — sesión 5)
 
 ### Arquitectura
 - **Servidor multi-proceso**: PM2 por módulo (launcher:3002, proveedores:3003, logística:3004, nómina:3005)
@@ -23,15 +77,6 @@
 - **Proveedores**: Delete limpio `archivo_acuse` además de PDF/XML/soporte
 - **Docs**: Creado ARCHITECTURE.md con arquitectura completa
 - **Docs**: ROADMAP.md reescrito como roadmap de producto
-
-### Pendientes
-- [ ] Migración Nómina SQLite → PostgreSQL (ver ARCHITECTURE.md §4)
-- [ ] Sistema de permisos centralizado (JWT enriquecido)
-- [ ] Observabilidad centralizada (tabla `auditoria_central`)
-- [ ] Multi-proceso PM2 (separar módulos)
-- [ ] JWT corto (1h) + refresh token
-- [ ] APIs internas entre módulos
-- [ ] Probar HTTPS en producción
 
 ---
 

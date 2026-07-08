@@ -800,47 +800,548 @@ CREATE INDEX idx_auditoria_fecha ON auditoria_central(creado_en);
 | Aspecto | Cantidad |
 |---------|----------|
 | Archivos a modificar | 26 |
-| Llamadas síncronas → asíncronas | ~175 |
-| Transacciones a reescribir | 4 |
+| Llamadas síncronas → asíncronas | ~160 |
+| Transacciones a reescribir | 5 |
 | Tablas a migrar | 13 |
+| Sintaxis SQLite específica | ~25 tipos |
 
-### 7.2 Sintaxis a Cambiar
+### 7.2 Sintaxis SQLite → PostgreSQL
 
-| SQLite | PostgreSQL |
-|--------|------------|
-| `INSERT OR REPLACE INTO ...` | `INSERT INTO ... ON CONFLICT (pk) DO UPDATE SET ...` |
-| `INSERT OR IGNORE INTO ...` | `INSERT INTO ... ON CONFLICT DO NOTHING` |
-| `AUTOINCREMENT` | `SERIAL` o `GENERATED AS IDENTITY` |
-| `datetime('now','-30 days')` | `NOW() - INTERVAL '30 days'` |
-| `LIKE ?` (case-insensitive) | `ILIKE ?` |
+| SQLite | PostgreSQL | Ocurrencias |
+|--------|------------|-------------|
+| `INSERT OR REPLACE INTO ...` | `INSERT INTO ... ON CONFLICT (pk) DO UPDATE SET ...` | 10 |
+| `INSERT OR IGNORE INTO ...` | `INSERT INTO ... ON CONFLICT DO NOTHING` | 1 |
+| `INTEGER PRIMARY KEY AUTOINCREMENT` | `SERIAL PRIMARY KEY` | 1 |
+| `datetime('now','-30 days')` | `NOW() - INTERVAL '30 days'` | 7 |
+| `DATE(creado)` | `creado::date` | 1 |
+| `substr(r.fecha,1,7)` | `LEFT(r.fecha,7)` | 3 |
+| `PRAGMA table_info(...)` | `information_schema.columns` | 1 |
+| `sqlite_master` | `information_schema.tables` | 1 |
+| `INTEGER` (boolean 0/1) | `BOOLEAN` (true/false) | ~12 |
+| `BLOB` | `BYTEA` | 1 |
+| `.changes` on run result | `result.rowCount` | 1 |
 
-### 7.3 Plan de Migración por Fases
+### 7.3 Tablas a Migrar (13 tablas)
 
-**Fase 0: Preparación y Rollback (1 día)**
-- Backup de SQLite
-- Script de rollback probado
+| Tabla | Columnas | Relaciones | Complejidad |
+|-------|----------|------------|-------------|
+| `usuarios` | 9 | - | Baja |
+| `configuracion` | 2 (key-value) | - | Baja |
+| `empleados` | 9 | -> usuario_empleados | Media |
+| `nominas` | 5 | -> registros | Baja |
+| `registros` | 17 | -> empleados, nominas, tipos | **Alta** |
+| `usuario_empleados` | 2 (composite PK) | -> usuarios, empleados | Baja |
+| `centros` | 4 | - | Baja |
+| `telemetria` | 7 | - | Media |
+| `tipos` | 4 | -> registros | Baja |
+| `permisos_roles` | 2 (composite PK) | -> roles | Baja |
+| `roles` | 1 | -> permisos_roles | Baja |
+| `adjuntos` | 7 (BLOB) | -> registros | Media |
+| `dashboard_layout` | 3 | - | Baja |
 
-**Fase 1: Tablas PostgreSQL (1 día)**
-- Crear tablas con esquema correcto
-- Crear índices
+**NOTA:** La tabla `usuarios` NO se migra en el script ETL. Los usuarios se reconcilian manualmente con `reconcile-usuarios.js` porque el launcher YA tiene su propia tabla `usuarios` con el esquema correcto (`perfil_id`, `user_modulos`, etc.).
 
-**Fase 2: Refactorización DB (2-3 días)**
-- Reemplazar better-sqlite3 por pg
-- Reescribir migrations y seeds
+### 7.4 Plan por Fases
 
-**Fase 3: Rutas Async/Await (3-4 días)**
-- Convertir todas las rutas a async/await
-- Transacciones con BEGIN/COMMIT/ROLLBACK
+#### Fase 0: Preparación (1 día)
 
-**Fase 4: Integración Permisos (1 día)**
-- Migrar permisos a tablas centrales
-- Actualizar middleware
+**Objetivo:** Backup fresco + script de rollback probado.
 
-**Fase 5: Testing (1-2 días)**
-- Testing completo de funcionalidad
-- Buffer para imprevistos: 3-5 días
+```bash
+# 1. Backup SQLite
+curl -X GET http://localhost:3005/api/backup -o backup_pre_migracion.zip
 
-**Timeline total: 3-4 semanas**
+# 2. Script de rollback (rollback-nomina.sh)
+#!/bin/bash
+echo "ROLLBACK: Restaurando Nomina a SQLite..."
+pm2 stop horix-nomina
+cp /opt/horix-platform/backups/horas_extra.db.pre-migration \
+   /opt/horix-platform/modules/nomina/horas_extra.db
+git checkout HEAD~1 -- modules/nomina/
+pm2 start horix-nomina
+echo "Rollback completado"
+```
+
+**Verificar:**
+- [ ] Backup generado
+- [ ] Script de rollback probado
+- [ ] Datos verificados post-rollback
+
+#### Fase 1: Tablas PostgreSQL (1 día)
+
+**Objetivo:** Crear tablas con esquema correcto y FKs.
+
+```sql
+-- Ver archivo: modules/nomina/src/db/migrations_pg.sql
+```
+
+**Verificar:**
+- [ ] Todas las tablas creadas
+- [ ] Indices creados
+- [ ] Foreign keys configuradas
+
+#### Fase 2: Refactorización DB (2-3 días)
+
+**Objetivo:** Reemplazar `better-sqlite3` por `pg`.
+
+```javascript
+// modules/nomina/src/db/index.js (NUEVO)
+const { Pool } = require('pg');
+const crypto = require('crypto');
+
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+  max: parseInt(process.env.PG_POOL_MAX || '5', 10),
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 2000
+});
+
+const uid = () => crypto.randomUUID();
+
+module.exports = {
+  query: (text, params) => pool.query(text, params),
+  getClient: () => pool.connect(),
+  pool,
+  uid
+};
+```
+
+**Verificar:**
+- [ ] Pool funciona
+- [ ] Migraciones ejecutan
+- [ ] Seeds ejecutan
+
+#### Fase 3: Rutas Async/Await (3-4 días)
+
+**Objetivo:** Convertir todas las rutas + FOR UPDATE en batch approve.
+
+```javascript
+// Patrón de migración
+// ANTES (SQLite)
+router.get('/', (req, res) => {
+  const rows = db.prepare('SELECT * FROM registros').all();
+  res.json(rows);
+});
+
+// DESPUÉS (PostgreSQL)
+router.get('/', async (req, res) => {
+  try {
+    const { rows } = await db.query('SELECT * FROM nomina_registros');
+    res.json(rows);
+  } catch (err) {
+    console.error('[registros]', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+```
+
+**Batch approve con FOR UPDATE:**
+
+```javascript
+router.post('/batch-aprobar', podeAprobar, async (req, res) => {
+  const client = await db.getClient();
+  try {
+    await client.query('BEGIN');
+    
+    for (const id of ids) {
+      // SELECT ... FOR UPDATE para locking pesimista
+      const { rows } = await client.query(
+        `SELECT r.id, r.estado, r.creado_por, e.sede 
+         FROM nomina_registros r 
+         LEFT JOIN nomina_empleados e ON r.empleado_id = e.id 
+         WHERE r.id = $1 FOR UPDATE`,
+        [id]
+      );
+      // ... logica de aprobacion
+    }
+    
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();
+  }
+});
+```
+
+**Verificar:**
+- [ ] Todas las rutas funcionan
+- [ ] Transacciones con BEGIN/COMMIT/ROLLBACK
+- [ ] Batch approve con FOR UPDATE
+
+#### Fase 3.5: ETL - migrate-nomina.js (1 día)
+
+**Objetivo:** Migrar datos existentes de SQLite a PostgreSQL.
+
+**Script:** `modules/nomina/src/scripts/migrate-nomina.js`
+
+**Flujo de Ejecución:**
+
+```bash
+# 1. Generar backup desde SQLite
+curl -X GET http://localhost:3005/api/backup -o /tmp/nomina_backup.zip
+
+# 2. Extraer backup.json
+cd /tmp && unzip -o nomina_backup.zip backup.json
+
+# 3. Ejecutar migración (con verificación integrada)
+node modules/nomina/src/scripts/migrate-nomina.js /tmp/backup.json
+```
+
+**Características del script:**
+- Recibe ruta del backup como argumento
+- Valida que `app === 'HorasExtra'`
+- Migra 12 tablas (sin usuarios)
+- Pre-carga IDs válidos en memoria para validación
+- Verifica counts con `Number()` (node-pg devuelve COUNT como string)
+- `process.exit(1)` si la verificación falla
+
+**Verificación Post-Migración:**
+
+```sql
+SELECT 
+  (SELECT COUNT(*) FROM nomina_empleados) as empleados,
+  (SELECT COUNT(*) FROM nomina_registros) as registros,
+  (SELECT COUNT(*) FROM nomina_nominas) as nominas,
+  (SELECT COUNT(*) FROM nomina_tipos) as tipos,
+  (SELECT COUNT(*) FROM nomina_centros) as centros,
+  (SELECT COUNT(*) FROM nomina_adjuntos) as adjuntos,
+  (SELECT COUNT(*) FROM nomina_usuario_empleados) as usuario_empleados,
+  (SELECT COUNT(*) FROM nomina_dashboard_layout) as dashboard_layout,
+  (SELECT COUNT(*) FROM nomina_telemetria) as telemetria;
+```
+
+#### Fase 4: Reconciliación de Usuarios (1 día)
+
+**Objetivo:** Reconciliar usuarios de Nómina con el launcher.
+
+**Script:** `modules/nomina/src/scripts/reconcile-usuarios.js`
+
+**Flujo de Ejecución:**
+
+```bash
+# 1. Dry run (sin cambios)
+node modules/nomina/src/scripts/reconcile-usuarios.js /tmp/backup.json
+
+# 2. Revisar el reporte
+
+# 3. Aplicar cambios
+node modules/nomina/src/scripts/reconcile-usuarios.js /tmp/backup.json --apply
+```
+
+**Características del script:**
+- Lee `backup.json` (no tabla fantasma)
+- Para usuarios existentes: verifica `user_modulos` y agrega acceso a nomina si falta
+- Para usuarios nuevos: resuelve `perfil_id` dinámicamente desde `perfiles`
+- Modo dry run por defecto, `--apply` para ejecutar
+- Reporte completo: creados, existentes, modulos asignados, sin perfil, omitidos
+
+**NOTA:** La tabla `usuarios` de Nómina está obsoleta. El launcher YA tiene su propia tabla con el esquema correcto (`perfil_id`, `user_modulos`, `password_hash`).
+
+#### Fase 5: Validación Pre-Cutover (1 día)
+
+**Checklist:**
+
+```bash
+# 1. Roles orphanos en permisos
+SELECT DISTINCT pr.rol 
+FROM nomina_permisos_roles pr 
+WHERE pr.rol NOT IN (SELECT nombre FROM perfiles);
+
+# 2. UUIDs invalidos - Empleados
+SELECT id FROM nomina_empleados 
+WHERE id !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+
+# 3. UUIDs invalidos - Registros
+SELECT id FROM nomina_registros 
+WHERE id !~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$';
+
+# 4. usuario_empleados orphanos
+SELECT ue.usuario_id 
+FROM nomina_usuario_empleados ue 
+WHERE ue.usuario_id NOT IN (SELECT id FROM usuarios);
+
+# 5. adjuntos orphanos
+SELECT a.id 
+FROM nomina_adjuntos a 
+WHERE a.registro_id NOT IN (SELECT id FROM nomina_registros);
+
+# 6. Usuarios de nomina sin对应 en launcher
+SELECT n.email, n.nombre
+FROM nomina.usuarios_backup n
+LEFT JOIN usuarios l ON l.email = n.email
+WHERE l.id IS NULL
+  AND n.email IS NOT NULL
+  AND n.email != '';
+```
+
+#### Fase 6: Testing (1-2 días)
+
+**Checklist:**
+- [ ] Login/Logout
+- [ ] CRUD Empleados
+- [ ] CRUD Registros
+- [ ] Aprobación de registros
+- [ ] Batch approve con FOR UPDATE
+- [ ] Revertir registros
+- [ ] Generar nómina
+- [ ] Exportar SIESA
+- [ ] Dashboard y reportes
+- [ ] Backup/Restore
+- [ ] Permisos por rol
+
+### 7.5 DDL Completo
+
+```sql
+-- modules/nomina/src/db/migrations_pg.sql
+
+-- Configuracion
+CREATE TABLE IF NOT EXISTS nomina_configuracion (
+  clave VARCHAR PRIMARY KEY,
+  valor TEXT NOT NULL
+);
+
+-- Empleados
+CREATE TABLE IF NOT EXISTS nomina_empleados (
+  id UUID PRIMARY KEY,
+  nombre VARCHAR NOT NULL,
+  cedula VARCHAR NOT NULL,
+  cargo VARCHAR NOT NULL,
+  departamento VARCHAR NOT NULL,
+  sede VARCHAR NOT NULL DEFAULT 'Principal',
+  email VARCHAR,
+  telefono VARCHAR,
+  tipo_vinculacion VARCHAR NOT NULL DEFAULT 'vinculado',
+  activo BOOLEAN NOT NULL DEFAULT true
+);
+CREATE INDEX IF NOT EXISTS idx_nomina_empleados_cedula ON nomina_empleados(cedula);
+CREATE INDEX IF NOT EXISTS idx_nomina_empleados_sede ON nomina_empleados(sede);
+
+-- Nominas
+CREATE TABLE IF NOT EXISTS nomina_nominas (
+  id UUID PRIMARY KEY,
+  nombre VARCHAR NOT NULL,
+  tipo VARCHAR NOT NULL,
+  inicio DATE NOT NULL,
+  fin DATE NOT NULL
+);
+
+-- Registros (tabla principal)
+CREATE TABLE IF NOT EXISTS nomina_registros (
+  id UUID PRIMARY KEY,
+  empleado_id UUID NOT NULL REFERENCES nomina_empleados(id),
+  nomina_id UUID NOT NULL REFERENCES nomina_nominas(id),
+  fecha DATE NOT NULL,
+  horas NUMERIC NOT NULL,
+  tipo VARCHAR NOT NULL,
+  aprobador VARCHAR NOT NULL,
+  motivo TEXT NOT NULL,
+  creado TIMESTAMPTZ NOT NULL,
+  concepto TEXT DEFAULT '',
+  observaciones TEXT DEFAULT '',
+  transporte NUMERIC DEFAULT 0,
+  sede VARCHAR DEFAULT 'Principal',
+  estado VARCHAR DEFAULT 'pendiente',
+  aprobado_por VARCHAR DEFAULT '',
+  fecha_aprobado TIMESTAMPTZ,
+  creado_por VARCHAR DEFAULT ''
+);
+CREATE INDEX IF NOT EXISTS idx_nomina_registros_empleado ON nomina_registros(empleado_id);
+CREATE INDEX IF NOT EXISTS idx_nomina_registros_fecha ON nomina_registros(fecha);
+CREATE INDEX IF NOT EXISTS idx_nomina_registros_estado ON nomina_registros(estado);
+CREATE INDEX IF NOT EXISTS idx_nomina_registros_sede ON nomina_registros(sede);
+
+-- Tipos
+CREATE TABLE IF NOT EXISTS nomina_tipos (
+  id VARCHAR PRIMARY KEY,
+  nombre VARCHAR NOT NULL,
+  es_valor BOOLEAN NOT NULL DEFAULT false,
+  activo BOOLEAN NOT NULL DEFAULT true
+);
+
+-- Roles
+CREATE TABLE IF NOT EXISTS nomina_roles (
+  nombre VARCHAR PRIMARY KEY
+);
+
+-- Permisos roles
+CREATE TABLE IF NOT EXISTS nomina_permisos_roles (
+  rol VARCHAR NOT NULL,
+  permiso VARCHAR NOT NULL,
+  PRIMARY KEY (rol, permiso)
+);
+
+-- Centros
+CREATE TABLE IF NOT EXISTS nomina_centros (
+  id UUID PRIMARY KEY,
+  nombre VARCHAR NOT NULL UNIQUE,
+  activo BOOLEAN NOT NULL DEFAULT true,
+  creado TIMESTAMPTZ NOT NULL
+);
+
+-- Telemetria
+CREATE TABLE IF NOT EXISTS nomina_telemetria (
+  id SERIAL PRIMARY KEY,
+  evento VARCHAR NOT NULL,
+  pagina VARCHAR,
+  usuario_id UUID,
+  datos TEXT,
+  ua TEXT,
+  ip VARCHAR,
+  creado TIMESTAMPTZ NOT NULL
+);
+
+-- Adjuntos
+CREATE TABLE IF NOT EXISTS nomina_adjuntos (
+  id UUID PRIMARY KEY,
+  registro_id UUID NOT NULL REFERENCES nomina_registros(id) ON DELETE CASCADE,
+  nombre VARCHAR NOT NULL,
+  mime VARCHAR NOT NULL,
+  tamano BIGINT NOT NULL,
+  datos BYTEA NOT NULL,
+  subido TIMESTAMPTZ NOT NULL,
+  subido_por UUID NOT NULL
+);
+
+-- Usuario empleados
+CREATE TABLE IF NOT EXISTS nomina_usuario_empleados (
+  usuario_id UUID NOT NULL,
+  empleado_id UUID NOT NULL,
+  PRIMARY KEY (usuario_id, empleado_id)
+);
+
+-- Dashboard layout
+CREATE TABLE IF NOT EXISTS nomina_dashboard_layout (
+  usuario_id UUID PRIMARY KEY,
+  orden TEXT NOT NULL DEFAULT '[]',
+  tamanos TEXT NOT NULL DEFAULT '{}'
+);
+```
+
+### 7.6 Script de Cutover
+
+```bash
+#!/bin/bash
+# migrate-cutover.sh
+
+set -e
+
+echo "=========================================================="
+echo "  MIGRACION NOMINA: SQLite -> PostgreSQL"
+echo "=========================================================="
+
+# 1. Backup final (con servicio corriendo)
+echo ""
+echo "[1/7] Tomando backup final..."
+curl -s -X GET http://localhost:3005/api/backup -o /tmp/nomina_backup_final.zip
+echo "   Backup guardado en /tmp/nomina_backup_final.zip"
+
+# 2. Detener nomina
+echo ""
+echo "[2/7] Deteniendo modulo nomina..."
+pm2 stop horix-nomina
+echo "   Nomina detenida"
+
+# 3. Extraer backup.json
+echo ""
+echo "[3/7] Extrayendo datos del backup..."
+cd /tmp
+unzip -o nomina_backup_final.zip backup.json
+echo "   backup.json extraido"
+
+# 4. git pull (traer codigo nuevo ANTES de ejecutar)
+echo ""
+echo "[4/7] Actualizando codigo..."
+cd /opt/horix-platform
+git pull origin refactor/monorepo-auth
+echo "   Codigo actualizado"
+
+# 5. Ejecutar migracion (con verificacion integrada)
+echo ""
+echo "[5/7] Ejecutando migracion a PostgreSQL..."
+node modules/nomina/src/scripts/migrate-nomina.js /tmp/backup.json
+
+# 6. Reconciliar usuarios
+echo ""
+echo "[6/7] Reconciliando usuarios..."
+node modules/nomina/src/scripts/reconcile-usuarios.js /tmp/backup.json --apply
+
+# 7. Iniciar nomina
+echo ""
+echo "[7/7] Iniciando modulo nomina..."
+cd /opt/horix-platform
+pm2 start horix-nomina
+
+# Verificar salud
+echo ""
+echo "Verificando salud del modulo..."
+sleep 3
+HEALTH=$(curl -s http://localhost:3005/api/health 2>/dev/null || echo '{"ok":false}')
+if echo "$HEALTH" | grep -q '"ok":true'; then
+  echo "   Nomina respondiendo correctamente"
+else
+  echo "   Nomina puede no estar lista. Verificar: pm2 logs horix-nomina"
+fi
+
+echo ""
+echo "=========================================================="
+echo "  MIGRACION COMPLETADA"
+echo "=========================================================="
+echo ""
+echo "Si hay problemas, ejecutar: ./rollback-nomina.sh"
+```
+
+### 7.7 Script de Rollback
+
+```bash
+#!/bin/bash
+# rollback-nomina.sh
+
+echo "ROLLBACK: Restaurando Nomina a SQLite..."
+pm2 stop horix-nomina
+cp /opt/horix-platform/backups/horas_extra.db.pre-migration \
+   /opt/horix-platform/modules/nomina/horas_extra.db
+git checkout HEAD~1 -- modules/nomina/
+pm2 start horix-nomina
+echo "Rollback completado"
+```
+
+### 7.8 Bugs Corregidos
+
+| # | Bug | Solucion |
+|---|-----|----------|
+| 1 | DELETEs en orden incorrecto rompe FKs | Invertir orden: hijos primero |
+| 2 | Cutover ejecuta migrate ANTES de git pull | Reordenar: git pull -> migrate |
+| 3 | Comparacion `5 !== '5'` falla siempre | Usar `Number(pg.count)` |
+| 4 | Tablas faltantes (adjuntos, etc.) | Agregar secciones de INSERT |
+| 5 | 2 queries por registro en validacion | Pre-cargar IDs en Set |
+| 6 | Usuarios existentes sin acceso a nomina | Verificar user_modulos |
+
+### 7.9 Archivos Clave
+
+| Archivo | Proposito |
+|---------|-----------|
+| `modules/nomina/src/db/migrations_pg.sql` | DDL de tablas PostgreSQL |
+| `modules/nomina/src/scripts/migrate-nomina.js` | ETL: migracion de 12 tablas |
+| `modules/nomina/src/scripts/reconcile-usuarios.js` | Reconciliacion de usuarios |
+| `migrate-cutover.sh` | Script de cutover |
+| `rollback-nomina.sh` | Script de rollback |
+
+### 7.10 Timeline
+
+| Fase | Dias | Acumulado |
+|------|------|-----------|
+| Fase 0: Preparacion | 1 | 1 |
+| Fase 1: Tablas PostgreSQL | 1 | 2 |
+| Fase 2: Refactorizacion DB | 2-3 | 4-5 |
+| Fase 3: Rutas Async/Await | 3-4 | 7-9 |
+| Fase 3.5: ETL migrate-nomina.js | 1 | 8-10 |
+| Fase 4: Reconciliacion usuarios | 1 | 9-11 |
+| Fase 5: Validacion pre-cutover | 1 | 10-12 |
+| Fase 6: Testing | 1-2 | 11-14 |
+| Buffer imprevistos | 3-5 | **14-19** |
+| **Total** | | **3-4 semanas** |
 
 ---
 
