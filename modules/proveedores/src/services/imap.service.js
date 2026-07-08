@@ -54,19 +54,11 @@ function parsearXml(xmlContent) {
     iva: 0,
     valorTotal: 0,
     ordenCompra: null,
-    limitePago: null,
-    esAcuse: false  // Flag para acuses de recibo
+    limitePago: null
   };
 
   try {
     const xml = xmlContent.toString('utf8');
-    
-    // Detectar ApplicationResponse (acuse de recibo DIAN)
-    if (xml.includes('ApplicationResponse') || xml.includes('DocumentType>ApplicationResponse')) {
-      console.log(`  [Parser] ApplicationResponse detectado — no es factura`);
-      data.esAcuse = true;
-      return data;
-    }
     
     const invoiceEmbebido = extraerInvoiceEmbebido(xml);
     const xmlFinal = invoiceEmbebido || xml;
@@ -333,32 +325,6 @@ async function procesarCorreo(parsed, msgId) {
       datosFactura = parsearXml(att.content);
       nitEmisor = nitEmisor || datosFactura.nitEmisor || null;
       console.log(`  [IMAP] XML directo guardado: ${archivoXml}`);
-    }
-  }
-
-  // Handle ApplicationResponse (acuse de recibo DIAN)
-  // The XML is just a receipt confirmation, but the PDF may still be the invoice
-  if (datosFactura.esAcuse) {
-    if (archivoPdf) {
-      // Extract invoice number from PDF filename (e.g., FV08350010610112600004361.pdf → 08350010610112600004361)
-      const pdfName = path.basename(archivoPdf, '.pdf');
-      const numeroFromPdf = pdfName.replace(/^fv/i, '').replace(/^ad/i, '');
-      if (numeroFromPdf && numeroFromPdf.length >= 5) {
-        console.log(`  [IMAP] Acuse detectado pero hay PDF — creando factura ${numeroFromPdf} desde PDF`);
-        // Delete the acuse XML, keep the PDF
-        if (archivoXml) try { fs.unlinkSync(path.join(baseUploadDir, archivoXml)); } catch {}
-        // Fall through to invoice creation with numeroFromPdf
-        datosFactura.numeroFactura = numeroFromPdf;
-      } else {
-        console.log(`  [IMAP] Acuse de recibo detectado — omitiendo`);
-        if (archivoXml) try { fs.unlinkSync(path.join(baseUploadDir, archivoXml)); } catch {}
-        if (archivoPdf) try { fs.unlinkSync(path.join(baseUploadDir, archivoPdf)); } catch {}
-        return 'omitido';
-      }
-    } else {
-      console.log(`  [IMAP] Acuse de recibo sin PDF — omitiendo`);
-      if (archivoXml) try { fs.unlinkSync(path.join(baseUploadDir, archivoXml)); } catch {}
-      return 'omitido';
     }
   }
 
