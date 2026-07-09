@@ -123,14 +123,6 @@ const globalLimiter = rateLimit({
 });
 app.use('/api', globalLimiter);
 
-const APP_VER = require('./package.json').version;
-app.get('/api/version', (req, res) => {
-  const pkg = require('./package.json');
-  res.json({ version: pkg.version, name: pkg.name });
-});
-
-
-
 // ─────────────────────────────────────────────
 // UTILS
 // ─────────────────────────────────────────────

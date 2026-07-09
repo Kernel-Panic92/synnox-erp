@@ -36,7 +36,7 @@ import sedesRoutes from './routes/sedes.js';
 import rutasPdfRoutes from './routes/rutas-pdf.js';
 
 app.use('/api/health', healthRoutes);
-app.get('/api/rutas/diagnostico', async (req, res) => {
+app.get('/api/rutas/diagnostico', verifyToken, async (req, res) => {
   try {
     const pool = (await import('./config/db.js')).default;
     const pedidosPendientesSinRuta = await pool.query(`SELECT id, numero_factura, latitud, longitud FROM logistics.pedidos_logistica WHERE estado='pendiente' AND ruta_id IS NULL`);
