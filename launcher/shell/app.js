@@ -24,6 +24,21 @@ function confirmModal(msg, title = 'Confirmar') {
   });
 }
 
+function toast(msg, type = 'info') {
+  const c = document.getElementById('toast-container');
+  if (!c) return;
+  const el = document.createElement('div');
+  el.style.cssText = 'padding:12px 18px;border-radius:10px;font-size:14px;font-weight:500;max-width:380px;animation:toast-in .25s ease;box-shadow:0 4px 20px rgba(0,0,0,.3);display:flex;align-items:center;gap:8px;pointer-events:auto';
+  const colors = { success: '#38a169', error: '#e05353', warning: '#d69e2e', info: '#5b9bf7' };
+  const icons = { success: '✓', error: '✗', warning: '⚠', info: 'ℹ' };
+  el.style.background = (type === 'success' ? 'rgba(56,161,105,0.12)' : type === 'error' ? 'rgba(224,83,83,0.12)' : type === 'warning' ? 'rgba(214,158,46,0.12)' : 'rgba(91,155,247,0.12)');
+  el.style.border = '1px solid ' + (colors[type] || colors.info) + '44';
+  el.style.color = colors[type] || colors.info;
+  el.innerHTML = '<span>' + (icons[type] || icons.info) + '</span> ' + msg;
+  c.appendChild(el);
+  setTimeout(() => { el.style.opacity = '0'; el.style.transition = 'opacity .3s'; setTimeout(() => el.remove(), 300); }, 3500);
+}
+
 // ─── Theme toggle (universal: synnox_theme en localStorage) ────
 (function initTheme() {
   const theme = localStorage.getItem('synnox_theme') || 'light';
@@ -560,7 +575,7 @@ async function loadUsers() {
       </tr>
     `).join('');
   } catch (e) {
-    alert(e.message);
+    toast(e.message, 'error');
   }
 }
 
@@ -695,7 +710,7 @@ async function deleteUser(id) {
     }
     loadUsers();
   } catch (e) {
-    alert(e.message);
+    toast(e.message, 'error');
   }
 }
 
@@ -712,7 +727,7 @@ async function deleteUserPermanent(id) {
     }
     loadUsers();
   } catch (e) {
-    alert(e.message);
+    toast(e.message, 'error');
   }
 }
 
@@ -760,7 +775,7 @@ async function loadHealth() {
       }
     }
   } catch (e) {
-    alert('Health check error: ' + e.message);
+    toast('Health check error: ' + e.message, 'error');
   }
 }
 
@@ -846,7 +861,7 @@ async function deleteModulo(id) {
     });
     if (!res.ok) throw new Error('Error');
     loadModulos();
-  } catch (e) { alert(e.message); }
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 // ── Scaffold module ──
@@ -1037,7 +1052,7 @@ function saveMcpField(id) {
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
         body: JSON.stringify({ url, mcp_token })
       });
-    } catch (e) { alert('Error: ' + e.message); }
+    } catch (e) { toast('Error: ' + e.message, 'error'); }
   }, 600);
 }
 
@@ -1048,7 +1063,7 @@ async function toggleMcp(id, enabled) {
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
       body: JSON.stringify({ mcp_enabled: enabled })
     });
-  } catch (e) { alert('Error: ' + e.message); }
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
 }
 
 function toggleToken(id) {
@@ -1668,7 +1683,7 @@ async function exportarConfig() {
     a.download = 'launcher-backup-' + new Date().toISOString().slice(0, 10) + '.json';
     a.click();
     URL.revokeObjectURL(url);
-  } catch (e) { alert('Error al exportar: ' + e.message); }
+  } catch (e) { toast('Error al exportar: ' + e.message, 'error'); }
 }
 
 async function importarConfig() {
@@ -1787,14 +1802,14 @@ async function editarPerfil(id) {
     }).join('');
     
     modal.classList.add('show');
-  } catch (e) { alert('Error al cargar perfil: ' + e.message); }
+  } catch (e) { toast('Error al cargar perfil: ' + e.message, 'error'); }
 }
 
 async function guardarPerfil() {
   const id = document.getElementById('perfil-id').value;
   const nombre = document.getElementById('perfil-name').value.trim();
   const descripcion = document.getElementById('perfil-desc').value.trim();
-  if (!nombre) { mostrarAlerta('Nombre requerido', 'warning'); return; }
+  if (!nombre) { toast('Nombre requerido', 'warning'); return; }
   
   const permisos = [];
   document.querySelectorAll('.perfil-perm:checked').forEach(cb => {
@@ -1817,8 +1832,8 @@ async function guardarPerfil() {
     if (!res.ok) throw new Error(data.error);
     cerrarModal('modal-perfil');
     loadPerfiles();
-    alert(id ? 'Perfil actualizado' : 'Perfil creado');
-  } catch (e) { alert('Error al guardar: ' + e.message); }
+    toast(id ? 'Perfil actualizado' : 'Perfil creado', 'success');
+  } catch (e) { toast('Error al guardar: ' + e.message, 'error'); }
 }
 
 async function eliminarPerfil(id, nombre) {
@@ -1831,8 +1846,8 @@ async function eliminarPerfil(id, nombre) {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     loadPerfiles();
-    alert('Perfil eliminado');
-  } catch (e) { alert(e.message); }
+    toast('Perfil eliminado', 'success');
+  } catch (e) { toast(e.message, 'error'); }
 }
 
 function cerrarModal(id) { document.getElementById(id).classList.remove('show'); }
