@@ -9,3 +9,7 @@ launcher/backups/
 modules/horix/horas_extra.db
 modules/horix/backups/
 modules/docflow/backups/
+modules/logistics/.env
+modules/logistics/backups/
+modules/docflow/.env
+modules/docflow/backups/

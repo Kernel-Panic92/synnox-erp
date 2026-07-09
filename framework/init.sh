@@ -64,6 +64,7 @@ if [ ! -f "$DEST/index.html" ]; then
     <div class="user-info">
       <div class="name" id="user-name"></div>
       <div class="role" id="user-role"></div>
+      <div class="role" id="user-email" style="font-size:11px;color:var(--muted);"></div>
       <span class="badge" id="user-badge"></span>
     </div>
     <nav id="sidebar-nav"><!-- nav-items here --></nav>

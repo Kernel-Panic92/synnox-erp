@@ -2,6 +2,6 @@
 // shell/config.js
 const PLATFORM_CONFIG = {
   mode: '${MODE}',
-  horixUrl: '/horix/',
-  docflowUrl: '/docflow/',
+  horixUrl: '/nomina/',
+  docflowUrl: '/proveedores/',
 };

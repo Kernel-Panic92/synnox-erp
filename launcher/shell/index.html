@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Horix Launcher</title>
+<title>SynnoxERP</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg:#12141a; --surface:#1a1d28; --surface2:#222738; --border:#2e3548;
+    --bg:#f0f2f7; --surface:#ffffff; --surface2:#e8eaf0; --border:#d0d4e4;
     --accent:#5b9bf7; --success:#38a169; --warning:#d69e2e; --danger:#e05353;
-    --text:#e8ecf4; --muted:#8892a8;
+    --text:#1a1d2e; --muted:#5a6180;
     --font:'Inter',sans-serif;
     --fs:15px;
   }
@@ -40,6 +40,7 @@
     background:var(--surface2);color:var(--text);font-family:var(--font);font-size:16px;
     outline:none;transition:border-color 0.2s;margin-bottom:18px;
   }
+  input[type=checkbox], input[type=radio]{width:auto;padding:0;margin:0;border:none;background:none;}
   input:focus, select:focus{border-color:var(--accent);}
   select option{background:var(--surface);}
 
@@ -89,7 +90,7 @@
   }
   .login-card .logo{font-size:24px;font-weight:800;margin-bottom:4px;text-align:center;}
   .login-card .sub{text-align:center;}
-  .login-brand-icon{text-align:center;font-size:48px;margin-bottom:12px;display:block;}
+  /* login-brand-icon removed */
 
   #launcher-screen{display:none;width:100%;min-height:100vh;padding:0;}
   #admin-screen{display:none;}
@@ -106,6 +107,7 @@
   .dash-user .name{font-weight:600;}
   .dash-user .role{color:var(--muted);font-size:13px;text-transform:capitalize;}
   .dash-logout{font-size:13px;color:var(--muted);cursor:pointer;padding:8px 14px;border-radius:8px;border:1px solid var(--border);transition:all 0.2s;}
+  .dash-theme-btn{font-size:18px;cursor:pointer;padding:6px 10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);transition:all 0.2s;margin-right:6px;}
   .dash-logout:hover{color:var(--danger);border-color:var(--danger);}
   .dash-back{font-size:var(--fs);color:var(--muted);cursor:pointer;transition:color 0.2s;}
   .dash-back:hover{color:var(--text);}
@@ -144,7 +146,8 @@
   .badge-operador{background:rgba(47,133,90,0.2);color:var(--success);}
   .badge-inactivo{background:rgba(197,48,48,0.2);color:var(--danger);}
   .actions{display:flex;gap:8px;}
-  .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:none;z-index:100;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+  .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:none;z-index:100;overflow-y:auto;-webkit-overflow-scrolling:touch;align-items:center;justify-content:center;}
+  .modal-overlay.show{display:flex;}
   .modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:36px;width:440px;max-width:90vw;margin:5vh auto;max-height:90vh;overflow-y:auto;}
   .modal h3{margin-bottom:16px;}
   .modal code{background:var(--surface2);padding:6px 8px;border-radius:4px;font-size:13px;}
@@ -171,7 +174,7 @@
     .card-title{font-size:14px;}
     .login-card{padding:32px 20px;width:100%;margin:auto 12px;}
     .login-card .logo{font-size:20px;}
-    .login-brand-icon{font-size:36px;}
+    /* login-brand-icon removed */
     #admin-screen .dash-header{gap:4px;padding:10px 12px;}
     #admin-screen .dash-header .dash-logo{font-size:16px;}
     .perm-rol-section{padding:14px;}
@@ -185,8 +188,7 @@
 <body>
 <div id="login-screen">
   <div class="login-card">
-    <div class="login-brand-icon">&#9889;</div>
-    <div class="logo"><span>Horix</span> Launcher</div>
+    <div class="logo"><img src="/media/LogoERP.png" style="height:80px;display:block;margin:0 auto 12px"></div>
     <div class="sub">Accede a todos los m&oacute;dulos del sistema</div>
     <div class="error" id="login-error"></div>
     <label>Usuario</label>
@@ -249,10 +251,11 @@
 
 <div id="launcher-screen">
   <div class="dash-header">
-    <div class="dash-logo">&#9889; <span>Horix Platform</span></div>
+    <div class="dash-logo"><img src="/media/LogoERP.png" style="height:40px;vertical-align:middle"></div>
     <div class="dash-user">
       <span class="name" id="launcher-user"></span>
       <span class="role" id="launcher-role"></span>
+      <span class="dash-theme-btn" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema">🌙</span>
       <span class="dash-logout" onclick="logout()">Cerrar sesión</span>
     </div>
   </div>
@@ -260,7 +263,15 @@
     <h2>Aplicaciones</h2>
     <p>Selecciona un módulo para abrirlo</p>
     <div class="grid" id="module-grid"></div>
+    <div id="quick-actions-widget" style="margin-top:24px;display:none;"></div>
+    <div id="module-summary-widget" style="margin-top:24px;display:none;"></div>
+    <div id="pending-tasks-widget" style="margin-top:24px;display:none;"></div>
+    <div id="alerts-widget" style="margin-top:24px;display:none;"></div>
+    <div id="upcoming-widget" style="margin-top:24px;display:none;"></div>
+    <div id="weather-widget" style="margin-top:24px;display:none;"></div>
+    <div id="activity-widget" style="margin-top:24px;display:none;"></div>
     <div id="server-stats-widget" style="margin-top:32px;display:none;"></div>
+    <div id="commits-widget" style="margin-top:24px;display:none;"></div>
   </div>
 </div>
 
@@ -268,7 +279,7 @@
   <div class="dash-header">
     <div style="display:flex;align-items:center;gap:16px;">
       <span class="dash-back" onclick="showLauncher()">&larr; Volver</span>
-      <div class="dash-logo">&#9889; <span>Admin</span></div>
+      <div class="dash-logo"><img src="/media/LogoERP.png" style="height:28px;vertical-align:middle;margin-right:6px"> <span>Admin</span></div>
     </div>
     <div class="dash-user">
       <span class="name" id="admin-header-user"></span>
@@ -278,6 +289,7 @@
   <div class="dash-body">
     <div class="tabs">
       <div class="tab active" data-tab="usuarios" onclick="showAdminTab('usuarios')">Usuarios</div>
+      <div class="tab" data-tab="perfiles" onclick="showAdminTab('perfiles')">Perfiles</div>
       <div class="tab" data-tab="modulos" onclick="showAdminTab('modulos')">Módulos</div>
       <div class="tab" data-tab="mcp" onclick="showAdminTab('mcp')">MCP</div>
       <div class="tab" data-tab="smtp" onclick="showAdminTab('smtp')">SMTP</div>
@@ -295,7 +307,19 @@
     </div>
     <div style="overflow-x:auto;">
       <table id="users-table">
-        <thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Estado</th><th>Acción</th></tr></thead>
+        <thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Perfil</th><th>Estado</th><th>Acción</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+  <div class="tab-content" id="tab-perfiles">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
+      <div style="font-size:var(--fs);font-weight:600;">Perfiles de permisos</div>
+      <button class="btn btn-sm" onclick="editarPerfil()">+ Nuevo</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table id="perfiles-table">
+        <thead><tr><th>Nombre</th><th>Descripción</th><th>Permisos</th><th>Usuarios</th><th>Acción</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -352,7 +376,7 @@
       <label>Correo remitente</label>
       <input type="text" id="smtp_from" placeholder="noreply@dominio.com (opcional)">
       <label>Nombre remitente</label>
-      <input type="text" id="smtp_from_name" placeholder="Horix Platform">
+      <input type="text" id="smtp_from_name" placeholder="SynnoxERP">
       <label style="display:flex;align-items:center;gap:8px;margin-bottom:16px;text-transform:none;letter-spacing:0;font-weight:400;">
         <input type="checkbox" id="smtp_allow_self_signed" style="width:auto;"> Permitir certificados autofirmados
       </label>
@@ -544,8 +568,14 @@
     <label>Contraseña</label>
     <input type="password" id="form-password" placeholder="••••••••">
     <label>Rol</label>
-    <select id="form-rol"><option value="operador">Operador</option><option value="admin">Admin</option></select>
-    <div style="display:flex;gap:10px;margin-top:8px;">
+    <select id="form-rol" onchange="toggleModulosSection()"><option value="operador">Operador</option><option value="admin">Admin</option></select>
+    <label style="margin-top:8px;">Perfil</label>
+    <select id="form-perfil"><option value="">Sin perfil</option></select>
+    <div id="form-modulos-section" style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+      <label style="font-weight:600;">Módulos permitidos</label>
+      <div id="form-modulos-list" style="margin-top:6px;"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:12px;">
       <button class="btn" id="form-submit-btn" onclick="saveUser()">Guardar</button>
       <button class="btn btn-danger btn-sm" style="align-self:center;" onclick="closeForm()">Cancelar</button>
     </div>
@@ -602,6 +632,11 @@
     <input type="number" id="scaffold-port" placeholder="ej: 3008" min="1024" max="65535">
     <label>Descripción</label>
     <input type="text" id="scaffold-desc" placeholder="Breve descripción del módulo">
+    <label>Tipo</label>
+    <select id="scaffold-tipo" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;">
+      <option value="externo">Externo (login propio, JWT independiente)</option>
+      <option value="interno">Interno (auth compartida con Launcher)</option>
+    </select>
     <div id="scaffold-result" style="margin-top:12px;font-size:13px;white-space:pre-wrap;"></div>
     <div style="display:flex;gap:10px;margin-top:12px;">
       <button class="btn" id="scaffold-btn" onclick="ejecutarScaffold()">⚡ Crear módulo</button>
@@ -610,7 +645,31 @@
   </div>
 </div>
 
-<script src="config.js"></script>
-<script src="app.js"></script>
+<!-- Modal: Editar Perfil -->
+<div class="modal-overlay" id="modal-perfil">
+  <div class="modal" style="max-width:650px;max-height:85vh;">
+    <div class="modal-title" id="perfil-modal-title">Editar Perfil</div>
+    <input type="hidden" id="perfil-id">
+    <div style="margin-bottom:12px;">
+      <label style="font-size:13px;font-weight:600;">Nombre *</label>
+      <input type="text" id="perfil-name" placeholder="Ej: ANALISTA DE COMPRA" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;margin-top:4px;">
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:13px;font-weight:600;">Descripción</label>
+      <input type="text" id="perfil-desc" placeholder="Descripción del perfil" style="width:100%;padding:10px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text);font-size:14px;margin-top:4px;">
+    </div>
+    <div style="margin-bottom:16px;">
+      <label style="font-size:13px;font-weight:600;">Permisos por módulo</label>
+      <div id="perfil-permisos" style="max-height:350px;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-top:8px;background:var(--surface);font-size:13px;padding:8px;"></div>
+    </div>
+    <div style="display:flex;gap:10px;justify-content:flex-end;">
+      <button class="btn btn-sm" onclick="cerrarModal('modal-perfil')" style="background:var(--surface2);color:var(--text);">Cancelar</button>
+      <button class="btn" onclick="guardarPerfil()">💾 Guardar</button>
+    </div>
+  </div>
+</div>
+
+<script src="config.js?v=20260630"></script>
+<script src="app.js?v=20260630"></script>
 </body>
 </html>

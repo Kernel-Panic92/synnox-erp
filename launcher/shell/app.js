@@ -3,6 +3,66 @@ let user = null;
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s||'')); return d.innerHTML; }
 
+function confirmModal(msg, title = 'Confirmar') {
+  return new Promise(resolve => {
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:1000';
+    overlay.innerHTML = `
+      <div data-confirm="1" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;width:340px;text-align:center;flex-shrink:0">
+        <div style="width:64px;height:64px;margin:0 auto 16px;background:rgba(239,68,68,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center">
+          <span style="font-size:28px">🗑️</span>
+        </div>
+        <h3 style="font-size:18px;font-weight:700;margin-bottom:8px;color:var(--text)">${esc(title)}</h3>
+        <p style="font-size:14px;color:var(--muted);margin-bottom:24px;line-height:1.5">${esc(msg)}</p>
+        <div style="display:flex;gap:12px;justify-content:center">
+          <button class="btn btn-sm" style="background:var(--surface2);color:var(--text);min-width:100px" onclick="this.closest('[data-confirm]').parentElement.remove();window._confirmResolve(false)">Cancelar</button>
+          <button class="btn btn-sm btn-danger" style="min-width:100px" onclick="this.closest('[data-confirm]').parentElement.remove();window._confirmResolve(true)">Confirmar</button>
+        </div>
+      </div>`;
+    document.body.appendChild(overlay);
+    window._confirmResolve = resolve;
+  });
+}
+
+// ─── Theme toggle (universal: synnox_theme en localStorage) ────
+(function initTheme() {
+  const theme = localStorage.getItem('synnox_theme') || 'light';
+  const root = document.documentElement;
+  if (theme === 'dark') {
+    root.style.setProperty('--bg', '#12141a');
+    root.style.setProperty('--surface', '#1a1d28');
+    root.style.setProperty('--surface2', '#222738');
+    root.style.setProperty('--border', '#2e3548');
+    root.style.setProperty('--text', '#e8ecf4');
+    root.style.setProperty('--muted', '#8892a8');
+  }
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = theme === 'dark' ? '☀️' : '🌙';
+})();
+function toggleTheme() {
+  const root = document.documentElement;
+  const isDark = root.style.getPropertyValue('--bg') === '#12141a' || root.style.getPropertyValue('--bg') === '';
+  if (isDark) {
+    root.style.setProperty('--bg', '#f0f2f7');
+    root.style.setProperty('--surface', '#ffffff');
+    root.style.setProperty('--surface2', '#e8eaf0');
+    root.style.setProperty('--border', '#d0d4e4');
+    root.style.setProperty('--text', '#1a1d2e');
+    root.style.setProperty('--muted', '#5a6180');
+    localStorage.setItem('synnox_theme', 'light');
+    document.getElementById('theme-btn').textContent = '🌙';
+  } else {
+    root.style.setProperty('--bg', '#12141a');
+    root.style.setProperty('--surface', '#1a1d28');
+    root.style.setProperty('--surface2', '#222738');
+    root.style.setProperty('--border', '#2e3548');
+    root.style.setProperty('--text', '#e8ecf4');
+    root.style.setProperty('--muted', '#8892a8');
+    localStorage.setItem('synnox_theme', 'dark');
+    document.getElementById('theme-btn').textContent = '☀️';
+  }
+}
+
 function show(id) {
   ['login-screen', 'launcher-screen', 'admin-screen', 'admin-form-overlay', 'modulo-form-overlay'].forEach(s => {
     const el = document.getElementById(s);
@@ -62,44 +122,58 @@ async function login() {
 
 let launcherVersion = '';
 
+const MODULOS_FIJOS = [
+  { id: 'proveedores', nombre: 'Proveedores', icon: '📄', desc: 'Facturas y proveedores', ruta: '/proveedores/' },
+  { id: 'logistica', nombre: 'Logística', icon: '🚚', desc: 'Planeación de rutas', ruta: '/logistica/' },
+  { id: 'nomina', nombre: 'Nómina', icon: '💰', desc: 'Horas extra y novedades', ruta: '/nomina/' },
+];
+
+const SUBMODULOS = [
+  { id: 'facturas', mod: 'proveedores', nombre: 'Facturas', icon: '📄', ruta: '/proveedores/#facturas' },
+  { id: 'pendientes', mod: 'proveedores', nombre: 'Pendientes', icon: '⏰', ruta: '/proveedores/#pendientes' },
+  { id: 'porpagar', mod: 'proveedores', nombre: 'Por Pagar', icon: '💳', ruta: '/proveedores/#porpagar' },
+  { id: 'rutas', mod: 'logistica', nombre: 'Rutas', icon: '🛣️', ruta: '/logistica/#rutas' },
+  { id: 'pedidos', mod: 'logistica', nombre: 'Pedidos', icon: '📦', ruta: '/logistica/#pedidos' },
+  { id: 'clientes', mod: 'logistica', nombre: 'Clientes', icon: '👥', ruta: '/logistica/#clientes' },
+  { id: 'registros', mod: 'nomina', nombre: 'Registros', icon: '📝', ruta: '/nomina/#registros' },
+  { id: 'empleados', mod: 'nomina', nombre: 'Empleados', icon: '👤', ruta: '/nomina/#empleados' },
+  { id: 'nominas', mod: 'nomina', nombre: 'Nóminas', icon: '💰', ruta: '/nomina/#nominas' },
+];
+
 async function showLauncher() {
-  document.getElementById('launcher-user').innerHTML = (user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
-  document.getElementById('launcher-role').textContent = user?.rol || '';
+  document.getElementById('launcher-user').innerHTML = esc(user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
+  document.getElementById('launcher-role').textContent = user?.perfil_nombre || user?.rol || '';
 
   const grid = document.getElementById('module-grid');
-  grid.innerHTML = '<div style="color:var(--muted);text-align:center;padding:20px;grid-column:1/-1;">Cargando...</div>';
+  grid.innerHTML = '';
 
-  try {
-    const [resMod, resStatus] = await Promise.all([
-      fetch('/api/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } }),
-      fetch('/api/admin/mcp-modules/status', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).catch(() => null)
-    ]);
-    if (!resMod.ok) throw new Error('Error al cargar módulos');
-    const modulos = await resMod.json();
-    const estados = {};
-    if (resStatus && resStatus.ok) {
-      const data = await resStatus.json();
-      if (data.modules) for (const m of data.modules) estados[m.id] = m.status;
-    }
-    grid.innerHTML = '';
-    for (const mod of modulos) {
-      const card = document.createElement('a');
-      card.className = 'card';
-      card.href = mod.url;
-      card.target = '_blank';
-      card.rel = 'noopener';
-      const st = estados[mod.id];
-      const borde = st === 'online' ? 'border-color:rgba(79,190,150,0.7)' : st === 'offline' ? 'border-color:rgba(224,83,83,0.7)' : st === 'error' ? 'border-color:rgba(214,158,46,0.7)' : '';
-      if (borde) card.style.cssText = borde + ';border-width:2px;';
-      card.innerHTML = `
-        <div class="card-icon">${mod.icon}</div>
-        <div class="card-title">${mod.nombre}</div>
-        <div class="card-desc">${mod.descripcion}</div>
-      `;
-      grid.appendChild(card);
-    }
-  } catch (e) {
-    grid.innerHTML = '<div style="color:var(--danger);text-align:center;padding:20px;grid-column:1/-1;">Error: ' + e.message + '</div>';
+  const modulosDisponibles = user?.rol === 'admin'
+    ? MODULOS_FIJOS
+    : MODULOS_FIJOS.filter(m => user?.modulos?.includes(m.id));
+
+  // Sort by usage frequency (most visited first)
+  const usage = JSON.parse(localStorage.getItem('module_usage') || '{}');
+  modulosDisponibles.sort((a, b) => (usage[b.id] || 0) - (usage[a.id] || 0));
+
+  for (const mod of modulosDisponibles) {
+    const card = document.createElement('a');
+    card.className = 'card';
+    card.href = window.location.origin + mod.ruta;
+    card.target = '_blank';
+    card.rel = 'noopener';
+    card.onclick = () => {
+      trackModuleVisit(mod.id);
+      // Also track submodule if hash is present
+      const hash = window.location.hash?.replace('#', '');
+      if (hash) trackModuleVisit(hash);
+    };
+    const count = usage[mod.id] || 0;
+    card.innerHTML = `
+      <div class="card-icon">${mod.icon}</div>
+      <div class="card-title">${mod.nombre}${count > 0 ? ` <span style="font-size:11px;color:var(--muted);font-weight:400;">(${count})</span>` : ''}</div>
+      <div class="card-desc">${mod.desc}</div>
+    `;
+    grid.appendChild(card);
   }
 
   if (user?.rol === 'admin') {
@@ -114,12 +188,295 @@ async function showLauncher() {
     grid.appendChild(adminCard);
   }
 
-  if (user?.rol === 'admin') cargarServerStats();
+  if (user?.rol === 'admin') {
+    cargarServerStats();
+    cargarCommits();
+    cargarQuickActions();
+    cargarModuleSummary();
+    cargarPendingTasks();
+    cargarAlerts();
+    cargarUpcoming();
+    cargarWeather();
+    cargarActivity();
+  }
   show('launcher-screen');
+}
+
+function trackModuleVisit(moduleId) {
+  // Save to localStorage immediately for instant UI update
+  const usage = JSON.parse(localStorage.getItem('submodule_usage') || '{}');
+  usage[moduleId] = (usage[moduleId] || 0) + 1;
+  localStorage.setItem('submodule_usage', JSON.stringify(usage));
+  // Also send to server for persistence
+  fetch('/api/track', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ submodule: moduleId })
+  }).catch(() => {});
+}
+
+async function getTopSubmodules(limit = 6) {
+  // Merge localStorage and server data
+  const localUsage = JSON.parse(localStorage.getItem('submodule_usage') || '{}');
+  let serverUsage = {};
+  try {
+    const res = await fetch('/api/track');
+    serverUsage = await res.json();
+  } catch {}
+  // Merge: max of local and server counts
+  const merged = {};
+  for (const [k, v] of Object.entries(localUsage)) merged[k] = Math.max(merged[k] || 0, v);
+  for (const [k, v] of Object.entries(serverUsage)) merged[k] = Math.max(merged[k] || 0, v);
+  return Object.entries(merged)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+    .map(([id, count]) => ({ id, count }));
+}
+
+async function cargarQuickActions() {
+  const w = document.getElementById('quick-actions-widget');
+  const usage = JSON.parse(localStorage.getItem('submodule_usage') || '{}');
+  const hasUsage = Object.keys(usage).length > 0;
+
+  if (!hasUsage) {
+    w.style.display = 'block';
+    w.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;padding:12px 16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+        <span style="font-size:18px;">💡</span>
+        <span style="font-size:13px;color:var(--muted);">Los accesos frecuentes aparecerán aquí automáticamente</span>
+      </div>`;
+    return;
+  }
+
+  const top = await getTopSubmodules(6);
+  const visible = top.map(t => SUBMODULOS.find(s => s.id === t.id)).filter(Boolean);
+
+  if (!visible.length) { w.style.display = 'none'; return; }
+
+  w.style.display = 'block';
+  w.innerHTML = `
+    <h2 style="margin-bottom:12px;">⚡ Accesos frecuentes</h2>
+    <div style="display:flex;flex-wrap:wrap;gap:8px;">
+      ${visible.map(s => `
+        <a href="${window.location.origin + s.ruta}" target="_blank" onclick="trackModuleVisit('${s.id}')" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);text-decoration:none;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+          <span>${s.icon}</span> ${s.nombre}
+        </a>
+      `).join('')}
+    </div>`;
+}
+
+async function cargarModuleSummary() {
+  const w = document.getElementById('module-summary-widget');
+  if (!w) return;
+  try {
+    const [prov, logi, nomi] = await Promise.allSettled([
+      fetch('/proveedores/api/dashboard', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
+      fetch('/logistica/api/dashboard/resumen', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
+      fetch('/nomina/api/dashboard/resumen', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
+    ]);
+    const cards = [];
+    if (prov.status === 'fulfilled' && prov.value) {
+      const p = prov.value;
+      cards.push({ icon: '📄', title: 'Proveedores', stats: [
+        { label: 'Facturas', value: p.totalFacturas || 0 },
+        { label: 'Pendientes', value: p.pendientes || 0 },
+        { label: 'Por pagar', value: p.porPagar || 0 },
+      ]});
+    }
+    if (logi.status === 'fulfilled' && logi.value) {
+      const l = logi.value;
+      cards.push({ icon: '🚚', title: 'Logística', stats: [
+        { label: 'Pedidos hoy', value: l.pedidosHoy || 0 },
+        { label: 'En ruta', value: l.enRuta || 0 },
+        { label: 'Entregados', value: l.entregados || 0 },
+      ]});
+    }
+    if (nomi.status === 'fulfilled' && nomi.value) {
+      const n = nomi.value;
+      cards.push({ icon: '📝', title: 'Nómina', stats: [
+        { label: 'Registros', value: n.totalRegistros || 0 },
+        { label: 'Pendientes', value: n.pendientes || 0 },
+        { label: 'Aprobados', value: n.aprobados || 0 },
+      ]});
+    }
+    if (!cards.length) { w.style.display = 'none'; return; }
+    w.style.display = 'block';
+    w.innerHTML = `
+      <h2 style="margin-bottom:12px;">📊 Resumen del día</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
+        ${cards.map(c => `<div style="padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+          <div style="font-size:14px;font-weight:600;margin-bottom:10px;">${c.icon} ${c.title}</div>
+          ${c.stats.map(s => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;"><span style="color:var(--muted);">${s.label}</span><strong>${s.value}</strong></div>`).join('')}
+        </div>`).join('')}
+      </div>`;
+  } catch { w.style.display = 'none'; }
+}
+
+async function cargarPendingTasks() {
+  const w = document.getElementById('pending-tasks-widget');
+  if (!w) return;
+  try {
+    const tasks = [];
+    const [prov, nomi] = await Promise.allSettled([
+      fetch('/proveedores/api/facturas?estado=pendiente', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
+      fetch('/nomina/api/registros?estado=pendiente', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
+    ]);
+    if (prov.status === 'fulfilled' && prov.value?.rows) {
+      const pending = prov.value.rows.length || prov.value.length || 0;
+      if (pending > 0) tasks.push({ icon: '📄', text: `${pending} factura(s) pendiente(s) por revisar`, link: '/proveedores/#pendientes' });
+    }
+    if (nomi.status === 'fulfilled' && nomi.value) {
+      const n = Array.isArray(nomi.value) ? nomi.value : nomi.value.rows || [];
+      const pending = n.filter(r => r.estado === 'pendiente').length;
+      if (pending > 0) tasks.push({ icon: '📝', text: `${pending} registro(s) de nómina pendiente(s)`, link: '/nomina/#registros' });
+    }
+    if (!tasks.length) { w.style.display = 'none'; return; }
+    w.style.display = 'block';
+    w.innerHTML = `
+      <h2 style="margin-bottom:12px;">📋 Tareas pendientes</h2>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${tasks.map(t => `<a href="${t.link}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(247,151,79,0.08);border:1px solid rgba(247,151,79,0.2);border-radius:8px;font-size:13px;color:var(--text);text-decoration:none;">
+          <span style="font-size:16px;">${t.icon}</span> ${t.text}
+        </a>`).join('')}
+      </div>`;
+  } catch { w.style.display = 'none'; }
+}
+
+async function cargarAlerts() {
+  const w = document.getElementById('alerts-widget');
+  if (!w) return;
+  try {
+    const alerts = [];
+    const diskRes = await fetch('/api/admin/server/stats', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null);
+    if (diskRes?.disk) {
+      const pct = parseInt(diskRes.disk.usePct);
+      if (pct > 90) alerts.push({ level: 'danger', icon: '🔴', text: `Disco al ${pct}% — espacio crítico` });
+      else if (pct > 80) alerts.push({ level: 'warning', icon: '🟡', text: `Disco al ${pct}% — considerar limpiar` });
+    }
+    const healthRes = await fetch('/api/admin/health', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null);
+    if (healthRes?.modules) {
+      for (const [id, status] of Object.entries(healthRes.modules)) {
+        if (status !== 'ok') alerts.push({ level: 'danger', icon: '🔴', text: `Módulo ${id}: ${status}` });
+      }
+    }
+    if (!alerts.length) { w.style.display = 'none'; return; }
+    w.style.display = 'block';
+    w.innerHTML = `
+      <h2 style="margin-bottom:12px;">⚠️ Alertas</h2>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${alerts.map(a => `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:${a.level === 'danger' ? 'rgba(231,76,60,0.08)' : 'rgba(247,151,79,0.08)'};border:1px solid ${a.level === 'danger' ? 'rgba(231,76,60,0.2)' : 'rgba(247,151,79,0.2)'};border-radius:8px;font-size:13px;">
+          <span>${a.icon}</span> ${a.text}
+        </div>`).join('')}
+      </div>`;
+  } catch { w.style.display = 'none'; }
+}
+
+async function cargarUpcoming() {
+  const w = document.getElementById('upcoming-widget');
+  if (!w) return;
+  try {
+    const res = await fetch('/proveedores/api/facturas?proximas=true', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) { w.style.display = 'none'; return; }
+    const data = await res.json();
+    const items = data.rows || data || [];
+    if (!items.length) { w.style.display = 'none'; return; }
+    w.style.display = 'block';
+    w.innerHTML = `
+      <h2 style="margin-bottom:12px;">📅 Próximos vencimientos</h2>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${items.slice(0, 5).map(f => `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:13px;">
+          <span>${f.proveedor || f.numero || '—'}</span>
+          <span style="color:var(--muted);">${f.fechaVencimiento || f.fecha_vencimiento || '—'}</span>
+        </div>`).join('')}
+      </div>`;
+  } catch { w.style.display = 'none'; }
+}
+
+function cargarWeather() {
+  const w = document.getElementById('weather-widget');
+  if (!w) return;
+  if (navigator.geolocation) {
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      try {
+        const { latitude: lat, longitude: lng } = pos.coords;
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=America/Bogota`);
+        const data = await res.json();
+        const c = data.current;
+        const weatherIcons = { 0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️', 45: '🌫️', 51: '🌦️', 61: '🌧️', 71: '❄️', 95: '⛈️' };
+        const icon = weatherIcons[c.weather_code] || '🌤️';
+        w.style.display = 'block';
+        w.innerHTML = `
+          <h2 style="margin-bottom:12px;">🌤️ Clima</h2>
+          <div style="padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+            <div style="display:flex;align-items:center;gap:12px;">
+              <span style="font-size:32px;">${icon}</span>
+              <div>
+                <div style="font-size:24px;font-weight:700;">${c.temperature_2m}°C</div>
+                <div style="font-size:12px;color:var(--muted);">Humedad: ${c.relative_humidity_2m}% · Viento: ${c.wind_speed_10m} km/h</div>
+              </div>
+            </div>
+          </div>`;
+      } catch { w.style.display = 'none'; }
+    }, () => { w.style.display = 'none'; }, { timeout: 5000 });
+  } else { w.style.display = 'none'; }
+}
+
+async function cargarActivity() {
+  const w = document.getElementById('activity-widget');
+  if (!w) return;
+  try {
+    const res = await fetch('/api/admin/login-logs', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) { w.style.display = 'none'; return; }
+    const data = await res.json();
+    const logs = data.logs || data.rows || data || [];
+    if (!logs.length) { w.style.display = 'none'; return; }
+    w.style.display = 'block';
+    w.innerHTML = `
+      <h2 style="margin-bottom:12px;">👤 Actividad reciente</h2>
+      <div style="display:flex;flex-direction:column;gap:4px;">
+        ${logs.slice(0, 8).map(l => {
+          const d = new Date(l.fecha || l.timestamp || l.creado);
+          const hora = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+          const icon = l.exitoso ? '🔑' : '🚫';
+          return `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;font-size:12px;">
+            <span>${icon}</span>
+            <span style="flex:1;color:var(--text);">${esc(l.email || l.usuario || '—')}</span>
+            <span style="color:var(--muted);">${hora}</span>
+          </div>`;
+        }).join('')}
+      </div>`;
+  } catch { w.style.display = 'none'; }
+}
+
+async function cargarCommits() {
+  const w = document.getElementById('commits-widget');
+  if (!w) return;
+  try {
+    const res = await fetch('/api/admin/commits?limit=8', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) { w.style.display = 'none'; return; }
+    const data = await res.json();
+    if (!data.ok || !data.commits?.length) { w.style.display = 'none'; return; }
+    w.style.display = 'block';
+    w.innerHTML = `
+      <h2 style="margin-bottom:12px;">📝 Últimos cambios</h2>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${data.commits.map(c => {
+          const d = new Date(c.date);
+          const fecha = d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
+          const hora = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+          return `<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:13px;">
+            <code style="color:var(--accent);font-size:11px;white-space:nowrap;">${c.hash.slice(0, 7)}</code>
+            <span style="flex:1;color:var(--text);">${esc(c.message)}</span>
+            <span style="color:var(--muted);font-size:11px;white-space:nowrap;">${fecha} ${hora}</span>
+          </div>`;
+        }).join('')}
+      </div>`;
+  } catch { w.style.display = 'none'; }
 }
 
 async function cargarServerStats() {
   const w = document.getElementById('server-stats-widget');
+  if (!w) return;
   try {
     const res = await fetch('/api/admin/server/stats', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
     if (!res.ok) { w.style.display = 'none'; return; }
@@ -164,6 +521,7 @@ async function cargarServerStats() {
 
 function logout() {
   localStorage.removeItem('platform_jwt');
+  document.cookie = 'launcher_jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
   jwtToken = null;
   user = null;
   show('login-screen');
@@ -173,7 +531,7 @@ function logout() {
 
 // ── Admin ──
 function showAdmin() {
-  document.getElementById('admin-header-user').innerHTML = (user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
+  document.getElementById('admin-header-user').innerHTML = esc(user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
   show('admin-screen');
   showAdminTab('usuarios');
 }
@@ -189,20 +547,48 @@ async function loadUsers() {
     tbody.innerHTML = users.map(u => `
       <tr>
         <td>${u.id}</td>
-        <td>${u.nombre}</td>
-        <td>${u.email}</td>
+        <td>${esc(u.nombre)}</td>
+        <td>${esc(u.email)}</td>
         <td><span class="badge badge-${u.rol}">${u.rol}</span></td>
+        <td>${u.perfil_nombre ? `<span style="color:var(--accent);">${esc(u.perfil_nombre)}</span>` : '—'}</td>
         <td>${u.activo ? '<span style="color:var(--success);">Activo</span>' : '<span class="badge badge-inactivo">Inactivo</span>'}</td>
         <td class="actions">
-          <button class="btn btn-sm" onclick="editUser(${u.id})">Editar</button>
-          ${u.activo ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">Desactivar</button>` : ''}
-          ${!u.activo ? `<button class="btn btn-sm btn-danger" onclick="deleteUserPermanent(${u.id})">Eliminar</button>` : ''}
+          <button class="btn btn-sm btn-secondary" onclick="editUser(${u.id})">✏️ Editar</button>
+          ${u.activo ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">🗑️ Desactivar</button>` : ''}
+          ${!u.activo ? `<button class="btn btn-sm btn-danger" onclick="deleteUserPermanent(${u.id})">🗑️ Eliminar</button>` : ''}
         </td>
       </tr>
     `).join('');
   } catch (e) {
     alert(e.message);
   }
+}
+
+let cachedModulos = [];
+
+function toggleModulosSection() {
+  const isAdmin = document.getElementById('form-rol').value === 'admin';
+  document.getElementById('form-modulos-section').style.display = isAdmin ? 'none' : 'block';
+}
+
+async function renderModulosCheckboxes(selectedModulos = []) {
+  const container = document.getElementById('form-modulos-list');
+  if (!cachedModulos.length) {
+    try {
+      const res = await fetch('/api/admin/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+      cachedModulos = await res.json();
+    } catch { container.innerHTML = '<span style="color:var(--danger);font-size:13px;">Error al cargar módulos</span>'; return; }
+  }
+  container.innerHTML = cachedModulos.map(m => `
+    <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
+      <input type="checkbox" value="${m.id}" ${selectedModulos.includes(m.id) ? 'checked' : ''} style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;margin:0;">
+      <span style="font-size:13px;">${esc(m.icon)} ${esc(m.nombre)}</span>
+    </div>
+  `).join('');
+}
+
+function getSelectedModulos() {
+  return [...document.querySelectorAll('#form-modulos-list input[type="checkbox"]:checked')].map(cb => cb.value);
 }
 
 function showUserForm(data) {
@@ -215,6 +601,20 @@ function showUserForm(data) {
   document.getElementById('form-submit-btn').textContent = data?.id ? 'Guardar cambios' : 'Crear usuario';
   document.getElementById('form-error').classList.remove('show');
   document.getElementById('admin-form-overlay').style.display = 'block';
+  // Load profiles for dropdown
+  fetch('/api/admin/perfiles', { headers: { 'Authorization': 'Bearer ' + jwtToken } })
+    .then(r => r.json()).then(perfiles => {
+      const sel = document.getElementById('form-perfil');
+      sel.innerHTML = '<option value="">Sin perfil</option>' + perfiles.map(p => `<option value="${p.id}" ${data?.perfil_id == p.id ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('');
+    }).catch(() => {});
+  // Load modules for user
+  toggleModulosSection();
+  if (data?.id) {
+    fetch('/api/admin/usuarios/' + data.id + '/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } })
+      .then(r => r.json()).then(mods => renderModulosCheckboxes(mods)).catch(() => renderModulosCheckboxes([]));
+  } else {
+    renderModulosCheckboxes([]);
+  }
 }
 
 function closeForm() {
@@ -241,7 +641,8 @@ async function saveUser() {
   try {
     const method = id ? 'PUT' : 'POST';
     const url = id ? `/api/admin/usuarios/${id}` : '/api/admin/usuarios';
-    const body = { nombre, email, rol };
+    const perfilId = document.getElementById('form-perfil').value || null;
+    const body = { nombre, email, rol, perfil_id: perfilId ? parseInt(perfilId) : null };
     if (password) body.password = password;
 
     const res = await fetch(url, {
@@ -250,9 +651,18 @@ async function saveUser() {
       body: JSON.stringify(body)
     });
 
-    if (!res.ok) {
-      const data = await res.json().catch(() => ({}));
-      throw new Error(data.error || 'Error al guardar');
+    const result = await res.json();
+    if (!res.ok) throw new Error(result.error || 'Error al guardar');
+
+    // Save module assignments (if operador)
+    const userId = id || result.id;
+    if (rol === 'operador' && userId) {
+      const selectedModulos = getSelectedModulos();
+      await fetch('/api/admin/usuarios/' + userId + '/modulos', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
+        body: JSON.stringify({ modulos: selectedModulos })
+      });
     }
 
     closeForm();
@@ -273,7 +683,7 @@ function editUser(id) {
 }
 
 async function deleteUser(id) {
-  if (!confirm('¿Desactivar este usuario?')) return;
+  if (!await confirmModal('¿Desactivar este usuario?')) return;
   try {
     const res = await fetch(`/api/admin/usuarios/${id}`, {
       method: 'DELETE',
@@ -290,7 +700,7 @@ async function deleteUser(id) {
 }
 
 async function deleteUserPermanent(id) {
-  if (!confirm('¿Eliminar permanentemente este usuario? Esta acción no se puede deshacer.')) return;
+  if (!await confirmModal('¿Eliminar permanentemente este usuario? Esta acción no se puede deshacer.')) return;
   try {
     const res = await fetch(`/api/admin/usuarios/${id}/permanent`, {
       method: 'DELETE',
@@ -318,14 +728,14 @@ async function loadModulos() {
     tbody.innerHTML = modulos.map(m => `
       <tr>
         <td>${m.id}</td>
-        <td>${m.icon} ${m.nombre}</td>
-        <td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;" title="${m.public_url || m.url}">${m.public_url || m.url}</td>
-        <td style="font-size:11px;color:var(--muted);">${m.proxy_prefix || '—'}</td>
+        <td>${esc(m.icon)} ${esc(m.nombre)}</td>
+        <td style="font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;" title="${esc(m.public_url || m.url)}">${esc(m.public_url || m.url)}</td>
+        <td style="font-size:11px;color:var(--muted);">${esc(m.proxy_prefix || '—')}</td>
         <td>${m.mcp_enabled ? '<span style="color:var(--success);">Sí</span>' : '<span style="color:var(--muted);">No</span>'}</td>
         <td id="health-${m.id}"><span style="color:var(--muted);">—</span></td>
         <td class="actions">
-          <button class="btn btn-sm" onclick="editModulo('${m.id}')">Editar</button>
-          <button class="btn btn-sm btn-danger" onclick="deleteModulo('${m.id}')">Eliminar</button>
+          <button class="btn btn-sm btn-secondary" onclick="editModulo('${m.id}')">✏️ Editar</button>
+          <button class="btn btn-sm btn-danger" onclick="deleteModulo('${m.id}')">🗑️ Eliminar</button>
         </td>
       </tr>
     `).join('');
@@ -428,7 +838,7 @@ function editModulo(id) {
 }
 
 async function deleteModulo(id) {
-  if (!confirm(`¿Eliminar módulo ${id}?`)) return;
+  if (!await confirmModal(`¿Eliminar módulo ${id}?`)) return;
   try {
     const res = await fetch(`/api/admin/modulos/${id}`, {
       method: 'DELETE',
@@ -454,6 +864,7 @@ async function ejecutarScaffold() {
   const nombre = document.getElementById('scaffold-nombre').value.trim();
   const port = document.getElementById('scaffold-port').value.trim();
   const desc = document.getElementById('scaffold-desc').value.trim();
+  const tipo = document.getElementById('scaffold-tipo').value;
   const resultEl = document.getElementById('scaffold-result');
   const btn = document.getElementById('scaffold-btn');
   if (!id || !nombre || !port) { resultEl.textContent = '❌ ID, nombre y puerto requeridos'; return; }
@@ -462,13 +873,13 @@ async function ejecutarScaffold() {
     const res = await fetch('/api/admin/modulos/scaffold', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
-      body: JSON.stringify({ id, nombre, port: parseInt(port), description: desc })
+      body: JSON.stringify({ id, nombre, port: parseInt(port), description: desc, tipo })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error');
     resultEl.textContent = '✅ ' + data.mensaje;
     if (data.npm) resultEl.textContent += '\n📦 npm: ' + data.npm;
-    resultEl.textContent += '\n▶️ Inicia con: pm2 start /opt/horix-platform/' + id + '/backend/server.js --name ' + id;
+    resultEl.textContent += '\n▶️ Inicia con: pm2 start ' + INSTALL_DIR + '/modules/' + id + '/backend/server.js --name ' + id;
     cerrarModal('modal-scaffold');
     setTimeout(() => loadModulos(), 500);
   } catch (e) {
@@ -733,6 +1144,7 @@ function showAdminTab(tab) {
   document.querySelectorAll('#admin-screen .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.querySelectorAll('#admin-screen .tab-content').forEach(t => t.classList.toggle('active', t.id === 'tab-' + tab));
   if (tab === 'usuarios') loadUsers();
+  else if (tab === 'perfiles') loadPerfiles();
   else if (tab === 'modulos') loadModulos();
    else if (tab === 'mcp') { loadMcpConfig(); loadMcpUrl(); }
    else if (tab === 'smtp') loadSmtpConfig();
@@ -855,7 +1267,7 @@ async function doUpdate() {
   const statusEl = document.getElementById('upd-status');
   const updateBtn = document.getElementById('upd-update-btn');
   const checkBtn = document.getElementById('upd-check-btn');
-  if (!confirm('¿Aplicar actualización? Se descargarán los cambios, se instalarán dependencias y deberás reiniciar el servicio.')) return;
+  if (!await confirmModal('¿Aplicar actualización? Se descargarán los cambios, se instalarán dependencias y deberás reiniciar el servicio.')) return;
   updateBtn.disabled = true;
   updateBtn.textContent = 'Actualizando...';
   checkBtn.disabled = true;
@@ -996,7 +1408,7 @@ async function loadLoginLogs() {
       var badge = r.exitoso
         ? '<span class="badge badge-admin">Exitoso</span>'
         : '<span class="badge badge-inactivo">Fallido</span>';
-      return '<tr><td style="white-space:nowrap;">' + r.fecha + '</td><td>' + r.ip + '</td><td>' + r.email + '</td><td>' + badge + '</td></tr>';
+      return '<tr><td style="white-space:nowrap;">' + esc(r.fecha) + '</td><td>' + esc(r.ip) + '</td><td>' + esc(r.email) + '</td><td>' + badge + '</td></tr>';
     }).join('');
   } catch (e) {}
 }
@@ -1226,7 +1638,7 @@ function closeMcpModuleDetail() {
 }
 
 async function restartMcpModule(moduleId) {
-  if (!confirm('¿Reiniciar ' + moduleId + '?')) return;
+  if (!await confirmModal('¿Reiniciar ' + moduleId + '?')) return;
   try {
     const res = await fetch('/api/admin/mcp-modules/' + encodeURIComponent(moduleId) + '/restart', {
       method: 'POST',
@@ -1285,4 +1697,155 @@ async function importarConfig() {
   }
 }
 
+// ── Perfiles ──
+async function loadPerfiles() {
+  const tbody = document.querySelector('#perfiles-table tbody');
+  try {
+    const res = await fetch('/api/admin/perfiles', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const perfiles = await res.json();
+    tbody.innerHTML = perfiles.map(p => `
+      <tr>
+        <td><strong>${esc(p.nombre)}</strong></td>
+        <td>${esc(p.descripcion || '—')}</td>
+        <td>${p.permisos.length} permiso(s)</td>
+        <td>${p.usuarios_count} usuario(s)</td>
+        <td>
+          <button class="btn btn-sm btn-secondary" onclick="editarPerfil(${p.id})">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarPerfil(${p.id},'${esc(p.nombre)}')" ${p.usuarios_count > 0 ? 'disabled title="Reasigna usuarios primero"' : ''}>🗑️</button>
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) { tbody.innerHTML = '<tr><td colspan="5">Error al cargar perfiles</td></tr>'; }
+}
+
+async function editarPerfil(id) {
+  try {
+    const modulosRes = await fetch('/api/admin/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.json());
+    const modulos = modulosRes;
+    let perfil = { nombre: '', descripcion: '', permisos: [] };
+    
+    if (id) {
+      const perfilRes = await fetch('/api/admin/perfiles/' + id, { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.json());
+      if (perfilRes.error) throw new Error(perfilRes.error);
+      perfil = perfilRes;
+    }
+    
+    const permisosMap = {};
+    perfil.permisos.forEach(p => {
+      if (!permisosMap[p.modulo_id]) permisosMap[p.modulo_id] = [];
+      permisosMap[p.modulo_id].push(p.permiso);
+    });
+    
+    const modal = document.getElementById('modal-perfil');
+    document.getElementById('perfil-name').value = perfil.nombre;
+    document.getElementById('perfil-desc').value = perfil.descripcion || '';
+    document.getElementById('perfil-id').value = id || '';
+    document.getElementById('perfil-modal-title').textContent = id ? 'Editar Perfil' : 'Nuevo Perfil';
+    
+    const permisosEl = document.getElementById('perfil-permisos');
+    permisosEl.innerHTML = modulos.map(m => {
+      const perms = ['Ver','Crear','Editar','Eliminar'];
+      const allChecked = perms.every(p => (permisosMap[m.id]||[]).includes(p.toLowerCase()));
+      return `
+      <div style="margin-bottom:6px;">
+        <div style="display:flex;align-items:center;gap:8px;padding:8px;background:var(--surface2);border-radius:6px;cursor:pointer;" onclick="toggleModule('${m.id}')">
+          <span id="arrow-${m.id}" style="font-size:10px;color:var(--muted);">▶</span>
+          <input type="checkbox" class="perfil-perm-all" data-modulo="${m.id}" ${allChecked ? 'checked' : ''} onclick="event.stopPropagation();toggleAllPerms('${m.id}',this.checked)" style="accent-color:var(--accent);width:16px;height:16px;">
+          <span style="font-size:14px;">${esc(m.icon || '📦')}</span>
+          <span style="font-weight:600;font-size:13px;flex:1;">${esc(m.nombre)}</span>
+          <span style="font-size:11px;color:var(--muted);">${(permisosMap[m.id]||[]).length}/${perms.length}</span>
+        </div>
+        <div id="perms-${m.id}" style="display:none;padding:6px 0 6px 36px;">
+          ${perms.map(perm => `
+            <div style="display:flex;align-items:center;gap:8px;padding:4px 0;">
+              <input type="checkbox" class="perfil-perm" data-modulo="${m.id}" value="${perm.toLowerCase()}" ${(permisosMap[m.id]||[]).includes(perm.toLowerCase()) ? 'checked' : ''} onchange="updatePermCount('${m.id}')" style="accent-color:var(--accent);width:16px;height:16px;margin:0;vertical-align:middle;">
+              <span style="font-size:13px;vertical-align:middle;">${perm}</span>
+            </div>
+          `).join('')}
+        </div>
+      </div>`;
+    }).join('');
+    
+    modal.classList.add('show');
+  } catch (e) { alert('Error al cargar perfil: ' + e.message); }
+}
+
+async function guardarPerfil() {
+  const id = document.getElementById('perfil-id').value;
+  const nombre = document.getElementById('perfil-name').value.trim();
+  const descripcion = document.getElementById('perfil-desc').value.trim();
+  if (!nombre) { mostrarAlerta('Nombre requerido', 'warning'); return; }
+  
+  const permisos = [];
+  document.querySelectorAll('.perfil-perm:checked').forEach(cb => {
+    permisos.push({ modulo_id: cb.dataset.modulo, permiso: cb.value });
+  });
+  
+  try {
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `/api/admin/perfiles/${id}` : '/api/admin/perfiles';
+    const res = await fetch(url, {
+      method,
+      headers: { 'Authorization': 'Bearer ' + jwtToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ nombre, descripcion, permisos })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    cerrarModal('modal-perfil');
+    loadPerfiles();
+    alert(id ? 'Perfil actualizado' : 'Perfil creado');
+  } catch (e) { alert('Error al guardar: ' + e.message); }
+}
+
+async function eliminarPerfil(id, nombre) {
+  if (!await confirmModal(`¿Eliminar el perfil "${nombre}"?`)) return;
+  try {
+    const res = await fetch(`/api/admin/perfiles/${id}`, {
+      method: 'DELETE',
+      headers: { 'Authorization': 'Bearer ' + jwtToken }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    loadPerfiles();
+    alert('Perfil eliminado');
+  } catch (e) { alert(e.message); }
+}
+
+function cerrarModal(id) { document.getElementById(id).classList.remove('show'); }
+
+function toggleAllPerms(moduloId, checked) {
+  document.querySelectorAll(`.perfil-perm[data-modulo="${moduloId}"]`).forEach(cb => {
+    cb.checked = checked;
+  });
+  updatePermCount(moduloId);
+}
+
+function toggleModule(moduloId) {
+  const el = document.getElementById('perms-' + moduloId);
+  const arrow = document.getElementById('arrow-' + moduloId);
+  if (el) {
+    const isHidden = el.style.display === 'none';
+    el.style.display = isHidden ? 'block' : 'none';
+    if (arrow) arrow.textContent = isHidden ? '▼' : '▶';
+  }
+}
+
+function toggleAllModules(checked) {
+  document.querySelectorAll('.perfil-perm-all').forEach(cb => {
+    cb.checked = checked;
+    toggleAllPerms(cb.dataset.modulo, checked);
+  });
+}
+
+function updatePermCount(moduloId) {
+  const all = document.querySelectorAll(`.perfil-perm[data-modulo="${moduloId}"]`);
+  const checked = document.querySelectorAll(`.perfil-perm[data-modulo="${moduloId}"]:checked`);
+  const parent = document.querySelector(`.perfil-perm-all[data-modulo="${moduloId}"]`);
+  if (parent) parent.checked = all.length === checked.length;
+  const countEl = parent?.closest('[style]')?.querySelector('[style*="flex:1"]');
+  if (countEl) {
+    const nextEl = countEl.nextElementSibling;
+    if (nextEl) nextEl.textContent = `${checked.length}/${all.length}`;
+  }
+}
 

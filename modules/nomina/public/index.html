@@ -1,0 +1,1378 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Nómina</title>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:#0d0f14; --surface:#161a23; --surface2:#1e2330; --border:#2a3045;
+    --accent:#2b6cb0; --accent2:#c05621; --success:#2f855a; --warning:#d69e2e;
+    --danger:#c53030; --text:#e8ecf5; --muted:#7a85a0;
+    --font-head:'Plus Jakarta Sans',sans-serif; --font-body:'DM Sans',sans-serif;
+  }
+  /* ── LIGHT THEME ── */
+  body.light {
+    --bg:#f0f2f7; --surface:#ffffff; --surface2:#e8eaf0; --border:#d0d4e4;
+    --accent:#2b6cb0; --accent2:#c05621; --success:#2f855a; --warning:#d69e2e;
+    --danger:#c53030; --text:#1a1d2e; --muted:#5a6180;
+  }
+  body.light .sidebar { background:#ffffff; border-right-color:#d0d4e4; box-shadow: 2px 0 14px rgba(0,0,0,0.06); }
+  body.light .stat-card { background:#ffffff; border-color:#d0d4e4; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+  body.light .table-wrap { background:#ffffff; border-color:#d0d4e4; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+  body.light .modal { background:#ffffff; }
+  body.light .emp-card { background:#ffffff; border-color:#d0d4e4; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+  body.light .widget { background:#ffffff; border-color:#d0d4e4; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+  body.light .periodo-winner { background:linear-gradient(135deg,rgba(79,142,247,0.10),rgba(79,142,247,0.03)); }
+  body.light input, body.light select, body.light textarea { background:#f0f2f7; border-color:#d0d4e4; }
+  body.light tr:hover td { background:rgba(0,0,0,0.03); }
+  body.light thead th { background:#f0f2f7; }
+  body.light .nav-item:hover { background:#f0f2f7; }
+  body.light .nav-item.active { background:rgba(79,142,247,0.12); }
+  .sede-filter-admin.hidden-operador { display: none; }
+
+  /* ── THEME TOGGLE ── */
+
+
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--font-body);min-height:100vh;transition:background 0.2s,color 0.2s;}
+
+  /* ── LAYOUT ── */
+  .layout{display:flex;min-height:100vh;}
+  #app-screen{display:none;width:100%;}
+  #app-screen.show{display:flex;}
+
+  /* ── SIDEBAR ── */
+  .sidebar{width:230px;background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:28px 0;position:fixed;height:100vh;z-index:10;}
+  .logo{padding:0 24px 8px;font-family:var(--font-head);font-size:18px;font-weight:800;letter-spacing:-0.2px;}
+  .logo span{color:var(--accent);}
+  .user-info{padding:16px 20px;border-bottom:1px solid var(--border);overflow:hidden;min-width:0;}
+  .user-name{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:3px;}
+  .user-role{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;}
+  .role-badge{display:inline-block;background:var(--accent);color:#fff;font-size:10px;padding:2px 8px;border-radius:10px;margin-top:4px;text-transform:uppercase;letter-spacing:.5px;}
+  .role-admin   {background:rgba(247,97,79,0.15);color:var(--danger);}
+  .role-rrhh    {background:rgba(79,142,247,0.15);color:var(--accent);}
+  .role-consulta{background:rgba(79,190,150,0.15);color:var(--success);}
+  .nav-item{display:flex;align-items:center;gap:12px;padding:12px 24px;cursor:pointer;color:var(--muted);font-size:14px;font-weight:500;transition:all 0.2s;border-left:3px solid transparent;margin-bottom:2px;}
+  .nav-item:hover{color:var(--text);background:rgba(255,255,255,.03);}
+  .nav-item.active{color:var(--accent);border-left-color:var(--accent);background:rgba(79,142,247,0.08);}
+  .nav-item.hidden{display:none;}
+  .nav-icon{font-size:17px;width:22px;text-align:center;}
+   .nav-menu{flex:1;overflow-y:auto;overflow-x:hidden;padding-bottom:8px;}
+   .sidebar-footer{padding:12px 16px;flex-shrink:0;}
+   .btn-logout{width:100%;background:rgba(247,97,79,0.1);border:1px solid rgba(247,97,79,0.2);color:var(--danger);border-radius:9px;padding:9px 14px;font-family:var(--font-body);font-size:13px;cursor:pointer;transition:all 0.2s;display:flex;align-items:center;justify-content:center;gap:8px;}
+   .btn-logout:hover{background:rgba(247,97,79,0.2);}
+
+   /* Botón colapsar sidebar */
+   .sidebar-toggle{position:absolute;top:20px;right:-14px;width:28px;height:28px;background:var(--surface);border:1px solid var(--border);border-radius:50%;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:12px;color:var(--muted);z-index:11;transition:all 0.2s;box-shadow:0 2px 6px rgba(0,0,0,0.15);}
+   .sidebar-toggle:hover{color:var(--text);border-color:var(--accent);}
+   .sidebar.collapsed{width:68px;padding:28px 0;}
+   .sidebar.collapsed .logo{padding:0 0 8px;text-align:center;}
+   .sidebar.collapsed .logo span{display:none;}
+    .sidebar.collapsed .user-info,.sidebar.collapsed .role-badge,.sidebar.collapsed .sidebar-footer>div,.sidebar.collapsed .nav-item span:not(.nav-icon),.sidebar.collapsed .nav-arrow{display:none;}
+   .sidebar.collapsed .nav-item{justify-content:center;padding:12px 0;}
+   .sidebar.collapsed .nav-icon{font-size:20px;width:auto;}
+   .sidebar.collapsed .sidebar-footer{padding:12px 8px;}
+    .sidebar.collapsed .btn-logout{justify-content:center;padding:9px 0;}
+    .sidebar.collapsed .btn-logout span:last-child{display:none;}
+    .sidebar.collapsed .btn-logout .nav-icon{font-size:18px;}
+
+   /* ── MAIN ── */
+   .main{margin-left:230px;flex:1;padding:36px 40px;padding-right:120px;transition:margin-left 0.28s cubic-bezier(.4,0,.2,1);overflow-x:hidden;}
+   .sidebar.collapsed~.main{margin-left:68px;}
+  .main-topbar{position:fixed;top:14px;right:20px;z-index:50;display:flex;align-items:center;gap:6px;}
+  .main-icon-btn{background:var(--surface);border:1px solid var(--border);border-radius:9px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;color:var(--muted);transition:all 0.15s;box-shadow:0 2px 8px rgba(0,0,0,0.12);}
+  .main-icon-btn:hover{color:var(--text);border-color:var(--accent);}
+  .main-icon-btn.logout:hover{border-color:var(--danger);color:var(--danger);background:rgba(247,97,79,0.08);}
+  .page{display:none;} .page.active{display:block;}
+
+  /* ── PAGE HEADER ── */
+  .page-header{margin-bottom:32px;}
+  .page-title{font-family:var(--font-head);font-size:24px;font-weight:700;letter-spacing:-0.2px;margin-bottom:6px;}
+  .page-sub{color:var(--muted);font-size:14px;}
+
+  /* ── STATS ── */
+  .stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px;}
+  .stat-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;position:relative;overflow:hidden;}
+  .stat-card::before{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;opacity:0.07;}
+  .stat-card:nth-child(1)::before{background:var(--accent);}
+  .stat-card:nth-child(2)::before{background:var(--accent2);}
+  .stat-card:nth-child(3)::before{background:var(--success);}
+  .stat-card:nth-child(4)::before{background:var(--warning);}
+  .stat-card:nth-child(5)::before{background:#a06af7;}
+  .stat-value.purple{color:#a06af7;}
+  .stat-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:8px;}
+  .stat-value{font-family:var(--font-body);font-size:28px;font-weight:700;letter-spacing:0;line-height:1.1;}
+  .stat-value.blue{color:var(--accent);}.stat-value.orange{color:var(--accent2);}
+  .stat-value.green{color:var(--success);}  .stat-value.yellow{color:var(--warning);}
+  .stat-value.yellow2{color:var(--warning);}
+
+  /* ── TABLE ── */
+  .table-wrap{background:var(--surface);border:1px solid var(--border);border-radius:16px;overflow:hidden;}
+  .table-head{display:flex;justify-content:space-between;align-items:center;padding:20px 24px;border-bottom:1px solid var(--border);}
+  .table-title{font-family:var(--font-head);font-size:16px;font-weight:700;}
+  table{width:100%;border-collapse:collapse;}
+  thead tr{background:var(--surface2);}
+  th{padding:12px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;}
+  td{padding:13px 16px;font-size:13.5px;border-bottom:1px solid var(--border);}
+  #historial-table-wrap td:first-child,
+  #historial-table-wrap th:first-child { width:36px;padding:13px 4px;text-align:center; }
+  #hist-th-acciones { width:1%; white-space:nowrap; }
+  tr:last-child td{border-bottom:none;}
+  tr:hover td{background:rgba(255,255,255,0.02);}
+
+  /* ── BADGES ── */
+  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;}
+  .badge-diurna  {background:rgba(79,142,247,0.15);color:var(--accent);}
+  .badge-nocturna{background:rgba(147,100,247,0.15);color:#a06af7;}
+  .badge-festivo   {background:rgba(247,148,79,0.15);color:var(--accent2);}
+  .badge-festiva   {background:rgba(247,148,79,0.15);color:var(--accent2);}
+  .badge-dominical {background:rgba(247,79,148,0.15);color:#f06a9f;}
+  .badge-mixta     {background:rgba(247,212,79,0.15);color:var(--warning);}
+  .badge-transporte{background:rgba(79,190,150,0.15);color:var(--success);}
+  .badge-quincenal{background:rgba(79,190,150,0.15);color:var(--success);}
+  .badge-mensual {background:rgba(247,212,79,0.15);color:var(--warning);}
+  .badge-admin   {background:rgba(247,97,79,0.15);color:var(--danger);}
+.badge-rrhh    {background:rgba(79,142,247,0.15);color:var(--accent);}
+.badge-gerencia{background:rgba(247,148,79,0.15);color:var(--accent2);}
+.badge-consulta{background:rgba(79,190,150,0.15);color:var(--success);}
+  .badge-operador{background:rgba(156,156,156,0.15);color:var(--success);}
+  .badge-activo  {background:rgba(79,190,150,0.15);color:var(--success);}
+  .badge-inactivo{background:rgba(122,133,160,0.15);color:var(--muted);}
+  .badge-success{background:rgba(79,190,150,0.15);color:var(--success);}
+  .badge-danger{background:rgba(247,97,79,0.15);color:var(--danger);}
+  .badge-warning{background:rgba(247,212,79,0.15);color:var(--warning);}
+  .badge-delete{cursor:pointer;opacity:0.5;font-size:15px;line-height:1;transition:opacity 0.1s;}
+  .badge-delete:hover{opacity:1;}
+
+  /* ── BUTTONS ── */
+  .btn{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:9px;font-family:var(--font-body);font-size:13.5px;font-weight:500;cursor:pointer;border:none;transition:all 0.18s;}
+  .btn-primary{background:var(--accent);color:#fff;}
+  .btn-primary:hover{background:#3a7bf5;transform:translateY(-1px);}
+  .btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border);}
+  .btn-secondary:hover{background:var(--border);}
+  .btn-danger{background:var(--danger);color:#fff;border:1px solid var(--danger);}
+  .btn-danger:hover{background:#e53e3e;}
+  .btn-success{background:var(--success);color:#fff;border:1px solid var(--success);}
+  .btn-success:hover{background:#38a169;}
+  .btn-sm{padding:5px 12px;font-size:12px;}
+  .btn:disabled{opacity:0.5;cursor:not-allowed;transform:none!important;}
+
+  /* ── TAB FILTER BUTTONS (fb) ── */
+  .fb{display:inline-flex;align-items:center;gap:6px;padding:8px 16px;border-radius:8px;font-family:var(--font-body);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--border);background:var(--surface);color:var(--muted);transition:all 0.15s;}
+  .fb:hover{background:var(--surface2);color:var(--text);border-color:var(--accent);}
+  .fb.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+
+  /* ── FORMS ── */
+  .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;}
+  .form-group{display:flex;flex-direction:column;gap:7px;}
+  .form-group.full{grid-column:1/-1;}
+  label{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;}
+  input,select,textarea{background:var(--surface2);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:var(--font-body);font-size:14px;padding:11px 14px;outline:none;transition:border 0.2s;width:100%;}
+  input:focus,select:focus,textarea:focus{border-color:var(--accent);}
+  textarea{resize:vertical;min-height:80px;}
+  select option{background:var(--surface2);}
+  input[type=password]{letter-spacing:2px;}
+
+  /* ── MODAL ── */
+  .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:100;display:none;align-items:center;justify-content:center;}
+  .modal-overlay.open{display:flex;}
+  .modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:32px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;animation:slideUp 0.25s ease;}
+  .modal-title{font-family:var(--font-head);font-size:19px;font-weight:700;margin-bottom:24px;}
+  .modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;}
+
+  /* ── FILTERS ── */
+  .filters{display:flex;gap:12px;margin-bottom:20px;flex-wrap:wrap;}
+  .filters input,.filters select{width:auto;min-width:160px;}
+  #hist-filters .form-group { min-width:160px; flex:1 1 calc(33% - 12px); }
+
+  /* ── EMPLOYEE CARDS ── */
+  .emp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;}
+  .emp-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;transition:border-color 0.2s;}
+  .emp-card:hover{border-color:var(--accent);}
+  .emp-avatar{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-weight:800;font-size:16px;color:#fff;margin-bottom:12px;}
+  .emp-name{font-family:var(--font-head);font-size:15px;font-weight:700;margin-bottom:4px;}
+  .emp-dept{font-size:12px;color:var(--muted);margin-bottom:14px;}
+  .emp-stats{display:flex;gap:16px;}
+  .emp-stat{font-size:12px;color:var(--muted);}
+  .emp-stat strong{display:block;font-size:17px;font-family:var(--font-body);font-weight:700;color:var(--text);}
+  .emp-actions{display:flex;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+
+  /* ── REPORT ── */
+  .report-filters{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 24px;margin-bottom:20px;}
+  .report-summary{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-bottom:24px;}
+  .summary-item{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px 20px;}
+  .summary-item .label{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;word-break:break-word;overflow-wrap:break-word;}
+  .summary-item .val{font-family:var(--font-body);font-size:24px;font-weight:700;word-break:break-word;overflow-wrap:break-word;}
+
+  /* ── EMPTY / LOADING ── */
+  .empty{text-align:center;padding:60px 20px;color:var(--muted);}
+  .empty-icon{font-size:48px;margin-bottom:12px;}
+  .empty-text{font-size:14px;}
+  .loading{text-align:center;padding:40px;color:var(--muted);font-size:14px;}
+
+  /* ── TOAST ── */
+  .toast{position:fixed;bottom:28px;right:28px;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:14px 20px;font-size:14px;z-index:999;display:none;align-items:center;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,0.4);}
+  .toast.show{display:flex;animation:fadeIn 0.2s ease;}
+  .toast.success{border-color:var(--success);}
+  .toast.error{border-color:var(--danger);}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+  /* ── PERMISSION BANNER ── */
+  .perm-banner{background:rgba(247,212,79,0.08);border:1px solid rgba(247,212,79,0.2);border-radius:10px;padding:12px 16px;font-size:13px;color:var(--warning);margin-bottom:20px;display:none;}
+  .perm-banner.show{display:block;}
+
+  ::-webkit-scrollbar{width:6px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+  .actions-cell{display:flex;gap:6px;}
+  .chart-wrap{transition:all 0.3s ease;position:relative;}
+  .chart-wrap.expanded{grid-column:1/-1!important;}
+  .chart-wrap .chart-resize-btn{position:absolute;top:10px;right:12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:3px 8px;font-size:11px;cursor:pointer;color:var(--muted);z-index:10;transition:all 0.15s;}
+  .chart-wrap .chart-resize-btn:hover{color:var(--text);background:var(--border);}
+  .chart-wrap.expanded .chart-resize-btn{background:rgba(79,142,247,0.15);color:var(--accent);border-color:var(--accent);}
+  .nom-anio-header{cursor:pointer;user-select:none;transition:background 0.15s;border-radius:12px;}
+  .nom-anio-header:hover{background:var(--surface2);}
+  .nom-anio-body{overflow:hidden;transition:max-height 0.35s ease, opacity 0.3s ease;opacity:1;}
+  .nom-anio-body.collapsed{max-height:0!important;opacity:0;}
+  .nom-chevron{transition:transform 0.25s;display:inline-block;color:var(--muted);font-size:14px;line-height:1;}
+  .nom-chevron.collapsed{transform:rotate(-90deg);}
+
+  /* Widget período */
+  .periodo-winner {
+    background: linear-gradient(135deg, rgba(79,142,247,0.12), rgba(79,142,247,0.04));
+    border: 1px solid rgba(79,142,247,0.25);
+    border-radius: 12px;
+    padding: 16px 18px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .periodo-winner-name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .periodo-winner-horas {
+    font-size: 32px;
+    font-weight: 800;
+    color: var(--accent);
+    font-family: var(--font-head);
+    line-height: 1;
+  }
+  .periodo-winner-sub {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .periodo-runner {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .periodo-runner:last-child { border-bottom: none; }
+  .periodo-runner-rank {
+    font-size: 11px;
+    color: var(--muted);
+    min-width: 18px;
+    font-weight: 600;
+  }
+  .periodo-runner-bar-wrap {
+    flex: 1;
+    background: var(--surface2);
+    border-radius: 4px;
+    height: 6px;
+    overflow: hidden;
+  }
+  .periodo-runner-bar {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 4px;
+    opacity: 0.5;
+    transition: width 0.4s ease;
+  }
+  .periodo-runner-label {
+    font-size: 11px;
+    color: var(--muted);
+    min-width: 70px;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .periodo-runner-horas {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text);
+    min-width: 42px;
+    text-align: right;
+  }
+
+  /* ═══════════════════════════════════════════
+     RESPONSIVE — Tablet (≤768px) y Móvil (≤480px)
+  ═══════════════════════════════════════════ */
+
+  /* Botón hamburguesa */
+  .mob-hamburger {
+    display: none;
+    position: fixed;
+    top: 14px;
+    left: 14px;
+    z-index: 200;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    width: 40px;
+    height: 40px;
+    font-size: 18px;
+    cursor: pointer;
+    color: var(--text);
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+    transition: background 0.15s;
+  }
+  .mob-hamburger:hover { background: var(--surface2); }
+
+  /* Overlay oscuro detrás del sidebar */
+  .mob-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 99;
+    backdrop-filter: blur(2px);
+  }
+  .mob-overlay.visible { display: block; }
+
+  /* ── Tablet (481px – 768px) ── */
+  @media (max-width: 768px) {
+    .mob-hamburger { display: inline-flex; }
+    .main-topbar { top: 10px; right: 10px; }
+    .main { padding-right: 90px; }
+
+    .sidebar {
+      transform: translateX(-100%);
+      transition: transform 0.28s cubic-bezier(.4,0,.2,1);
+      z-index: 100;
+      width: 260px;
+    }
+    .sidebar.open { transform: translateX(0); }
+
+    .main {
+      margin-left: 0;
+      padding: 24px 16px 24px 16px;
+      padding-top: 64px;
+    }
+
+    .stats-row { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+
+    /* Ocultar logo en tablet/móvil dentro del sidebar */
+    .sidebar .logo, .sidebar.logo { display: none; }
+
+    .form-grid { grid-template-columns: 1fr; }
+    .form-group.full { grid-column: 1; }
+
+    .page-header { flex-direction: column; gap: 12px; align-items: flex-start !important; }
+    .page-header > div:last-child,
+    .page-header > button,
+    #nom-btns { width: 100%; }
+    #nom-btns { flex-wrap: wrap; }
+    #nom-btns .btn { flex: 1; justify-content: center; }
+
+    .table-head { flex-wrap: wrap; gap: 10px; padding: 14px 16px; }
+    .table-head .table-title { width: 100%; }
+
+    /* Gráficas en tablet: columna única */
+    #charts-grid-1, #charts-grid-2 {
+      grid-template-columns: 1fr !important;
+    }
+    .chart-wrap.expanded { grid-column: 1 !important; }
+
+    /* Filtros historial en columna */
+    #hist-filters { flex-wrap: wrap; gap: 8px; }
+    #hist-filters > * { flex: 1 1 calc(50% - 8px); min-width: 130px; }
+
+    /* Tablas: mejorar scroll en tablet */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .table-wrap table { min-width: 800px; }
+    /* Hacer tablas más compactas en tablet */
+    .table-wrap td, .table-wrap th { padding: 10px 12px; font-size: 13px; }
+    .table-wrap th { font-size: 10px; }
+
+    /* Summary reportes en 2 cols */
+    .summary-row { grid-template-columns: repeat(2, 1fr) !important; }
+
+    /* Modal más ancho */
+    .modal { width: 95vw !important; max-height: 90vh; overflow-y: auto; }
+
+    /* Empleados cards */
+    .emp-grid { grid-template-columns: 1fr 1fr !important; }
+  }
+
+  /* ── Móvil (≤480px) ── */
+  @media (max-width: 480px) {
+    .main { padding: 60px 12px 20px 12px; }
+
+    .stats-row { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+    .stat-card { padding: 14px; }
+    .stat-value { font-size: 28px !important; }
+
+    .page-title { font-size: 20px; }
+
+    /* Tablas → tarjetas apiladas en móvil */
+    .table-wrap { overflow-x: visible; }
+    .table-wrap table,
+    .table-wrap thead,
+    .table-wrap tbody,
+    .table-wrap th,
+    .table-wrap td,
+    .table-wrap tr { display: block; }
+
+    .table-wrap thead { display: none; }
+
+    .table-wrap tbody tr {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      margin-bottom: 12px;
+      padding: 12px 14px;
+      position: relative;
+    }
+
+    .table-wrap tbody td {
+      padding: 6px 0;
+      border: none;
+      font-size: 13px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .table-wrap tbody td::before {
+      content: attr(data-label);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: var(--muted);
+      min-width: 90px;
+      flex-shrink: 0;
+    }
+    /* Acciones al fondo derecha */
+    .table-wrap tbody td:last-child {
+      justify-content: flex-end;
+      margin-top: 6px;
+      padding-top: 8px;
+      border-top: 1px solid var(--border);
+    }
+    .table-wrap tbody td:last-child::before { display: none; }
+
+    .form-grid { grid-template-columns: 1fr; gap: 14px; }
+
+    .btn { padding: 9px 14px; font-size: 13px; }
+    .btn-sm { padding: 6px 10px; font-size: 11px; }
+
+    /* Gráficas a altura menor */
+    canvas { max-height: 240px; }
+
+    /* Summary reportes en 1 col */
+    .summary-row { grid-template-columns: 1fr !important; }
+
+    /* Empleados: 1 columna */
+    .emp-grid { grid-template-columns: 1fr !important; }
+
+    /* Filtros en columna */
+    #hist-filters { flex-direction: column; }
+    #hist-filters > * { width: 100%; }
+
+    /* Modal fullscreen */
+    .modal { width: 100vw !important; min-height: 100dvh; border-radius: 0 !important; margin: 0; }
+    .modal-overlay { align-items: flex-end; }
+
+    /* Nominas — botones apilados */
+    #nom-btns { flex-direction: column; }
+    #nom-btns .btn { width: 100%; justify-content: center; }
+
+    .table-head { padding: 12px; }
+    .table-title { font-size: 14px; }
+  }
+
+
+  /* ═══════════════════════════════════════════
+     DASHBOARD WIDGETS — Drag & Drop + Resize
+  ═══════════════════════════════════════════ */
+  .dash-grid {
+    display: grid;
+    grid-template-columns: repeat(12, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .widget {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 20px;
+    position: relative;
+    transition: box-shadow 0.2s, transform 0.15s, opacity 0.2s;
+    min-height: 260px;
+    display: flex;
+    flex-direction: column;
+  }
+  /* Tamaños: col-span en grid de 12 */
+  .widget.w-small  { grid-column: span 4; min-height: 280px; height: 280px; }
+  .widget.w-medium { grid-column: span 6; min-height: 340px; height: 340px; }
+  .widget.w-large  { grid-column: span 12; min-height: 420px; height: 420px; }
+
+  .widget-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 14px;
+    cursor: grab;
+    user-select: none;
+  }
+  .widget-header:active { cursor: grabbing; }
+  .widget-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .widget-controls {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    opacity: 0;
+    transition: opacity 0.15s;
+  }
+  .widget:hover .widget-controls { opacity: 1; }
+  /* Segmented size control */
+  .widget-controls {
+    display: flex;
+    align-items: center;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 3px;
+    gap: 2px;
+  }
+  .widget-btn {
+    background: transparent;
+    border: none;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--muted);
+    transition: all 0.15s;
+    line-height: 1.4;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    white-space: nowrap;
+  }
+  .widget-btn:hover { color: var(--text); background: var(--border); }
+  .widget-btn.active {
+    background: var(--accent);
+    color: #fff;
+    box-shadow: 0 1px 4px rgba(79,142,247,0.4);
+  }
+  .widget canvas { flex: 1; min-height: 0; }
+  #widget-ultimos { padding-bottom: 0; overflow: hidden; }
+  #widget-ultimos table { margin: 0; border-radius: 0 0 14px 14px; }
+
+  /* Drag states */
+  .widget.dragging {
+    opacity: 0.4;
+    transform: scale(0.97);
+    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+  }
+  .widget.drag-over {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(79,142,247,0.3);
+  }
+  .drag-hint {
+    font-size: 11px;
+    color: var(--muted);
+    text-align: right;
+    margin-bottom: 8px;
+    opacity: 0.6;
+  }
+
+  @media (max-width: 768px) {
+    .dash-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
+    .widget.w-small, .widget.w-medium, .widget.w-large { grid-column: span 2; }
+    .report-summary { grid-template-columns: repeat(2, 1fr) !important; }
+  }
+  @media (max-width: 480px) {
+    .dash-grid { grid-template-columns: 1fr; gap: 10px; }
+    .widget.w-small, .widget.w-medium, .widget.w-large { grid-column: span 1; }
+    .report-summary { grid-template-columns: 1fr !important; }
+  }
+  .spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.6s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+</style>
+</head>
+<body>
+
+<!-- APP -->
+<div id="app" style="display:none;">
+<!-- ══════════════════════════════════════════
+     APP SCREEN
+══════════════════════════════════════════ -->
+<div id="app-screen">
+  <div class="mob-overlay" id="mob-overlay" onclick="cerrarSidebar()"></div>
+   <nav class="sidebar" id="sidebar">
+     <div class="sidebar-toggle" id="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>
+     <div class="logo">💰 <span>Nómina</span></div>
+    <div class="user-info">
+      <div class="user-name" id="ui-nombre">—</div>
+      <div class="user-role" id="ui-email">—</div>
+      <div class="user-role" id="ui-sede" style="color:var(--accent);font-size:10px;margin-top:2px;">—</div>
+      <div class="role-badge" id="ui-rol-badge">—</div>
+    </div>
+    <div class="nav-menu">
+     <div class="nav-item active"  onclick="navigate('dashboard')"><span class="nav-icon">📊</span><span>Dashboard</span></div>
+     <div class="nav-item"         onclick="navigate('registro')" id="nav-registro" data-page="registro"><span class="nav-icon">➕</span><span>Registrar Novedades</span></div>
+     <div class="nav-item"         onclick="navigate('historial')" id="nav-historial"><span class="nav-icon">📋</span><span>Historial</span></div>
+     <div class="nav-item"         onclick="navigate('empleados')" data-page="empleados"><span class="nav-icon">👥</span><span>Empleados</span></div>
+     <div class="nav-item"         onclick="navigate('centros')" id="nav-centros" data-page="centros"><span class="nav-icon">🏢</span><span>Centros de Op.</span></div>
+     <div class="nav-item"         onclick="navigate('nomina')"   id="nav-nomina" data-page="nominas"><span class="nav-icon">💰</span><span>Períodos Nómina</span></div>
+      <div class="nav-item"         onclick="navigate('reportes')"><span class="nav-icon">📈</span><span>Reportes</span></div>
+      <div class="nav-item"         onclick="navigate('siesa')" id="nav-siesa" data-page="siesa" data-perm="siesa"><span class="nav-icon">📤</span><span>Exportar Siesa</span></div>
+      <div class="nav-item"         onclick="navigate('tipos')" id="nav-tipos" data-page="tipos"><span class="nav-icon">🏷️</span><span>Conceptos de Nómina</span></div>
+      <div class="nav-item" onclick="navigate('configuracion')" id="nav-configuracion" data-page="configuracion"><span class="nav-icon">⚙️</span><span>Configuración</span></div>
+    </div>
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="doLogout()" title="Cerrar sesión"><span class="nav-icon">⎋</span><span>Cerrar sesión</span></button>
+      <div style="margin-top:10px;text-align:center;font-size:10px;color:var(--muted);line-height:1.6;opacity:0.7;">
+        <div id="app-version">v— — HORIX</div>
+        <div>© 2026 Edgar Velasquez</div>
+        <div><a href="https://github.com/Kernel-Panic92/Horix" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">github.com/Kernel-Panic92/Horix</a></div>
+        <div>Todos los derechos reservados</div>
+      </div>
+    </div>
+  </nav>
+
+  <main class="main" id="main-content">
+    <button class="mob-hamburger" id="mob-hamburger" onclick="toggleSidebar()">☰</button>
+    <div class="main-topbar">
+      <button class="main-icon-btn" onclick="abrirManual()" title="Ayuda" style="font-weight:700;font-size:18px;">?</button>
+    </div>
+
+    <!-- DASHBOARD -->
+    <div class="page active" id="page-dashboard">
+      <div class="page-header">
+        <div class="page-title">Dashboard</div>
+        <div class="page-sub" id="dash-sub">Resumen general</div>
+      </div>
+      <div class="stats-row">
+        <div class="stat-card"><div class="stat-label">Total Horas Aprobadas</div><div class="stat-value blue"   id="dash-total">—</div></div>
+        <div class="stat-card"><div class="stat-label">Horas Este Mes</div>        <div class="stat-value orange" id="dash-mes">—</div></div>
+        <div class="stat-card"><div class="stat-label">Horas Este Año</div>        <div class="stat-value purple" id="dash-anio">—</div></div>
+        <div class="stat-card">        <div class="stat-label">Empleados con Novedades</div><div class="stat-value green"  id="dash-emp">—</div></div>
+        <div class="stat-card"><div class="stat-label">Horas Pendientes</div>     <div class="stat-value yellow" id="dash-pendientes">—</div></div>
+        <div class="stat-card"><div class="stat-label">Registros Rechazados</div>     <div class="stat-value red" id="dash-rechazados">—</div></div>
+        <div class="stat-card"><div class="stat-label">Registros Aprobados</div>     <div class="stat-value yellow2" id="dash-registros">—</div></div>
+        <div class="stat-card"><div class="stat-label">Valor COP Este Mes</div>     <div class="stat-value green" id="dash-valor-mes" style="font-size:14px;">—</div></div>
+        <div class="stat-card"><div class="stat-label">Valor COP Este Año</div>     <div class="stat-value green" id="dash-valor-anio" style="font-size:14px;">—</div></div>
+      </div>
+
+      <!-- GRÁFICAS WIDGETS -->
+      <div class="drag-hint">✥ Arrastra para reordenar · Usa S/M/G para cambiar tamaño</div>
+      <div class="dash-grid" id="dash-grid">
+        <div class="widget w-medium" id="widget-mes" draggable="true">
+          <div class="widget-header">
+            <div class="widget-title">📈 Horas por Mes — <span id="dash-chart-anio"></span></div>
+            <div class="widget-controls">
+              <button class="widget-btn" onclick="setWidgetSize('widget-mes','w-small','chart-mes')"  title="Pequeño"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/></svg> Pequeño</button>
+              <button class="widget-btn active" onclick="setWidgetSize('widget-mes','w-medium','chart-mes')" title="Mediano"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="1" width="5" height="8" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="1" width="5" height="8" rx="1" fill="currentColor"/></svg> Mediano</button>
+              <button class="widget-btn" onclick="setWidgetSize('widget-mes','w-large','chart-mes')"  title="Grande"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="0" width="12" height="10" rx="1" fill="currentColor"/></svg> Grande</button>
+            </div>
+          </div>
+          <canvas id="chart-mes"></canvas>
+        </div>
+        <div class="widget w-medium" id="widget-tipo" draggable="true">
+          <div class="widget-header">
+            <div class="widget-title">🕐 Distribución por Estado — <span id="dash-tipo-anio"></span></div>
+            <div class="widget-controls">
+              <button class="widget-btn" onclick="setWidgetSize('widget-tipo','w-small','chart-tipo')"  title="Pequeño"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/></svg> Pequeño</button>
+              <button class="widget-btn active" onclick="setWidgetSize('widget-tipo','w-medium','chart-tipo')" title="Mediano"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="1" width="5" height="8" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="1" width="5" height="8" rx="1" fill="currentColor"/></svg> Mediano</button>
+              <button class="widget-btn" onclick="setWidgetSize('widget-tipo','w-large','chart-tipo')"  title="Grande"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="0" width="12" height="10" rx="1" fill="currentColor"/></svg> Grande</button>
+            </div>
+          </div>
+          <canvas id="chart-tipo"></canvas>
+        </div>
+        <div class="widget w-medium" id="widget-sede" draggable="true">
+          <div class="widget-header">
+            <div class="widget-title">📍 Horas por Sede — <span id="dash-sede-anio"></span></div>
+            <div class="widget-controls">
+              <button class="widget-btn" onclick="setWidgetSize('widget-sede','w-small','chart-sede')"  title="Pequeño"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/></svg> Pequeño</button>
+              <button class="widget-btn active" onclick="setWidgetSize('widget-sede','w-medium','chart-sede')" title="Mediano"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="1" width="5" height="8" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="1" width="5" height="8" rx="1" fill="currentColor"/></svg> Mediano</button>
+              <button class="widget-btn" onclick="setWidgetSize('widget-sede','w-large','chart-sede')"  title="Grande"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="0" width="12" height="10" rx="1" fill="currentColor"/></svg> Grande</button>
+            </div>
+          </div>
+          <canvas id="chart-sede"></canvas>
+        </div>
+        <div class="widget w-medium" id="widget-top" draggable="true">
+          <div class="widget-header">
+            <div class="widget-title">🏆 Top 5 Empleados — <span id="dash-top-anio"></span></div>
+            <div class="widget-controls">
+              <button class="widget-btn" onclick="setWidgetSize('widget-top','w-small','chart-top')"  title="Pequeño"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/></svg> Pequeño</button>
+              <button class="widget-btn active" onclick="setWidgetSize('widget-top','w-medium','chart-top')" title="Mediano"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="1" width="5" height="8" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="1" width="5" height="8" rx="1" fill="currentColor"/></svg> Mediano</button>
+              <button class="widget-btn" onclick="setWidgetSize('widget-top','w-large','chart-top')"  title="Grande"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="0" width="12" height="10" rx="1" fill="currentColor"/></svg> Grande</button>
+            </div>
+          </div>
+          <canvas id="chart-top"></canvas>
+        </div>
+        <div class="widget w-medium" id="widget-periodo" draggable="true">
+          <div class="widget-header">
+            <div class="widget-title">📅 Período con más Horas — <span id="dash-periodo-anio"></span></div>
+            <div class="widget-controls">
+              <button class="widget-btn" onclick="setWidgetSize('widget-periodo','w-small',null)"  title="Pequeño"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/></svg> Pequeño</button>
+              <button class="widget-btn active" onclick="setWidgetSize('widget-periodo','w-medium',null)" title="Mediano"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="1" width="5" height="8" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="1" width="5" height="8" rx="1" fill="currentColor"/></svg> Mediano</button>
+              <button class="widget-btn" onclick="setWidgetSize('widget-periodo','w-large',null)"  title="Grande"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="0" width="12" height="10" rx="1" fill="currentColor"/></svg> Grande</button>
+            </div>
+          </div>
+          <div id="dash-periodo-content" style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:12px;"></div>
+        </div>
+        <div class="widget w-medium" id="widget-valorcop" draggable="true">
+          <div class="widget-header">
+            <div class="widget-title">💰 Valor COP por Mes — <span id="dash-valorcop-anio"></span></div>
+            <div class="widget-controls">
+              <button class="widget-btn" onclick="setWidgetSize('widget-valorcop','w-small','chart-valorcop')"  title="Pequeño"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/></svg> Pequeño</button>
+              <button class="widget-btn active" onclick="setWidgetSize('widget-valorcop','w-medium','chart-valorcop')" title="Mediano"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="1" width="5" height="8" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="1" width="5" height="8" rx="1" fill="currentColor"/></svg> Mediano</button>
+              <button class="widget-btn" onclick="setWidgetSize('widget-valorcop','w-large','chart-valorcop')"  title="Grande"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="0" width="12" height="10" rx="1" fill="currentColor"/></svg> Grande</button>
+            </div>
+          </div>
+          <canvas id="chart-valorcop"></canvas>
+        </div>
+      </div>
+
+      <div class="widget w-large" id="widget-ultimos" draggable="true" style="height:auto;min-height:unset;">
+        <div class="widget-header">
+          <div class="widget-title">📋 Últimos Registros</div>
+          <button class="btn btn-primary btn-sm" onclick="navigate('registro')" id="dash-btn-nuevo">+ Nuevo Registro</button>
+        </div>
+        <table><thead><tr><th>Empleado</th><th>Fecha</th><th>Creado</th><th>Horas</th><th>Tipo</th><th>Motivo</th><th>Estado</th></tr></thead>
+        <tbody id="dash-table-body"><tr><td colspan="7"><div class="loading">Cargando...</div></td></tr></tbody></table>
+      </div>
+    </div>
+
+    <!-- REGISTRO -->
+    <div class="page" id="page-registro">
+      <div class="page-header">
+        <div class="page-title">Registrar Novedades</div>
+        <div class="page-sub">Ingresa el detalle de las novedades del empleado</div>
+      </div>
+      <div class="table-wrap" style="padding:28px 32px;">
+        <div class="form-grid">
+          <div class="form-group" style="position:relative;" id="reg-emp-wrap">
+            <label>Empleado *</label>
+            <input type="text" id="reg-emp-search" placeholder="Escribe nombre o cargo..." autocomplete="off"
+              oninput="filtrarEmpleados()" onfocus="filtrarEmpleados()"
+              style="padding-right:32px;"/>
+            <span style="position:absolute;right:12px;top:34px;color:var(--muted);pointer-events:none;font-size:11px;">▾</span>
+            <input type="hidden" id="reg-empleado"/>
+            <div id="reg-emp-dropdown" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:var(--surface2);border:1px solid var(--border);border-radius:9px;z-index:200;max-height:240px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.4);"></div>
+          </div>
+          <div class="form-group"><label>Sede</label><input type="text" id="reg-sede" readonly placeholder="Se completa al elegir empleado" style="background:var(--surface2);color:var(--muted);cursor:default;opacity:0.8;"/></div>
+          <div class="form-group"><label>Período de Nómina *</label><select id="reg-nomina"><option value="">Seleccionar...</option></select></div>
+          <div class="form-group"><label>Fecha *</label><input type="date" id="reg-fecha" max=""/><script nonce="__NONCE__">document.getElementById('reg-fecha').max=new Date().toISOString().split('T')[0];</script></div>
+          <div class="form-group" id="wrap-horas"><label>Horas Laboradas * <span style="font-weight:400;color:var(--muted);font-size:12px;">(HH:mm, máx. 12h)</span></label><input type="text" id="reg-horas" placeholder="HH:mm" inputmode="numeric" onblur="validarHoraInput(this)" onfocus="document.getElementById('reg-horas-err').style.display='none'"/><small id="reg-horas-err" style="color:var(--danger);display:none;margin-top:4px;"></small></div>
+          <div class="form-group"><label>Tipo *</label>
+<select id="reg-tipo" onchange="onTipoChange()"></select>
+          </div>
+          <div class="form-group" id="wrap-transporte" style="display:none;">
+            <label>Valor (COP) *</label>
+            <input type="number" id="reg-transporte" placeholder="Ej: 15000" min="0" step="100"/>
+            <small style="color:var(--muted);font-size:11px;margin-top:4px;display:block;">Ingresa el valor en pesos colombianos</small>
+          </div>
+          <div class="form-group full"><label>Motivo / Descripción *</label><textarea id="reg-motivo" placeholder="Describe el motivo o actividad realizada..."></textarea></div>
+          <div class="form-group full"><label>Observaciones</label><textarea id="reg-observaciones" placeholder="Observaciones adicionales (opcional)..." style="min-height:80px;"></textarea></div>
+          <div class="form-group full">
+            <label>Archivos Adjuntos <span style="font-weight:400;color:var(--muted);font-size:12px;">(Opcional · PDF, imágenes, Word, Excel · máx. 10 MB c/u)</span></label>
+            <div id="adjuntos-drop-zone" onclick="document.getElementById('adjuntos-input').click()"
+              style="border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:border-color 0.2s;background:var(--surface2);"
+              ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+              ondragleave="this.style.borderColor='var(--border)'"
+              ondrop="onAdjuntosDrop(event)">
+              <div style="font-size:22px;margin-bottom:6px;">📎</div>
+              <div style="font-size:13px;color:var(--muted);">Clic o arrastra archivos aquí</div>
+            </div>
+            <input type="file" id="adjuntos-input" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt,.csv" style="display:none;" onchange="onAdjuntosSelect(event)"/>
+            <div id="adjuntos-lista" style="margin-top:10px;display:flex;flex-direction:column;gap:6px;"></div>
+          </div>
+        </div>
+        <div style="margin-top:24px;display:flex;gap:10px;">
+          <button class="btn btn-primary" id="btn-guardar-reg" onclick="guardarRegistro()">✓ Guardar Registro</button>
+          <button class="btn btn-secondary" onclick="limpiarFormulario()">✕ Limpiar</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- HISTORIAL -->
+    <div class="page" id="page-historial">
+      <div class="page-header">
+        <div class="page-title">Historial de Novedades</div>
+        <div class="page-sub">Consulta y gestión de todos los registros</div>
+      </div>
+      <div class="filters" id="hist-filters">
+        <div class="form-group">
+          <label>Buscar Empleado</label>
+          <input type="text" id="fil-buscar" placeholder="🔍 Buscar empleado..." oninput="renderHistorial()"/>
+        </div>
+        <div class="form-group">
+          <label>Período de Nómina</label>
+          <select id="fil-nomina" onchange="renderHistorial()"><option value="">Todos los períodos</option></select>
+        </div>
+        <div class="form-group">
+          <label>Tipo de Hora</label>
+          <select id="fil-tipo" data-placeholder="Todos los tipos" data-activos="false" onchange="renderHistorial()"></select>
+        </div>
+        <div class="form-group">
+          <label>Centro de Operación</label>
+          <select id="fil-sede" onchange="renderHistorial()" class="sede-filter-admin"><option value="">Todos los centros</option></select>
+        </div>
+        <div class="form-group">
+          <label>Empleado</label>
+          <select id="fil-empleado" onchange="renderHistorial()"><option value="">Todos los empleados</option></select>
+        </div>
+        <div class="form-group">
+          <label>Estado</label>
+          <select id="fil-estado" onchange="renderHistorial()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="aprobado">Aprobado</option><option value="rechazado">Rechazado</option></select>
+        </div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span id="hist-counter" style="font-size:0.85rem;color:var(--muted);"></span>
+      </div>
+      <div class="table-wrap" id="historial-table-wrap">
+        <div class="table-head" id="hist-batch-bar" style="display:none;">
+          <div class="table-title"><span id="hist-selected-count">0</span> seleccionados</div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-sm btn-success" onclick="aprobarMasivo(true)">✓ Aprobar</button>
+            <button class="btn btn-sm btn-danger" onclick="aprobarMasivo(false)">✗ Rechazar</button>
+            <button class="btn btn-sm btn-secondary" onclick="limpiarSeleccionHist()" title="Limpiar selección">✕ Limpiar</button>
+          </div>
+        </div>
+        <table><thead><tr><th style="width:36px;"><input type="checkbox" id="hist-select-all" onchange="toggleSeleccionHist()"></th><th id="hist-th-nombre" onclick="ordenarHistorial('nombre')" style="cursor:pointer;user-select:none;">Empleado</th><th id="hist-th-fecha" onclick="ordenarHistorial('fecha')" style="cursor:pointer;user-select:none;">Fecha</th><th id="hist-th-creado" onclick="ordenarHistorial('creado')" style="cursor:pointer;user-select:none;">Creado</th><th id="hist-th-horas" onclick="ordenarHistorial('horas')" style="cursor:pointer;user-select:none;">Horas</th><th id="hist-th-tipo">Tipo</th><th style="width:100px;">Valor COP</th><th style="width:100px;">Estado</th><th id="hist-th-acciones" style="width:1%;white-space:nowrap;">Acciones</th></tr></thead>
+        <div id="hist-page-size-bar" style="display:none;justify-content:flex-end;padding:6px 16px;">
+          <label style="font-size:13px;color:var(--muted);">Mostrar
+            <select id="hist-page-size" onchange="cambiarPageSize()" style="width:auto;display:inline-block;padding:4px 8px;font-size:13px;margin:0 4px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);outline:none;cursor:pointer;">
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100" selected>100</option>
+              <option value="200">200</option>
+            </select> registros
+          </label>
+        </div>
+        <tbody id="hist-body"></tbody></table>
+        <div id="hist-pagination" style="display:none;justify-content:center;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid var(--border);font-size:13px;color:var(--muted);">
+          <button class="btn btn-sm btn-secondary" id="hist-prev-btn" onclick="paginaHistorial(-1)" style="padding:5px 12px;">← Anterior</button>
+          <span id="hist-page-info">Página 1 de 1</span>
+          <button class="btn btn-sm btn-secondary" id="hist-next-btn" onclick="paginaHistorial(1)" style="padding:5px 12px;">Siguiente →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EMPLEADOS -->
+    <div class="page" id="page-empleados">
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div><div class="page-title">Empleados</div><div class="page-sub">Gestión del directorio de empleados</div></div>
+        <div style="display:flex;gap:8px;">
+  <button class="btn btn-secondary" id="btn-importar-emp" onclick="abrirModalImportarEmp()" style="display:none;">📥 Importar CSV</button>
+  <button class="btn btn-primary" id="btn-nuevo-emp" onclick="abrirModalEmpleado()">+ Nuevo Empleado</button>
+</div>
+      </div>
+      <div style="margin-bottom:18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <div style="position:relative;flex:1;min-width:200px;max-width:380px;">
+          <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none;">🔍</span>
+          <input type="text" id="emp-search" placeholder="Buscar por nombre, cargo, departamento..." 
+            oninput="buscarEmpleados()"
+            style="width:100%;padding:9px 12px 9px 36px;background:var(--surface);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:var(--font-body);font-size:13.5px;outline:none;box-sizing:border-box;transition:border-color 0.2s;"
+            onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="limpiarFiltroEmpleados()">🗑️ Limpiar</button>
+        <div id="emp-count" style="font-size:12px;color:var(--muted);white-space:nowrap;"></div>
+      </div>
+      <div class="perm-banner" id="emp-perm-banner">👁 Modo consulta — no puedes editar ni eliminar empleados.</div>
+      <div class="perm-banner" id="emp-corruptos-banner" style="display:none;border-color:var(--danger);background:rgba(247,97,79,0.08);">
+        <span id="emp-corruptos-msg"></span>
+        <button class="btn btn-sm btn-danger" onclick="filtrarCorruptos()" style="margin-left:auto;">Mostrar afectados</button>
+      </div>
+      <div class="emp-grid" id="emp-grid"></div>
+    </div>
+
+    <!-- NÓMINA -->
+    <div class="page" id="page-nomina">
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div><div class="page-title">Períodos de Nómina</div><div class="page-sub">Administra los cortes de liquidación</div></div>
+        <div style="display:flex;gap:10px;" id="nom-btns">
+          <button class="btn btn-secondary" id="btn-generar-nom" onclick="abrirModalGenerarNomina()">⚡ Generar Año</button>
+          <button class="btn btn-primary"   id="btn-nuevo-nom"   onclick="abrirModalNomina()">+ Nuevo Período</button>
+        </div>
+      </div>
+      <div id="nomina-container"></div>
+    </div>
+
+    <!-- REPORTES -->
+    <div class="page" id="page-reportes">
+      <div class="page-header"><div class="page-title">Reportes</div><div class="page-sub">Análisis detallado por empleado y período</div></div>
+      <div class="report-filters">
+        <div style="font-family:var(--font-head);font-weight:700;font-size:15px;">Filtrar Reporte</div>
+        <div class="form-grid" style="margin-top:14px;grid-template-columns:1fr 1fr 1fr 1fr;">
+          <div class="form-group" style="position:relative;" id="rpt-emp-wrap">
+            <label>Empleado</label>
+            <input type="text" id="rpt-emp-search" placeholder="Todos los empleados..." autocomplete="off"
+              oninput="filtrarEmpleadosRpt()" onfocus="filtrarEmpleadosRpt()"
+              style="padding-right:32px;"/>
+            <span style="position:absolute;right:12px;top:34px;color:var(--muted);pointer-events:none;font-size:11px;">▾</span>
+            <input type="hidden" id="rpt-empleado"/>
+            <div id="rpt-emp-dropdown" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:var(--surface2);border:1px solid var(--border);border-radius:9px;z-index:200;max-height:240px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.4);"></div>
+          </div>
+          <div class="form-group" style="position:relative;" id="rpt-nom-wrap">
+            <label>Período de Nómina</label>
+            <input type="text" id="rpt-nom-search" placeholder="Todos los períodos..." autocomplete="off"
+              oninput="filtrarNominasRpt()" onfocus="filtrarNominasRpt()"
+              style="padding-right:32px;"/>
+            <span style="position:absolute;right:12px;top:34px;color:var(--muted);pointer-events:none;font-size:11px;">▾</span>
+            <input type="hidden" id="rpt-nomina"/>
+            <div id="rpt-nom-dropdown" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:var(--surface2);border:1px solid var(--border);border-radius:9px;z-index:200;max-height:240px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.4);"></div>
+          </div>
+          <div class="form-group">
+            <label>Rango de Fechas</label>
+            <select id="rpt-rango" onchange="onRptRangoChange()">
+              <option value="mes">Último mes</option>
+              <option value="semana">Última semana</option>
+              <option value="quincena">Última quincena</option>
+              <option value="anio">Último año</option>
+              <option value="todo">Todo</option>
+              <option value="personalizado">Personalizado</option>
+            </select>
+          </div>
+          <div class="form-group" id="rpt-grp-desde" style="display:none;">
+            <label>Fecha Desde</label>
+            <input type="date" id="rpt-fecha-desde" onchange="renderReporte()">
+          </div>
+          <div class="form-group" id="rpt-grp-hasta" style="display:none;">
+            <label>Fecha Hasta</label>
+            <input type="date" id="rpt-fecha-hasta" onchange="renderReporte()">
+          </div>
+          <div class="form-group">
+            <label>Sede</label>
+            <select id="rpt-sede" onchange="renderReporte()"><option value="">Todos los centros</option></select>
+          </div>
+          <div class="form-group">
+            <label>Tipo de Hora</label>
+            <select id="rpt-tipo" data-placeholder="Todos los tipos" data-activos="false" onchange="renderReporte()"></select>
+          </div>
+          <div class="form-group">
+            <label>Estado</label>
+            <select id="rpt-estado" onchange="renderReporte()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="aprobado">Aprobado</option><option value="rechazado">Rechazado</option></select>
+          </div>
+          <div class="form-group">
+            <label>Vinculación</label>
+            <select id="rpt-vinculo" onchange="renderReporte()"><option value="">Todas</option><option value="vinculado">Vinculado</option><option value="temporal">Temporal</option></select>
+          </div>
+        </div>
+        <div style="margin-top:12px;display:flex;gap:8px;">
+          <button class="btn btn-secondary btn-sm" onclick="limpiarFiltrosReporte()">🗑️ Limpiar filtros</button>
+        </div>
+      </div>
+      <div class="report-summary">
+        <div class="summary-item"><div class="label">Total Horas</div><div class="val" id="rpt-total">0</div></div>
+        <div class="summary-item"><div class="label">Total Valor COP</div><div class="val" id="rpt-transporte" style="color:var(--success);font-size:18px;">$0</div></div>
+        <div class="summary-item"><div class="label">Aprobados</div><div class="val" id="rpt-aprobados" style="color:var(--success)">0</div></div>
+        <div class="summary-item"><div class="label">Rechazados</div><div class="val" id="rpt-rechazados" style="color:var(--danger)">0</div></div>
+        <div class="summary-item"><div class="label">Pendientes</div><div class="val" id="rpt-pendientes" style="color:var(--warning)">0</div></div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span id="rpt-counter" style="font-size:0.85rem;color:var(--muted);"></span>
+      </div>
+      <div class="table-wrap">
+        <div class="table-head">
+          <div class="table-title">Detalle</div>
+          <button class="btn btn-success btn-sm" onclick="exportarCSV('reporte')">📥 Exportar</button>
+        </div>
+        <div id="rpt-page-size-bar" style="display:none;justify-content:flex-end;padding:6px 16px;">
+          <label style="font-size:13px;color:var(--muted);">Mostrar
+            <select id="rpt-page-size" onchange="cambiarPageSizeRpt()" style="width:auto;display:inline-block;padding:4px 8px;font-size:13px;margin:0 4px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);outline:none;cursor:pointer;">
+              <option value="25">25</option>
+              <option value="50">50</option>
+              <option value="100" selected>100</option>
+              <option value="200">200</option>
+            </select> registros
+          </label>
+        </div>
+        <table style="min-width:800px;"><thead><tr><th id="rpt-th-nombre" onclick="ordenarReporte('nombre')" style="cursor:pointer;user-select:none;">Empleado</th><th id="rpt-th-fecha" onclick="ordenarReporte('fecha')" style="cursor:pointer;user-select:none;">Fecha</th><th id="rpt-th-creado" onclick="ordenarReporte('creado')" style="cursor:pointer;user-select:none;">Creado</th><th id="rpt-th-horas" onclick="ordenarReporte('horas')" style="cursor:pointer;user-select:none;">Horas</th><th>Tipo</th><th>Valor COP</th><th>Estado</th></tr></thead>
+        <tbody id="rpt-body"></tbody></table>
+        <div id="rpt-pagination" style="display:none;justify-content:center;align-items:center;gap:10px;padding:12px 16px;border-top:1px solid var(--border);font-size:13px;color:var(--muted);">
+          <button class="btn btn-sm btn-secondary" id="rpt-prev-btn" onclick="paginaReporte(-1)" style="padding:5px 12px;">← Anterior</button>
+          <span id="rpt-page-info">Página 1 de 1</span>
+          <button class="btn btn-sm btn-secondary" id="rpt-next-btn" onclick="paginaReporte(1)" style="padding:5px 12px;">Siguiente →</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- EXPORTAR SIESA NÓMINA WEB -->
+    <div class="page" id="page-siesa">
+      <div class="page-header">
+        <div class="page-title">Exportar Novedades a Siesa</div>
+        <div class="page-sub">Genera archivo plano (.xlsx) para importar novedades a Siesa Nómina Web</div>
+      </div>
+      <div class="filters">
+        <label style="font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;width:100%;">Filtros</label>
+        <select id="sie-concepto" onchange="cargarSiesa()">
+          <option value="">Todos los conceptos</option>
+          <option value="005">005 RECARGO NOCTURNO</option>
+          <option value="006">006 HORA EXTRA DIURNA</option>
+          <option value="007">007 HORA EXTRA NOCTURNA</option>
+          <option value="008">008 HORA DOMINICAL/FESTIVA DIURNA COMPENSADA</option>
+          <option value="009">009 HORA DOMINICAL/FESTIVA NOCTURNA COMPENSADA</option>
+          <option value="010">010 HORA DOMINICAL/FESTIVA DIURNA NO COMPENSADA</option>
+          <option value="011">011 HORA DOMINICAL/FESTIVA NOCTURNA NO COMPENSADA</option>
+          <option value="012">012 HORA EXTRA DOMINICAL/FESTIVA DIURNA</option>
+          <option value="013">013 HORA EXTRA DOMINICAL/FESTIVA NOCTURNA</option>
+          <option value="202">202 RECONOCIMIENTO DE TRANSPORTE</option>
+          <option value="621">621 BONIFICACION CAVERO</option>
+          <option value="222">222 AUXILIO DE COMUNICACION</option>
+        </select>
+        <select id="sie-vinculo" onchange="cargarSiesa()">
+          <option value="">Todas las vinculaciones</option>
+          <option value="vinculado">Vinculado</option>
+          <option value="temporal">Temporal</option>
+        </select>
+        <select id="sie-nomina" onchange="cargarSiesa()">
+          <option value="">Todos los períodos</option>
+        </select>
+        <button class="btn btn-primary" onclick="exportarSiesa()">📥 Exportar .xlsx</button>
+      </div>
+      <div class="table-wrap">
+        <div class="table-head">
+          <div class="table-title">Vista previa</div>
+          <span id="sie-count" style="font-size:13px;color:var(--muted);"></span>
+        </div>
+        <div style="overflow-x:auto;">
+          <table><thead><tr><th>Empleado</th><th>Cédula</th><th>Sede</th><th>Concepto</th><th>Horas</th><th>Valor COP</th><th>Estado</th></tr></thead>
+          <tbody id="sie-body"></tbody></table>
+        </div>
+      </div>
+    </div>
+
+    <!-- CENTROS DE OPERACIÓN -->
+    <div class="page" id="page-centros">
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div><div class="page-title">Centros de Operación</div><div class="page-sub">Gestiona las sedes o ubicaciones de tu organización</div></div>
+        <button class="btn btn-primary" onclick="abrirModalCentro()" id="btn-nuevo-centro">+ Nuevo Centro</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Nombre</th><th>Estado</th><th>Creado</th><th>Empleados</th><th>Acciones</th></tr></thead>
+        <tbody id="centros-body"></tbody></table>
+      </div>
+    </div>
+
+    <!-- USUARIOS -->
+    <div class="page" id="page-usuarios">
+      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
+        <div><div class="page-title">Gestión de Usuarios</div><div class="page-sub">Solo el administrador puede gestionar accesos</div></div>
+        <button class="btn btn-primary" onclick="abrirModalUsuario()">+ Nuevo Usuario</button>
+      </div>
+      <div class="filters">
+        <label style="font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;width:100%;">Filtros</label>
+        <input type="text" id="usr-buscar" placeholder="🔍 Buscar nombre o correo..." oninput="filtrarUsuarios()"/>
+        <select id="usr-fil-rol" onchange="filtrarUsuarios()"><option value="">Todos los roles</option><option value="admin">Administrador</option><option value="rrhh">RRHH</option><option value="gerencia">Gerencia</option><option value="operador">Operador</option><option value="consulta">Consulta</option></select>
+        <select id="usr-fil-sede" onchange="filtrarUsuarios()"><option value="">Todas las sedes</option></select>
+        <select id="usr-fil-estado" onchange="filtrarUsuarios()"><option value="">Todos los estados</option><option value="1">Activo</option><option value="0">Inactivo</option></select>
+        <button class="btn btn-secondary btn-sm" onclick="filtrarUsuarios();limpiarFiltrosUsuario()">🧹 Limpiar</button>
+      </div>
+      <div class="table-wrap">
+        <table><thead><tr><th>Nombre</th><th>Correo</th><th>Rol</th><th>Sede</th><th>Estado</th><th>Creado</th><th>Acciones</th></tr></thead>
+        <tbody id="usuarios-body"></tbody></table>
+      </div>
+    </div>
+
+    <!-- TIPOS DE HORA -->
+    <div class="page" id="page-tipos">
+      <div class="page-header">
+        <div class="page-title">🏷️ Conceptos de Nómina</div>
+        <div class="page-sub">Gestiona los conceptos de nómina disponibles</div>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:18px;">
+        <span id="tipos-counter" style="font-size:0.85rem;color:var(--muted);"></span>
+        <button class="btn btn-primary" onclick="abrirModalTipo()">+ Nuevo Tipo</button>
+      </div>
+      <div class="table-wrap" id="tipos-table-wrap">
+        <div id="tipos-body" style="padding:20px 24px;font-size:13px;color:var(--muted);text-align:center;">Cargando...</div>
+      </div>
+    </div>
+
+    <!-- CONFIGURACIÓN -->
+    <div class="page" id="page-configuracion">
+      <div class="page-header"><div><div class="page-title">Configuración</div><div class="page-sub">Parámetros del sistema</div></div></div>
+      <div id="cfg-tab-bar" style="display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap"></div>
+      <div id="cfg-content">Cargando...</div>
+    </div>
+  </main>
+</div>
+
+<!-- MODAL ROL -->
+<div class="modal-overlay" id="modal-rol">
+  <div class="modal" style="width:400px;">
+    <div class="modal-title">➕ Nuevo Rol</div>
+    <div id="form-rol"><div class="form-group">
+      <label>Nombre del Rol *</label>
+      <input type="text" id="rol-nombre" placeholder="Ej: supervisor, auditor..." maxlength="30"/>
+      <div style="font-size:11px;color:var(--muted);margin-top:4px;">Se creará sin permisos. Asígnalos desde la tabla.</div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-rol')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-guardar-rol" onclick="guardarNuevoRol()">Crear Rol</button>
+    </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CENTRO -->
+<div class="modal-overlay" id="modal-centro">
+  <div class="modal" style="width:420px;">
+    <div class="modal-title" id="modal-centro-title">Nuevo Centro de Operación</div>
+    <input type="hidden" id="centro-id"/>
+    <div id="form-centro"><div class="form-group">
+      <label>Nombre del Centro *</label>
+      <input type="text" id="centro-nombre" placeholder="Ej: Sede Principal, Planta Norte..."/>
+    </div>
+    <div class="form-group" id="centro-activo-group" style="display:none;">
+      <label>Estado</label>
+      <select id="centro-activo"><option value="1">Activo</option><option value="0">Inactivo</option></select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-centro')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-guardar-centro" onclick="guardarCentro()">Guardar</button>
+    </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL IMPORTAR EMPLEADOS -->
+<div class="modal-overlay" id="modal-importar-emp">
+  <div class="modal" style="width:480px;">
+    <div class="modal-title">📥 Importar Empleados desde CSV</div>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:16px;line-height:1.6;">
+      Sube un archivo <strong style="color:var(--text)">.csv</strong> con los empleados a importar.
+      Se omitirán automáticamente los que ya existan por cédula.
+    </p>
+    <div style="background:var(--surface2);border-radius:9px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:var(--muted);">
+      <div style="font-weight:600;color:var(--text);margin-bottom:6px;">Columnas requeridas:</div>
+      <code style="color:var(--accent)">nombre, cedula, cargo, departamento, sede</code>
+      <div style="margin-top:4px;">Opcionales: <code style="color:var(--accent)">email, telefono</code></div>
+      <div style="margin-top:8px;">💡 Puedes usar el CSV de empleados generado por el Backup como plantilla.</div>
+    </div>
+    <div id="imp-drop" onclick="document.getElementById('imp-file').click()"
+      style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;margin-bottom:12px;transition:border-color 0.2s;"
+      onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"
+      ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
+      ondragleave="this.style.borderColor='var(--border)'"
+      ondrop="handleImpDrop(event)">
+      <div style="font-size:28px;margin-bottom:6px;">📂</div>
+      <div style="font-size:13px;color:var(--muted);">Clic o arrastra tu archivo <strong style="color:var(--text)">.csv</strong></div>
+      <div id="imp-filename" style="margin-top:6px;font-size:12px;color:var(--accent);display:none;"></div>
+    </div>
+    <input type="file" id="imp-file" accept=".csv" style="display:none"/>
+    <div id="imp-resultado" style="display:none;margin-bottom:12px;padding:12px 14px;border-radius:9px;font-size:13px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-importar-emp')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-importar" onclick="confirmarImportarEmp()" disabled style="opacity:0.5;">📥 Importar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EMPLEADO -->
+<div class="modal-overlay" id="modal-empleado">
+  <div class="modal">
+    <div class="modal-title" id="modal-emp-title">Nuevo Empleado</div>
+    <div id="form-empleado"><div class="form-grid">
+      <div class="form-group"><label>Nombre Completo *</label><input type="text" id="emp-nombre" placeholder="Nombre y apellido"/></div>
+      <div class="form-group"><label>Cédula / ID *</label><input type="text" id="emp-cedula" placeholder="Número de documento"/></div>
+      <div class="form-group"><label>Cargo *</label><input type="text" id="emp-cargo" placeholder="Título del cargo"/></div>
+      <div class="form-group"><label>Departamento *</label><input type="text" id="emp-depto" placeholder="Área o departamento"/></div>
+      <div class="form-group"><label>Correo</label><input type="email" id="emp-email" placeholder="correo@empresa.com"/></div>
+      <div class="form-group"><label>Teléfono</label><input type="text" id="emp-tel" placeholder="Número de contacto"/></div>
+      <div class="form-group"><label>Tipo Vinculación</label><select id="emp-tipo-vinculacion"><option value="vinculado">Vinculado</option><option value="temporal">Temporal</option></select></div>
+      <div class="form-group"><label>Sede *</label><select id="emp-sede"><option value="">Seleccionar centro...</option></select></div>
+      <div class="form-group full" id="emp-activo-group" style="display:none;"><label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-weight:400;padding:6px 0;"><input type="checkbox" id="emp-activo" checked style="width:16px;height:16px;margin:0;"/><span>Empleado activo</span></label></div>
+    </div></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-empleado')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-guardar-emp" onclick="guardarEmpleado()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL GENERAR PERÍODOS -->
+<div class="modal-overlay" id="modal-generar-nom">
+  <div class="modal" style="width:460px;">
+    <div class="modal-title">⚡ Generar Períodos del Año</div>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:20px;line-height:1.6;">
+      Crea automáticamente todos los períodos del año seleccionado según el tipo elegido.
+    </p>
+    <div class="form-grid">
+      <div class="form-group">
+        <label>Año *</label>
+        <select id="gen-anio"></select>
+      </div>
+      <div class="form-group">
+        <label>Tipo *</label>
+        <select id="gen-tipo">
+          <option value="quincenal">Quincenal (24 períodos)</option>
+          <option value="mensual">Mensual (12 períodos)</option>
+        </select>
+      </div>
+    </div>
+    <div id="gen-preview" style="margin-top:16px;background:var(--surface2);border-radius:10px;padding:14px 16px;font-size:12px;color:var(--muted);max-height:180px;overflow-y:auto;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-generar-nom')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-confirmar-generar" onclick="confirmarGenerarNomina()">⚡ Generar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL NÓMINA -->
+<div class="modal-overlay" id="modal-nomina">
+  <div class="modal">
+    <div class="modal-title">Nuevo Período de Nómina</div>
+    <div class="form-grid">
+      <div class="form-group full"><label>Nombre del Período *</label><input type="text" id="nom-nombre" placeholder="Ej: Quincena 1 - Enero 2025"/></div>
+      <div class="form-group"><label>Tipo *</label><select id="nom-tipo"><option value="quincenal">Quincenal</option><option value="mensual">Mensual</option></select></div>
+      <div class="form-group"></div>
+      <div class="form-group"><label>Fecha Inicio *</label><input type="date" id="nom-inicio"/></div>
+      <div class="form-group"><label>Fecha Fin *</label><input type="date" id="nom-fin"/></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-nomina')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-guardar-nom" onclick="guardarNomina()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL USUARIO -->
+<div class="modal-overlay" id="modal-usuario">
+  <div class="modal">
+    <div class="modal-title" id="modal-usr-title">Nuevo Usuario</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Nombre Completo *</label><input type="text" id="usr-nombre" placeholder="Nombre del usuario"/></div>
+      <div class="form-group"><label>Correo Electrónico *</label><input type="email" id="usr-email" placeholder="correo@empresa.com"/></div>
+      <div class="form-group" id="usuario-password-group" style="display:block;">
+        <label>Contraseña *</label><input type="password" id="usuario-password" placeholder="Mín. 8 caracteres"/>
+      </div>
+      <div class="form-group"><label>Rol *</label>
+        <select id="usr-rol">
+          <option value="operador">Operador — Ver su sede</option>
+          <option value="consulta">Consulta — Solo lectura</option>
+          <option value="gerencia">Gerencia — Aprobar registros</option>
+          <option value="rrhh">RRHH — Registrar y editar</option>
+          <option value="admin">Admin — Acceso total</option>
+        </select>
+      </div>
+      <div class="form-group"><label>Sede *</label><select id="usr-sede"><option value="">Seleccionar centro...</option></select></div>
+      <div class="form-group" id="usr-activo-group" style="display:none;">
+        <label>Estado</label>
+        <select id="usr-activo"><option value="1">Activo</option><option value="0">Inactivo</option></select>
+      </div>
+    </div>
+    <div style="margin-top:16px;padding:12px 14px;background:var(--surface2);border-radius:9px;font-size:12px;color:var(--muted);">
+      <strong style="color:var(--text);">Roles:</strong>
+      <span style="color:var(--danger)"> Admin</span> — acceso total, gestión de usuarios.
+      <span style="color:var(--accent)"> RRHH</span> — puede registrar y editar horas, empleados y nóminas.
+      <span style="color:var(--success)"> Consulta</span> — solo visualiza y exporta reportes.
+      <span style="color:var(--warning)"> Operador</span> — ve solo los registros de su sede.
+    </div>
+    <!-- Empleados asignados -->
+    <div id="usr-emp-section" style="margin-top:16px;">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+        <label style="font-size:13px;font-weight:600;">Empleados Autorizados</label>
+        <span style="font-size:11px;color:var(--muted);">Sin selección = acceso a todos</span>
+      </div>
+      <input type="text" id="usr-emp-search" placeholder="🔍 Filtrar empleados..." oninput="filtrarEmpModal()"
+        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;margin-bottom:8px;box-sizing:border-box;outline:none;"
+        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
+      <div id="usr-emp-list" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;background:var(--surface2);padding:6px;display:flex;flex-direction:column;gap:3px;"></div>
+      <div style="margin-top:6px;display:flex;gap:8px;">
+        <button class="btn btn-secondary btn-sm" onclick="seleccionarTodosEmp(true)">✔ Todos</button>
+        <button class="btn btn-secondary btn-sm" onclick="seleccionarTodosEmp(false)">✖ Ninguno</button>
+        <span id="usr-emp-count" style="font-size:11px;color:var(--muted);margin-left:auto;align-self:center;"></span>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-usuario')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-guardar-usr" onclick="guardarUsuario()">Guardar Usuario</button>
+    </div>
+  </div>
+</div>
+
+<!-- TOAST -->
+<div class="toast" id="toast"><span id="toast-icon">✓</span><span id="toast-msg"></span></div>
+
+
+<!-- Modular JS -->
+<script nonce="__NONCE__">window.BASE = window.location.pathname.replace(/\/[^/]*$/,'').replace(/\/+$/,'') || '';</script>
+<script src="js/utils/helpers.js?v=21"></script>
+<script src="js/utils/api.js?v=3"></script>
+<script src="js/components/modals.js?v=5"></script>
+<script src="js/modules/auth.js?v=4"></script>
+<script src="js/modules/tipos.js?v=2"></script>
+<script src="js/modules/dashboard.js?v=10"></script>
+<script src="js/modules/records.js?v=36"></script>
+<script src="js/modules/employees.js?v=11"></script>
+<script src="js/modules/nomina.js?v=5"></script>
+<script src="js/modules/reports.js?v=9"></script>
+<script src="js/modules/attachments.js?v=4"></script>
+<script src="js/modules/import.js?v=4"></script>
+<script src="js/modules/siesa.js?v=1"></script>
+<script src="js/modules/telemetry.js?v=1"></script>
+<script src="js/modules/configuracion.js?v=3"></script>
+<script src="js/app.js?v=14"></script>
+
+<!-- MODAL DETALLE REGISTRO -->
+<div class="modal-overlay" id="modal-detalle">
+  <div class="modal" style="width:520px;">
+    <div class="modal-title">📋 Detalle del Registro</div>
+    <div id="detalle-content" style="font-size:14px;line-height:1.8;"></div>
+    <div id="adjuntos-detalle" style="margin-top:16px;border-top:1px solid var(--border);padding-top:14px;"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-detalle')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL CONFIRMACIÓN -->
+<div class="modal-overlay" id="modal-confirm">
+  <div class="modal" style="width:400px;text-align:center;">
+    <div style="font-size:40px;margin-bottom:16px;" id="confirm-icon">⚠️</div>
+    <div class="modal-title" style="margin-bottom:8px;" id="confirm-title">¿Estás seguro?</div>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:28px;line-height:1.5;" id="confirm-msg"></p>
+    <div class="modal-footer" style="justify-content:center;gap:12px;">
+      <button class="btn btn-secondary" style="min-width:110px;" onclick="cerrarModal('modal-confirm')">Cancelar</button>
+      <button class="btn btn-danger"    style="min-width:110px;" id="confirm-btn">Eliminar</button>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>

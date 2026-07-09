@@ -20,8 +20,51 @@ app.get('/api/version', (req, res) => {
   res.json({ v: SERVER_START, version: APP_VER });
 });
 
+// Track submodule visits from modules
+app.post('/api/track', (req, res) => {
+  const { submodule } = req.body;
+  if (!submodule) return res.status(400).json({ error: 'submodule required' });
+  // Store in a simple file-based counter
+  const trackFile = path.join(LAUNCHER_DIR, 'logs', 'track.json');
+  try {
+    let track = {};
+    if (fs.existsSync(trackFile)) track = JSON.parse(fs.readFileSync(trackFile, 'utf8'));
+    track[submodule] = (track[submodule] || 0) + 1;
+    fs.writeFileSync(trackFile, JSON.stringify(track, null, 2));
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/track', (req, res) => {
+  const trackFile = path.join(LAUNCHER_DIR, 'logs', 'track.json');
+  try {
+    if (!fs.existsSync(trackFile)) return res.json({});
+    res.json(JSON.parse(fs.readFileSync(trackFile, 'utf8')));
+  } catch (e) {
+    res.json({});
+  }
+});
+
+app.get('/api/admin/commits', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+    const log = execSync(`git log --oneline -${limit} --format=%H|%s|%ai`, { cwd: LAUNCHER_DIR, stdio: 'pipe' }).toString().trim();
+    const commits = log.split('\n').filter(Boolean).map(line => {
+      const [hash, message, date] = line.split('|');
+      return { hash, message, date };
+    });
+    res.json({ ok: true, commits });
+  } catch (err) { res.json({ ok: false, error: err.message }); }
+});
+
 const PORT = parseInt(process.env.PORT || '3002', 10);
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error('ERROR: JWT_SECRET no está configurado. Establece la variable de entorno JWT_SECRET.');
+  process.exit(1);
+}
 const SERVER_START = Date.now();
 
 
@@ -39,13 +82,61 @@ db.exec(`
     actualizado TEXT NOT NULL DEFAULT (datetime('now'))
   )
 `);
-// Migrate: rename comprador → operador
-db.prepare("UPDATE usuarios SET rol = 'operador' WHERE rol = 'comprador'").run();
+// Migrate: all roles except admin → operador
+db.prepare("UPDATE usuarios SET rol = 'operador' WHERE rol != 'admin'").run();
 
-const adminEmail = 'admin@horix.com';
-const userCount = db.prepare('SELECT COUNT(*) as c FROM usuarios').get().c;
-if (userCount === 0) {
-  db.prepare('INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)').run('Admin', adminEmail, bcrypt.hashSync('admin123', 10), 'admin');
+const adminEmail = process.env.ADMIN_EMAIL || 'admin@horix.com';
+const adminPass = process.env.ADMIN_PASS || 'admin123';
+const adminHash = bcrypt.hashSync(adminPass, 10);
+const existing = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(adminEmail);
+if (!existing) {
+  db.prepare('INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)').run('Admin', adminEmail, adminHash, 'admin');
+} else {
+  db.prepare('UPDATE usuarios SET password_hash = ?, rol = ? WHERE id = ?').run(adminHash, 'admin', existing.id);
+}
+
+// ── User-module permissions (monorepo auth) ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_modulos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    modulo_id TEXT NOT NULL,
+    permisos TEXT DEFAULT '{}',
+    UNIQUE(user_id, modulo_id)
+  )
+`);
+
+// ── Perfiles (profiles with permissions) ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS perfiles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL UNIQUE,
+    descripcion TEXT DEFAULT '',
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS perfil_permisos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    perfil_id INTEGER NOT NULL REFERENCES perfiles(id) ON DELETE CASCADE,
+    modulo_id TEXT NOT NULL,
+    permiso TEXT NOT NULL,
+    UNIQUE(perfil_id, modulo_id, permiso)
+  )
+`);
+
+// Add perfil_id to usuarios if not exists
+try { db.exec("ALTER TABLE usuarios ADD COLUMN perfil_id INTEGER REFERENCES perfiles(id)"); } catch {}
+
+// Seed default profiles
+const defaultProfiles = [
+  { nombre: 'ADMINISTRADOR', descripcion: 'Acceso total a todos los módulos y funciones' },
+  { nombre: 'OPERADOR', descripcion: 'Operaciones básicas de cada módulo' },
+  { nombre: 'CONSULTA', descripcion: 'Solo consulta, sin edición' },
+];
+for (const p of defaultProfiles) {
+  db.prepare("INSERT OR IGNORE INTO perfiles (nombre, descripcion) VALUES (?, ?)").run(p.nombre, p.descripcion);
 }
 
 // ── Config table (key-value) ──
@@ -113,7 +204,16 @@ try { db.exec('ALTER TABLE modulos_plataforma ADD COLUMN mcp_token TEXT NOT NULL
 try { db.exec('ALTER TABLE modulos_plataforma ADD COLUMN proxy_prefix TEXT NOT NULL DEFAULT ""'); } catch {}
 try { db.exec("ALTER TABLE modulos_plataforma ADD COLUMN tipo TEXT NOT NULL DEFAULT 'externo'"); } catch {}
 // Seed tipo for internal modules
-db.prepare("UPDATE modulos_plataforma SET tipo = 'interno' WHERE id IN ('docflow', 'horix', 'logistics') AND tipo = 'externo'").run();
+db.prepare("UPDATE modulos_plataforma SET tipo = 'interno' WHERE id IN ('proveedores', 'nomina', 'logistica') AND tipo = 'externo'").run();
+
+// Migrate old module IDs to new names
+try { db.prepare("UPDATE modulos_plataforma SET id = 'nomina' WHERE id = 'horix'").run(); } catch {}
+try { db.prepare("UPDATE modulos_plataforma SET id = 'proveedores' WHERE id = 'docflow'").run(); } catch {}
+try { db.prepare("UPDATE modulos_plataforma SET id = 'logistica' WHERE id = 'logistics'").run(); } catch {}
+// Also migrate user_modulos references
+try { db.prepare("UPDATE user_modulos SET modulo_id = 'nomina' WHERE modulo_id = 'horix'").run(); } catch {}
+try { db.prepare("UPDATE user_modulos SET modulo_id = 'proveedores' WHERE modulo_id = 'docflow'").run(); } catch {}
+try { db.prepare("UPDATE user_modulos SET modulo_id = 'logistica' WHERE modulo_id = 'logistics'").run(); } catch {}
 
 // Seed public_url from url if empty
 db.prepare("UPDATE modulos_plataforma SET public_url = url WHERE public_url = '' AND url != ''").run();
@@ -163,14 +263,15 @@ var loginAttempts = {};
 function loginRateLimit(req, res, next) {
   var ip = req.ip || req.connection.remoteAddress || 'unknown';
   var now = Date.now();
-  var max = parseInt(db.prepare("SELECT value FROM config WHERE key = 'rate_limit_max'").get()?.value || '5', 10);
+  var max = parseInt(db.prepare("SELECT value FROM config WHERE key = 'rate_limit_max'").get()?.value || '20', 10);
   var windowMs = parseInt(db.prepare("SELECT value FROM config WHERE key = 'rate_limit_window'").get()?.value || '60', 10) * 1000;
   if (!loginAttempts[ip]) loginAttempts[ip] = [];
   loginAttempts[ip] = loginAttempts[ip].filter(function(t) { return now - t < windowMs; });
   if (loginAttempts[ip].length >= max) {
     return res.status(429).json({ error: 'Demasiados intentos. Intenta de nuevo en ' + (windowMs/1000) + ' segundos.' });
   }
-  loginAttempts[ip].push(now);
+  req._loginRateLimitKey = ip;
+  req._loginRateLimitNow = now;
   next();
 }
 
@@ -184,16 +285,43 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
   try {
     const user = db.prepare('SELECT * FROM usuarios WHERE email = ? AND activo = 1').get(email.toLowerCase().trim());
     if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+      if (req._loginRateLimitKey) loginAttempts[req._loginRateLimitKey].push(req._loginRateLimitNow);
       logLoginAttempt(req.ip, email, false);
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
     logLoginAttempt(req.ip, email, true);
-    const payload = { id: user.id, email: user.email, nombre: user.nombre, rol: user.rol };
+    const modulos = (user.rol === 'admin')
+      ? db.prepare("SELECT id FROM modulos_plataforma WHERE activo = 1").all().map(m => m.id)
+      : db.prepare("SELECT modulo_id FROM user_modulos WHERE user_id = ?").all(user.id).map(m => m.modulo_id);
+    
+    // Get profile permissions
+    let permisos = [];
+    let perfilNombre = null;
+    if (user.perfil_id) {
+      const perfil = db.prepare('SELECT nombre FROM perfiles WHERE id = ?').get(user.perfil_id);
+      perfilNombre = perfil?.nombre || null;
+      permisos = db.prepare('SELECT modulo_id, permiso FROM perfil_permisos WHERE perfil_id = ?').all(user.perfil_id);
+    }
+    
+    const payload = { id: user.id, email: user.email, nombre: user.nombre, rol: user.rol, modulos, perfil_id: user.perfil_id, perfil_nombre: perfilNombre, permisos };
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
     db.prepare("UPDATE usuarios SET actualizado = datetime('now') WHERE id = ?").run(user.id);
-    res.cookie('launcher_jwt', token, { httpOnly: false, secure: false, sameSite: 'lax', maxAge: 24 * 60 * 60 * 1000 });
-    res.json({ jwt: token, usuario: payload });
+    res.cookie('launcher_jwt', token, {
+      httpOnly: false,
+      secure: false,
+      sameSite: 'lax',
+      maxAge: 24 * 60 * 60 * 1000
+    });
+    console.log(`[LOGIN] Cookie set for ${email}`);
+    res.json({ jwt: token, usuario: payload, modulos });
   } catch (e) { console.error('[LOGIN]', e.stack || e.message); res.status(500).json({ error: 'Error interno' }); }
+});
+
+// ── Cookie test endpoint ──
+app.get('/api/cookie-test', (req, res) => {
+  const raw = req.headers['cookie'] || '';
+  const hasLauncherJwt = raw.includes('launcher_jwt=');
+  res.json({ hasCookie: !!raw, hasLauncherJwt: hasLauncherJwt, preview: raw.slice(0,100) });
 });
 
 // ── SMTP config ──
@@ -224,8 +352,11 @@ app.post('/api/admin/smtp/test', verificarToken, soloAdmin, async (req, res) => 
   }
 });
 
-// ── Internal endpoint for module SMTP inheritance ──
+// ── Internal endpoint for module SMTP inheritance (localhost only) ──
 app.get('/api/smtp/internal', (req, res) => {
+  const ip = req.ip || req.connection?.remoteAddress || '';
+  const isLocal = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || req.hostname === 'localhost';
+  if (!isLocal) return res.status(403).json({ error: 'Acceso denegado: solo localhost' });
   const rows = db.prepare("SELECT key, value FROM config WHERE key LIKE 'smtp_%' ORDER BY key").all();
   const cfg = {};
   for (const r of rows) cfg[r.key] = r.value;
@@ -260,6 +391,10 @@ app.put('/api/admin/config', verificarToken, soloAdmin, (req, res) => {
 app.post('/api/admin/config/test-ssh', verificarToken, soloAdmin, (req, res) => {
   const { host, user } = req.body;
   if (!host) return res.json({ ok: false, error: 'Host requerido' });
+  // Validate host: only alphanumeric, dots, hyphens, underscores
+  if (!/^[a-zA-Z0-9._-]+$/.test(host)) return res.json({ ok: false, error: 'Host inválido' });
+  // Validate user: only alphanumeric, hyphens, underscores
+  if (user && !/^[a-zA-Z0-9_-]+$/.test(user)) return res.json({ ok: false, error: 'Usuario inválido' });
   try {
     const out = execSync('ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 ' + (user || 'root') + '@' + host + ' "pm2 --version"', { stdio: 'pipe', timeout: 15000 }).toString().trim();
     res.json({ ok: true, version: out, message: 'Conexión SSH exitosa' });
@@ -324,7 +459,7 @@ app.post('/api/auth/forgot', loginRateLimit, (req, res) => {
     res.json({ ok: true, message: 'Si el email existe, recibirás un enlace de recuperación' });
   } else {
     console.log('[FORGOT] SMTP no configurado — token para', user.email, ':', resetUrl);
-    res.json({ ok: true, message: 'SMTP no configurado. Token generado.', resetUrl: '/reset?token=' + token });
+    res.json({ ok: true, message: 'SMTP no configurado. Contacta al administrador para restablecer tu contraseña.' });
   }
 });
 
@@ -349,26 +484,38 @@ app.post('/api/auth/reset', async (req, res) => {
 });
 
 app.get('/api/modulos', verificarToken, (req, res) => {
-  res.json(getModulos(false).map(m => ({ id: m.id, nombre: m.nombre, url: m.public_url || m.url, icon: m.icon, descripcion: m.descripcion })));
+  const userModulos = req.usuario.modulos || [];
+  const allModulos = getModulos(false);
+  const filtered = (req.usuario.rol === 'admin') ? allModulos : allModulos.filter(m => userModulos.includes(m.id));
+  res.json(filtered.map(m => ({ id: m.id, nombre: m.nombre, url: m.public_url || m.url, icon: m.icon, descripcion: m.descripcion })));
 });
 
 app.get('/api/auth/me', verificarToken, (req, res) => {
   const user = db.prepare('SELECT id, nombre, email, rol, activo, creado FROM usuarios WHERE id = ?').get(req.usuario.id);
-  res.json(user);
+  const modulos = (user.rol === 'admin')
+    ? db.prepare("SELECT id FROM modulos_plataforma WHERE activo = 1").all().map(m => m.id)
+    : db.prepare("SELECT modulo_id FROM user_modulos WHERE user_id = ?").all(user.id).map(m => m.modulo_id);
+  res.json({ ...user, modulos });
 });
 
 app.get('/api/admin/usuarios', verificarToken, soloAdmin, (req, res) => {
-  res.json(db.prepare('SELECT id, nombre, email, rol, activo, creado, actualizado FROM usuarios ORDER BY id').all());
+  res.json(db.prepare(`
+    SELECT u.id, u.nombre, u.email, u.rol, u.activo, u.creado, u.actualizado, u.perfil_id,
+           p.nombre as perfil_nombre
+    FROM usuarios u
+    LEFT JOIN perfiles p ON u.perfil_id = p.id
+    ORDER BY u.id
+  `).all());
 });
 
 app.post('/api/admin/usuarios', verificarToken, soloAdmin, (req, res) => {
-  const { nombre, email, password, rol } = req.body;
+  const { nombre, email, password, rol, perfil_id } = req.body;
   if (!nombre || !email || !password) return res.status(400).json({ error: 'Campos requeridos' });
   const userRol = (rol === 'admin' || rol === 'operador') ? rol : 'operador';
   try {
     const hash = bcrypt.hashSync(password, 10);
-    const result = db.prepare('INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)').run(nombre, email.toLowerCase().trim(), hash, userRol);
-    res.json({ id: result.lastInsertRowid, nombre, email: email.toLowerCase().trim(), rol: userRol, activo: 1 });
+    const result = db.prepare('INSERT INTO usuarios (nombre, email, password_hash, rol, perfil_id) VALUES (?, ?, ?, ?, ?)').run(nombre, email.toLowerCase().trim(), hash, userRol, perfil_id || null);
+    res.json({ id: result.lastInsertRowid, nombre, email: email.toLowerCase().trim(), rol: userRol, activo: 1, perfil_id: perfil_id || null });
   } catch (e) {
     if (e.message.includes('UNIQUE')) return res.status(409).json({ error: 'El email ya existe' });
     console.error('[Create user]', e); res.status(500).json({ error: 'Error interno' });
@@ -376,7 +523,7 @@ app.post('/api/admin/usuarios', verificarToken, soloAdmin, (req, res) => {
 });
 
 app.put('/api/admin/usuarios/:id', verificarToken, soloAdmin, (req, res) => {
-  const { nombre, email, password, activo, rol } = req.body;
+  const { nombre, email, password, activo, rol, perfil_id } = req.body;
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
   const user = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(id);
@@ -387,6 +534,7 @@ app.put('/api/admin/usuarios/:id', verificarToken, soloAdmin, (req, res) => {
   if (password) { updates.push('password_hash = ?'); params.push(bcrypt.hashSync(password, 10)); }
   if (activo !== undefined) { updates.push('activo = ?'); params.push(activo ? 1 : 0); }
   if (rol && (rol === 'admin' || rol === 'operador')) { updates.push('rol = ?'); params.push(rol); }
+  if (perfil_id !== undefined) { updates.push('perfil_id = ?'); params.push(perfil_id || null); }
   if (!updates.length) return res.status(400).json({ error: 'Sin cambios' });
   updates.push("actualizado = datetime('now')"); params.push(id);
   try {
@@ -410,6 +558,91 @@ app.delete('/api/admin/usuarios/:id/permanent', verificarToken, soloAdmin, (req,
   const result = db.prepare('DELETE FROM usuarios WHERE id = ?').run(id);
   if (result.changes === 0) return res.status(404).json({ error: 'No encontrado' });
   res.json({ ok: true });
+});
+
+// ── User-Module assignments ──
+app.get('/api/admin/usuarios/:id/modulos', verificarToken, soloAdmin, (req, res) => {
+  const rows = db.prepare('SELECT modulo_id FROM user_modulos WHERE user_id = ?').all(parseInt(req.params.id));
+  res.json(rows.map(r => r.modulo_id));
+});
+
+app.put('/api/admin/usuarios/:id/modulos', verificarToken, soloAdmin, (req, res) => {
+  const userId = parseInt(req.params.id);
+  const { modulos } = req.body; // array of module IDs
+  if (!Array.isArray(modulos)) return res.status(400).json({ error: 'modulos debe ser un array' });
+  const del = db.prepare('DELETE FROM user_modulos WHERE user_id = ?');
+  const ins = db.prepare('INSERT OR IGNORE INTO user_modulos (user_id, modulo_id) VALUES (?, ?)');
+  const transaction = db.transaction(() => {
+    del.run(userId);
+    for (const m of modulos) ins.run(userId, m);
+  });
+  transaction();
+  res.json({ ok: true, modulos });
+});
+
+// ── API: Perfiles ──
+app.get('/api/admin/perfiles', verificarToken, soloAdmin, (req, res) => {
+  const perfiles = db.prepare('SELECT * FROM perfiles ORDER BY nombre').all();
+  for (const p of perfiles) {
+    p.permisos = db.prepare('SELECT modulo_id, permiso FROM perfil_permisos WHERE perfil_id = ?').all(p.id);
+    p.usuarios_count = db.prepare('SELECT COUNT(*) as c FROM usuarios WHERE perfil_id = ?').get(p.id).c;
+  }
+  res.json(perfiles);
+});
+
+app.get('/api/admin/perfiles/:id', verificarToken, soloAdmin, (req, res) => {
+  const perfil = db.prepare('SELECT * FROM perfiles WHERE id = ?').get(req.params.id);
+  if (!perfil) return res.status(404).json({ error: 'Perfil no encontrado' });
+  perfil.permisos = db.prepare('SELECT modulo_id, permiso FROM perfil_permisos WHERE perfil_id = ?').all(perfil.id);
+  res.json(perfil);
+});
+
+app.post('/api/admin/perfiles', verificarToken, soloAdmin, (req, res) => {
+  const { nombre, descripcion, permisos } = req.body;
+  if (!nombre) return res.status(400).json({ error: 'Nombre requerido' });
+  try {
+    const result = db.prepare('INSERT INTO perfiles (nombre, descripcion) VALUES (?, ?)').run(nombre, descripcion || '');
+    const perfilId = result.lastInsertRowid;
+    if (Array.isArray(permisos)) {
+      const ins = db.prepare('INSERT INTO perfil_permisos (perfil_id, modulo_id, permiso) VALUES (?, ?, ?)');
+      for (const p of permisos) ins.run(perfilId, p.modulo_id, p.permiso);
+    }
+    res.json({ ok: true, id: perfilId });
+  } catch (e) {
+    if (e.message.includes('UNIQUE')) return res.status(409).json({ error: 'Ya existe un perfil con ese nombre' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/admin/perfiles/:id', verificarToken, soloAdmin, (req, res) => {
+  const { id } = req.params;
+  const { nombre, descripcion, permisos } = req.body;
+  const perfil = db.prepare('SELECT id FROM perfiles WHERE id = ?').get(id);
+  if (!perfil) return res.status(404).json({ error: 'Perfil no encontrado' });
+  try {
+    if (nombre) db.prepare('UPDATE perfiles SET nombre = ?, descripcion = ? WHERE id = ?').run(nombre, descripcion || '', id);
+    if (Array.isArray(permisos)) {
+      db.prepare('DELETE FROM perfil_permisos WHERE perfil_id = ?').run(id);
+      const ins = db.prepare('INSERT INTO perfil_permisos (perfil_id, modulo_id, permiso) VALUES (?, ?, ?)');
+      for (const p of permisos) ins.run(id, p.modulo_id, p.permiso);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/admin/perfiles/:id', verificarToken, soloAdmin, (req, res) => {
+  const { id } = req.params;
+  const usersWithProfile = db.prepare('SELECT COUNT(*) as c FROM usuarios WHERE perfil_id = ?').get(id).c;
+  if (usersWithProfile > 0) return res.status(400).json({ error: `${usersWithProfile} usuario(s) tienen este perfil. Reasigna primero.` });
+  db.prepare('DELETE FROM perfiles WHERE id = ?').run(id);
+  res.json({ ok: true });
+});
+
+app.get('/api/admin/perfiles/:id/usuarios', verificarToken, soloAdmin, (req, res) => {
+  const users = db.prepare('SELECT id, nombre, email, rol, activo FROM usuarios WHERE perfil_id = ?').all(req.params.id);
+  res.json(users);
 });
 
 // ── API: Módulos ──
@@ -446,38 +679,40 @@ app.put('/api/admin/modulos/:id', verificarToken, soloAdmin, (req, res) => {
 });
 
 app.delete('/api/admin/modulos/:id', verificarToken, soloAdmin, (req, res) => {
-  db.prepare('DELETE FROM modulos_plataforma WHERE id = ?').run(req.params.id);
+  const { id } = req.params;
+  db.prepare('DELETE FROM modulos_plataforma WHERE id = ?').run(id);
+  db.prepare('DELETE FROM user_modulos WHERE modulo_id = ?').run(id);
+  db.prepare('DELETE FROM perfil_permisos WHERE modulo_id = ?').run(id);
   res.json({ ok: true });
 });
 
 // ── Scaffold module from framework template ──
 app.post('/api/admin/modulos/scaffold', verificarToken, soloAdmin, async (req, res) => {
-  const { id, nombre, port, description } = req.body;
+  const { id, nombre, port, description, tipo } = req.body;
   if (!id || !nombre || !port) return res.status(400).json({ error: 'Se requiere: id, nombre, port' });
   if (!/^\w+$/.test(id)) return res.status(400).json({ error: 'ID solo letras, números y guión bajo' });
   const listenPort = parseInt(port);
   if (isNaN(listenPort) || listenPort < 1024 || listenPort > 65535) return res.status(400).json({ error: 'Puerto inválido (1024-65535)' });
+  const isInternal = tipo === 'interno';
 
   const installDir = path.join(__dirname, '..');
-  const modDir = path.join(installDir, id);
+  const modulesDir = path.join(installDir, 'modules');
+  const modDir = path.join(modulesDir, id);
   const publicDir = path.join(modDir, 'public');
   const backendDir = path.join(modDir, 'backend');
   const mcpDir = path.join(backendDir, 'mcp');
   const frameworkDir = path.join(installDir, 'framework');
 
   try {
-    // 1. Crear directorios
     fs.mkdirSync(publicDir, { recursive: true });
     fs.mkdirSync(backendDir, { recursive: true });
     fs.mkdirSync(mcpDir, { recursive: true });
 
-    // 2. Copiar framework
     for (const file of ['base.css', 'components.css', 'framework.js', 'theme.js']) {
       const src = path.join(frameworkDir, file);
       if (fs.existsSync(src)) fs.copyFileSync(src, path.join(publicDir, file));
     }
 
-    // 3. package.json
     const pkg = {
       name: id, version: '1.0.0', type: 'module',
       description: description || '',
@@ -485,17 +720,62 @@ app.post('/api/admin/modulos/scaffold', verificarToken, soloAdmin, async (req, r
       dependencies: { express: '^4.21.0', cors: '^2.8.5', jsonwebtoken: '^9.0.0', dotenv: '^16.0.0' }
     };
     fs.writeFileSync(path.join(modDir, 'package.json'), JSON.stringify(pkg, null, 2));
+    fs.writeFileSync(path.join(modDir, '.env'), `PORT=${listenPort}\nJWT_SECRET=${isInternal ? (process.env.JWT_SECRET || 'dev-secret') : 'change-me-' + id}\nMODULE_ID=${id}\n`);
 
-    // 4. .env
-    fs.writeFileSync(path.join(modDir, '.env'), `PORT=${listenPort}\nJWT_SECRET=change-me-${id}\n`);
-
-    // 5. backend/server.js
-    fs.writeFileSync(path.join(backendDir, 'server.js'), `import express from 'express';
+    const serverJs = isInternal ? (
+`import express from 'express';
 import cors from 'cors';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import { createMiddleware } from './mcp/index.js';
+
+dotenv.config();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const app = express();
+const PORT = process.env.PORT || ${listenPort};
+const MODULE_ID = process.env.MODULE_ID || '${id}';
+const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+
+app.use(cors());
+app.use(express.json());
+
+function verificarToken(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Token requerido' });
+  try { req.usuario = jwt.verify(auth.split(' ')[1], JWT_SECRET); next(); }
+  catch { return res.status(401).json({ error: 'Token inv\u00e1lido o expirado' }); }
+}
+
+function requireModulo(req, res, next) {
+  if (!req.usuario) return res.status(401).json({ error: 'No autenticado' });
+  const modulos = req.usuario.modulos || [];
+  if (req.usuario.rol === 'admin' || modulos.includes(MODULE_ID)) return next();
+  res.status(403).json({ error: 'No tienes acceso a ' + MODULE_ID });
+}
+
+app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
+app.get('/health', (req, res) => res.json({ status: 'ok', module: MODULE_ID }));
+
+app.use('/mcp', createMiddleware());
+app.use(express.static(path.join(__dirname, '..', 'public')));
+app.get('*', (req, res) => {
+  if (req.path.startsWith('/api/') || req.path.startsWith('/mcp')) return res.status(404).json({ error: 'Not found' });
+  res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+});
+
+app.listen(PORT, () => console.log('${nombre} escuchando en puerto', PORT));
+export default app;
+`
+    ) : (
+`import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+import jwt from 'jsonwebtoken';
+import { createMiddleware } from './mcp/index.js';
 
 dotenv.config();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -510,15 +790,13 @@ function verificarToken(req, res, next) {
   const auth = req.headers.authorization;
   if (!auth || !auth.startsWith('Bearer ')) return res.status(401).json({ error: 'Token requerido' });
   try { req.usuario = jwt.verify(auth.split(' ')[1], JWT_SECRET); next(); }
-  catch { return res.status(401).json({ error: 'Token inválido' }); }
+  catch { return res.status(401).json({ error: 'Token inv\u00e1lido o expirado' }); }
 }
 
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
 app.get('/health', (req, res) => res.json({ status: 'ok', module: '${id}' }));
 
-import { createMiddleware } from './mcp/index.js';
 app.use('/mcp', createMiddleware());
-
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.get('*', (req, res) => {
   if (req.path.startsWith('/api/') || req.path.startsWith('/mcp')) return res.status(404).json({ error: 'Not found' });
@@ -527,14 +805,14 @@ app.get('*', (req, res) => {
 
 app.listen(PORT, () => console.log('${nombre} escuchando en puerto', PORT));
 export default app;
-`);
+`
+    );
+    fs.writeFileSync(path.join(backendDir, 'server.js'), serverJs);
 
-    // 6. backend/mcp/index.js
     fs.writeFileSync(path.join(mcpDir, 'index.js'), `export function createMiddleware() {
   return async (req, res) => {
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
     const { method, params, id } = req.body;
-
     let response;
     switch (method) {
       case 'initialize':
@@ -557,46 +835,101 @@ export default app;
 }
 `);
 
-    // 7. public/index.html
-    const initShell = path.join(installDir, 'launcher', 'shell', 'index.html');
-    let html = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">';
-    html += '<title>' + nombre + '</title>';
-    html += '<link rel="stylesheet" href="base.css"><link rel="stylesheet" href="components.css">';
-    html += '</head><body>';
-    html += '<div id="login-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)">';
-    html += '<div class="login-card"><h1>' + nombre + '</h1><p>Ingresa tus credenciales</p>';
-    html += '<div id="login-error" style="color:var(--danger);margin-bottom:12px;display:none;font-size:14px;"></div>';
-    html += '<label>Email</label><input type="email" id="login-email" placeholder="admin@correo.com">';
-    html += '<label>Contraseña</label><input type="password" id="login-pass" placeholder="••••••••">';
-    html += '<button class="btn btn-primary" id="login-btn" style="width:100%;margin-top:12px;" onclick="login()">Ingresar</button>';
-    html += '</div></div>';
-    html += '<div id="app-screen" style="display:none;">';
-    html += '<div class="app-layout">';
-    html += '<aside class="sidebar" id="sidebar">';
-    html += '<div class="sidebar-brand">' + nombre + '</div>';
-    html += '<nav id="sidebar-nav"><div class="nav-item active" data-page="dashboard" onclick="navigate(\'dashboard\')"><span class="icon">📊</span> Dashboard</div></nav>';
-    html += '<div class="sidebar-footer"><div class="sidebar-user" onclick="document.getElementById(\'modal-logout\').classList.add(\'show\')">';
-    html += '<div class="avatar" id="user-avatar">U</div><div><div id="user-name"></div><div id="user-role" style="font-size:11px;color:var(--muted)"></div></div></div></div>';
-    html += '</aside><main class="main-content"><div class="page active" id="page-dashboard"><div class="page-header"><h3>Dashboard</h3><p>Bienvenido</p></div><div id="dash-content"></div></div></main></div></div>';
-    html += '<div class="modal-overlay" id="modal-logout"><div class="modal"><div class="modal-title">Cerrar sesión</div><p>¿Estás seguro?</p><div class="modal-actions"><button class="btn btn-sm" onclick="document.getElementById(\'modal-logout\').classList.remove(\'show\')">Cancelar</button><button class="btn btn-danger btn-sm" onclick="logout()">Salir</button></div></div></div>';
-    html += '<div id="toast-container"></div>';
-    html += '<script src="framework.js"></script><script src="theme.js"></script><script src="app.js"></script>';
-    html += '</body></html>';
-    fs.writeFileSync(path.join(publicDir, 'index.html'), html);
+    if (isInternal) {
+      // Internal module: no login screen, reads token from launcher cookie/localStorage
+      let html = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">';
+      html += '<title>' + nombre + '</title>';
+      html += '<link rel="stylesheet" href="base.css"><link rel="stylesheet" href="components.css">';
+      html += '</head><body>';
+      html += '<div id="app-screen" style="display:block;"><div class="app-layout">';
+      html += '<aside class="sidebar" id="sidebar"><div class="sidebar-brand">' + nombre + '</div>';
+      html += '<nav id="sidebar-nav"><div class="nav-item active" data-page="dashboard" onclick="navigate(\'dashboard\')"><span class="icon">📊</span> Dashboard</div></nav>';
+      html += '<div class="sidebar-footer"><div class="sidebar-user" onclick="document.getElementById(\'modal-logout\').classList.add(\'show\')">';
+      html += '<div class="avatar" id="user-avatar">U</div><div><div id="user-name"></div><div id="user-role" style="font-size:11px;color:var(--muted)"></div></div></div></div>';
+      html += '</aside><main class="main-content"><div class="page active" id="page-dashboard"><div class="page-header"><h3>Dashboard</h3><p>Bienvenido</p></div><div id="dash-content"></div></div></main></div></div>';
+      html += '<div class="modal-overlay" id="modal-logout"><div class="modal"><div class="modal-title">Cerrar sesi\u00f3n</div><p>\u00bfEst\u00e1s seguro?</p><div class="modal-actions"><button class="btn btn-sm" onclick="document.getElementById(\'modal-logout\').classList.remove(\'show\')">Cancelar</button><button class="btn btn-danger btn-sm" onclick="logout()">Salir</button></div></div></div>';
+      html += '<div id="toast-container"></div>';
+      html += '<script src="framework.js"></script><script src="theme.js"></script><script src="app.js"></script>';
+      html += '</body></html>';
+      fs.writeFileSync(path.join(publicDir, 'index.html'), html);
+    } else {
+      let html = '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1.0">';
+      html += '<title>' + nombre + '</title>';
+      html += '<link rel="stylesheet" href="base.css"><link rel="stylesheet" href="components.css">';
+      html += '</head><body>';
+      html += '<div id="login-screen" style="display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--bg)">';
+      html += '<div class="login-card"><h1>' + nombre + '</h1><p>Ingresa tus credenciales</p>';
+      html += '<div id="login-error" style="color:var(--danger);margin-bottom:12px;display:none;font-size:14px;"></div>';
+      html += '<label>Email</label><input type="email" id="login-email" placeholder="admin@correo.com">';
+      html += '<label>Contrase\u00f1a</label><input type="password" id="login-pass" placeholder="••••••••">';
+      html += '<button class="btn btn-primary" id="login-btn" style="width:100%;margin-top:12px;" onclick="login()">Ingresar</button>';
+      html += '</div></div>';
+      html += '<div id="app-screen" style="display:none;"><div class="app-layout">';
+      html += '<aside class="sidebar" id="sidebar"><div class="sidebar-brand">' + nombre + '</div>';
+      html += '<nav id="sidebar-nav"><div class="nav-item active" data-page="dashboard" onclick="navigate(\'dashboard\')"><span class="icon">📊</span> Dashboard</div></nav>';
+      html += '<div class="sidebar-footer"><div class="sidebar-user" onclick="document.getElementById(\'modal-logout\').classList.add(\'show\')">';
+      html += '<div class="avatar" id="user-avatar">U</div><div><div id="user-name"></div><div id="user-role" style="font-size:11px;color:var(--muted)"></div></div></div></div>';
+      html += '</aside><main class="main-content"><div class="page active" id="page-dashboard"><div class="page-header"><h3>Dashboard</h3><p>Bienvenido</p></div><div id="dash-content"></div></div></main></div></div>';
+      html += '<div class="modal-overlay" id="modal-logout"><div class="modal"><div class="modal-title">Cerrar sesi\u00f3n</div><p>\u00bfEst\u00e1s seguro?</p><div class="modal-actions"><button class="btn btn-sm" onclick="document.getElementById(\'modal-logout\').classList.remove(\'show\')">Cancelar</button><button class="btn btn-danger btn-sm" onclick="logout()">Salir</button></div></div></div>';
+      html += '<div id="toast-container"></div>';
+      html += '<script src="framework.js"></script><script src="theme.js"></script><script src="app.js"></script>';
+      html += '</body></html>';
+      fs.writeFileSync(path.join(publicDir, 'index.html'), html);
+    }
 
-    // 8. public/app.js starter
-    fs.writeFileSync(path.join(publicDir, 'app.js'), `const BASE = location.pathname.match(/^\/(\\w+)\\//) ? '/' + RegExp.$1 : '';
+    // Shared app.js for internal modules: reads JWT from launcher cookie
+    const appJs = isInternal ? (
+`const BASE = location.pathname.match(/^\\/(\\w+)\\//) ? '/' + RegExp.$1 : '';
+const API = BASE + '/api';
+const MODULE_ID = '${id}';
+
+function getToken() {
+  const c = document.cookie.split('; ').find(r => r.startsWith('launcher_jwt='));
+  return c ? c.split('=')[1] : localStorage.getItem('launcher_jwt');
+}
+
+function logout() {
+  window.location.href = (BASE || '');
+}
+
+async function api(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json', ...opts.headers };
+  const t = getToken();
+  if (t) headers['Authorization'] = 'Bearer ' + t;
+  const res = await fetch(API + path, { ...opts, headers });
+  if (res.status === 401) { logout(); throw new Error('Sesi\u00f3n expirada'); }
+  return await res.json();
+}
+
+async function init() {
+  const t = getToken();
+  if (!t) return logout();
+  try {
+    const data = await api('/auth/me');
+    document.getElementById('user-name').textContent = data.nombre || data.email;
+    document.getElementById('user-role').textContent = data.rol || '';
+  } catch { logout(); }
+}
+init();
+`
+    ) : (
+`const BASE = location.pathname.match(/^\\/(\\w+)\\//) ? '/' + RegExp.$1 : '';
 const API = BASE + '/api';
 let TOKEN = localStorage.getItem('${id}_token');
 let USER = null;
 
-function logout() { TOKEN = null; localStorage.removeItem('${id}_token'); document.getElementById('login-screen').style.display = 'flex'; document.getElementById('app-screen').style.display = 'none'; }
+function logout() {
+  TOKEN = null;
+  localStorage.removeItem('${id}_token');
+  document.getElementById('login-screen').style.display = 'flex';
+  document.getElementById('app-screen').style.display = 'none';
+}
 
 async function api(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...opts.headers };
   if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
   const res = await fetch(API + path, { ...opts, headers });
-  if (res.status === 401 && !path.includes('/auth/login')) { logout(); throw new Error('Sesión expirada'); }
+  if (res.status === 401 && !path.includes('/auth/login')) { logout(); throw new Error('Sesi\u00f3n expirada'); }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Error del servidor');
   return data;
@@ -607,7 +940,7 @@ async function login() {
   const password = document.getElementById('login-pass').value;
   try {
     const data = await api('/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) });
-    TOKEN = data.token; USER = data.usuario;
+    TOKEN = data.jwt || data.token; USER = data.usuario;
     localStorage.setItem('${id}_token', TOKEN);
     document.getElementById('login-screen').style.display = 'none';
     document.getElementById('app-screen').style.display = 'block';
@@ -622,20 +955,17 @@ async function init() {
     catch { logout(); }
   }
 }
-
-function navigate(page) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); const el = document.getElementById('page-' + page); if (el) el.classList.add('active'); const nav = document.querySelector('[data-page="' + page + '"]'); if (nav) nav.classList.add('active'); }
-
 init();
-`);
+`
+    );
+    fs.writeFileSync(path.join(publicDir, 'app.js'), appJs + `\nfunction navigate(page) { document.querySelectorAll('.page').forEach(p => p.classList.remove('active')); document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active')); const el = document.getElementById('page-' + page); if (el) el.classList.add('active'); const nav = document.querySelector('[data-page="' + page + '"]'); if (nav) nav.classList.add('active'); }\n`);
 
-    // 9. npm install
     const npmResult = execSync('npm install', { cwd: modDir, timeout: 60000, encoding: 'utf8' });
 
-    // 10. Registrar en DB
     const prefix = '/' + id + '/';
-    db.prepare('INSERT OR REPLACE INTO modulos_plataforma (id, nombre, descripcion, url, icon, mcp_enabled, activo, proxy_prefix, tipo) VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?)').run(id, nombre, description || '', 'http://localhost:' + listenPort, '📦', prefix, 'externo');
+    db.prepare('INSERT OR REPLACE INTO modulos_plataforma (id, nombre, descripcion, url, icon, mcp_enabled, activo, proxy_prefix, tipo) VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?)').run(id, nombre, description || '', 'http://localhost:' + listenPort, '📦', prefix, isInternal ? 'interno' : 'externo');
 
-    res.json({ ok: true, mensaje: 'Módulo creado en ' + modDir, npm: npmResult.trim() });
+    res.json({ ok: true, mensaje: 'M\u00f3dulo ' + (isInternal ? 'interno' : 'externo') + ' creado en ' + modDir, npm: npmResult.trim() });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -748,7 +1078,7 @@ function generarNginx() {
 `;
   }
 
-  return `# Auto-generated by horix-launcher
+  return `# Auto-generated by horix-erp
 server {
     listen ${port} ssl http2;
     server_name ${isProd ? dominio : '_'};
@@ -929,7 +1259,7 @@ async function processMcpMessage(msg) {
   if (msg.method === 'initialize') {
     const sessionId = crypto.randomUUID();
     mcpGatewaySessions.set(sessionId, { createdAt: Date.now() });
-    return { sessionId, body: rpcResult(id, { protocolVersion: '2025-03-26', serverInfo: { name: 'horix-launcher', version: '1.0.0' }, capabilities: { tools: {} } }) };
+    return { sessionId, body: rpcResult(id, { protocolVersion: '2025-03-26', serverInfo: { name: 'horix-erp', version: '1.0.0' }, capabilities: { tools: {} } }) };
   }
 
   if (msg.method === 'ping') {
@@ -990,7 +1320,7 @@ app.post('/mcp', async (req, res) => {
 });
 
 app.get('/mcp', (req, res) => {
-  res.json({ status: 'ok', server: 'horix-launcher', version: '1.0.0' });
+  res.json({ status: 'ok', server: 'horix-erp', version: '1.0.0' });
 });
 
 app.options('/mcp', (req, res) => {
@@ -1143,10 +1473,13 @@ app.get('/.well-known/oauth-protected-resource', requireOauth, (req, res) => {
 const LAUNCHER_DIR = path.resolve(__dirname, '..');
 
 function pm2Exec(args) {
+  // Validate args to prevent command injection
+  if (typeof args !== 'string' || /[;&|`$]/.test(args)) throw new Error('Invalid args');
+  const argsArr = args.split(/\s+/);
   // 1) Try local pm2
-  try { return execSync('pm2 ' + args, { stdio: 'pipe' }); } catch {}
+  try { return execFileSync('pm2', argsArr, { stdio: 'pipe' }); } catch {}
   // 2) Try local sudo pm2
-  try { return execSync('sudo pm2 ' + args, { stdio: 'pipe' }); } catch {}
+  try { return execFileSync('sudo', ['pm2', ...argsArr], { stdio: 'pipe' }); } catch {}
   // 3) Try remote via SSH if configured
   const sshHost = db.prepare("SELECT value FROM config WHERE key = 'ssh_host'").get()?.value;
   const sshUser = db.prepare("SELECT value FROM config WHERE key = 'ssh_user'").get()?.value || 'root';
@@ -1161,7 +1494,7 @@ if (!fs.existsSync(path.join(__dirname, 'logs'))) fs.mkdirSync(path.join(__dirna
 function logUpdater(msg) {
   const line = `[${new Date().toISOString()}] ${msg}`;
   console.log(line);
-  fs.appendFileSync(UPDATER_LOG, line + '\n');
+  try { fs.appendFileSync(UPDATER_LOG, line + '\n'); } catch {}
 }
 function getUpdaterLog() {
   try { return fs.readFileSync(UPDATER_LOG, 'utf8'); } catch { return ''; }
@@ -1212,9 +1545,7 @@ app.post('/api/admin/updater/update', verificarToken, soloAdmin, async (req, res
     res.json({ ok: true, message: 'Actualización aplicada. Reiniciando servicios...', newCommit, restarting: true });
     res.on('finish', () => {
       setTimeout(() => {
-        try { pm2Exec('restart horix-launcher'); } catch {
-          try { pm2Exec('restart horix-erp'); } catch { logUpdater('PM2 no disponible — reinicio manual requerido'); }
-        }
+        try { pm2Exec('restart horix-erp'); } catch { logUpdater('PM2 no disponible — reinicio manual requerido'); }
       }, 1500);
     });
   } catch (err) { logUpdater('ERROR: ' + err.message); res.json({ ok: false, error: err.message }); }
@@ -1224,15 +1555,11 @@ app.post('/api/admin/updater/restart', verificarToken, soloAdmin, async (req, re
   try {
     logUpdater('Reiniciando servicio...');
     try {
-      pm2Exec('restart horix-launcher');
+      pm2Exec('restart horix-erp');
     } catch {
-      try {
-        pm2Exec('restart horix-erp');
-      } catch {
-        logUpdater('PM2 no disponible — reinicio manual requerido');
-        res.json({ ok: false, message: 'PM2 no disponible. Debes reiniciar el servidor manualmente.' });
-        return;
-      }
+      logUpdater('PM2 no disponible — reinicio manual requerido');
+      res.json({ ok: false, message: 'PM2 no disponible. Debes reiniciar el servidor manualmente.' });
+      return;
     }
     logUpdater('Servicio reiniciado');
     res.json({ ok: true, message: 'Servicio reiniciado' });
@@ -1381,11 +1708,21 @@ app.post('/api/admin/import', verificarToken, soloAdmin, (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.use(express.static(path.join(__dirname, 'shell')));
-app.get('*', (req, res) => {
-  const htmlPath = path.join(__dirname, 'shell', 'index.html');
-  if (fs.existsSync(htmlPath)) return res.sendFile(htmlPath);
-  res.status(404).json({ error: 'Not found: ' + req.path });
-});
+if (require.main === module) {
+  app.use(express.static(path.join(__dirname, 'shell')));
+  app.get('*', (req, res) => {
+    const htmlPath = path.join(__dirname, 'shell', 'index.html');
+    if (fs.existsSync(htmlPath)) return res.sendFile(htmlPath);
+    res.status(404).json({ error: 'Not found: ' + req.path });
+  });
 
-app.listen(PORT, () => console.log('Launcher on port ' + PORT));
+  // Global error handler — prevent crashes
+  app.use((err, req, res, next) => {
+    console.error('[Launcher Error]', err.message);
+    if (!res.headersSent) res.status(500).json({ error: 'Error interno del servidor' });
+  });
+
+  app.listen(PORT, () => console.log('Launcher on port ' + PORT));
+}
+
+module.exports = app;

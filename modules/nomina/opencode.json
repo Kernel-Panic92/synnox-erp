@@ -1,0 +1,10 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "mcp": {
+    "horix": {
+      "type": "remote",
+      "url": "https://horixvitamar.fortiddns.com/mcp",
+      "enabled": true
+    }
+  }
+}

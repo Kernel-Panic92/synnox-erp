@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Horix ERP — Instalación</title>
+<style>
+:root {
+  --bg: #0d0f14; --surface: #161a23; --surface2: #1e2330; --border: #2a3045;
+  --accent: #00A86B; --accent2: #f7944f;
+  --success: #4fbe96; --warning: #f7d44f; --danger: #f7614f;
+  --text: #e8ecf5; --muted: #7a85a0;
+  --font: 'DM Sans', -apple-system, sans-serif;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--text); font-family: var(--font);
+  line-height: 1.5; min-height: 100vh;
+  background: radial-gradient(ellipse at top right, rgba(0,168,107,.08), transparent 50%),
+              radial-gradient(ellipse at bottom left, rgba(0,168,107,.04), transparent 50%), var(--bg);
+}
+.wizard { max-width: 720px; margin: 0 auto; padding: 40px 20px; }
+.header { text-align: center; margin-bottom: 32px; }
+.header h1 { font-size: 28px; letter-spacing: -.5px; }
+.header h1 span { color: var(--accent); }
+.header p { color: var(--muted); font-size: 14px; margin-top: 4px; }
+
+/* Steps bar */
+.steps { display: flex; gap: 4px; margin-bottom: 32px; }
+.step-ind { flex: 1; height: 4px; border-radius: 2px; background: var(--border); transition: background .3s; }
+.step-ind.active { background: var(--accent); }
+.step-ind.done { background: var(--success); }
+
+/* Cards */
+.card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 32px; margin-bottom: 20px;
+}
+.card h2 { font-size: 20px; margin-bottom: 4px; }
+.card p.desc { color: var(--muted); font-size: 14px; margin-bottom: 24px; }
+.card label { font-size: 13px; color: var(--muted); display: block; margin-bottom: 4px; }
+.card input, .card select {
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 10px 14px; font: inherit; width: 100%; outline: none;
+  transition: border .15s; margin-bottom: 16px;
+}
+.card input:focus, .card select:focus { border-color: var(--accent); }
+.card input[type=checkbox] { width: auto; margin: 0; accent-color: var(--accent); }
+
+/* Module checkboxes */
+.mod-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
+.mod-option {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface2); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 16px; cursor: pointer; transition: all .15s; flex: 1 1 200px;
+  user-select: none;
+}
+.mod-option:hover { border-color: var(--accent); }
+.mod-option.checked { border-color: var(--accent); background: rgba(0,168,107,.08); }
+.mod-option .mod-icon { font-size: 24px; }
+.mod-option .mod-info { flex: 1; }
+.mod-option .mod-name { font-weight: 600; font-size: 14px; }
+.mod-option .mod-desc { font-size: 12px; color: var(--muted); }
+
+/* Buttons */
+.btn-row { display: flex; gap: 10px; justify-content: flex-end; margin-top: 24px; }
+.btn {
+  padding: 10px 24px; border-radius: 8px; border: none; cursor: pointer;
+  font: inherit; font-weight: 600; font-size: 14px; transition: all .15s;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { filter: brightness(1.15); }
+.btn-primary:disabled { opacity: .4; cursor: not-allowed; filter: none; }
+.btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
+.btn-secondary:hover { border-color: var(--muted); }
+.btn-secondary:disabled { opacity: .4; cursor: not-allowed; }
+
+/* Requirements */
+.reqs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+.req-item { display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 8px; font-size: 13px; background: var(--surface2); border: 1px solid var(--border); flex: 1 1 160px; }
+.req-item.ok { border-color: var(--success); }
+.req-item.fail { border-color: var(--danger); }
+.req-ico { font-size: 16px; }
+.req-name { font-weight: 600; }
+.req-val { font-size: 11px; color: var(--muted); margin-left: auto; }
+
+/* Logs */
+.logs {
+  background: #000; border: 1px solid var(--border); border-radius: 8px;
+  padding: 16px; height: 320px; overflow-y: auto; font-family: 'JetBrains Mono', monospace;
+  font-size: 12px; line-height: 1.6;
+}
+.log-entry { display: flex; gap: 8px; }
+.log-ts { color: var(--muted); flex-shrink: 0; }
+.log-msg { word-break: break-word; }
+.log-ok { color: var(--success); }
+.log-error { color: var(--danger); }
+.log-warn { color: var(--warning); }
+.log-step { color: var(--accent2); }
+.log-start { color: var(--accent); font-weight: 600; }
+.log-complete { color: var(--accent); font-weight: 600; font-size: 14px; }
+
+/* Summary */
+.summary-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.summary-item { padding: 12px; background: var(--surface2); border-radius: 8px; border: 1px solid var(--border); }
+.summary-item .s-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.summary-item .s-val { font-weight: 600; font-size: 14px; margin-top: 2px; }
+
+/* Complete screen */
+.complete-grid { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+.comp-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; background: var(--surface2); border-radius: 8px; border: 1px solid var(--border); }
+.comp-item .comp-label { font-size: 13px; color: var(--muted); }
+.comp-item .comp-val { font-weight: 600; font-size: 14px; }
+
+/* Steps */
+.page { display: none; }
+.page.active { display: block; }
+</style>
+</head>
+<body>
+<div class="wizard">
+  <div class="header">
+    <h1><span>Horix</span> ERP</h1>
+    <p>Asistente de instalación — Configura tu plataforma en minutos</p>
+  </div>
+
+  <div class="steps" id="steps">
+    <div class="step-ind active" data-step="0"></div>
+    <div class="step-ind" data-step="1"></div>
+    <div class="step-ind" data-step="2"></div>
+    <div class="step-ind" data-step="3"></div>
+    <div class="step-ind" data-step="4"></div>
+    <div class="step-ind" data-step="5"></div>
+    <div class="step-ind" data-step="6"></div>
+  </div>
+
+  <!-- Step 0: Welcome -->
+  <div class="page active" id="step-0">
+    <div class="card">
+      <h2>👋 Bienvenido</h2>
+      <p class="desc">Este asistente te guiará en la instalación de Horix ERP. Verificaremos los requisitos y configuraremos todo automáticamente.</p>
+      <div class="reqs" id="requirements"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" disabled onclick="prevStep()" id="prev-0">Atrás</button>
+      <button class="btn btn-primary" onclick="nextStep()" id="next-0">Continuar</button>
+    </div>
+  </div>
+
+  <!-- Step 1: Database -->
+  <div class="page" id="step-1">
+    <div class="card">
+      <h2>🗄️ Base de datos</h2>
+      <p class="desc">Configura la conexión a PostgreSQL. Si PostgreSQL está en esta máquina, se auto-configurará.</p>
+      <label>Host</label>
+      <input type="text" id="db-host" value="localhost" placeholder="localhost">
+      <label>Puerto</label>
+      <input type="number" id="db-port" value="5432">
+      <label>Usuario</label>
+      <input type="text" id="db-user" value="horix">
+      <label>Contraseña (déjalo en blanco para generar automáticamente)</label>
+      <input type="text" id="db-pass" placeholder="Se generará automáticamente">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="prevStep()">Atrás</button>
+      <button class="btn btn-primary" onclick="nextStep()">Continuar</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Admin -->
+  <div class="page" id="step-2">
+    <div class="card">
+      <h2>🔐 Administrador</h2>
+      <p class="desc">Credenciales del super administrador de la plataforma.</p>
+      <label>Email</label>
+      <input type="email" id="admin-email" value="admin@horix.com">
+      <label>Contraseña</label>
+      <input type="text" id="admin-pass" value="admin123">
+      <label>Dominio público (deja localhost para pruebas locales)</label>
+      <input type="text" id="domain" value="localhost" placeholder="ej: horix.app">
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="prevStep()">Atrás</button>
+      <button class="btn btn-primary" onclick="nextStep()">Continuar</button>
+    </div>
+  </div>
+
+  <!-- Step 3: Modules -->
+  <div class="page" id="step-3">
+    <div class="card">
+      <h2>🧩 Módulos</h2>
+      <p class="desc">Selecciona los módulos que deseas instalar. El launcher (panel principal) siempre se instala.</p>
+      <div class="mod-grid" id="mod-list">
+        <div class="mod-option checked" data-mod="proveedores">
+          <input type="checkbox" checked style="display:none">
+          <div class="mod-icon">📄</div>
+          <div class="mod-info">
+            <div class="mod-name">Proveedores</div>
+            <div class="mod-desc">Facturas, proveedores, flujo de aprobación</div>
+          </div>
+        </div>
+        <div class="mod-option checked" data-mod="logistica">
+          <input type="checkbox" checked style="display:none">
+          <div class="mod-icon">🚚</div>
+          <div class="mod-info">
+            <div class="mod-name">Logística</div>
+            <div class="mod-desc">Rutas, vehículos, pedidos, VRP</div>
+          </div>
+        </div>
+        <div class="mod-option" data-mod="nomina">
+          <input type="checkbox" style="display:none">
+          <div class="mod-icon">💰</div>
+          <div class="mod-info">
+            <div class="mod-name">Nómina</div>
+            <div class="mod-desc">Horas extra, novedades, empleados</div>
+          </div>
+        </div>
+      </div>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;">
+        <input type="checkbox" id="seed-demo" checked>
+        <span style="font-size:13px;">🌱 Sembrar datos demo (clientes, facturas, vehículos de prueba)</span>
+      </label>
+      <p style="font-size:13px;color:var(--muted);margin-top:8px;">💡 Los módulos comparten autenticación con el launcher (login único).</p>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="prevStep()">Atrás</button>
+      <button class="btn btn-primary" onclick="nextStep()">Continuar</button>
+    </div>
+  </div>
+
+  <!-- Step 4: Review -->
+  <div class="page" id="step-4">
+    <div class="card">
+      <h2>📋 Revisar configuración</h2>
+      <p class="desc">Confirma que todo esté correcto antes de comenzar la instalación.</p>
+      <div class="summary-grid" id="summary"></div>
+      <div style="margin-top:20px;border-top:1px solid var(--danger);padding-top:16px;background:rgba(247,97,79,.06);border-radius:10px;padding:16px;">
+        <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-weight:600;color:var(--danger);">
+          <input type="checkbox" id="clean-install" onchange="toggleClean()" style="width:18px;height:18px;accent-color:var(--danger);">
+          🗑️ Instalación limpia — elimina datos existentes
+        </label>
+        <p style="font-size:12px;color:var(--muted);margin:8px 0 0 28px;">Esto borrará todas las bases de datos, archivos .env y registros PM2 actuales. No se puede deshacer.</p>
+        <div id="clean-confirm" style="display:none;margin-top:12px;margin-left:28px;">
+          <label style="font-size:13px;color:var(--danger);">Escribe <strong>CONFIRMAR</strong> para confirmar:</label>
+          <input type="text" id="clean-confirm-input" placeholder="CONFIRMAR" oninput="checkCleanConfirm()" style="border-color:var(--danger);margin-top:4px;max-width:300px;">
+        </div>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="prevStep()">Atrás</button>
+      <button class="btn btn-primary" onclick="startInstall()">🚀 Iniciar instalación</button>
+    </div>
+  </div>
+
+  <!-- Step 5: Installing -->
+  <div class="page" id="step-5">
+    <div class="card">
+      <h2 id="install-title">⚙️ Instalando...</h2>
+      <p class="desc" id="install-status">Preparando...</p>
+      <div class="logs" id="install-logs"></div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" disabled>Atrás</button>
+      <button class="btn btn-secondary" onclick="location.reload()" style="display:none" id="retry-btn">🔄 Reintentar</button>
+    </div>
+  </div>
+
+  <!-- Step 6: Complete -->
+  <div class="page" id="step-6">
+    <div class="card">
+      <h2>🎉 Instalación completada</h2>
+      <p class="desc">Horix ERP está listo para usar. Guarda estas credenciales.</p>
+      <div class="complete-grid" id="complete-info"></div>
+      <p style="font-size:13px;color:var(--muted);margin-top:16px;">
+        ⚠️ Cambia la contraseña del admin después del primer ingreso.
+      </p>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="location.reload()">🔄 Nueva instalación</button>
+      <button class="btn btn-primary" id="login-btn" onclick="openLogin()">🔑 Ir al login</button>
+    </div>
+  </div>
+</div>
+
+<script src="app.js"></script>
+</body>
+</html>

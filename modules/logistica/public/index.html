@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Logística</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+:root {
+  --bg:#0d0f14;--surface:#161a23;--surface2:#1e2330;--border:#2a3045;
+  --accent:#00A86B;--accent2:#f7944f;--success:#4fbe96;--warning:#f7d44f;
+  --danger:#f7614f;--text:#e8ecf5;--muted:#7a85a0;
+  --font-head:'Plus Jakarta Sans',sans-serif;
+  --font-body:'DM Sans',sans-serif;
+  --sidebar-w:230px;
+}
+body.light {
+  --bg:#f0f2f7;--surface:#ffffff;--surface2:#e8eaf0;--border:#d0d4e4;
+  --text:#1a1d2e;--muted:#5a6180;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:15px;line-height:1.5;}
+a{color:var(--accent);text-decoration:none}
+input,select,textarea{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px 14px;font:inherit;width:100%;outline:none;transition:border .15s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+input[type=checkbox]{width:auto;padding:0;accent-color:var(--accent);cursor:pointer;flex-shrink:0}
+button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--font-body);padding:11px 22px;transition:all .15s;display:inline-flex;align-items:center;gap:8px}
+.btn-primary{background:var(--accent);color:#fff}
+.btn-primary:hover{filter:brightness(1.15)}
+.btn-sm{padding:7px 14px;font-size:13px}
+.btn-icon{width:36px;height:36px;padding:0;justify-content:center;border-radius:8px;border:1px solid transparent;box-sizing:border-box;font-size:18px;line-height:1}
+.btn-secondary{background:var(--surface2);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{background:var(--border)}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-outline{background:transparent;color:var(--muted);border:1px solid var(--border)}
+.btn-outline:hover{color:var(--text);border-color:var(--accent)}
+
+/* ── App Layout ── */
+#app-screen{display:block}
+.sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;transition:transform .25s}
+.sidebar .logo{padding:20px;font-family:var(--font-head);font-size:18px;font-weight:700;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
+.sidebar .logo span{color:var(--accent)}
+.sidebar .user-info{padding:16px 20px;border-bottom:1px solid var(--border)}
+.sidebar .user-info .name{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sidebar .user-info .role{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sidebar .user-info .badge{display:inline-block;background:var(--accent);color:#fff;font-size:10px;padding:2px 8px;border-radius:10px;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+.sidebar nav{flex:1;padding:12px 0;overflow-y:auto}
+.sidebar nav .nav-item{display:flex;align-items:center;gap:12px;padding:10px 20px;color:var(--muted);font-size:14px;cursor:pointer;transition:all .12s;border-left:3px solid transparent}
+.sidebar nav .nav-item:hover{color:var(--text);background:rgba(255,255,255,.03)}
+.sidebar nav .nav-item.active{color:var(--accent);background:rgba(0,168,107,.08);border-left-color:var(--accent)}
+.sidebar nav .nav-item .icon{font-size:18px;width:24px;text-align:center}
+.sidebar .sidebar-footer{padding:12px 20px;border-top:1px solid var(--border)}
+.sidebar .sidebar-footer .nav-item{font-size:13px;padding:8px 0}
+
+.main{margin-left:var(--sidebar-w);min-height:100vh;display:flex;flex-direction:column}
+.main-header{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:1px solid var(--border);background:var(--surface);flex-wrap:wrap;gap:10px}
+.main-header h2{font-family:var(--font-head);font-size:18px;font-weight:600}
+.main-header .header-actions{display:flex;gap:8px;align-items:center}
+.main-body{padding:24px 28px;flex:1}
+
+/* ── Pages ── */
+.page{display:none}
+.page.active{display:block}
+.page-header{margin-bottom:20px}
+.page-header h3{font-family:var(--font-head);font-size:20px;font-weight:600}
+.page-header p{color:var(--muted);font-size:14px;margin-top:2px}
+
+/* ── Stats Cards ── */
+.stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:24px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
+.stat-card .stat-label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px}
+.stat-card .stat-value{font-size:28px;font-weight:700;font-family:var(--font-head);margin:4px 0}
+.stat-card .stat-sub{font-size:12px;color:var(--muted)}
+
+/* ── Cards ── */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px}
+
+/* ── Tables ── */
+.tbl{width:100%;border-collapse:collapse}
+.tbl th{text-align:left;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;padding:10px 12px;border-bottom:1px solid var(--border);font-weight:600}
+.tbl td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:14px}
+.tbl tr:hover{background:rgba(255,255,255,.02)}
+.tbl-wrap{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;overflow-x:auto}
+.tbl-wrap .tbl{margin:0}
+
+/* ── Forms ── */
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px}
+.form-grid .full{grid-column:1/-1}
+.form-group{margin-bottom:0}
+.form-group label{font-size:13px;color:var(--muted);display:block;margin-bottom:4px}
+.form-group .help{font-size:11px;color:var(--muted);margin-top:2px}
+
+/* ── Modal ── */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:200;align-items:center;justify-content:center;padding:20px}
+.modal-overlay.show{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px;width:100%;max-width:540px;max-height:80vh;display:flex;flex-direction:column}
+.modal h3{font-family:var(--font-head);font-size:18px;margin-bottom:4px;flex-shrink:0}
+.modal .modal-desc{color:var(--muted);font-size:14px;margin-bottom:20px;flex-shrink:0}
+.modal #modal-body{overflow-y:auto;flex:1;min-height:0}
+.modal .modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);flex-shrink:0}
+
+/* ── Toast ── */
+.toast-container{position:fixed;top:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:10px;max-width:420px}
+.toast{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 18px;box-shadow:0 8px 32px rgba(0,0,0,.4);display:flex;align-items:flex-start;gap:12px;animation:toast-in .3s ease;cursor:pointer;transition:opacity .3s,transform .3s}
+.toast.removing{opacity:0;transform:translateX(40px)}
+.toast .icon{font-size:20px;line-height:1.4;flex-shrink:0}
+.toast .text{flex:1;font-size:14px;line-height:1.4}
+.toast.error{border-left:3px solid var(--danger)}
+.toast.success{border-left:3px solid var(--success)}
+.toast.warning{border-left:3px solid var(--warning)}
+.toast.info{border-left:3px solid var(--accent)}
+@keyframes toast-in{from{opacity:0;transform:translateX(40px)}to{opacity:1;transform:translateX(0)}}
+
+/* ── Dropdown búsqueda ── */
+.dd-search{display:none;position:absolute;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:8px;max-height:200px;overflow-y:auto;width:100%;margin-top:2px;box-shadow:0 8px 24px rgba(0,0,0,.4)}
+.dd-search.show{display:block}
+.dd-search .dd-item{padding:8px 12px;cursor:pointer;font-size:13px;transition:background .12s}
+.dd-search .dd-item:hover{background:var(--surface2);color:var(--accent)}
+.dd-search .dd-item.disabled{color:var(--muted);cursor:default}
+.form-group{position:relative}
+.input-wrap{display:flex;align-items:stretch;gap:0}
+.input-wrap input{flex:1;border-radius:8px 0 0 8px}
+.input-wrap .btn-dd{width:36px;border:1px solid var(--border);border-left:none;border-radius:0 8px 8px 0;background:var(--surface2);color:var(--muted);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:10px;transition:color .12s}
+.input-wrap .btn-dd:hover{color:var(--text)}
+
+/* ── Mapa pin (modal) ── */
+.mapa-pin{height:220px;border-radius:10px;border:1px solid var(--border);overflow:hidden;margin-top:8px}
+.mapa-pin .leaflet-container{background:var(--surface2);height:100%}
+
+/* ── Logout button ── */
+.btn-logout{width:100%;padding:10px;background:rgba(247,97,79,.08);border:1px solid rgba(247,97,79,.2);border-radius:9px;color:var(--danger);font-family:inherit;font-weight:600;font-size:13px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .15s;justify-content:center}
+.btn-logout:hover{background:rgba(247,97,79,.15);border-color:var(--danger)}
+
+/* ── Status badges ── */
+.badge{padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600;display:inline-block}
+.badge-success{background:rgba(79,190,150,.15);color:var(--success)}
+.badge-warning{background:rgba(247,212,79,.15);color:var(--warning)}
+.badge-danger{background:rgba(247,97,79,.15);color:var(--danger)}
+.badge-info{background:rgba(0,168,107,.15);color:var(--accent)}
+
+/* ── Utility ── */
+.flex{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+.gap-sm{gap:8px}
+.mt-12{margin-top:12px}
+.mb-12{margin-bottom:12px}
+.mb-20{margin-bottom:20px}
+.text-muted{color:var(--muted)}
+.text-center{text-align:center}
+.truncate{max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.empty-state{text-align:center;padding:48px 20px;color:var(--muted)}
+.empty-state .icon{font-size:48px;margin-bottom:12px;opacity:.4}
+
+/* ── Responsive ── */
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}
+  .stats-row{grid-template-columns:1fr 1fr}
+  .form-grid{grid-template-columns:1fr}
+  .modal{max-width:100%;border-radius:12px;margin:10px}
+  .main-body{padding:16px}
+  .main-header{padding:12px 16px}
+}
+@media(max-width:480px){
+  .stats-row{grid-template-columns:1fr}
+  .login-card{padding:24px;margin:16px;border-radius:12px}
+}
+
+/* ── Theme toggle ── */
+.theme-toggle{background:none;border:none;color:var(--muted);font-size:18px;cursor:pointer;padding:6px;border-radius:6px;transition:color .15s}
+.theme-toggle:hover{color:var(--text)}
+
+/* ── Hamburger ── */
+.hamburger{display:none;background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;padding:4px;line-height:1}
+@media(max-width:768px){
+  .hamburger{display:inline-flex}
+  .sidebar-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99}
+  .sidebar-overlay.show{display:block}
+}
+
+/* ── File upload ── */
+.drop-zone{border:2px dashed var(--border);border-radius:12px;padding:32px;text-align:center;cursor:pointer;transition:all .15s;margin-bottom:14px}
+.drop-zone:hover,.drop-zone.dragover{border-color:var(--accent);background:rgba(0,168,107,.04)}
+.drop-zone .icon{font-size:36px;margin-bottom:8px;opacity:.5}
+.drop-zone p{color:var(--muted);font-size:14px}
+.drop-zone .filename{color:var(--accent);font-weight:600;margin-top:6px;display:none}
+#mapa-contenedor .leaflet-container{background:var(--surface2)}
+#mapa-contenedor .leaflet-popup-content-wrapper{background:var(--surface);color:var(--text);border-radius:10px}
+#mapa-contenedor .leaflet-popup-tip{background:var(--surface)}
+
+/* ── Clientes card grid (Horix style) ── */
+.cli-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
+.cli-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;transition:border-color .2s}
+.cli-card:hover{border-color:var(--accent)}
+.cli-card-head{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}
+.cli-avatar{width:42px;height:42px;border-radius:11px;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-weight:800;font-size:15px;color:#fff;flex-shrink:0}
+.cli-name{font-size:14px;font-weight:700;margin-bottom:2px;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cli-meta{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cli-addr{font-size:11px;color:var(--accent);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cli-stats{display:flex;gap:14px;margin-bottom:12px}
+.cli-stat{font-size:11px;color:var(--muted)}
+.cli-stat strong{display:block;font-size:15px;font-weight:700;color:var(--text)}
+.cli-actions{display:flex;gap:6px;padding-top:12px;border-top:1px solid var(--border)}
+.cli-check{accent-color:var(--accent);cursor:pointer;margin-top:3px;flex-shrink:0}
+body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px rgba(0,0,0,.05)}
+</style>
+</head>
+<body>
+
+<!-- App -->
+<div id="app-screen">
+  <div class="sidebar-overlay" onclick="closeSidebar()"></div>
+  <aside class="sidebar" id="sidebar">
+    <div class="logo">🚚 <span>Logística</span></div>
+    <div class="user-info">
+      <div class="name" id="user-name"></div>
+      <div class="role" id="user-role"></div>
+      <div class="role" id="user-email" style="font-size:11px;color:var(--muted);"></div>
+      <div class="badge" id="user-badge"></div>
+    </div>
+    <nav>
+      <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+        <span class="icon">📊</span> Dashboard
+      </div>
+      <div class="nav-item" data-page="vehiculos" onclick="navigate('vehiculos')">
+        <span class="icon">🚛</span> Vehículos
+      </div>
+      <div class="nav-item" data-page="pedidos" onclick="navigate('pedidos')">
+        <span class="icon">📦</span> Pedidos
+      </div>
+      <div class="nav-item" data-page="clientes" onclick="navigate('clientes')">
+        <span class="icon">👤</span> Clientes
+      </div>
+      <div class="nav-item" data-page="sedes" onclick="navigate('sedes')">
+        <span class="icon">🏢</span> Sedes
+      </div>
+      <div class="nav-item" data-page="rutas" onclick="navigate('rutas')">
+        <span class="icon">🗺️</span> Rutas
+      </div>
+      <div class="nav-item" data-page="mapa" onclick="navigate('mapa')">
+        <span class="icon">🗺️</span> Mapa
+      </div>
+      <div class="nav-item" data-page="config" onclick="navigate('config')">
+        <span class="icon">⚙️</span> Configuración
+      </div>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesión">
+        <span class="nav-icon" style="font-size:18px;">⏻</span> Cerrar sesión
+      </button>
+      <div style="margin-top:10px;text-align:center;font-size:10px;color:var(--muted);line-height:1.6;opacity:0.7;">
+        <div id="app-version">v—</div>
+        <div>© 2026 Edgar Velasquez</div>
+        <div><a href="https://github.com/Kernel-Panic92/horix-logistics" target="_blank" rel="noopener" style="color:var(--accent);text-decoration:none;">github.com/Kernel-Panic92/horix-logistics</a></div>
+        <div>Todos los derechos reservados</div>
+      </div>
+    </div>
+  </aside>
+  <div class="main">
+    <div class="main-header">
+      <div class="flex gap-sm">
+        <button class="hamburger" onclick="toggleSidebar()">☰</button>
+        <h2 id="page-title">Dashboard</h2>
+      </div>
+      <div class="header-actions">
+      </div>
+    </div>
+    <div class="main-body">
+
+      <!-- Dashboard -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-header">
+          <h3>Dashboard</h3>
+          <p>Resumen general del sistema de logística</p>
+        </div>
+        <div class="stats-row" id="dash-stats"></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:16px;">
+          <div class="card" id="dash-weather" style="display:none;"></div>
+          <div class="card" id="dash-alerts" style="display:none;"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;">
+          <div class="card" id="dash-recientes">
+            <h4 style="margin-bottom:12px;font-family:var(--font-head);font-size:15px;">Rutas de hoy</h4>
+            <div id="dash-rutas-list"><p class="text-muted">Cargando...</p></div>
+          </div>
+          <div class="card" id="dash-vehiculos-estado">
+            <h4 style="margin-bottom:12px;font-family:var(--font-head);font-size:15px;">Estado de vehículos</h4>
+            <div id="dash-vehiculos-list"><p class="text-muted">Cargando...</p></div>
+          </div>
+          <div class="card" id="dash-pedidos-recientes">
+            <h4 style="margin-bottom:12px;font-family:var(--font-head);font-size:15px;">Pedidos recientes</h4>
+            <div id="dash-pedidos-list"><p class="text-muted">Cargando...</p></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Vehículos -->
+      <div class="page" id="page-vehiculos">
+        <div class="page-header flex" style="justify-content:space-between;align-items:center;">
+          <div><h3>Vehículos</h3><p>Gestión de flota disponible</p></div>
+          <div class="flex gap-sm" style="flex-wrap:wrap;">
+            <div style="position:relative;min-width:160px;">
+              <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;">🔍</span>
+              <input type="text" id="filtro-vehiculos-q" placeholder="Buscar placa, alias..."
+                     oninput="cargarVehiculos()"
+                     style="width:100%;padding:7px 12px 7px 32px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
+            </div>
+            <select id="filtro-vehiculos-estado" onchange="cargarVehiculos()" style="width:auto;">
+              <option value="">Todos</option>
+              <option value="disponible">Disponible</option>
+              <option value="en_ruta">En ruta</option>
+              <option value="mantenimiento">Mantenimiento</option>
+            </select>
+            <button class="btn btn-danger btn-sm" id="btn-del-vehiculo" style="display:none" onclick="eliminarSeleccionados('vehiculo')">🗑️ Eliminar</button>
+            <button class="btn btn-primary btn-sm" onclick="abrirModalVehiculo()">+ Nuevo</button>
+          </div>
+        </div>
+        <details style="margin-bottom:16px;background:var(--surface2);border-radius:10px;padding:12px;cursor:pointer;" id="import-widetech-card">
+          <summary style="font-weight:600;font-size:13px;color:var(--accent);cursor:pointer;">📊 Importar datos GPS</summary>
+          <div style="margin-top:12px;cursor:default;">
+            <div class="drop-zone" id="drop-widetech" onclick="document.getElementById('file-widetech').click()" style="padding:16px;">
+              <div class="icon" style="font-size:24px;">📊</div>
+              <p style="font-size:13px;">Arrastra el Excel aquí o haz clic</p>
+              <div class="filename" id="file-widetech-name"></div>
+            </div>
+            <input type="file" id="file-widetech" accept=".xlsx,.xls" style="display:none" onchange="previsualizarArchivo(this,'file-widetech-name')">
+            <button class="btn btn-primary" onclick="importarWidetech()" id="btn-import-widetech" style="width:100%;justify-content:center;" disabled>Importar</button>
+            <div id="result-widetech" style="margin-top:10px;"></div>
+          </div>
+        </details>
+        <div class="tbl-wrap">
+          <table class="tbl" id="tbl-vehiculos"><thead><tr>
+            <th style="width:36px"><input type="checkbox" onchange="toggleAll('vehiculo',this.checked)"></th>
+            <th>Placa</th><th>Alias</th><th>Sede</th><th>Cap. Peso</th><th>Cap. Vol.</th><th>Estado</th><th style="width:80px"></th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+
+      <!-- Pedidos -->
+      <div class="page" id="page-pedidos">
+        <div class="page-header flex" style="justify-content:space-between;align-items:center;">
+          <div><h3>Pedidos</h3><p>Órdenes de entrega pendientes y asignadas</p></div>
+          <div class="flex gap-sm" style="flex-wrap:wrap;">
+            <div style="position:relative;min-width:180px;">
+              <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;">🔍</span>
+              <input type="text" id="filtro-pedidos-q" placeholder="Buscar factura, cliente, placa..."
+                     oninput="cargarPedidos()"
+                     style="width:100%;padding:7px 12px 7px 32px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
+            </div>
+            <select id="filtro-pedidos" onchange="cargarPedidos()" style="width:auto;">
+              <option value="">Todos</option>
+              <option value="pendiente">Pendientes</option>
+              <option value="asignado">Asignados</option>
+              <option value="en_ruta">En ruta</option>
+              <option value="entregado">Entregados</option>
+              <option value="fallido">Fallidos</option>
+              <option value="cancelado">Cancelados</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" id="btn-assign-pedido" onclick="asignarMasivoPedido()">🚛 Asignar</button>
+            <button class="btn btn-danger btn-sm" id="btn-del-pedido" style="display:none" onclick="eliminarSeleccionados('pedido')">🗑️ Eliminar</button>
+            <button class="btn btn-primary btn-sm" onclick="abrirModalPedido()">+ Nuevo</button>
+          </div>
+        </div>
+        <details style="margin-bottom:16px;background:var(--surface2);border-radius:10px;padding:12px;cursor:pointer;" id="import-siesa-card">
+          <summary style="font-weight:600;font-size:13px;color:var(--accent);cursor:pointer;">📄 Importar planilla de cuadre</summary>
+          <div style="margin-top:12px;cursor:default;">
+            <div class="drop-zone" id="drop-siesa" onclick="document.getElementById('file-siesa').click()" style="padding:16px;">
+              <div class="icon" style="font-size:24px;">📄</div>
+              <p style="font-size:13px;">Arrastra el PDF aquí o haz clic</p>
+              <div class="filename" id="file-siesa-name"></div>
+            </div>
+            <input type="file" id="file-siesa" accept=".pdf" style="display:none" onchange="previsualizarArchivo(this,'file-siesa-name')">
+            <button class="btn btn-primary" onclick="importarSiesa()" id="btn-import-siesa" style="width:100%;justify-content:center;" disabled>Importar</button>
+            <div id="result-siesa" style="margin-top:10px;"></div>
+          </div>
+        </details>
+        <div class="tbl-wrap">
+          <table class="tbl" id="tbl-pedidos"><thead><tr>
+            <th style="width:36px"><input type="checkbox" onchange="toggleAll('pedido',this.checked)"></th>
+            <th>Factura</th><th>Cliente</th><th>Dirección</th><th>V. Contado</th><th>V. Crédito</th><th>Placa</th><th>Estado</th><th>Ruta</th><th style="width:100px"></th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+
+      <!-- Rutas -->
+      <div class="page" id="page-rutas">
+        <div class="page-header flex" style="justify-content:space-between;align-items:center;">
+          <div><h3>Rutas</h3><p>Rutas optimizadas y planificadas</p></div>
+          <div class="flex gap-sm">
+            <label style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none;">
+              <input type="checkbox" onchange="toggleAll('ruta',this.checked)" style="accent-color:var(--accent);"> Todo
+            </label>
+            <button class="btn btn-danger btn-sm" id="btn-del-ruta" style="display:none" onclick="eliminarSeleccionados('ruta')">🗑️ Eliminar</button>
+            <input type="date" id="filtro-fecha" onchange="cargarRutas()" style="width:auto;">
+            <select id="filtro-rutas-sede" style="width:auto;max-width:180px;" onchange="cargarRutas()">
+              <option value="">Todas las sedes</option>
+            </select>
+            <select id="filtro-ruta-zona" style="width:auto;max-width:180px;">
+              <option value="">Todas las zonas</option>
+            </select>
+            <select id="filtro-ruta-tipo" style="width:auto;max-width:120px;">
+              <option value="vehiculo">🚛 Vehículo</option>
+              <option value="moto">🏍️ Moto</option>
+            </select>
+            <button class="btn btn-primary btn-sm" onclick="generarRutas()">⚡ Generar rutas</button>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="tbl-rutas"><thead><tr>
+            <th style="width:40px;"></th>
+            <th>Nombre</th><th>Vehículo</th><th>Sede</th><th>Paradas</th><th>Distancia</th><th>Tiempo</th><th>Estado</th><th>Fecha</th><th style="width:130px;white-space:nowrap;"></th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+
+      <!-- Importar -->
+      <div class="page" id="page-importar">
+        <div class="page-header">
+          <h3>Importar datos</h3>
+          <p>Usa los botones en Pedidos (planilla) o Vehículos (datos GPS)</p>
+        </div>
+      </div>
+
+      <!-- Clientes -->
+      <div class="page" id="page-clientes">
+        <div class="page-header flex" style="justify-content:space-between;align-items:flex-start;">
+          <div><h3>Clientes</h3><p>Gestión de clientes importados</p></div>
+          <div class="flex gap-sm">
+            <label style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none;">
+              <input type="checkbox" onchange="toggleAll('cliente',this.checked)" style="accent-color:var(--accent);"> Todo
+            </label>
+            <button class="btn btn-secondary btn-sm" onclick="asignarRutaMasivo()">🛣️ Ruta</button>
+            <button class="btn btn-danger btn-sm" id="btn-del-cliente" style="display:none" onclick="eliminarSeleccionados('cliente')">🗑️ Eliminar</button>
+            <button class="btn btn-primary btn-sm" onclick="abrirModalCliente()">+ Nuevo Cliente</button>
+          </div>
+        </div>
+        <details style="margin-bottom:16px;background:var(--surface2);border-radius:10px;padding:12px;cursor:pointer;" id="import-maestro-card">
+          <summary style="font-weight:600;font-size:13px;color:var(--accent);cursor:pointer;">📋 Importar maestro de clientes (SIE-SA)</summary>
+          <div style="margin-top:12px;cursor:default;">
+            <div class="drop-zone" id="drop-maestro" onclick="document.getElementById('file-maestro').click()" style="padding:16px;">
+              <div class="icon" style="font-size:24px;">📋</div>
+              <p style="font-size:13px;">Arrastra el Excel/CSV aquí o haz clic</p>
+              <div class="filename" id="file-maestro-name"></div>
+            </div>
+            <input type="file" id="file-maestro" accept=".xlsx,.xls,.csv,.txt,.tsv" style="display:none" onchange="previsualizarArchivo(this,'file-maestro-name')">
+            <button class="btn btn-primary" onclick="importarMaestroClientes()" id="btn-import-maestro" style="width:100%;justify-content:center;" disabled>Importar</button>
+            <div id="result-maestro" style="margin-top:10px;"></div>
+          </div>
+        </details>
+        <div style="margin-bottom:18px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+          <div style="position:relative;flex:1;min-width:200px;max-width:380px;">
+            <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;">🔍</span>
+            <input type="text" id="filtro-clientes" placeholder="Buscar por nombre, ciudad, teléfono..."
+                   oninput="cargarClientes()"
+                   style="width:100%;padding:9px 12px 9px 36px;background:var(--surface);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:var(--font-body);font-size:13px;outline:none;box-sizing:border-box;"
+                   onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="document.getElementById('filtro-clientes').value='';cargarClientes()">🗑️ Limpiar</button>
+          <span id="cli-count" style="font-size:12px;color:var(--muted);white-space:nowrap;"></span>
+        </div>
+        <div class="cli-grid" id="cli-grid">
+          <div class="text-center text-muted" style="padding:32px;grid-column:1/-1;">Cargando...</div>
+        </div>
+      </div>
+
+      <!-- Sedes -->
+      <div class="page" id="page-sedes">
+        <div class="page-header flex" style="justify-content:space-between;align-items:center;">
+          <div><h3>Sedes</h3><p>Ubicaciones y puntos de partida para las rutas</p></div>
+          <div class="flex gap-sm" style="flex-wrap:wrap;">
+            <div style="position:relative;min-width:160px;">
+              <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;">🔍</span>
+              <input type="text" id="filtro-sedes" placeholder="Buscar sede..."
+                     oninput="cargarSedes()"
+                     style="width:100%;padding:7px 12px 7px 32px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
+            </div>
+            <button class="btn btn-primary btn-sm" onclick="abrirModalSede()">+ Nueva sede</button>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="tbl-sedes"><thead><tr>
+            <th>Nombre</th><th>Centro de Operación</th><th>Ciudad</th><th>Dirección</th><th>Teléfono</th><th>Coordenadas</th><th>Estado</th><th style="width:80px"></th>
+          </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+
+      <!-- Mapa -->
+      <div class="page" id="page-mapa">
+        <div class="page-header flex" style="justify-content:space-between;align-items:center;">
+          <div><h3>Mapa</h3><p>Rutas planificadas y posición de vehículos</p></div>
+          <div class="flex gap-sm">
+            <input type="date" id="mapa-fecha" onchange="cargarMapa()" style="width:auto;">
+            <select id="mapa-filtro-ruta" onchange="filtrarMapaRuta()" style="width:auto;">
+              <option value="">Todas las rutas</option>
+            </select>
+            <button class="btn btn-sm btn-secondary" onclick="reiniciarMapa()">🔄</button>
+          </div>
+        </div>
+        <div id="mapa-contenedor" style="height:calc(100vh - 180px);border-radius:12px;border:1px solid var(--border);overflow:hidden;"></div>
+      </div>
+
+      <!-- Configuración -->
+      <div class="page" id="page-config">
+        <div class="page-header">
+          <h3>Configuración</h3>
+          <p>Ajustes del sistema</p>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:18px;flex-wrap:wrap;" id="cfg-tab-bar">
+          <button class="btn btn-sm btn-secondary active" data-cfg="smtp" onclick="cfgTab='smtp';rConfig()">📧 Correo</button>
+          <button class="btn btn-sm btn-secondary" data-cfg="empresa" onclick="cfgTab='empresa';rConfig()">🏢 Empresa</button>
+          <button class="btn btn-sm btn-secondary" data-cfg="backup" onclick="cfgTab='backup';rConfig()">💾 Backup</button>
+          <button class="btn btn-sm btn-secondary" data-cfg="seguridad" onclick="cfgTab='seguridad';rConfig()">🛡️ Seguridad</button>
+          <button class="btn btn-sm btn-secondary" data-cfg="auditoria" onclick="cfgTab='auditoria';rConfig()">📋 Auditoría</button>
+          <button class="btn btn-sm btn-secondary" data-cfg="mapas" onclick="cfgTab='mapas';rConfig()">🗺️ Mapas</button>
+        </div>
+        <div id="cfg-content">Cargando...</div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Logout Confirmation Modal -->
+<div class="modal-overlay" id="modal-logout">
+  <div class="modal" style="max-width:380px;text-align:center;">
+    <div style="font-size:44px;margin-bottom:8px">👋</div>
+    <div class="modal-title" style="font-family:var(--font-head);font-size:20px;">Cerrar sesión</div>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:8px">¿Estás seguro de que deseas cerrar tu sesión?</p>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--border);">
+      <button class="btn btn-secondary" onclick="cerrarLogoutConfirm()">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmarLogout()">Cerrar sesión</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Pedido -->
+<div class="modal-overlay" id="modal-pedido" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal" style="max-width:600px;">
+    <div class="modal-title" style="font-family:var(--font-head);font-size:18px;margin-bottom:12px;">📦 Detalle del Pedido</div>
+    <div id="pedido-detalle">Cargando...</div>
+    <div class="modal-actions"><button class="btn btn-secondary" onclick="document.getElementById('modal-pedido').classList.remove('show')">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container" id="toast-container"></div>
+
+<!-- Modal genérico -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3 id="modal-title">Título</h3>
+    <p class="modal-desc" id="modal-desc"></p>
+    <div id="modal-body"></div>
+    <div class="modal-actions" id="modal-actions"></div>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+var GOOGLE_MAPS_KEY = '';
+var _base = location.pathname.match(/^\/(\w+)\//) ? '/' + RegExp.$1 : '';
+fetch(_base + '/api/configuracion/gmaps/js-url').then(r=>r.json()).then(d=>{
+  if(d.url){
+    GOOGLE_MAPS_KEY = d.url.match(/key=([^&]+)/)?.[1] || '';
+    var s = document.createElement('script');
+    s.src = d.url + '&callback=iniciarAutocompleteCliente';
+    s.async = true; s.defer = true;
+    document.head.appendChild(s);
+  }
+}).catch(()=>{});
+</script>
+<script src="app.js?v=20260625"></script>
+<script>if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');</script>
+</body>
+</html>

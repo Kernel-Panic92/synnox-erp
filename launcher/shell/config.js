@@ -3,5 +3,7 @@
 const PLATFORM_CONFIG = {
   mode: 'test',
   horixUrl: '/horix/',
-  docflowUrl: '/docflow/',
+  horixUrl: '/nomina/',
+  proveedoresUrl: '/proveedores/',
+  logisticaUrl: '/logistica/',
 };

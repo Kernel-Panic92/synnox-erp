@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  # PostgreSQL para Logistics
+  postgres-logistics:
+    image: postgis/postgis:15-3.3
+    container_name: vitamar-logistics-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: vitamar2024
+      POSTGRES_DB: vitamar_logistics
+    ports:
+      - "5433:5432"
+    volumes:
+      - logistics-db:/var/lib/postgresql/data
+    networks:
+      - vitamar-network
+
+  # OSRM (Open Source Routing Machine)
+  # Imagen precomputada para Colombia
+  osrm:
+    image: osrm/osrm-backend:v5.27.1
+    container_name: vitamar-osrm
+    volumes:
+      # Descarga el mapa de Colombia desde: http://download.geofabrik.de/south-america/colombia-latest.osm.pbf
+      # Y colócalo en un volumen o bind mount
+      - ./osrm-data:/data
+    ports:
+      - "5000:5000"
+    command: osrm-routed --algorithm mld /data/colombia-latest.osrm
+    networks:
+      - vitamar-network
+    # En desarrollo, puedes usar la API pública de OSRM sin levantar este servicio
+
+volumes:
+  logistics-db:
+    driver: local
+
+networks:
+  vitamar-network:
+    driver: bridge
+
+# Para usar:
+# docker-compose up -d
+#
+# Conexión a PostgreSQL:
+# Host: localhost
+# Puerto: 5433
+# Usuario: postgres
+# Password: vitamar2024
+# BD: vitamar_logistics
+#
+# OSRM (local):
+# http://localhost:5000
+#
+# OSRM (en desarrollo - usa el público):
+# https://router.project-osrm.org
