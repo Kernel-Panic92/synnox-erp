@@ -218,6 +218,98 @@ try { db.prepare("UPDATE user_modulos SET modulo_id = 'logistica' WHERE modulo_i
 // Seed public_url from url if empty
 db.prepare("UPDATE modulos_plataforma SET public_url = url WHERE public_url = '' AND url != ''").run();
 
+// ── Permisos granular tables ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS modulos_permisos_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    modulo_id TEXT NOT NULL,
+    permiso_id TEXT NOT NULL,
+    label TEXT NOT NULL,
+    tipo TEXT NOT NULL DEFAULT 'action',
+    activo INTEGER NOT NULL DEFAULT 1,
+    UNIQUE(modulo_id, permiso_id)
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS modulos_permisos_perfil (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    perfil_id INTEGER NOT NULL REFERENCES perfiles(id) ON DELETE CASCADE,
+    modulo_id TEXT NOT NULL,
+    permiso_id TEXT NOT NULL,
+    activo INTEGER NOT NULL DEFAULT 1,
+    UNIQUE(perfil_id, modulo_id, permiso_id)
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS modulos_permisos_usuario (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    modulo_id TEXT NOT NULL,
+    permiso_id TEXT NOT NULL,
+    activo INTEGER NOT NULL DEFAULT 1,
+    UNIQUE(usuario_id, modulo_id, permiso_id)
+  )
+`);
+
+// Seed default permission configs for known modules
+const defaultPermisosConfig = {
+  proveedores: [
+    ['ver', 'Ver facturas'],
+    ['crear', 'Crear facturas'],
+    ['editar', 'Editar facturas'],
+    ['eliminar', 'Eliminar facturas'],
+    ['aprobar', 'Aprobar facturas'],
+    ['rechazar', 'Rechazar facturas'],
+    ['causar', 'Causar facturas'],
+    ['pagar', 'Pagar facturas'],
+    ['configurar', 'Configurar módulo'],
+    ['exportar', 'Exportar datos'],
+    ['auditar', 'Ver auditoría']
+  ],
+  nomina: [
+    ['centros', 'Gestionar centros'],
+    ['usuarios', 'Gestionar usuarios'],
+    ['empleados', 'Gestionar empleados'],
+    ['nominas', 'Gestionar nóminas'],
+    ['registros', 'Registrar horas'],
+    ['configuracion', 'Configurar módulo'],
+    ['backup', 'Backup y restore'],
+    ['reportes', 'Ver reportes'],
+    ['siesa', 'Exportación SIESA'],
+    ['tipos', 'Gestionar tipos'],
+    ['aprobar', 'Aprobar registros'],
+    ['editar', 'Editar registros'],
+    ['revertir', 'Revertir registros/empleados'],
+    ['eliminar_registros', 'Eliminar registros'],
+    ['eliminar_empleados', 'Eliminar empleados'],
+    ['eliminar_centros', 'Eliminar centros'],
+    ['eliminar_nominas', 'Eliminar nóminas'],
+    ['ver_todos', 'Ver datos de todos'],
+    ['ver_sede', 'Ver datos de sede'],
+    ['ver_propios', 'Ver solo propios']
+  ],
+  logistica: [
+    ['ver', 'Ver dashboard/rutas/pedidos'],
+    ['crear', 'Crear rutas/pedidos'],
+    ['editar', 'Editar rutas/pedidos'],
+    ['eliminar', 'Eliminar rutas/pedidos'],
+    ['asignar', 'Asignar vehículos/conductores'],
+    ['configurar', 'Configurar módulo'],
+    ['exportar', 'Exportar datos']
+  ]
+};
+
+const insPermisoConfig = db.prepare(
+  'INSERT OR IGNORE INTO modulos_permisos_config (modulo_id, permiso_id, label, tipo) VALUES (?, ?, ?, ?)'
+);
+for (const [modId, permisos] of Object.entries(defaultPermisosConfig)) {
+  for (const [permId, label] of permisos) {
+    insPermisoConfig.run(modId, permId, label, 'action');
+  }
+}
+
 function getModulos(onlyMcp) {
   let sql = 'SELECT * FROM modulos_plataforma WHERE activo = 1';
   if (onlyMcp) sql += ' AND mcp_enabled = 1';
@@ -279,6 +371,8 @@ function logLoginAttempt(ip, email, exitoso) {
   db.prepare("INSERT INTO login_logs (ip, email, exitoso) VALUES (?, ?, ?)").run(ip || '', (email || '').toLowerCase().trim(), exitoso ? 1 : 0);
 }
 
+const { buildPayload, getUserWithPermissions } = require('./../framework/auth');
+
 app.post('/api/auth/login', loginRateLimit, async (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) return res.status(400).json({ error: 'Campos requeridos' });
@@ -290,20 +384,9 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
     logLoginAttempt(req.ip, email, true);
-    const modulos = (user.rol === 'admin')
-      ? db.prepare("SELECT id FROM modulos_plataforma WHERE activo = 1").all().map(m => m.id)
-      : db.prepare("SELECT modulo_id FROM user_modulos WHERE user_id = ?").all(user.id).map(m => m.modulo_id);
-    
-    // Get profile permissions
-    let permisos = [];
-    let perfilNombre = null;
-    if (user.perfil_id) {
-      const perfil = db.prepare('SELECT nombre FROM perfiles WHERE id = ?').get(user.perfil_id);
-      perfilNombre = perfil?.nombre || null;
-      permisos = db.prepare('SELECT modulo_id, permiso FROM perfil_permisos WHERE perfil_id = ?').all(user.perfil_id);
-    }
-    
-    const payload = { id: user.id, email: user.email, nombre: user.nombre, rol: user.rol, modulos, perfil_id: user.perfil_id, perfil_nombre: perfilNombre, permisos };
+    const userWithPerms = getUserWithPermissions(db, user.id);
+    if (!userWithPerms) return res.status(500).json({ error: 'Error al cargar permisos' });
+    const payload = buildPayload(userWithPerms);
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
     db.prepare("UPDATE usuarios SET actualizado = datetime('now') WHERE id = ?").run(user.id);
     res.cookie('launcher_jwt', token, {
@@ -491,11 +574,10 @@ app.get('/api/modulos', verificarToken, (req, res) => {
 });
 
 app.get('/api/auth/me', verificarToken, (req, res) => {
-  const user = db.prepare('SELECT id, nombre, email, rol, activo, creado FROM usuarios WHERE id = ?').get(req.usuario.id);
-  const modulos = (user.rol === 'admin')
-    ? db.prepare("SELECT id FROM modulos_plataforma WHERE activo = 1").all().map(m => m.id)
-    : db.prepare("SELECT modulo_id FROM user_modulos WHERE user_id = ?").all(user.id).map(m => m.modulo_id);
-  res.json({ ...user, modulos });
+  const userWithPerms = getUserWithPermissions(db, req.usuario.id);
+  if (!userWithPerms) return res.status(404).json({ error: 'Usuario no encontrado' });
+  const { modulos, modulos_permisos, permisos, perfil_nombre, ...rest } = userWithPerms;
+  res.json({ ...rest, modulos, modulos_permisos, permisos, perfil_nombre });
 });
 
 app.get('/api/admin/usuarios', verificarToken, soloAdmin, (req, res) => {
@@ -585,6 +667,7 @@ app.get('/api/admin/perfiles', verificarToken, soloAdmin, (req, res) => {
   const perfiles = db.prepare('SELECT * FROM perfiles ORDER BY nombre').all();
   for (const p of perfiles) {
     p.permisos = db.prepare('SELECT modulo_id, permiso FROM perfil_permisos WHERE perfil_id = ?').all(p.id);
+    p.permisos_funcionales = db.prepare('SELECT modulo_id, permiso_id FROM modulos_permisos_perfil WHERE perfil_id = ? AND activo = 1').all(p.id);
     p.usuarios_count = db.prepare('SELECT COUNT(*) as c FROM usuarios WHERE perfil_id = ?').get(p.id).c;
   }
   res.json(perfiles);
@@ -594,11 +677,12 @@ app.get('/api/admin/perfiles/:id', verificarToken, soloAdmin, (req, res) => {
   const perfil = db.prepare('SELECT * FROM perfiles WHERE id = ?').get(req.params.id);
   if (!perfil) return res.status(404).json({ error: 'Perfil no encontrado' });
   perfil.permisos = db.prepare('SELECT modulo_id, permiso FROM perfil_permisos WHERE perfil_id = ?').all(perfil.id);
+  perfil.permisos_funcionales = db.prepare('SELECT modulo_id, permiso_id FROM modulos_permisos_perfil WHERE perfil_id = ? AND activo = 1').all(perfil.id);
   res.json(perfil);
 });
 
 app.post('/api/admin/perfiles', verificarToken, soloAdmin, (req, res) => {
-  const { nombre, descripcion, permisos } = req.body;
+  const { nombre, descripcion, permisos, permisos_funcionales } = req.body;
   if (!nombre) return res.status(400).json({ error: 'Nombre requerido' });
   try {
     const result = db.prepare('INSERT INTO perfiles (nombre, descripcion) VALUES (?, ?)').run(nombre, descripcion || '');
@@ -606,6 +690,10 @@ app.post('/api/admin/perfiles', verificarToken, soloAdmin, (req, res) => {
     if (Array.isArray(permisos)) {
       const ins = db.prepare('INSERT INTO perfil_permisos (perfil_id, modulo_id, permiso) VALUES (?, ?, ?)');
       for (const p of permisos) ins.run(perfilId, p.modulo_id, p.permiso);
+    }
+    if (Array.isArray(permisos_funcionales)) {
+      const ins = db.prepare('INSERT INTO modulos_permisos_perfil (perfil_id, modulo_id, permiso_id) VALUES (?, ?, ?)');
+      for (const p of permisos_funcionales) ins.run(perfilId, p.modulo_id, p.permiso_id);
     }
     res.json({ ok: true, id: perfilId });
   } catch (e) {
@@ -616,7 +704,7 @@ app.post('/api/admin/perfiles', verificarToken, soloAdmin, (req, res) => {
 
 app.put('/api/admin/perfiles/:id', verificarToken, soloAdmin, (req, res) => {
   const { id } = req.params;
-  const { nombre, descripcion, permisos } = req.body;
+  const { nombre, descripcion, permisos, permisos_funcionales } = req.body;
   const perfil = db.prepare('SELECT id FROM perfiles WHERE id = ?').get(id);
   if (!perfil) return res.status(404).json({ error: 'Perfil no encontrado' });
   try {
@@ -625,6 +713,11 @@ app.put('/api/admin/perfiles/:id', verificarToken, soloAdmin, (req, res) => {
       db.prepare('DELETE FROM perfil_permisos WHERE perfil_id = ?').run(id);
       const ins = db.prepare('INSERT INTO perfil_permisos (perfil_id, modulo_id, permiso) VALUES (?, ?, ?)');
       for (const p of permisos) ins.run(id, p.modulo_id, p.permiso);
+    }
+    if (Array.isArray(permisos_funcionales)) {
+      db.prepare('DELETE FROM modulos_permisos_perfil WHERE perfil_id = ?').run(id);
+      const ins = db.prepare('INSERT INTO modulos_permisos_perfil (perfil_id, modulo_id, permiso_id) VALUES (?, ?, ?)');
+      for (const p of permisos_funcionales) ins.run(id, p.modulo_id, p.permiso_id);
     }
     res.json({ ok: true });
   } catch (e) {
@@ -643,6 +736,52 @@ app.delete('/api/admin/perfiles/:id', verificarToken, soloAdmin, (req, res) => {
 app.get('/api/admin/perfiles/:id/usuarios', verificarToken, soloAdmin, (req, res) => {
   const users = db.prepare('SELECT id, nombre, email, rol, activo FROM usuarios WHERE perfil_id = ?').all(req.params.id);
   res.json(users);
+});
+
+// ── Granular permissions: config ──
+app.get('/api/admin/permisos-config', verificarToken, soloAdmin, (req, res) => {
+  const rows = db.prepare('SELECT * FROM modulos_permisos_config WHERE activo = 1 ORDER BY modulo_id, id').all();
+  const grouped = {};
+  for (const r of rows) {
+    if (!grouped[r.modulo_id]) grouped[r.modulo_id] = [];
+    grouped[r.modulo_id].push({ id: r.permiso_id, label: r.label, tipo: r.tipo });
+  }
+  res.json(grouped);
+});
+
+app.get('/api/admin/modulos/:id/permisos-config', verificarToken, soloAdmin, (req, res) => {
+  const rows = db.prepare('SELECT * FROM modulos_permisos_config WHERE modulo_id = ? AND activo = 1 ORDER BY id').all(req.params.id);
+  res.json(rows.map(r => ({ id: r.permiso_id, label: r.label, tipo: r.tipo })));
+});
+
+app.put('/api/admin/modulos/:id/permisos-config', verificarToken, soloAdmin, (req, res) => {
+  const { id } = req.params;
+  const { permisos } = req.body; // [{id, label, tipo}]
+  if (!Array.isArray(permisos)) return res.status(400).json({ error: 'permisos debe ser un array' });
+  db.prepare('DELETE FROM modulos_permisos_config WHERE modulo_id = ?').run(id);
+  const ins = db.prepare('INSERT INTO modulos_permisos_config (modulo_id, permiso_id, label, tipo) VALUES (?, ?, ?, ?)');
+  for (const p of permisos) ins.run(id, p.id, p.label || p.id, p.tipo || 'action');
+  res.json({ ok: true });
+});
+
+// ── Granular permissions: user-level exceptions ──
+app.get('/api/admin/usuarios/:id/permisos-funcionales', verificarToken, soloAdmin, (req, res) => {
+  const rows = db.prepare('SELECT modulo_id, permiso_id FROM modulos_permisos_usuario WHERE usuario_id = ? AND activo = 1').all(req.params.id);
+  res.json(rows.map(r => ({ modulo_id: r.modulo_id, permiso_id: r.permiso_id })));
+});
+
+app.put('/api/admin/usuarios/:id/permisos-funcionales', verificarToken, soloAdmin, (req, res) => {
+  const userId = parseInt(req.params.id);
+  const { permisos } = req.body; // [{modulo_id, permiso_id}]
+  if (!Array.isArray(permisos)) return res.status(400).json({ error: 'permisos debe ser un array' });
+  const del = db.prepare('DELETE FROM modulos_permisos_usuario WHERE usuario_id = ?');
+  const ins = db.prepare('INSERT OR IGNORE INTO modulos_permisos_usuario (usuario_id, modulo_id, permiso_id) VALUES (?, ?, ?)');
+  const transaction = db.transaction(() => {
+    del.run(userId);
+    for (const p of permisos) ins.run(userId, p.modulo_id, p.permiso_id);
+  });
+  transaction();
+  res.json({ ok: true });
 });
 
 // ── API: Módulos ──

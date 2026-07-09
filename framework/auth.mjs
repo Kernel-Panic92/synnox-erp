@@ -43,3 +43,14 @@ export function requireModule(moduleId) {
     res.status(403).json({ error: `No tienes acceso al módulo ${moduleId}` });
   };
 }
+
+export function requirePermiso(permisoId, moduloId) {
+  return (req, res, next) => {
+    if (!req.user) return res.status(401).json({ error: 'No autenticado' });
+    if (req.user.rol === 'admin') return next();
+    const modPermisos = req.user.modulos_permisos || {};
+    const perms = modPermisos[moduloId] || [];
+    if (perms.includes(permisoId)) return next();
+    return res.status(403).json({ error: `Permiso requerido: ${permisoId}` });
+  };
+}
