@@ -8,11 +8,6 @@ module.exports = function({ db, fs, path, __dirname, permisosPorRol, middlewares
     res.json({ id: u.id, nombre: u.nombre, email: u.email, rol: u.rol, perfil_nombre: req.perfil_nombre || null, sede: u.sede, cambio_password: u.cambio_password||0, permisos: permisosPorRol(u.rol) });
   });
 
-  router.get('/usuarios', todosRoles, (req, res) => {
-    const usuarios = db.prepare("SELECT id, nombre, email, rol, sede, activo FROM usuarios WHERE activo=1 ORDER BY nombre").all();
-    res.json(usuarios);
-  });
-
   router.get('/sedes', todosRoles, (req, res) => {
     res.json(db.prepare("SELECT nombre FROM centros WHERE activo=1 ORDER BY nombre ASC").all().map(c => c.nombre));
   });
