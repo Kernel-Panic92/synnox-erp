@@ -3,13 +3,13 @@ const path = require('path');
 
 const db = new Database(path.join(__dirname, 'launcher.db'));
 
-const exists = db.prepare("SELECT id FROM modulos_plataforma WHERE id = 'logistics'").get();
+const exists = db.prepare("SELECT id FROM modulos_plataforma WHERE id = 'logistica'").get();
 if (exists) {
-  console.log('✅ logistics ya está registrado');
+  console.log('✅ logistica ya está registrado');
 } else {
   db.prepare(`INSERT INTO modulos_plataforma (id, nombre, descripcion, url, public_url, icon, mcp_enabled, activo, orden, proxy_prefix, tipo)
-    VALUES ('logistics', 'Logistics', 'Optimización de rutas y logística', 'http://localhost:3004', '', '📦', 1, 1, 3, '/logistics/', 'externo')`).run();
-  console.log('✅ logistics registrado en modulos_plataforma');
+    VALUES ('logistica', 'Logística', 'Optimización de rutas y logística', 'http://localhost:3004', '', '📦', 1, 1, 3, '/logistica/', 'interno')`).run();
+  console.log('✅ logistica registrado en modulos_plataforma');
 }
 
 console.log('\nMódulos registrados:');
