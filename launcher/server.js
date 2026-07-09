@@ -396,7 +396,7 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
       maxAge: 24 * 60 * 60 * 1000
     });
     console.log(`[LOGIN] Cookie set for ${email}`);
-    res.json({ jwt: token, usuario: payload, modulos });
+    res.json({ jwt: token, usuario: payload, modulos: payload.modulos });
   } catch (e) { console.error('[LOGIN]', e.stack || e.message); res.status(500).json({ error: 'Error interno' }); }
 });
 
