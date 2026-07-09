@@ -4,6 +4,8 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import pool from '../config/db.js';
+import { requirePermiso } from '../../../../framework/auth.mjs';
+const MODULE = 'logistica';
 import { parsearPdfSiesa } from '../utils/siesaPdfParser.js';
 import { parsearWidetech } from '../utils/widgetechExcelParser.js';
 import { geocodificar } from '../utils/geocoding.js';
@@ -26,7 +28,7 @@ router.get('/historial', async (req, res) => {
   }
 });
 
-router.post('/siesa', upload.single('archivo'), async (req, res) => {
+router.post('/siesa', requirePermiso('crear', MODULE), upload.single('archivo'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Archivo PDF requerido' });
 
@@ -201,7 +203,7 @@ router.post('/siesa', upload.single('archivo'), async (req, res) => {
   }
 });
 
-router.post('/widetech', upload.single('archivo'), async (req, res) => {
+router.post('/widetech', requirePermiso('crear', MODULE), upload.single('archivo'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Archivo Excel requerido' });
 
@@ -265,7 +267,7 @@ router.post('/widetech', upload.single('archivo'), async (req, res) => {
   }
 });
 
-router.post('/maestro-clientes', upload.single('archivo'), async (req, res) => {
+router.post('/maestro-clientes', requirePermiso('crear', MODULE), upload.single('archivo'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Archivo requerido' });
 
