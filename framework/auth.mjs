@@ -34,6 +34,13 @@ export function verifyToken(req, res, next) {
   }
 }
 
+export async function verifySession(req, res, next) {
+  if (!req.user) return next();
+  const valida = await verifySessionValid(req.user);
+  if (!valida) return res.status(401).json({ error: 'Sesión invalidada. Inicia sesión nuevamente.' });
+  next();
+}
+
 export function requireModule(moduleId) {
   return (req, res, next) => {
     if (!req.user) return res.status(401).json({ error: 'No autenticado' });
@@ -53,4 +60,30 @@ export function requirePermiso(permisoId, moduloId) {
     if (perms.includes(permisoId)) return next();
     return res.status(403).json({ error: `Permiso requerido: ${permisoId}` });
   };
+}
+
+// Session version cache (5 second TTL)
+const _seqCache = new Map();
+function getCachedSeq(userId) {
+  const cached = _seqCache.get(userId);
+  if (cached && Date.now() - cached.ts < 5000) return cached.seq;
+  return null;
+}
+function setCachedSeq(userId, seq) {
+  _seqCache.set(userId, { seq, ts: Date.now() });
+}
+
+export async function verifySessionValid(payload) {
+  try {
+    const launcherUrl = process.env.LAUNCHER_URL || 'http://localhost:3002';
+    const cachedSeq = getCachedSeq(payload.id);
+    if (cachedSeq !== null) return cachedSeq === payload.seq;
+    const res = await fetch(launcherUrl + '/api/internal/usuario-seq/' + payload.id, { signal: AbortSignal.timeout(2000) });
+    if (!res.ok) return true;
+    const data = await res.json();
+    setCachedSeq(payload.id, data.seq);
+    return data.seq === payload.seq;
+  } catch {
+    return true;
+  }
 }

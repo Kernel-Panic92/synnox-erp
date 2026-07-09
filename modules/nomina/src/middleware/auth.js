@@ -1,5 +1,6 @@
 const { db } = require('../db');
 const jwt = require('jsonwebtoken');
+const { verifySessionValid } = require('../../../../framework/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) console.error('WARN: JWT_SECRET no configurado en nómina');
@@ -36,6 +37,8 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
           db.prepare('UPDATE usuarios SET nombre = ?, rol = ? WHERE id = ?').run(payloadNombre, payloadRol, user.id);
           user = { ...user, nombre: payloadNombre, rol: payloadRol };
         }
+        const sesionValida = await verifySessionValid(payload);
+        if (!sesionValida) return res.status(401).json({ error: 'Sesión invalidada. Inicia sesión nuevamente.' });
         if (rolesPermitidos.length && !rolesPermitidos.includes(user.rol))
           return res.status(403).json({ error: 'Sin permisos para esta acción' });
         req.usuario = user;

@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const { verifySessionValid } = require('../../../../framework/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) console.error('WARN: JWT_SECRET no configurado en proveedores');
@@ -64,4 +65,12 @@ function requireModule(moduleId) {
   };
 }
 
-module.exports = { authMiddleware, requireRol, requireModule, requirePermiso };
+// Session invalidation check — run after authMiddleware
+async function verificarSesionValida(req, res, next) {
+  if (!req.usuario) return next();
+  const valida = await verifySessionValid(req.usuario);
+  if (!valida) return res.status(401).json({ error: 'Sesión invalidada. Inicia sesión nuevamente.' });
+  next();
+}
+
+module.exports = { authMiddleware, verificarSesionValida, requireRol, requireModule, requirePermiso };

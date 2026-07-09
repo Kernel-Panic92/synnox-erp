@@ -128,6 +128,19 @@ db.exec(`
 
 // Add perfil_id to usuarios if not exists
 try { db.exec("ALTER TABLE usuarios ADD COLUMN perfil_id INTEGER REFERENCES perfiles(id)"); } catch {}
+// Add seq (session version) to usuarios if not exists
+try { db.exec("ALTER TABLE usuarios ADD COLUMN seq INTEGER NOT NULL DEFAULT 1"); } catch {}
+db.prepare("UPDATE usuarios SET seq = 1 WHERE seq IS NULL").run();
+
+// Helper to invalidate a user's session (increments seq)
+function invalidarSesionUsuario(userId) {
+  db.prepare("UPDATE usuarios SET seq = seq + 1, actualizado = datetime('now') WHERE id = ?").run(userId);
+}
+// Helper to invalidate all users with a given profile
+function invalidarSesionPorPerfil(perfilId) {
+  const users = db.prepare("SELECT id FROM usuarios WHERE perfil_id = ?").all(perfilId);
+  for (const u of users) invalidarSesionUsuario(u.id);
+}
 
 // Seed default profiles
 const defaultProfiles = [
@@ -435,6 +448,16 @@ app.post('/api/admin/smtp/test', verificarToken, soloAdmin, async (req, res) => 
   }
 });
 
+// ── Internal endpoint for session version check (modules call this) ──
+app.get('/api/internal/usuario-seq/:id', (req, res) => {
+  const ip = req.ip || req.connection?.remoteAddress || '';
+  const isLocal = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || req.hostname === 'localhost';
+  if (!isLocal) return res.status(403).json({ error: 'Acceso denegado: solo localhost' });
+  const user = db.prepare('SELECT id, seq FROM usuarios WHERE id = ? AND activo = 1').get(req.params.id);
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+  res.json({ seq: user.seq });
+});
+
 // ── Internal endpoint for module SMTP inheritance (localhost only) ──
 app.get('/api/smtp/internal', (req, res) => {
   const ip = req.ip || req.connection?.remoteAddress || '';
@@ -620,7 +643,10 @@ app.put('/api/admin/usuarios/:id', verificarToken, soloAdmin, (req, res) => {
   if (!updates.length) return res.status(400).json({ error: 'Sin cambios' });
   updates.push("actualizado = datetime('now')"); params.push(id);
   try {
+    const changedRol = rol !== undefined && rol !== user.rol;
+    const changedPerfil = perfil_id !== undefined && perfil_id !== user.perfil_id;
     db.prepare(`UPDATE usuarios SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    if (changedRol || changedPerfil) invalidarSesionUsuario(id);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Error interno' }); }
 });
@@ -631,6 +657,7 @@ app.delete('/api/admin/usuarios/:id', verificarToken, soloAdmin, (req, res) => {
   const user = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(id);
   if (!user) return res.status(404).json({ error: 'No encontrado' });
   db.prepare("UPDATE usuarios SET activo = 0, actualizado = datetime('now') WHERE id = ?").run(id);
+  invalidarSesionUsuario(id);
   res.json({ ok: true });
 });
 
@@ -659,6 +686,7 @@ app.put('/api/admin/usuarios/:id/modulos', verificarToken, soloAdmin, (req, res)
     for (const m of modulos) ins.run(userId, m);
   });
   transaction();
+  invalidarSesionUsuario(userId);
   res.json({ ok: true, modulos });
 });
 
@@ -719,6 +747,7 @@ app.put('/api/admin/perfiles/:id', verificarToken, soloAdmin, (req, res) => {
       const ins = db.prepare('INSERT INTO modulos_permisos_perfil (perfil_id, modulo_id, permiso_id) VALUES (?, ?, ?)');
       for (const p of permisos_funcionales) ins.run(id, p.modulo_id, p.permiso_id);
     }
+    if (Array.isArray(permisos) || Array.isArray(permisos_funcionales)) invalidarSesionPorPerfil(id);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -781,6 +810,7 @@ app.put('/api/admin/usuarios/:id/permisos-funcionales', verificarToken, soloAdmi
     for (const p of permisos) ins.run(userId, p.modulo_id, p.permiso_id);
   });
   transaction();
+  invalidarSesionUsuario(userId);
   res.json({ ok: true });
 });
 
