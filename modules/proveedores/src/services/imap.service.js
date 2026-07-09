@@ -31,12 +31,28 @@ function clearConfigCache() {
 }
 
 function extraerInvoiceEmbebido(xml) {
-  const invoiceMatch = xml.match(/<cbc:Description><!\[CDATA\[([\s\S]*?)\]\]><\/cbc:Description>/);
+  // Try to find embedded Invoice inside CDATA (AttachedDocument format)
+  const invoiceMatch = xml.match(/<cbc:Description[^>]*><!\[CDATA\[([\s\S]*?)\]\]><\/cbc:Description>/);
   if (invoiceMatch) {
     const contenido = invoiceMatch[1];
-    if (contenido.includes('<Invoice')) {
+    if (contenido.includes('<Invoice') || contenido.includes('<Invoice')) {
       return contenido;
     }
+  }
+  return null;
+}
+
+function esAttachedDocument(xmlContent) {
+  return /<AttachedDocument[\s>]/i.test(xmlContent.toString('utf8').slice(0, 200));
+}
+
+function parsearAttachedDocument(xmlContent) {
+  // Extract embedded Invoice from AttachedDocument wrapper
+  const xml = xmlContent.toString('utf8');
+  const invoiceMatch = xml.match(/<cbc:Description[^>]*><!\[CDATA\[([\s\S]*?)<\/Invoice>\]\]><\/cbc:Description>/i);
+  if (invoiceMatch) {
+    const invoiceXml = invoiceMatch[0].replace(/^<cbc:Description[^>]*><!\[CDATA\[/i, '').replace(/\]\]><\/cbc:Description>$/i, '');
+    return parsearXml(invoiceXml);
   }
   return null;
 }
@@ -264,18 +280,32 @@ async function procesarCorreo(parsed, msgId) {
     const filename = att.filename || '';
     const ext = path.extname(filename).toLowerCase();
     
-    if ((ext === '.xml' || filename.toLowerCase().includes('.xml')) && !archivoXml) {
-      datosFactura = parsearXml(att.content);
-      nitEmisor = datosFactura.nitEmisor || null;
-      break;
+    if (ext === '.xml' || filename.toLowerCase().includes('.xml')) {
+      const content = att.content;
+      if (esAttachedDocument(content)) {
+        const parsed = parsearAttachedDocument(content);
+        if (parsed) { datosFactura = parsed; nitEmisor = datosFactura.nitEmisor || null; break; }
+      }
+      if (!datosFactura.numeroFactura) {
+        datosFactura = parsearXml(content);
+        nitEmisor = datosFactura.nitEmisor || null;
+        break;
+      }
     }
     
     if (ext === '.zip' || filename.toLowerCase().includes('.zip')) {
       const archivos = extraerZip(att.content);
       if (archivos.xml) {
-        datosFactura = parsearXml(archivos.xml.contenido);
-        nitEmisor = datosFactura.nitEmisor || null;
-        break;
+        const content = archivos.xml.contenido;
+        if (esAttachedDocument(content)) {
+          const parsed = parsearAttachedDocument(content);
+          if (parsed) { datosFactura = parsed; nitEmisor = datosFactura.nitEmisor || null; break; }
+        }
+        if (!datosFactura.numeroFactura) {
+          datosFactura = parsearXml(content);
+          nitEmisor = datosFactura.nitEmisor || null;
+          break;
+        }
       }
     }
   }
