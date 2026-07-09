@@ -12,7 +12,7 @@ dotenv.config();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3004;
-const MODULE_ID = process.env.MODULE_ID || 'logistics';
+const MODULE_ID = process.env.MODULE_ID || 'logistica';
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
