@@ -95,7 +95,27 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
     };
   }
 
-  return { autenticar, requierePermiso, requireModule, soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles, requiereBackupToken, soloAdminOBkp };
+  // JWT-based permission check (reads modulos_permisos from launcher-issued JWT)
+  // Migración gradual: coexiste con requierePermiso local
+  function requierePermisoJWT(permisoId) {
+    return (req, res, next) => {
+      if (!req.usuario) return res.status(401).json({ error: 'No autenticado' });
+      if (req.usuario.rol === 'admin') return next();
+      try {
+        const cookies = parseCookies(req);
+        const token = cookies.launcher_jwt || req.headers['authorization']?.replace('Bearer ', '');
+        if (token) {
+          const payload = jwt.verify(token, JWT_SECRET);
+          const modPermisos = payload.modulos_permisos || {};
+          const nominaPerms = modPermisos.nomina || [];
+          if (nominaPerms.includes(permisoId)) return next();
+        }
+      } catch {}
+      return res.status(403).json({ error: `Permiso requerido: ${permisoId}` });
+    };
+  }
+
+  return { autenticar, requierePermiso, requierePermisoJWT, requireModule, soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles, requiereBackupToken, soloAdminOBkp };
 }
 
 module.exports = { parseCookies, createAuth };

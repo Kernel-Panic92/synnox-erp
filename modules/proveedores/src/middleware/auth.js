@@ -43,6 +43,17 @@ function requireRol(...roles) {
   };
 }
 
+function requirePermiso(permisoId) {
+  return (req, res, next) => {
+    if (!req.usuario) return res.status(401).json({ error: 'No autenticado' });
+    if (req.usuario.rol === 'admin') return next();
+    const modPermisos = req.usuario.modulos_permisos || {};
+    const proveedoresPerms = modPermisos.proveedores || [];
+    if (proveedoresPerms.includes(permisoId)) return next();
+    return res.status(403).json({ error: `Permiso requerido: ${permisoId}` });
+  };
+}
+
 function requireModule(moduleId) {
   return (req, res, next) => {
     if (!req.usuario) return res.status(401).json({ error: 'No autenticado' });
@@ -53,4 +64,4 @@ function requireModule(moduleId) {
   };
 }
 
-module.exports = { authMiddleware, requireRol, requireModule };
+module.exports = { authMiddleware, requireRol, requireModule, requirePermiso };
