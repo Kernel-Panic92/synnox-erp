@@ -19,7 +19,7 @@ function parseCookies(req) {
 
 function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
   function autenticar(rolesPermitidos = []) {
-    return (req, res, next) => {
+    return async (req, res, next) => {
       const cookies = parseCookies(req);
       const token = cookies.launcher_jwt || req.headers['authorization']?.replace('Bearer ', '');
       if (!token) return res.status(401).json({ error: 'Token requerido' });
