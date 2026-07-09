@@ -14,12 +14,13 @@ function buildPayload(user) {
     perfil_nombre: user.perfil_nombre || null,
     permisos: user.permisos || [],
     modulos_permisos: user.modulos_permisos || {},
+    seq: user.seq || 1,
     jti
   };
 }
 
 function getUserWithPermissions(db, userId) {
-  const user = db.prepare('SELECT id, nombre, email, rol, perfil_id FROM usuarios WHERE id = ? AND activo = 1').get(userId);
+  const user = db.prepare('SELECT id, nombre, email, rol, perfil_id, seq FROM usuarios WHERE id = ? AND activo = 1').get(userId);
   if (!user) return null;
 
   // Modules
@@ -69,4 +70,31 @@ function getUserWithPermissions(db, userId) {
   return user;
 }
 
-module.exports = { buildPayload, getUserWithPermissions };
+// Session version cache (5 second TTL)
+const _seqCache = new Map();
+function getCachedSeq(userId) {
+  const cached = _seqCache.get(userId);
+  if (cached && Date.now() - cached.ts < 5000) return cached.seq;
+  return null;
+}
+function setCachedSeq(userId, seq) {
+  _seqCache.set(userId, { seq, ts: Date.now() });
+}
+
+// Verify user session is still valid by checking seq against launcher
+async function verifySessionValid(payload) {
+  try {
+    const launcherUrl = process.env.LAUNCHER_URL || 'http://localhost:3002';
+    const cachedSeq = getCachedSeq(payload.id);
+    if (cachedSeq !== null) return cachedSeq === payload.seq;
+    const res = await fetch(launcherUrl + '/api/internal/usuario-seq/' + payload.id, { signal: AbortSignal.timeout(2000) });
+    if (!res.ok) return true; // fallback: allow on error
+    const data = await res.json();
+    setCachedSeq(payload.id, data.seq);
+    return data.seq === payload.seq;
+  } catch {
+    return true; // fallback: allow if launcher unreachable
+  }
+}
+
+module.exports = { buildPayload, getUserWithPermissions, verifySessionValid };

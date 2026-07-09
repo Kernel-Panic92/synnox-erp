@@ -5,7 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import pool from './config/db.js';
-import { verifyToken, requireModule, requirePermiso } from '../../../framework/auth.mjs';
+import { verifyToken, verifySession, requireModule, requirePermiso } from '../../../framework/auth.mjs';
 
 dotenv.config();
 
@@ -50,7 +50,7 @@ app.get('/api/rutas/diagnostico', verifyToken, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-const protect = [verifyToken, requireModule(MODULE_ID)];
+const protect = [verifyToken, verifySession, requireModule(MODULE_ID)];
 app.use('/api/vehiculos', protect, vehiculosRoutes);
 app.use('/api/pedidos', protect, pedidosRoutes);
 app.use('/api/rutas', protect, rutasRoutes);
