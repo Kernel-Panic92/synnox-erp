@@ -76,6 +76,28 @@ function navigate(page) {
 }
 
 /* ── Init ── */
+function renderSidebar(usuario) {
+  const isAdmin = usuario.rol === 'admin';
+  const modPermisos = usuario.modulos_permisos?.logistica || [];
+  const items = [
+    { page: 'dashboard', icon: '📊', label: 'Dashboard', show: true },
+    { page: 'vehiculos', icon: '🚛', label: 'Vehículos', show: true },
+    { page: 'pedidos', icon: '📦', label: 'Pedidos', show: true },
+    { page: 'clientes', icon: '👤', label: 'Clientes', show: true },
+    { page: 'sedes', icon: '🏢', label: 'Sedes', show: true },
+    { page: 'rutas', icon: '🗺️', label: 'Rutas', show: true },
+    { page: 'mapa', icon: '🗺️', label: 'Mapa', show: true },
+    { page: 'config', icon: '⚙️', label: 'Configuración', show: isAdmin || modPermisos.includes('configurar') },
+  ];
+  const nav = document.getElementById('sidebar-nav');
+  if (!nav) return;
+  nav.innerHTML = items.filter(i => i.show).map((i, idx) =>
+    `<div class="nav-item${idx === 0 ? ' active' : ''}" data-page="${i.page}" onclick="navigate('${i.page}')">
+      <span class="icon">${i.icon}</span> ${i.label}
+    </div>`
+  ).join('');
+}
+
 async function init() {
   if (localStorage.getItem('synnox_theme') !== 'dark') document.body.classList.add('light');
   const hoy = new Date().toISOString().split('T')[0];
@@ -96,6 +118,7 @@ async function init() {
       badgeEl.textContent = data.perfil_nombre || data.rol || '';
       badgeEl.className = 'badge role-badge role-' + (data.rol || '').toLowerCase();
     }
+    renderSidebar(data);
     cargarDashboard();
   } catch { logout(); }
 }

@@ -5,7 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import pool from './config/db.js';
-import { verifyToken, requireModule } from '../../../framework/auth.mjs';
+import { verifyToken, requireModule, requirePermiso } from '../../../framework/auth.mjs';
 
 dotenv.config();
 
@@ -55,7 +55,7 @@ app.use('/api/vehiculos', protect, vehiculosRoutes);
 app.use('/api/pedidos', protect, pedidosRoutes);
 app.use('/api/rutas', protect, rutasRoutes);
 app.use('/api/importadores', protect, importadoresRoutes);
-app.use('/api/configuracion', protect, configRoutes);
+app.use('/api/configuracion', [verifyToken, requireModule(MODULE_ID), requirePermiso('configurar', MODULE_ID)], configRoutes);
 app.use('/api/backup', protect, backupRoutes);
 app.use('/api/auditoria', protect, auditoriaRoutes);
 app.use('/api/clientes', protect, clientesRoutes);
