@@ -146,6 +146,7 @@ app.use('/api/auth', require('./src/routes/auth')({
 }));
 
 app.use('/api', require('./src/routes/misc')({ db, fs, path, __dirname, permisosPorRol, middlewares: { todosRoles } }));
+app.use('/api/usuarios', require('./src/routes/usuarios')({ db, uid, middlewares: { todosRoles, soloAdmin }, enviarCorreo, BASE_URL, APP_NAME }));
 app.use('/api/admin', require('./src/routes/auditoria')({ db, middlewares: { soloAdmin } }));
 
 // ─────────────────────────────────────────────

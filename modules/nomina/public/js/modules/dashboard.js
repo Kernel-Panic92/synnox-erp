@@ -354,38 +354,7 @@ async function renderDashboard() {
     const el = document.getElementById(id);
     if (el) el.textContent = val;
   });
-  // Hide stat cards and widgets with no data for this user
-  const cardHideMap = {
-    'dash-total': hasData,
-    'dash-mes': s.horasMes > 0,
-    'dash-anio': s.horasAnio > 0,
-    'dash-emp': s.empleadosConHoras > 0,
-    'dash-pendientes': s.horasPendientes > 0,
-    'dash-rechazados': s.totalRechazados > 0,
-    'dash-registros': s.totalAprobados > 0,
-    'dash-valor-mes': s.valorMes > 0,
-    'dash-valor-anio': s.valorAnio > 0,
-  };
-  Object.entries(cardHideMap).forEach(([id, show]) => {
-    const el = document.getElementById(id);
-    if (el) {
-      const card = el.closest('.stat-card');
-      if (card) card.style.display = show ? '' : 'none';
-    }
-  });
-  const widgetHideMap = {
-    'widget-mes': hasData,
-    'widget-tipo': hasData,
-    'widget-sede': hasData,
-    'widget-top': s.totalAprobados > 0,
-    'widget-periodo': !!data.mejorMes,
-    'widget-valorcop': s.valorMes > 0,
-    'widget-ultimos': s.totalAprobados > 0,
-  };
-  Object.entries(widgetHideMap).forEach(([id, show]) => {
-    const el = document.getElementById(id);
-    if (el) el.style.display = show ? '' : 'none';
-  });
+  // Sanity: ensure all widget containers are visible (content determines display)
 
   // Period with most hours
   if (data.mejorMes) {
