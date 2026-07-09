@@ -471,7 +471,18 @@ async function downloadEmails(config, rescanAll = false) {
     const lock = await client.getMailboxLock(config.imap_folder || 'INBOX');
 
     try {
-      const searchCriteria = rescanAll ? { all: true } : { unseen: true };
+      let searchCriteria;
+      if (rescanAll) {
+        searchCriteria = { all: true };
+      } else {
+        const state = syncState.obtenerEstado();
+        if (state.ultimoSync) {
+          const since = new Date(state.ultimoSync).toISOString().split('T')[0];
+          searchCriteria = { since };
+        } else {
+          searchCriteria = { unseen: true };
+        }
+      }
       let seqNumbers = await client.search(searchCriteria);
       console.log(`[IMAP-Download] ${seqNumbers.length} mensajes encontrados`);
 
