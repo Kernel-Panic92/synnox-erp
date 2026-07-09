@@ -1,5 +1,7 @@
 import express from 'express';
 import pool from '../config/db.js';
+import { requirePermiso } from '../../../../framework/auth.mjs';
+const MODULE = 'logistica';
 
 const router = express.Router();
 
@@ -32,7 +34,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermiso('crear', MODULE), async (req, res) => {
   try {
     const { nombre, direccion, ciudad, latitud, longitud, telefono, centro_operacion } = req.body;
     if (!nombre) return res.status(400).json({ error: 'Nombre requerido' });
@@ -48,7 +50,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermiso('editar', MODULE), async (req, res) => {
   try {
     const { nombre, direccion, ciudad, latitud, longitud, telefono, activo, centro_operacion } = req.body;
     const result = await pool.query(
@@ -72,7 +74,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermiso('eliminar', MODULE), async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM logistics.sedes WHERE id=$1 RETURNING id', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Sede no encontrada' });

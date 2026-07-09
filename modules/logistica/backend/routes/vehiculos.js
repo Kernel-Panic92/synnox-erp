@@ -1,5 +1,7 @@
 import express from 'express';
 import pool from '../config/db.js';
+import { requirePermiso } from '../../../../framework/auth.mjs';
+const MODULE = 'logistica';
 
 const router = express.Router();
 
@@ -33,7 +35,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermiso('crear', MODULE), async (req, res) => {
   try {
     const { placa, alias, capacidad_peso, capacidad_volumen, sede, color } = req.body;
     const result = await pool.query(
@@ -47,7 +49,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermiso('editar', MODULE), async (req, res) => {
   try {
     const { placa, alias, capacidad_peso, capacidad_volumen, sede, estado, color } = req.body;
     const result = await pool.query(
@@ -64,7 +66,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/seleccionados', async (req, res) => {
+router.delete('/seleccionados', requirePermiso('eliminar', MODULE), async (req, res) => {
   try {
     const { ids } = req.body;
     if (!ids?.length) return res.status(400).json({ error: 'ids requerido' });
@@ -73,7 +75,7 @@ router.delete('/seleccionados', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermiso('eliminar', MODULE), async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM logistics.vehiculos WHERE id=$1 RETURNING id', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Vehículo no encontrado' });

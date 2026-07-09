@@ -1,5 +1,7 @@
 import express from 'express';
 import pool from '../config/db.js';
+import { requirePermiso } from '../../../../framework/auth.mjs';
+const MODULE = 'logistica';
 
 const router = express.Router();
 
@@ -55,7 +57,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermiso('crear', MODULE), async (req, res) => {
   try {
     const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado, sede, latitud, longitud, vehiculo_id } = req.body;
     if (!numero_factura) return res.status(400).json({ error: 'numero_factura requerido' });
@@ -71,7 +73,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/asignar-masivo', async (req, res) => {
+router.put('/asignar-masivo', requirePermiso('asignar', MODULE), async (req, res) => {
   try {
     const { ids, vehiculo_id, sede } = req.body;
     if (!ids?.length) return res.status(400).json({ error: 'ids requerido' });
@@ -103,7 +105,7 @@ router.put('/asignar-masivo', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermiso('editar', MODULE), async (req, res) => {
   try {
     const { numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, valor_contado, estado, ruta_id, secuencia_en_ruta, sede, latitud, longitud, vehiculo_id } = req.body;
     const result = await pool.query(
@@ -134,7 +136,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/seleccionados', async (req, res) => {
+router.delete('/seleccionados', requirePermiso('eliminar', MODULE), async (req, res) => {
   try {
     const { ids } = req.body;
     if (!ids?.length) return res.status(400).json({ error: 'ids requerido' });
@@ -156,7 +158,7 @@ router.delete('/seleccionados', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermiso('eliminar', MODULE), async (req, res) => {
   try {
     const blocking = await pool.query(`
       SELECT r.id, r.fecha

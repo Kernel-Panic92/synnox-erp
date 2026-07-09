@@ -1,6 +1,8 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { generarRutasOptimizadas } from '../utils/vrp.js';
+import { requirePermiso } from '../../../../framework/auth.mjs';
+const MODULE = 'logistica';
 
 const router = express.Router();
 
@@ -53,7 +55,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/generar', async (req, res) => {
+router.post('/generar', requirePermiso('crear', MODULE), async (req, res) => {
   try {
     const { fecha, sede, sede_id, ruta, tipo } = req.body;
     if (!fecha) return res.status(400).json({ error: 'Fecha requerida' });
@@ -201,7 +203,7 @@ router.post('/generar', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermiso('editar', MODULE), async (req, res) => {
   try {
     const { estado, distancia_total_real, tiempo_real, paradas_completadas, paradas_fallidas } = req.body;
     const result = await pool.query(
@@ -217,7 +219,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermiso('eliminar', MODULE), async (req, res) => {
   try {
     const ruta = await pool.query('SELECT id FROM logistics.rutas WHERE id=$1', [req.params.id]);
     if (ruta.rows.length === 0) return res.status(404).json({ error: 'Ruta no encontrada' });
@@ -230,7 +232,7 @@ router.delete('/:id', async (req, res) => {
   }
 });
 
-router.delete('/', async (req, res) => {
+router.delete('/', requirePermiso('eliminar', MODULE), async (req, res) => {
   try {
     const { ids } = req.body;
     if (!ids?.length) return res.status(400).json({ error: 'ids requerido' });
