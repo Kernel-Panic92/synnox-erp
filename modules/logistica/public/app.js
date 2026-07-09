@@ -1960,10 +1960,10 @@ async function cargarMapa() {
       btn.onclick = function(e) {
         e.stopPropagation();
         if (location.protocol !== 'https:' && location.hostname !== 'localhost') {
-          alert('Se requiere HTTPS para la ubicación');
+          mostrarAlerta('Se requiere HTTPS para la ubicación', 'error');
           return;
         }
-        if (!navigator.geolocation) { alert('Geolocation no soportado'); return; }
+        if (!navigator.geolocation) { mostrarAlerta('Geolocation no soportado', 'error'); return; }
         btn.innerHTML = '⏳';
         navigator.geolocation.getCurrentPosition(
           (pos) => {
@@ -1977,7 +1977,7 @@ async function cargarMapa() {
           },
           (err) => {
             btn.innerHTML = '📍';
-            alert('No se pudo obtener ubicación: ' + (err.message || 'Permiso denegado'));
+            mostrarAlerta('No se pudo obtener ubicación: ' + (err.message || 'Permiso denegado'), 'error');
           },
           { timeout: 5000, enableHighAccuracy: false }
         );
