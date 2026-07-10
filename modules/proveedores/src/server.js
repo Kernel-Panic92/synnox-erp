@@ -147,12 +147,12 @@ if (require.main === module) {
     console.log(`  Env:   ${process.env.NODE_ENV || 'development'}\n`);
 
     if (process.env.NODE_ENV !== 'test') {
-      const { iniciarCronJobs }   = require('./services/cron.service');
       const { iniciarServicioImap } = require('./services/imap.service');
-      iniciarCronJobs();
-      // IMAP polling disabled — use cron job instead to avoid double processing
-      // To enable in-process polling, set IMAP_IN_PROCESS=true in .env
-      if (process.env.IMAP_IN_PROCESS === 'true') iniciarServicioImap();
+      // IMAP auto-poll cada N minutos (configurable via IMAP_POLL_MINUTES, default 15)
+      if (process.env.IMAP_IN_PROCESS !== 'false') {
+        process.env.IMAP_POLL_MINUTES = process.env.IMAP_POLL_MINUTES || '15';
+        iniciarServicioImap();
+      }
     }
   });
   })().catch(err => {
