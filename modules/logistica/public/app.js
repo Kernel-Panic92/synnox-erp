@@ -1375,6 +1375,7 @@ async function rConfig() {
     else if (cfgTab === 'seguridad') renderSeguridad(el, c);
     else if (cfgTab === 'auditoria') renderAuditoria(el);
     else if (cfgTab === 'mapas') renderMapas(el);
+    else if (cfgTab === 'widetech') renderWidetech(el);
   } catch { el.innerHTML = '<p class="text-muted">Error al cargar configuración</p>'; }
 }
 
@@ -2313,6 +2314,87 @@ async function probarGmapsKey() {
     if (d.status === 'OK') msg.innerHTML = '<span style="color:var(--success)">✓ API key válida</span>';
     else if (d.status === 'REQUEST_DENIED') msg.innerHTML = '<span style="color:var(--danger)">✗ API key denegada — habilita Geocoding API y Places API</span>';
     else msg.innerHTML = '<span style="color:var(--danger)">✗ Error: ' + d.status + '</span>';
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
+}
+
+/* ── Widetech Tab ── */
+async function renderWidetech(el) {
+  el.innerHTML = '<p class="text-muted">Cargando...</p>';
+  try {
+    const data = await api('/widetech/config');
+    const c = data.config || {};
+    el.innerHTML = `
+      <div class="card" style="max-width:600px;">
+        <h4 style="margin-bottom:16px;font-family:var(--font-head);">🛰️ Widetech API</h4>
+        <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+          Configuración de la API de seguimiento GPS de Widetech.
+          Los datos se usan para tracking en tiempo real de vehículos, rutas y geocercas.
+          <br><a href="https://developers.widetech.co" target="_blank" style="color:var(--accent)">Documentación API →</a>
+        </p>
+        <div class="form-grid">
+          <div class="form-group">
+            <label>URL Base</label>
+            <input id="wt-url" value="${esc(c.widetech_url||'https://web1ws.shareservice.co')}" placeholder="https://web1ws.shareservice.co" style="font-family:monospace;">
+          </div>
+          <div class="form-group">
+            <label>Usuario</label>
+            <input id="wt-user" value="${esc(c.widetech_user||'')}" placeholder="usuario plataforma Space" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>Contraseña</label>
+            <input type="password" id="wt-pass" value="${c.widetech_password?'••••••••':''}" placeholder="contraseña" autocomplete="off">
+          </div>
+          <div class="form-group">
+            <label>Idioma</label>
+            <select id="wt-lang">
+              <option value="1" ${c.widetech_lang==='2'?'':'selected'}>Español</option>
+              <option value="2" ${c.widetech_lang==='2'?'selected':''}>Inglés</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Intervalo entre consultas (segundos)</label>
+            <input id="wt-rate" value="${c.widetech_rate_limit||'25'}" placeholder="25" type="number" min="20" max="300">
+            <small style="color:var(--muted);font-size:11px;">Mínimo 20 segundos según límite de Widetech</small>
+          </div>
+        </div>
+        <div class="flex" style="margin-top:8px;">
+          <button class="btn btn-primary" onclick="guardarWidetech()">✓ Guardar</button>
+          <button class="btn btn-secondary" onclick="testWidetech()">🔌 Probar conexión</button>
+        </div>
+        <div id="wt-msg" style="margin-top:10px;font-size:13px;"></div>
+      </div>`;
+  } catch { el.innerHTML = '<p class="text-muted">Error al cargar configuración</p>'; }
+}
+
+async function guardarWidetech() {
+  const msg = document.getElementById('wt-msg');
+  const rate = parseInt(document.getElementById('wt-rate').value) || 25;
+  if (rate < 20) { msg.innerHTML = '<span style="color:var(--danger)">✗ El intervalo mínimo es 20 segundos</span>'; return; }
+  try {
+    const body = {
+      widetech_url: document.getElementById('wt-url').value.trim(),
+      widetech_user: document.getElementById('wt-user').value.trim(),
+      widetech_password: document.getElementById('wt-pass').value,
+      widetech_lang: document.getElementById('wt-lang').value,
+      widetech_rate_limit: String(rate)
+    };
+    await api('/widetech/config', { method: 'PUT', body: JSON.stringify(body) });
+    msg.innerHTML = '<span style="color:var(--success)">✓ Configuración guardada</span>';
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
+}
+
+async function testWidetech() {
+  const msg = document.getElementById('wt-msg');
+  msg.innerHTML = '<span class="text-muted">Conectando con Widetech...</span>';
+  try {
+    const body = {
+      url: document.getElementById('wt-url').value.trim(),
+      user: document.getElementById('wt-user').value.trim(),
+      password: document.getElementById('wt-pass').value,
+      lang: document.getElementById('wt-lang').value
+    };
+    const data = await api('/widetech/test', { method: 'POST', body: JSON.stringify(body) });
+    msg.innerHTML = '<span style="color:var(--success)">✓ ' + data.mensaje + '</span>';
   } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
 }
 
