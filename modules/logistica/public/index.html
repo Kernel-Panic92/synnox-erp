@@ -191,6 +191,22 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
 #mapa-contenedor .leaflet-popup-content-wrapper{background:var(--surface);color:var(--text);border-radius:10px}
 #mapa-contenedor .leaflet-popup-tip{background:var(--surface)}
 
+/* ── Reports ── */
+.rpt-tabs{display:flex;gap:0;margin-bottom:20px;background:var(--surface2);border-radius:10px;overflow:hidden;border:1px solid var(--border);flex-wrap:wrap}
+.rpt-tab{flex:1;padding:10px 18px;text-align:center;cursor:pointer;font-size:14px;font-weight:600;color:var(--muted);transition:all .15s;border-right:1px solid var(--border);user-select:none;min-width:80px}
+.rpt-tab:last-child{border-right:none}
+.rpt-tab:hover{color:var(--text);background:rgba(0,168,107,.04)}
+.rpt-tab.active{background:var(--accent);color:#fff}
+.rpt-filters{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:18px}
+.rpt-filters .form-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:12px}
+.rpt-summary{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:18px}
+.rpt-summary .summary-item{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px 16px;text-align:center}
+.rpt-summary .summary-value{font-size:22px;font-weight:800;font-family:var(--font-head);line-height:1.3}
+.rpt-summary .summary-label{font-size:12px;color:var(--muted);margin-top:2px}
+.rpt-page-size{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);margin-bottom:10px}
+.rpt-page-size select{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:4px 8px;color:var(--text);font-size:13px}
+.rpt-pagination{display:flex;align-items:center;justify-content:center;gap:12px;padding:14px 0;font-size:14px;color:var(--muted)}
+.rpt-counter{font-size:13px;color:var(--muted);margin-bottom:8px}
 /* ── Clientes card grid ── */
 .cli-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px}
 .cli-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:18px;transition:border-color .2s}
@@ -390,6 +406,74 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
             <th style="width:40px;"></th>
             <th>Nombre</th><th>Vehículo</th><th>Sede</th><th>Paradas</th><th>Distancia</th><th>Tiempo</th><th>Estado</th><th>Fecha</th><th style="width:220px;white-space:nowrap;"></th>
           </tr></thead><tbody></tbody></table>
+        </div>
+      </div>
+
+      <!-- Reportes -->
+      <div class="page" id="page-reportes">
+        <div class="page-header">
+          <h3>Reportes</h3>
+          <p>Análisis y estadísticas del sistema de logística</p>
+        </div>
+        <div class="rpt-tabs" id="rpt-tabs">
+          <div class="rpt-tab active" data-tipo="rutas" onclick="cambiarTipoReporte('rutas')">🗺️ Rutas</div>
+          <div class="rpt-tab" data-tipo="pedidos" onclick="cambiarTipoReporte('pedidos')">📦 Pedidos</div>
+          <div class="rpt-tab" data-tipo="vehiculos" onclick="cambiarTipoReporte('vehiculos')">🚛 Vehículos</div>
+          <div class="rpt-tab" data-tipo="eficiencia" onclick="cambiarTipoReporte('eficiencia')">📊 Eficiencia</div>
+        </div>
+        <div class="rpt-filters" id="rpt-filters">
+          <div class="form-grid" id="rpt-filter-grid">
+            <div>
+              <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px;">Fecha Desde</label>
+              <input type="date" id="rpt-fecha-desde" style="width:100%;">
+            </div>
+            <div>
+              <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px;">Fecha Hasta</label>
+              <input type="date" id="rpt-fecha-hasta" style="width:100%;">
+            </div>
+            <div id="rpt-filter-sede-wrapper">
+              <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px;">Sede</label>
+              <select id="rpt-sede" style="width:100%;"><option value="">Todas</option></select>
+            </div>
+            <div id="rpt-filter-estado-wrapper">
+              <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px;">Estado</label>
+              <select id="rpt-estado" style="width:100%;"><option value="">Todos</option></select>
+            </div>
+            <div id="rpt-filter-ciudad-wrapper" style="display:none;">
+              <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px;">Ciudad</label>
+              <input type="text" id="rpt-ciudad" placeholder="Filtrar ciudad..." style="width:100%;">
+            </div>
+            <div id="rpt-filter-vehiculo-wrapper" style="display:none;">
+              <label style="font-size:12px;color:var(--muted);display:block;margin-bottom:3px;">Vehículo</label>
+              <select id="rpt-vehiculo" style="width:100%;"><option value="">Todos</option></select>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary btn-sm" onclick="cargarReporte()">🔍 Aplicar filtros</button>
+            <button class="btn btn-secondary btn-sm" onclick="limpiarFiltrosReporte()">🗑️ Limpiar</button>
+          </div>
+        </div>
+        <div class="rpt-summary" id="rpt-summary"></div>
+        <div class="card" style="padding:0;">
+          <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 18px;border-bottom:1px solid var(--border);">
+            <strong style="font-size:15px;">Detalle</strong>
+            <button class="btn btn-success btn-sm" onclick="exportarReporte()">📥 Exportar Excel</button>
+          </div>
+          <div class="rpt-page-size" style="padding:10px 18px 0;">
+            <span>Mostrar</span>
+            <select id="rpt-page-size" onchange="cargarReporte()">
+              <option value="25">25</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+              <option value="200">200</option>
+            </select>
+            <span>por página</span>
+            <span id="rpt-counter" style="margin-left:auto;"></span>
+          </div>
+          <div class="tbl-wrap" style="border-radius:0;">
+            <table class="tbl" id="tbl-reporte"><thead><tr id="rpt-thead"></tr></thead><tbody id="rpt-tbody"></tbody></table>
+          </div>
+          <div class="rpt-pagination" id="rpt-pagination"></div>
         </div>
       </div>
 
