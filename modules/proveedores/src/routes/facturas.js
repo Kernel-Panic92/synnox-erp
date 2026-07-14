@@ -6,6 +6,15 @@ const { v4: uuidv4 } = require('uuid');
 const db      = require('../db');
 const { authMiddleware, requireRol } = require('../middleware/auth');
 
+function sanitizePath(input, base) {
+  const resolved = path.resolve(base, input);
+  const normalized = path.normalize(resolved);
+  if (!normalized.startsWith(path.resolve(base))) {
+    throw new Error('Path fuera del directorio permitido');
+  }
+  return normalized;
+}
+
 router.use(authMiddleware);
 
 // ─── Multer config ────────────────────────────────────────────────────────────
@@ -604,7 +613,8 @@ router.post('/:id/soporte-pago', requireRol('admin','tesorero'), uploadSoporte.s
   }
 
   const filename = `soporte_${req.params.id}_${Date.now()}${ext}`;
-  const filepath = path.join(uploadDir, filename);
+  const filepath = sanitizePath(filename, uploadDir);
+  const safeUploadPath = req.file ? sanitizePath(req.file.path, path.resolve(process.cwd())) : null;
 
   const client = await db.getClient();
   try {
@@ -615,12 +625,12 @@ router.post('/:id/soporte-pago', requireRol('admin','tesorero'), uploadSoporte.s
     );
     if (!rows[0]) {
       await client.query('ROLLBACK');
-      if (fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+      if (safeUploadPath && fs.existsSync(safeUploadPath)) fs.unlinkSync(safeUploadPath);
       return res.status(404).json({ error: 'Factura no encontrada' });
     }
 
-    fs.copyFileSync(req.file.path, filepath);
-    fs.unlinkSync(req.file.path);
+    fs.copyFileSync(safeUploadPath, filepath);
+    fs.unlinkSync(safeUploadPath);
 
     await registrarEvento(client, req.params.id, req.usuario.id, 'soporte_adjuntado', `Soporte de pago: ${req.file.originalname}`);
     await client.query('COMMIT');
@@ -628,7 +638,7 @@ router.post('/:id/soporte-pago', requireRol('admin','tesorero'), uploadSoporte.s
   } catch (err) {
     await client.query('ROLLBACK');
     if (fs.existsSync(filepath)) fs.unlinkSync(filepath);
-    if (req.file && fs.existsSync(req.file.path)) fs.unlinkSync(req.file.path);
+    if (safeUploadPath && fs.existsSync(safeUploadPath)) fs.unlinkSync(safeUploadPath);
     res.status(500).json({ error: err.message });
   } finally {
     client.release();

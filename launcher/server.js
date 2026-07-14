@@ -13,6 +13,15 @@ const app = express();
 app.set('trust proxy', true);
 app.use(express.json());
 
+function sanitizePath(input, base) {
+  const resolved = path.resolve(base, input);
+  const normalized = path.normalize(resolved);
+  if (!normalized.startsWith(path.resolve(base))) {
+    throw new Error('Path fuera del directorio permitido');
+  }
+  return normalized;
+}
+
 // Used by client to detect server restarts (soft reload)
 const APP_VER = require('./package.json').version;
 
@@ -49,8 +58,8 @@ app.get('/api/track', (req, res) => {
 
 app.get('/api/admin/commits', verificarToken, soloAdmin, (req, res) => {
   try {
-    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
-    const log = execSync(`git log --oneline -${limit} --format=%H|%s|%ai`, { cwd: LAUNCHER_DIR, stdio: 'pipe' }).toString().trim();
+    const limit = String(Math.min(parseInt(req.query.limit) || 10, 50));
+    const log = spawnSync('git', ['log', `--oneline -${limit}`, '--format=%H|%s|%ai'], { cwd: LAUNCHER_DIR, stdio: 'pipe', encoding: 'utf8' }).stdout.trim();
     const commits = log.split('\n').filter(Boolean).map(line => {
       const [hash, message, date] = line.split('|');
       return { hash, message, date };
@@ -384,8 +393,29 @@ setInterval(function() {
   }
 }, 300000);
 
+function encryptEmail(email) {
+  const key = crypto.scryptSync(process.env.JWT_SECRET || 'fallback', 'login-logs', 32);
+  const iv = crypto.randomBytes(16);
+  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
+  let enc = cipher.update(email, 'utf8', 'hex');
+  enc += cipher.final('hex');
+  return iv.toString('hex') + ':' + enc;
+}
+
+function decryptEmail(data) {
+  const parts = data.split(':');
+  const iv = Buffer.from(parts.shift(), 'hex');
+  const encrypted = parts.join(':');
+  const key = crypto.scryptSync(process.env.JWT_SECRET || 'fallback', 'login-logs', 32);
+  const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
+  let dec = decipher.update(encrypted, 'hex', 'utf8');
+  dec += decipher.final('utf8');
+  return dec;
+}
+
 function logLoginAttempt(ip, email, exitoso) {
-  db.prepare("INSERT INTO login_logs (ip, email, exitoso) VALUES (?, ?, ?)").run(ip || '', (email || '').toLowerCase().trim(), exitoso ? 1 : 0);
+  const encEmail = email ? encryptEmail((email || '').toLowerCase().trim()) : '';
+  db.prepare("INSERT INTO login_logs (ip, email, exitoso) VALUES (?, ?, ?)").run(ip || '', encEmail, exitoso ? 1 : 0);
 }
 
 const { buildPayload, getUserWithPermissions, parseCookies } = require('./../framework/auth');
@@ -507,7 +537,7 @@ app.post('/api/admin/config/test-ssh', verificarToken, soloAdmin, (req, res) => 
   // Validate user: only alphanumeric, hyphens, underscores
   if (user && !/^[a-zA-Z0-9_-]+$/.test(user)) return res.json({ ok: false, error: 'Usuario inválido' });
   try {
-    const out = execSync('ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 ' + (user || 'root') + '@' + host + ' "pm2 --version"', { stdio: 'pipe', timeout: 15000 }).toString().trim();
+    const out = spawnSync('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', (user || 'root') + '@' + host, 'pm2', '--version'], { stdio: 'pipe', timeout: 15000, encoding: 'utf8' }).stdout.trim();
     res.json({ ok: true, version: out, message: 'Conexión SSH exitosa' });
   } catch (e) {
     res.json({ ok: false, error: 'No se pudo conectar vía SSH: ' + (e.message || 'error') });
@@ -527,6 +557,11 @@ app.get('/api/admin/config', verificarToken, soloAdmin, (req, res) => {
 // ── Login logs ──
 app.get('/api/admin/login-logs', verificarToken, soloAdmin, (req, res) => {
   const rows = db.prepare("SELECT id, fecha, ip, email, exitoso FROM login_logs ORDER BY id DESC LIMIT 50").all();
+  for (const row of rows) {
+    if (row.email && row.email.includes(':')) {
+      try { row.email = decryptEmail(row.email); } catch { row.email = '—'; }
+    }
+  }
   res.json({ logs: rows });
 });
 
@@ -1343,7 +1378,7 @@ app.post('/api/admin/nginx/generate', verificarToken, soloAdmin, (req, res) => {
     try {
       fs.unlinkSync('/etc/nginx/sites-enabled/default');
     } catch {}
-    const { execSync } = require('child_process');
+const { execSync, spawnSync, execFileSync } = require('child_process');
     execSync('nginx -t', { timeout: 5000 });
     execSync('systemctl reload nginx', { timeout: 5000 });
     res.json({ ok: true });
@@ -1655,8 +1690,7 @@ function pm2Exec(args) {
   const sshHost = db.prepare("SELECT value FROM config WHERE key = 'ssh_host'").get()?.value;
   const sshUser = db.prepare("SELECT value FROM config WHERE key = 'ssh_user'").get()?.value || 'root';
   if (sshHost) {
-    const cmd = 'ssh -o StrictHostKeyChecking=no -o BatchMode=yes ' + sshUser + '@' + sshHost + ' "sudo pm2 ' + args + '"';
-    return execSync(cmd, { stdio: 'pipe', timeout: 10000 });
+    return execFileSync('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'BatchMode=yes', sshUser + '@' + sshHost, 'sudo', 'pm2', ...argsArr], { stdio: 'pipe', timeout: 10000, encoding: 'utf8' });
   }
   throw new Error('PM2 no disponible localmente ni vía SSH');
 }
@@ -1701,7 +1735,8 @@ app.post('/api/admin/updater/update', verificarToken, soloAdmin, async (req, res
   try {
     logUpdater('INICIANDO ACTUALIZACION (rama: ' + branch + ')');
     logUpdater('Fetch y reset a origin/' + branch + '...');
-    execSync('git fetch origin && git reset --hard origin/' + branch, { cwd: LAUNCHER_DIR, stdio: 'pipe' });
+    execFileSync('git', ['fetch', 'origin'], { cwd: LAUNCHER_DIR, stdio: 'pipe' });
+    execFileSync('git', ['reset', '--hard', 'origin/' + branch], { cwd: LAUNCHER_DIR, stdio: 'pipe' });
     logUpdater('Reset hard completado');
     logUpdater('Instalando dependencias...');
     try { execSync('npm install --production', { cwd: __dirname, stdio: 'pipe' }); logUpdater('Dependencias instaladas'); } catch (e) { logUpdater('npm install: ' + e.message); }
@@ -1784,6 +1819,7 @@ app.get('/api/admin/mcp-modules/status', verificarToken, soloAdmin, async (req, 
 app.post('/api/admin/mcp-modules/:id/restart', verificarToken, soloAdmin, async (req, res) => {
   try {
     const modId = req.params.id;
+    if (!/^\w+$/.test(modId)) return res.status(400).json({ ok: false, error: 'ID de módulo inválido' });
     try {
       pm2Exec('restart ' + pm2Name(modId));
       res.json({ ok: true, message: modId + ' reiniciado' });
@@ -1796,8 +1832,9 @@ app.post('/api/admin/mcp-modules/:id/restart', verificarToken, soloAdmin, async 
 app.get('/api/admin/mcp-modules/:id/logs', verificarToken, soloAdmin, async (req, res) => {
   try {
     const modId = req.params.id;
+    if (!/^\w+$/.test(modId)) return res.status(400).json({ ok: false, error: 'ID de módulo inválido' });
     const modDir = modId === 'wordpress' ? 'wordpress-mcp' : modId;
-    const logDir = path.resolve(__dirname, '..', modDir, 'logs');
+    const logDir = sanitizePath(modDir, path.resolve(__dirname, '..'));
     const logFile = path.join(logDir, modDir + '.log');
     const logData = fs.existsSync(logFile) ? fs.readFileSync(logFile, 'utf8') : '';
     res.json({ log: logData });

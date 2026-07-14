@@ -4,11 +4,15 @@ const crypto = require('crypto');
 const TOOLS = [
   {
     name: 'consultar',
-    description: 'Ejecuta una consulta SQL SELECT sobre la base de datos.',
+    description: 'Consulta datos de una tabla con filtros opcionales.',
     inputSchema: {
       type: 'object', properties: {
-        sql: { type: 'string', description: 'Consulta SQL SELECT' }
-      }, required: ['sql']
+        tabla: { type: 'string', description: 'Nombre de la tabla' },
+        columnas: { type: 'array', items: { type: 'string' }, description: 'Columnas a seleccionar' },
+        donde: { type: 'object', description: 'Filtros campo:valor' },
+        orden: { type: 'string', description: 'Orden (ej: nombre ASC)' },
+        limite: { type: 'number', description: 'Límite de filas (máx 200)' }
+      }, required: ['tabla']
     }
   },
   {
@@ -130,16 +134,36 @@ const TOOLS = [
   }
 ];
 
-function safeQuery(sql, params = []) {
-  const clean = sql.trim().replace(/;.*$/s, '');
-  if (!/^\s*SELECT\b/i.test(clean)) throw new Error('Solo SELECT');
-  return db.prepare(clean).all(...params);
-}
-
 async function ejecutarTool(name, args) {
   switch (name) {
-    case 'consultar': return safeQuery(args.sql);
-    case 'describir': return db.prepare(`PRAGMA table_info(${JSON.stringify(args.tabla)})`).all();
+    case 'consultar': {
+      const { tabla, columnas, donde, orden, limite } = args;
+      if (!tabla) throw new Error('tabla requerida');
+      if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(tabla)) throw new Error('Nombre de tabla inválido');
+      const cols = Array.isArray(columnas) && columnas.length
+        ? columnas.map(function(c) { if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(c)) throw new Error('Columna inválida'); return c; }).join(', ')
+        : '*';
+      let sql = 'SELECT ' + cols + ' FROM ' + tabla;
+      const params = [];
+      if (donde && typeof donde === 'object') {
+        const clauses = Object.entries(donde).map(function([k, v]) {
+          if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(k)) throw new Error('Campo inválido');
+          params.push(v);
+          return k + ' = ?';
+        });
+        if (clauses.length) sql += ' WHERE ' + clauses.join(' AND ');
+      }
+      if (orden) {
+        if (!/^[a-zA-Z_][a-zA-Z0-9_]*(\s+(ASC|DESC))?$/i.test(orden)) throw new Error('Orden inválido');
+        sql += ' ORDER BY ' + orden;
+      }
+      if (limite) {
+        params.push(Math.min(parseInt(limite) || 50, 200));
+        sql += ' LIMIT ?';
+      }
+      return db.prepare(sql).all(...params);
+    }
+    case 'describir': return db.prepare('SELECT * FROM pragma_table_info(?)').all(args.tabla);
     case 'tablas': {
       return db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all().map(t => {
         const c = db.prepare(`SELECT COUNT(*) AS cnt FROM ${JSON.stringify(t.name)}`).get();

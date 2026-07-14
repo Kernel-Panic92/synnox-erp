@@ -129,6 +129,9 @@ router.post('/test', soloAdmin, async (req, res) => {
       };
     } else if (req.body.smtp_heredar === '1') {
       const launcherUrl = (req.body.launcher_url || 'http://localhost:3002').replace(/\/+$/, '');
+      if (!/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/.*)?$/.test(launcherUrl)) {
+        return res.status(400).json({ error: 'URL del Launcher inválida' });
+      }
       const launcherRes = await fetch(launcherUrl + '/api/smtp/internal', { signal: AbortSignal.timeout(5000) });
       if (!launcherRes.ok) throw new Error('Launcher responded ' + launcherRes.status);
       const data = await launcherRes.json();

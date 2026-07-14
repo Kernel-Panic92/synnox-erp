@@ -8,6 +8,15 @@ const os = require('os');
 const HOME_DIR = os.homedir();
 const APP_DIR = path.join(__dirname, '..', '..');
 
+function sanitizePath(input, base) {
+  const resolved = path.resolve(base, input);
+  const normalized = path.normalize(resolved);
+  if (!normalized.startsWith(path.resolve(base))) {
+    throw new Error('Path fuera del directorio permitido');
+  }
+  return normalized;
+}
+
 // Helper: sanitizar entrada para evitar command injection
 function sanitizeShellArg(str) {
   if (!str || typeof str !== 'string') return '';
@@ -181,6 +190,9 @@ router.get('/smtp/test', requireRol('admin'), async (req, res) => {
   if (req.query.inherit === '1') {
     try {
       const launcherUrl = (req.query.launcher_url || 'http://localhost:3002').replace(/\/+$/, '');
+      if (!/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/.*)?$/.test(launcherUrl)) {
+        return res.status(400).json({ error: 'URL del Launcher inválida' });
+      }
       const launcherRes = await fetch(launcherUrl + '/api/smtp/internal', { signal: AbortSignal.timeout(5000) });
       if (!launcherRes.ok) throw new Error('Launcher responded ' + launcherRes.status);
       const data = await launcherRes.json();
@@ -303,7 +315,7 @@ router.put('/horas', requireRol('admin', 'contador'), async (req, res) => {
   }
 });
 
-const { execSync, exec } = require('child_process');
+const { execSync, spawnSync } = require('child_process');
 
 // ─── SEGURIDAD ───────────────────────────────────────────────────────────────
 router.get('/seguridad', requireRol('admin'), async (req, res) => {
@@ -489,6 +501,9 @@ router.put('/backups-auto', requireRol('admin'), async (req, res) => {
     }
     
     if (backup_auto_enabled === 'true' && backup_auto_cron) {
+      if (!/^[0-9*,/\-A-Za-z?L#W @]+$/.test(backup_auto_cron)) {
+        throw new Error('Expresión cron inválida');
+      }
       const cronCmd = `cd ${APP_DIR} && /usr/bin/node src/scripts/backup-auto.js >> ${APP_DIR}/logs/backup-auto.log 2>&1`;
       execSync(`(crontab -l 2>/dev/null | grep -v 'backup-auto'; echo "${backup_auto_cron} ${cronCmd}") | crontab -`, { stdio: 'pipe' });
     } else {
@@ -525,9 +540,10 @@ router.post('/backups-auto/test', requireRol('admin'), async (req, res) => {
       const userArg = user + (pass ? '%' + pass : '');
       let test;
       try {
-        test = execSync(`smbclient //${host}${share} -U "${userArg}" -c "ls" 2>&1`, { stdio: 'pipe', timeout: 10 }).toString();
+        const result = spawnSync('smbclient', [`//${host}${share}`, '-U', userArg, '-c', 'ls'], { stdio: 'pipe', timeout: 10, encoding: 'utf8' });
+        test = (result.stdout || '') + (result.stderr || '');
       } catch(e) {
-        test = e.stdout?.toString() || e.message || 'FAIL';
+        test = e.message || 'FAIL';
       }
       
       if (test.includes('NT_STATUS') || test.includes('FAIL') || test.includes('Error')) {
@@ -535,7 +551,8 @@ router.post('/backups-auto/test', requireRol('admin'), async (req, res) => {
       }
       res.json({ ok: true, message: 'Conexión SMB exitosa' });
     } else {
-      const testDir = backupPath || path.join(HOME_DIR, 'backups', 'docflow');
+      const rawPath = backupPath || path.join(HOME_DIR, 'backups', 'docflow');
+      const testDir = sanitizePath(rawPath, HOME_DIR);
       if (!fs.existsSync(testDir)) {
         return res.status(400).json({ ok: false, error: `Directorio no existe: ${testDir}` });
       }
