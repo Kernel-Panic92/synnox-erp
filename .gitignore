@@ -4,6 +4,19 @@ config.env
 *.log
 .DS_Store
 Thumbs.db
+
+# pnpm
+.pnpm-store/
+
+# Stale npm lockfiles (migrated to pnpm)
+package-lock.json
+modules/nomina/package-lock.json
+modules/proveedores/package-lock.json
+modules/logistica/package-lock.json
+launcher/package-lock.json
+wordpress-mcp/package-lock.json
+
+# DB
 launcher/launcher.db
 launcher/backups/
 modules/horix/horas_extra.db

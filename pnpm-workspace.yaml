@@ -1,0 +1,7 @@
+packages:
+  - '.'
+  - 'launcher'
+  - 'modules/proveedores'
+  - 'modules/nomina'
+  - 'modules/logistica'
+  - 'wordpress-mcp'
