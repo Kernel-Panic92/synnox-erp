@@ -122,6 +122,8 @@ const globalLimiter = rateLimit({
   message: { error: 'Demasiadas solicitudes. Intenta de nuevo en unos minutos.' }
 });
 app.use('/api', globalLimiter);
+const mcpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+const testLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 
 // ─────────────────────────────────────────────
 // UTILS
@@ -201,17 +203,20 @@ app.use('/api', require('./src/routes/consulta')({ db }));
 // MCP — Model Context Protocol (para LLMs)
 // ─────────────────────────────────────────────
 const mcp = require('./src/mcp/index');
+app.use('/.well-known', mcpLimiter);
+app.use('/mcp/oauth', mcpLimiter);
+app.use('/mcp', mcpLimiter);
 app.use('/.well-known', mcp.createWellKnown());
 app.use('/mcp/oauth', mcp.createOAuthRouter());
 app.use('/mcp', mcp.createMiddleware());
 // Fallback: Claude ignora registration_endpoint y llama a /register
-app.use('/register', express.json(), mcp.createRegistrationFallback());
+app.use('/register', mcpLimiter, express.json(), mcp.createRegistrationFallback());
 // Fallback: Claude ignora authorization_endpoint y construye /authorize en la raíz
-app.use('/authorize', mcp.createAuthorizeFallback());
+app.use('/authorize', mcpLimiter, mcp.createAuthorizeFallback());
 // Fallback: Claude ignora token_endpoint y construye /token en la raíz
-app.use('/token', express.urlencoded({ extended: false }), mcp.createTokenFallback());
+app.use('/token', mcpLimiter, express.urlencoded({ extended: false }), mcp.createTokenFallback());
 // Test endpoint para verificar que el servidor recibe requests nuevas
-app.get('/mcp-test', (req, res) => res.send('MCP OK ' + Date.now()));
+app.get('/mcp-test', testLimiter, (req, res) => res.send('MCP OK ' + Date.now()));
 
 const logErrorTelemetry = db.prepare('INSERT INTO telemetria (evento, pagina, usuarioId, datos, creado) VALUES (?,?,?,?,?)');
 // Error handler global — siempre responde JSON y registra en telemetría
