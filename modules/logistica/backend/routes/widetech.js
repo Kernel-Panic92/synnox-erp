@@ -53,6 +53,8 @@ router.post('/test', soloAdmin, async (req, res) => {
     const data = await apiRes.json();
     if (data.Err?.Code === 0 && data.Sign && data.Token) {
       res.json({ exitosa: true, mensaje: 'Conexión exitosa — token obtenido correctamente' });
+    } else if (data.Err?.Code === 110 || data.Code === 110) {
+      res.json({ exitosa: true, mensaje: 'Conexión exitosa — el token previo sigue vigente (válido 2h)' });
     } else {
       const code = data.Err?.Code ?? data.Code ?? '?';
       const desc = data.Err?.Desc ?? data.Desc ?? 'Error desconocido';
