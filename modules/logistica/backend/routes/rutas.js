@@ -205,12 +205,13 @@ router.post('/generar', requirePermiso('crear', MODULE), async (req, res) => {
 
 router.put('/:id', requirePermiso('editar', MODULE), async (req, res) => {
   try {
-    const { estado, distancia_total_real, tiempo_real, paradas_completadas, paradas_fallidas } = req.body;
+    const { estado, distancia_total_real, tiempo_real, paradas_completadas, paradas_fallidas, hora_inicio_real, hora_fin_real } = req.body;
     const result = await pool.query(
       `UPDATE logistics.rutas SET estado=COALESCE($1,estado), distancia_total_real=COALESCE($2,distancia_total_real),
        tiempo_real=COALESCE($3,tiempo_real), paradas_completadas=COALESCE($4,paradas_completadas),
-       paradas_fallidas=COALESCE($5,paradas_fallidas), updated_at=CURRENT_TIMESTAMP WHERE id=$6 RETURNING *`,
-      [estado, distancia_total_real, tiempo_real, paradas_completadas, paradas_fallidas, req.params.id]
+       paradas_fallidas=COALESCE($5,paradas_fallidas), hora_inicio_real=COALESCE($6,hora_inicio_real),
+       hora_fin_real=COALESCE($7,hora_fin_real), updated_at=CURRENT_TIMESTAMP WHERE id=$8 RETURNING *`,
+      [estado, distancia_total_real, tiempo_real, paradas_completadas, paradas_fallidas, hora_inicio_real, hora_fin_real, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Ruta no encontrada' });
     res.json({ exitosa: true, ruta: result.rows[0] });

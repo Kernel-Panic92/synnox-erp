@@ -918,9 +918,28 @@ async function eliminarSeleccionados(tipo) {
 }
 
 /* ── Rutas ── */
+let _rutasFechaDefaultSet = false;
+
+function toggleRutasTodas(checked) {
+  const fechaInput = document.getElementById('filtro-fecha');
+  if (checked) {
+    fechaInput.value = '';
+    fechaInput.disabled = true;
+  } else {
+    fechaInput.disabled = false;
+    if (!fechaInput.value) fechaInput.value = new Date().toISOString().split('T')[0];
+  }
+  cargarRutas();
+}
+
 async function cargarRutas() {
   const tbody = document.querySelector('#tbl-rutas tbody');
-  const fecha = document.getElementById('filtro-fecha').value;
+  const fechaInput = document.getElementById('filtro-fecha');
+  if (!_rutasFechaDefaultSet && !fechaInput.value && !document.getElementById('chk-rutas-todas').checked) {
+    fechaInput.value = new Date().toISOString().split('T')[0];
+    _rutasFechaDefaultSet = true;
+  }
+  const fecha = fechaInput.value;
   const sede = document.getElementById('filtro-rutas-sede')?.value || '';
   poblarSedesRutas();
   poblarRutasZona();
@@ -929,7 +948,10 @@ async function cargarRutas() {
     if (fecha) params.set('fecha', fecha);
     if (sede) params.set('sede', sede);
     const data = await api('/rutas?' + params.toString());
-    if (!data.rutas?.length) { tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted" style="padding:32px;">No hay rutas para esta fecha</td></tr>'; return; }
+    if (!data.rutas?.length) {
+      const msg = fecha ? 'No hay rutas para ' + fecha : 'No hay rutas registradas';
+      tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted" style="padding:32px;">' + msg + '</td></tr>'; return;
+    }
     tbody.innerHTML = data.rutas.map(r => `
       <tr>
         <td><input type="checkbox" class="cb-ruta" value="${r.id}" onchange="actualizarBtnEliminar('ruta')"></td>
@@ -941,7 +963,7 @@ async function cargarRutas() {
         <td>${r.tiempo_estimado ? r.tiempo_estimado+' min' : '—'}</td>
         <td><span class="badge badge-${r.estado==='planificada'?'info':r.estado==='en_ejecucion'?'warning':r.estado==='completada'?'success':'danger'}">${r.estado}</span></td>
         <td>${r.fecha ? r.fecha.slice(0,10) : '—'}</td>
-        <td style="white-space:nowrap"><button class="btn btn-sm btn-icon btn-secondary" onclick="verRuta(${r.id})" title="Ver">👁️</button><button class="btn btn-sm btn-icon btn-secondary" onclick="exportarRutaGMaps(${r.id})" title="Abrir en Google Maps"><svg viewBox="0 0 24 24" width="20" height="20" fill="#4285F4" style="display:block"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></button><button class="btn btn-sm btn-icon btn-danger" onclick="confirmarEliminar('ruta',${r.id})" title="Eliminar">🗑️</button></td>
+        <td style="white-space:nowrap"><button class="btn btn-sm btn-icon btn-secondary" onclick="verRuta(${r.id})" title="Ver">👁️</button><button class="btn btn-sm btn-icon btn-secondary" onclick="exportarRutaGMaps(${r.id})" title="Abrir en Google Maps"><svg viewBox="0 0 24 24" width="20" height="20" fill="#4285F4" style="display:block"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></button>${r.estado!=='completada'&&r.estado!=='fallida'?`<button class="btn btn-sm btn-icon btn-success" onclick="completarRuta(${r.id})" title="Completar">✓</button>`:''}<button class="btn btn-sm btn-icon btn-danger" onclick="confirmarEliminar('ruta',${r.id})" title="Eliminar">🗑️</button></td>
       </tr>
     `).join('');
   } catch (e) {
@@ -1176,7 +1198,21 @@ async function exportarRutaGMaps(id) {
   } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
-
+async function completarRuta(id) {
+  const ok = await confirmarModal('Completar ruta', '¿Marcar esta ruta como completada?\n\nSe registrará la hora de finalización actual.');
+  if (!ok) return;
+  try {
+    const ahora = new Date();
+    const ts = ahora.getFullYear() + '-' + String(ahora.getMonth()+1).padStart(2,'0') + '-' + String(ahora.getDate()).padStart(2,'0') +
+      ' ' + String(ahora.getHours()).padStart(2,'0') + ':' + String(ahora.getMinutes()).padStart(2,'0') + ':' + String(ahora.getSeconds()).padStart(2,'0');
+    await api('/rutas/' + id, {
+      method: 'PUT',
+      body: JSON.stringify({ estado: 'completada', hora_fin_real: ts })
+    });
+    mostrarAlerta('Ruta marcada como completada', 'success');
+    cargarRutas();
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
+}
 
 async function generarRutas() {
   const fecha = document.getElementById('filtro-fecha').value;
