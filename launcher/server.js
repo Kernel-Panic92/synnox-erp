@@ -8,6 +8,10 @@ const fs = require('fs');
 const crypto = require('crypto');
 const { execSync } = require('child_process');
 const mail = require('./mail');
+const rateLimit = require('express-rate-limit');
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+const mcpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+const publicLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 
 const app = express();
 app.set('trust proxy', true);
@@ -419,6 +423,8 @@ function logLoginAttempt(ip, email, exitoso) {
 }
 
 const { buildPayload, getUserWithPermissions, parseCookies } = require('./../framework/auth');
+
+app.use('/api', apiLimiter);
 
 app.post('/api/auth/login', loginRateLimit, async (req, res) => {
   const { email, password } = req.body;
@@ -935,6 +941,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 import { createMiddleware } from './mcp/index.js';
 
 dotenv.config();
@@ -945,8 +952,12 @@ const MODULE_ID = process.env.MODULE_ID || '${id}';
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) { console.error('ERROR: JWT_SECRET no configurado en módulo ' + MODULE_ID); process.exit(1); }
 
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+const mcpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+
 app.use(cors());
 app.use(express.json());
+app.use('/api', apiLimiter);
 
 function verificarToken(req, res, next) {
   const auth = req.headers.authorization;
@@ -962,12 +973,13 @@ function requireModulo(req, res, next) {
   res.status(403).json({ error: 'No tienes acceso a ' + MODULE_ID });
 }
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
-app.get('/health', (req, res) => res.json({ status: 'ok', module: MODULE_ID }));
+app.get('/api/health', apiLimiter, (req, res) => res.json({ status: 'ok' }));
+app.get('/health', apiLimiter, (req, res) => res.json({ status: 'ok', module: MODULE_ID }));
 
+app.use('/mcp', mcpLimiter);
 app.use('/mcp', createMiddleware());
 app.use(express.static(path.join(__dirname, '..', 'public')));
-app.get('*', (req, res) => {
+app.get('*', apiLimiter, (req, res) => {
   if (req.path.startsWith('/api/') || req.path.startsWith('/mcp')) return res.status(404).json({ error: 'Not found' });
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
@@ -982,6 +994,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
+import rateLimit from 'express-rate-limit';
 import { createMiddleware } from './mcp/index.js';
 
 dotenv.config();
@@ -991,8 +1004,12 @@ const PORT = process.env.PORT || ${listenPort};
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) { console.error('ERROR: JWT_SECRET no configurado en módulo ' + MODULE_ID); process.exit(1); }
 
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+const mcpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+
 app.use(cors());
 app.use(express.json());
+app.use('/api', apiLimiter);
 
 function verificarToken(req, res, next) {
   const auth = req.headers.authorization;
@@ -1001,12 +1018,13 @@ function verificarToken(req, res, next) {
   catch { return res.status(401).json({ error: 'Token inv\u00e1lido o expirado' }); }
 }
 
-app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
-app.get('/health', (req, res) => res.json({ status: 'ok', module: '${id}' }));
+app.get('/api/health', apiLimiter, (req, res) => res.json({ status: 'ok' }));
+app.get('/health', apiLimiter, (req, res) => res.json({ status: 'ok', module: '${id}' }));
 
+app.use('/mcp', mcpLimiter);
 app.use('/mcp', createMiddleware());
 app.use(express.static(path.join(__dirname, '..', 'public')));
-app.get('*', (req, res) => {
+app.get('*', apiLimiter, (req, res) => {
   if (req.path.startsWith('/api/') || req.path.startsWith('/mcp')) return res.status(404).json({ error: 'Not found' });
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
 });
@@ -1509,6 +1527,8 @@ async function processMcpMessage(msg) {
   if (msg.method?.startsWith('notifications/')) return rpcResult(null, null);
   return rpcError(id, -32601, 'Method not found: ' + msg.method);
 }
+
+app.use('/mcp', mcpLimiter);
 
 // MCP POST handler
 app.post('/mcp', async (req, res) => {

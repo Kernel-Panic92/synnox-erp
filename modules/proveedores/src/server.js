@@ -5,9 +5,14 @@ const cors    = require('cors');
 const path    = require('path');
 const cookieParser = require('cookie-parser');
 const fs      = require('fs');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
-const MODULE_ID = process.env.MODULE_ID || 'docflow';
+const MODULE_ID = process.env.MODULE_ID || 'proveedores';
+
+// ─── Rate Limiting ────────────────────────────────────────────────────────────
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiados intentos de autenticación' } });
 
 // ─── Middlewares globales ─────────────────────────────────────────────────────
 app.use(cookieParser());
@@ -23,8 +28,10 @@ app.use(express.urlencoded({ extended: true }));
 const { authMiddleware, verificarSesionValida, requireModule } = require('./middleware/auth');
 
 // ─── Rutas API ────────────────────────────────────────────────────────────────
+app.use('/api/auth', authLimiter);
 // Auth global: verify JWT + check module access for all /api routes
 app.use('/api', authMiddleware);
+app.use('/api', apiLimiter);
 app.use('/api', requireModule('proveedores'));
 app.use('/api', verificarSesionValida);
 

@@ -2,6 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const path = require('path');
 const fs = require('fs');
+const rateLimit = require('express-rate-limit');
 
 const PORT = parseInt(process.env.PORT || '3002', 10);
 const app = express();
@@ -9,7 +10,12 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.get('/api/health', (req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
+const globalLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 1000, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+const publicLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 50, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+
+app.use('/api', globalLimiter);
+
+app.get('/api/health', publicLimiter, (req, res) => res.json({ ok: true, ts: new Date().toISOString() }));
 app.get('/api/version', (req, res) => {
   try {
     const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
@@ -42,7 +48,7 @@ async function start() {
   // Static files always served regardless of module load success
   app.use('/logistica', express.static(path.join(__dirname, 'modules', 'logistica', 'public')));
 
-  app.get('*', (req, res) => {
+  app.get('*', publicLimiter, (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
     const spaPath = path.join(__dirname, 'launcher', 'shell', 'index.html');
     if (fs.existsSync(spaPath)) return res.sendFile(spaPath);

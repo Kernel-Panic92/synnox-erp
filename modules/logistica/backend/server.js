@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
+import rateLimit from 'express-rate-limit';
 import pool from './config/db.js';
 import { verifyToken, verifySession, requireModule, requirePermiso } from '../../../framework/auth.mjs';
 
@@ -14,9 +15,13 @@ const app = express();
 const PORT = process.env.PORT || 3004;
 const MODULE_ID = process.env.MODULE_ID || 'logistica';
 
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+const publicLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use('/api', apiLimiter);
 
 app.use((req, res, next) => {
   if (req.path.startsWith('/api/')) console.log(`[logistica] ${req.method} ${req.path} — auth: ${!!req.headers.authorization}`);
