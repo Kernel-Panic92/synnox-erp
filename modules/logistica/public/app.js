@@ -2387,10 +2387,15 @@ async function testWidetech() {
   const msg = document.getElementById('wt-msg');
   msg.innerHTML = '<span class="text-muted">Conectando con Widetech...</span>';
   try {
+    let password = document.getElementById('wt-pass').value;
+    if (password.includes('•')) {
+      const saved = await api('/widetech/config');
+      password = saved.config?.widetech_password || password;
+    }
     const body = {
       url: document.getElementById('wt-url').value.trim(),
       user: document.getElementById('wt-user').value.trim(),
-      password: document.getElementById('wt-pass').value,
+      password,
       lang: document.getElementById('wt-lang').value
     };
     const data = await api('/widetech/test', { method: 'POST', body: JSON.stringify(body) });
