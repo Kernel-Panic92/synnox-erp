@@ -2554,7 +2554,6 @@ function limpiarFiltrosReporte() {
 async function exportarReporte() {
   const { tipo } = _rptState;
   const token = getToken();
-  if (!token) { mostrarAlerta('Sesión no disponible', 'error'); return; }
   mostrarAlerta('Generando Excel...', 'info');
   try {
     const body = { tipo,
@@ -2565,10 +2564,10 @@ async function exportarReporte() {
       ciudad: document.getElementById('rpt-ciudad').value,
       vehiculoId: document.getElementById('rpt-vehiculo').value,
     };
+    const headers = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = 'Bearer ' + token;
     const res = await fetch(API + '/reportes/exportar', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-      body: JSON.stringify(body),
+      method: 'POST', headers, body: JSON.stringify(body),
     });
     if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
     const blob = await res.blob();
