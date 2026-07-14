@@ -1,4 +1,4 @@
-import XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
 
 /**
  * Parsea el Excel de Widetech - Histórico Programado
@@ -6,14 +6,18 @@ import XLSX from 'xlsx';
  */
 export async function parsearWidetech(rutaArchivo) {
   try {
-    const workbook = XLSX.readFile(rutaArchivo);
-    const sheetName = workbook.SheetNames[0]; // Primer sheet
-    const worksheet = workbook.Sheets[sheetName];
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.readFile(rutaArchivo);
+    const worksheet = workbook.worksheets[0];
 
-    // Convertir a JSON
-    const datos = XLSX.utils.sheet_to_json(worksheet, {
-      header: 1, // Array de arrays
-      defval: ''
+    const datos = [];
+    worksheet.eachRow({ includeEmpty: true }, (row) => {
+      const vals = row.values;
+      const rowData = [];
+      for (let c = 1; c <= worksheet.columnCount; c++) {
+        rowData.push(vals[c] ?? '');
+      }
+      datos.push(rowData);
     });
 
     // Detectar fila de encabezados (generalmente fila 1 después del título)
