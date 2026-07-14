@@ -81,19 +81,22 @@ function setCachedSeq(userId, seq) {
   _seqCache.set(userId, { seq, ts: Date.now() });
 }
 
-// Verify user session is still valid by checking seq against launcher
-async function verifySessionValid(payload) {
+// Verify user session directly via SQLite (no HTTP call needed in monorepo)
+function verifySessionValid(payload) {
   try {
-    const launcherUrl = process.env.LAUNCHER_URL || 'http://localhost:3002';
     const cachedSeq = getCachedSeq(payload.id);
     if (cachedSeq !== null) return cachedSeq === payload.seq;
-    const res = await fetch(launcherUrl + '/api/internal/usuario-seq/' + payload.id, { signal: AbortSignal.timeout(2000) });
-    if (!res.ok) return true; // fallback: allow on error
-    const data = await res.json();
-    setCachedSeq(payload.id, data.seq);
-    return data.seq === payload.seq;
+    const Database = require('better-sqlite3');
+    const path = require('path');
+    const dbPath = path.join(__dirname, '..', 'launcher', 'launcher.db');
+    const ldb = new Database(dbPath, { readonly: true });
+    const row = ldb.prepare('SELECT seq FROM usuarios WHERE id = ?').get(payload.id);
+    ldb.close();
+    const seq = row ? row.seq : payload.seq;
+    setCachedSeq(payload.id, seq);
+    return seq === payload.seq;
   } catch {
-    return true; // fallback: allow if launcher unreachable
+    return true;
   }
 }
 
