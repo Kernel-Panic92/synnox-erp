@@ -37,12 +37,14 @@
 - **bcrypt → bcryptjs**: Eliminada dependencia duplicada. Root, logística y nómina ahora usan solo `bcryptjs` (pure JS, sin native bindings). Eliminado `bcrypt` de root y logística.
 - **loginAttempts memory leak**: Agregado `setInterval` cada 5 min que purga entradas stale del rate limiter in-memory.
 - **Hardcoded values eliminados**: Eliminados `'dev-secret'` en templates de módulos externos (3 ocurrencias), `'dev_secret_not_for_prod'` en crypto.js (HE_SECRET), `vitamar2024` en docker-compose.yml, emails hardcodeados `@vitamar.com` (7 ocurrencias → `smtp@localhost`), `noreply@tu-dominio.com` y `noreply@horix-platform.local`.
-- **Pendientes (no abordados)**:
-  - SSH `execSync` → `ssh2` (requiere cambiar lógica de test-ssh)
-  - CSP nonce en proveedores (requiere inyección server-side de nonce en HTML)
-  - Dividir `launcher/server.js` (~1887 líneas → routers separados)
-  - ESLint + Prettier config
-  - Agregar helmet y rate limiting en proveedores
+#### Cambios posteriores — CodeQL security hardening
+
+- **command-line-injection (16)**: `execSync` string → `spawnSync`/`execFileSync` con array args en launcher, installer y proveedores.
+- **path-injection (35)**: Helper `sanitizePath(input, base)` en 8 archivos (proveedores, logística, launcher).
+- **sql-injection (2)**: MCP Nómina reescrito con input estructurado y placeholders.
+- **request-forgery/SSRF (2)**: Validación regex de URLs solo localhost en `fetch()`.
+- **email en login logs**: Encryptado con AES-256-CBC en launcher.
+- **missing-rate-limiting (~260)**: `express-rate-limit` middleware global en los 5 servidores.
 
 #### Cambios Sesión 9 (14 Jul 2026) — Fase 2: Refactor hardcoded branding
 
@@ -59,6 +61,14 @@
 - **`.gitignore`**: Rutas legacy `modules/horix/` → `modules/nomina/`, etc.
 - **Resultado**: 0 referencias a `Horix`, `vitamar`, `Kernel-Panic92`, `DocFlow` en código fuente (solo en AGENTS.md).
 
+#### Correcciones en producción (sesión actual)
+
+- **express-rate-limit**: Eliminado `trustProxy` inválido de opciones; usado `app.set('trust proxy', 1)` en su lugar. Fix a `ERR_ERL_PERMISSIVE_TRUST_PROXY` y `ERR_ERL_UNKNOWN_OPTION`.
+- **Cookie Secure**: Cambiado de `NODE_ENV === 'production'` a verificación dinámica del protocolo real (`req.protocol`). Fix a cookie no visible en navegador por `secure: true` + HTTP.
+- **HE_SECRET**: Fallback a `JWT_SECRET` en lugar de `process.exit(1)` cuando no está configurado.
+- **verifySessionValid**: Refactorizado de HTTP fetch a SQLite directo (elimina llamadas internas backend→backend).
+- **Password DB**: pg_hba.conf cambiado de `scram-sha-256` a `md5` para compatibilidad con Node pg driver.
+
 ### Cambios Sesión 8 — seguridad (3 CVEs high cerrados)
 - **xlsx → exceljs**: Migrados 2 parsers de logística (`widgetechExcelParser.js`, `maestroClientesParser.js`). `xlsx` (SheetJS) abandonado en npm sin parche disponible. Reemplazado por `exceljs` (ya usado en root/nómina). Cierra CVE-2023-30533 (Prototype Pollution) y CVE-2024-22363 (ReDoS).
 - **nodemailer ^8.0.5 → ^9.0.1**: Actualizado en root, launcher, proveedores, nómina y logística. Cierra GHSA-p6gq (raw message bypass — arbitrary file read + SSRF en ≤9.0.0).
@@ -69,10 +79,16 @@
 - [x] Primera ejecución de `pnpm install --prod` en servidor para generar `pnpm-lock.yaml`
 - [x] Verificar que el servidor unificado arranca correctamente con `node server.js`
 - [x] Fase 2 — Refactor hardcoded branding (~350 referencias eliminadas)
+- [x] CodeQL: fix 56 high-severity + 260 rate-limiting alerts
 - [ ] Ejecutar migración Nómina (Fase 0)
 - [ ] Observabilidad centralizada (tabla `auditoria_central`)
 - [ ] APIs internas entre módulos
 - [ ] Probar HTTPS en producción
+- [ ] SSH `execSync` → `ssh2` (test-ssh)
+- [ ] CSP nonce en proveedores
+- [ ] Dividir `launcher/server.js` (~1950 líneas → routers separados)
+- [ ] ESLint + Prettier config
+- [ ] Limpiar `.env` legacy (`modules/docflow/`, `modules/logistics/`, `modules/horix/`)
 
 ---
 
