@@ -1,5 +1,15 @@
 import pdfParse from 'pdf-parse';
 import fs from 'fs';
+import path from 'path';
+
+function sanitizePath(input, base) {
+  const resolved = path.resolve(base, input);
+  const normalized = path.normalize(resolved);
+  if (!normalized.startsWith(path.resolve(base))) {
+    throw new Error('Path fuera del directorio permitido');
+  }
+  return normalized;
+}
 
 const CIUDADES_CONOCIDAS = [
   'santa bárbara', 'santa barbara', 'la pintada', 'pintada',
@@ -10,7 +20,7 @@ const CIUDADES_CONOCIDAS = [
 
 export async function parsearPdfSiesa(rutaArchivo) {
   try {
-    const dataBuffer = fs.readFileSync(rutaArchivo);
+    const dataBuffer = fs.readFileSync(sanitizePath(rutaArchivo, path.resolve('.')));
     const data = await pdfParse(dataBuffer);
     const texto = data.text;
     const lineas = texto.split('\n').map(l => l.trim());

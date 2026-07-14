@@ -1,7 +1,7 @@
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const { spawn, execSync } = require('child_process');
+const { spawn, execSync, execFileSync } = require('child_process');
 
 const PORT = 3001;
 const INSTALL_DIR = path.resolve(__dirname, '..');
@@ -40,6 +40,10 @@ function runCmd(cmd, args, opts = {}) {
     });
     proc.on('error', reject);
   });
+}
+
+function isValidPgIdentifier(s) {
+  return typeof s === 'string' && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(s);
 }
 
 function checkRequirements() {
@@ -105,10 +109,11 @@ async function runInstall(config) {
       installState.step = '🧹 Limpiando instalación anterior...';
       log('Eliminando datos existentes...', 'step');
       // Drop PostgreSQL database
-      const dbName = config.dbName || 'mi_erp';
+      const dbName = isValidPgIdentifier(config.dbName) ? config.dbName : 'mi_erp';
+      const dbUserClean = isValidPgIdentifier(config.dbUser) ? config.dbUser : 'postgres';
       try { execSync(`su - postgres -c "psql -c \\"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${dbName}' AND pid <> pg_backend_pid();\\"" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
       try { execSync(`su - postgres -c "dropdb ${dbName}" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
-      try { execSync(`su - postgres -c "createdb -O ${config.dbUser} ${dbName}" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
+      try { execSync(`su - postgres -c "createdb -O ${dbUserClean} ${dbName}" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
       // Delete SQLite databases
       for (const f of ['launcher/launcher.db', 'modules/nomina/horas_extra.db']) {
         try { fs.unlinkSync(path.join(INSTALL_DIR, f)); log(`Eliminado: ${f}`, 'ok'); } catch {}
@@ -142,16 +147,20 @@ async function runInstall(config) {
     }
 
     // Step 2: Setup PostgreSQL
-    const dbName = config.dbName || 'mi_erp';
-    const dbPass = config.dbPass || require('crypto').randomBytes(16).toString('hex');
+    const dbName = isValidPgIdentifier(config.dbName) ? config.dbName : 'mi_erp';
+    const dbUserClean = isValidPgIdentifier(config.dbUser) ? config.dbUser : 'postgres';
+    const rawPass = config.dbPass || require('crypto').randomBytes(16).toString('hex');
+    const dbPass = rawPass.replace(/['"`$\\]/g, '').replace(/'/g, "''");
+    config.dbUser = dbUserClean;
+    config.dbName = dbName;
     installState.dbPass = dbPass;
-    const pgEnv = { ...process.env, PGPASSWORD: dbPass };
+    const pgEnv = { ...process.env, PGPASSWORD: rawPass };
     installState.step = 'Configurando PostgreSQL...';
     log('Creando usuario y databases...', 'step');
     try {
-      execSync(`su - postgres -c "psql -tc \\"SELECT 1 FROM pg_roles WHERE rolname='${config.dbUser}'\\" | grep -q 1 || psql -c \\"CREATE USER ${config.dbUser} WITH PASSWORD '${dbPass}'\\"" 2>/dev/null || true`, { stdio: 'ignore', env: pgEnv });
-      execSync(`su - postgres -c "psql -tc \\"SELECT 1 FROM pg_database WHERE datname='${dbName}'\\" | grep -q 1 || createdb -O ${config.dbUser} ${dbName}" 2>/dev/null || true`, { stdio: 'ignore', env: pgEnv });
-      execSync(`su - postgres -c "psql -c \\"ALTER USER ${config.dbUser} WITH PASSWORD '${dbPass}';\\"" 2>/dev/null || true`, { stdio: 'ignore' });
+      execSync(`su - postgres -c "psql -tc \\"SELECT 1 FROM pg_roles WHERE rolname='${dbUserClean}'\\" | grep -q 1 || psql -c \\"CREATE USER ${dbUserClean} WITH PASSWORD '${dbPass}'\\"" 2>/dev/null || true`, { stdio: 'ignore', env: pgEnv });
+      execSync(`su - postgres -c "psql -tc \\"SELECT 1 FROM pg_database WHERE datname='${dbName}'\\" | grep -q 1 || createdb -O ${dbUserClean} ${dbName}" 2>/dev/null || true`, { stdio: 'ignore', env: pgEnv });
+      execSync(`su - postgres -c "psql -c \\"ALTER USER ${dbUserClean} WITH PASSWORD '${dbPass}';\\"" 2>/dev/null || true`, { stdio: 'ignore' });
       log('PostgreSQL listo', 'ok');
     } catch (e) {
       log('Error PostgreSQL: ' + e.message, 'warn');
@@ -264,7 +273,7 @@ async function runInstall(config) {
     // Step 9: Nginx (single upstream → servidor unificado)
     installState.step = 'Configurando Nginx...';
     try {
-      const domain = config.domain || 'localhost';
+      const domain = (config.domain || 'localhost').replace(/[^a-zA-Z0-9._-]/g, '');
       const appName = (config.companyName || 'mi-empresa').toLowerCase().replace(/[^a-z0-9]/g, '-');
       const sslDir = `/etc/ssl/${appName}`;
       if (!fs.existsSync(sslDir)) { execSync(`mkdir -p ${sslDir}`, { stdio: 'ignore' }); }

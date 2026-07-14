@@ -17,6 +17,15 @@ const AdmZip = require('adm-zip');
 const db     = require('../db');
 const { authMiddleware, requireRol } = require('../middleware/auth');
 
+function sanitizePath(input, base) {
+  const resolved = path.resolve(base, input);
+  const normalized = path.normalize(resolved);
+  if (!normalized.startsWith(path.resolve(base))) {
+    throw new Error('Path fuera del directorio permitido');
+  }
+  return normalized;
+}
+
 router.use(authMiddleware);
 const soloAdmin = requireRol('admin');
 
@@ -175,7 +184,7 @@ router.all('/', soloAdmin, async (req, res) => {
       if (!filename || !/^docflow_backup_[\w\-]+\.zip$/.test(filename)) {
         return res.status(400).json({ error: 'Nombre de archivo inválido' });
       }
-      const filepath = path.join(BACKUP_DIR, filename);
+      const filepath = sanitizePath(filename, BACKUP_DIR);
       if (!fs.existsSync(filepath)) {
         return res.status(404).json({ error: 'Archivo no encontrado' });
       }
@@ -199,7 +208,7 @@ router.all('/', soloAdmin, async (req, res) => {
     console.log('[Backup] Guardando:', filename);
     
     // Save to permanent location
-    const filepath = path.join(BACKUP_DIR, filename);
+    const filepath = sanitizePath(filename, BACKUP_DIR);
     zip.writeZip(filepath);
     
     const size = fs.statSync(filepath).size;
@@ -292,7 +301,7 @@ router.get('/descargar/:filename', soloAdmin, (req, res) => {
     return res.status(400).json({ error: 'Nombre de archivo inválido' });
   }
 
-  const filepath = path.join(BACKUP_DIR, filename);
+  const filepath = sanitizePath(filename, BACKUP_DIR);
   if (!fs.existsSync(filepath)) {
     return res.status(404).json({ error: 'Archivo no encontrado' });
   }
@@ -306,7 +315,8 @@ router.post('/restore', soloAdmin, upload.single('backup'), async (req, res) => 
 
   let zip;
   try {
-    zip = new AdmZip(req.file.path);
+    const safeRestorePath = sanitizePath(req.file.path, os.tmpdir());
+    zip = new AdmZip(safeRestorePath);
   } catch (err) {
     return res.status(400).json({ error: 'Archivo ZIP inválido' });
   }
@@ -398,8 +408,11 @@ router.post('/restore', soloAdmin, upload.single('backup'), async (req, res) => 
     res.status(500).json({ error: 'Error en restauración: ' + err.message });
   } finally {
     client.release();
-    if (req.file?.path && fs.existsSync(req.file.path)) {
-      try { fs.unlinkSync(req.file.path); } catch (e) {}
+    if (req.file?.path) {
+      try {
+        const safePath = sanitizePath(req.file.path, os.tmpdir());
+        if (fs.existsSync(safePath)) fs.unlinkSync(safePath);
+      } catch (e) {}
     }
   }
 });
@@ -411,7 +424,7 @@ router.post('/restore/local/:filename', soloAdmin, (req, res) => {
     return res.status(400).json({ error: 'Nombre de archivo inválido' });
   }
 
-  const filepath = path.join(BACKUP_DIR, filename);
+  const filepath = sanitizePath(filename, BACKUP_DIR);
   if (!fs.existsSync(filepath)) {
     return res.status(404).json({ error: 'Archivo no encontrado' });
   }
@@ -516,7 +529,7 @@ router.delete('/:filename', soloAdmin, (req, res) => {
     return res.status(400).json({ error: 'Nombre de archivo inválido' });
   }
 
-  const filepath = path.join(BACKUP_DIR, filename);
+  const filepath = sanitizePath(filename, BACKUP_DIR);
   if (!fs.existsSync(filepath)) {
     return res.status(404).json({ error: 'Archivo no encontrado' });
   }

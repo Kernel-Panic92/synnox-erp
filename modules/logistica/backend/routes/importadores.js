@@ -17,6 +17,15 @@ if (!fs.existsSync(uploadDir)) fs.mkdirSync(uploadDir, { recursive: true });
 
 const upload = multer({ dest: uploadDir });
 
+function sanitizePath(input, base) {
+  const resolved = path.resolve(base, input);
+  const normalized = path.normalize(resolved);
+  if (!normalized.startsWith(path.resolve(base))) {
+    throw new Error('Path fuera del directorio permitido');
+  }
+  return normalized;
+}
+
 const router = express.Router();
 
 router.get('/historial', async (req, res) => {
@@ -32,7 +41,8 @@ router.post('/siesa', requirePermiso('crear', MODULE), upload.single('archivo'),
   try {
     if (!req.file) return res.status(400).json({ error: 'Archivo PDF requerido' });
 
-    const resultado = await parsearPdfSiesa(req.file.path);
+    const safeFilePath = sanitizePath(req.file.path, uploadDir);
+    const resultado = await parsearPdfSiesa(safeFilePath);
 
     if (!resultado.exitosa) {
       await pool.query(
@@ -186,7 +196,7 @@ router.post('/siesa', requirePermiso('crear', MODULE), upload.single('archivo'),
        JSON.stringify({ conductor: resultado.conductor, placa: resultado.placa, errores })]
     );
 
-    fs.unlink(req.file.path, () => {});
+    fs.unlink(safeFilePath, () => {});
 
     res.json({
       exitosa: true,
@@ -198,7 +208,10 @@ router.post('/siesa', requirePermiso('crear', MODULE), upload.single('archivo'),
       debug: resultado._debug || null
     });
   } catch (err) {
-    if (req.file) fs.unlink(req.file.path, () => {});
+    if (req.file) {
+      const safeFilePath = sanitizePath(req.file.path, uploadDir);
+      fs.unlink(safeFilePath, () => {});
+    }
     res.status(500).json({ error: err.message });
   }
 });
@@ -207,7 +220,8 @@ router.post('/widetech', requirePermiso('crear', MODULE), upload.single('archivo
   try {
     if (!req.file) return res.status(400).json({ error: 'Archivo Excel requerido' });
 
-    const resultado = await parsearWidetech(req.file.path);
+    const safeFilePath = sanitizePath(req.file.path, uploadDir);
+    const resultado = await parsearWidetech(safeFilePath);
 
     if (!resultado.exitosa) {
       await pool.query(
@@ -253,7 +267,7 @@ router.post('/widetech', requirePermiso('crear', MODULE), upload.single('archivo
       [req.file.originalname, importados, fallidos, fallidos > 0 ? 'parcial' : 'exitosa', '{}']
     );
 
-    fs.unlink(req.file.path, () => {});
+    fs.unlink(safeFilePath, () => {});
 
     res.json({
       exitosa: true,
@@ -262,7 +276,10 @@ router.post('/widetech', requirePermiso('crear', MODULE), upload.single('archivo
       importados, fallidos
     });
   } catch (err) {
-    if (req.file) fs.unlink(req.file.path, () => {});
+    if (req.file) {
+      const safeFilePath = sanitizePath(req.file.path, uploadDir);
+      fs.unlink(safeFilePath, () => {});
+    }
     res.status(500).json({ error: err.message });
   }
 });
@@ -271,10 +288,11 @@ router.post('/maestro-clientes', requirePermiso('crear', MODULE), upload.single(
   try {
     if (!req.file) return res.status(400).json({ error: 'Archivo requerido' });
 
-    const resultado = await parsearMaestroClientes(req.file.path);
+    const safeFilePath = sanitizePath(req.file.path, uploadDir);
+    const resultado = await parsearMaestroClientes(safeFilePath);
 
     if (!resultado.exitosa) {
-      fs.unlink(req.file.path, () => {});
+      fs.unlink(safeFilePath, () => {});
       return res.status(422).json({ error: resultado.error });
     }
 
@@ -312,7 +330,7 @@ router.post('/maestro-clientes', requirePermiso('crear', MODULE), upload.single(
       }
     }
 
-    fs.unlink(req.file.path, () => {});
+    fs.unlink(safeFilePath, () => {});
 
     await pool.query(
       `INSERT INTO logistics.importaciones (tipo, nombre_archivo, registros_importados, registros_fallidos, estado, detalles)
@@ -330,7 +348,10 @@ router.post('/maestro-clientes', requirePermiso('crear', MODULE), upload.single(
       errores: errores.length > 0 ? errores : undefined
     });
   } catch (err) {
-    if (req.file) fs.unlink(req.file.path, () => {});
+    if (req.file) {
+      const safeFilePath = sanitizePath(req.file.path, uploadDir);
+      fs.unlink(safeFilePath, () => {});
+    }
     res.status(500).json({ error: err.message });
   }
 });

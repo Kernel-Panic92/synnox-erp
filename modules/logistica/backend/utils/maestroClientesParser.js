@@ -2,6 +2,15 @@ import ExcelJS from 'exceljs';
 import fs from 'fs';
 import path from 'path';
 
+function sanitizePath(input, base) {
+  const resolved = path.resolve(base, input);
+  const normalized = path.normalize(resolved);
+  if (!normalized.startsWith(path.resolve(base))) {
+    throw new Error('Path fuera del directorio permitido');
+  }
+  return normalized;
+}
+
 const COLUMNS = [
   'codigo', 'razon_social', 'canal', 'estado', 'direccion',
   'ciudad', 'depto', 'rutas_vehiculos', 'rutas_motos'
@@ -9,12 +18,13 @@ const COLUMNS = [
 
 export async function parsearMaestroClientes(rutaArchivo) {
   try {
-    const ext = path.extname(rutaArchivo).toLowerCase();
+    const safePath = sanitizePath(rutaArchivo, path.resolve('.'));
+    const ext = path.extname(safePath).toLowerCase();
     let datos = [];
 
     if (ext === '.xlsx' || ext === '.xls') {
       const workbook = new ExcelJS.Workbook();
-      await workbook.xlsx.readFile(rutaArchivo);
+      await workbook.xlsx.readFile(safePath);
       const worksheet = workbook.worksheets[0];
       const tmp = [];
       worksheet.eachRow({ includeEmpty: true }, (row) => {
@@ -27,7 +37,7 @@ export async function parsearMaestroClientes(rutaArchivo) {
       });
       datos = tmp;
     } else if (ext === '.txt' || ext === '.csv' || ext === '.tsv') {
-      const raw = fs.readFileSync(rutaArchivo, 'utf8');
+      const raw = fs.readFileSync(safePath, 'utf8');
       const lines = raw.split(/\r?\n/).filter(l => l.trim());
       const delimiter = raw.includes('\t') ? '\t' : ';';
       datos = lines.map(l => l.split(delimiter).map(c => c.trim()));

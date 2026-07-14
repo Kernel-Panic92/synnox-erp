@@ -9,6 +9,15 @@ import pool from '../config/db.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const router = express.Router();
 
+function sanitizePath(input, base) {
+  const resolved = path.resolve(base, input);
+  const normalized = path.normalize(resolved);
+  if (!normalized.startsWith(path.resolve(base))) {
+    throw new Error('Path fuera del directorio permitido');
+  }
+  return normalized;
+}
+
 function soloAdmin(req, res, next) {
   if (req.user?.rol !== 'admin') return res.status(403).json({ error: 'Solo administradores' });
   next();
@@ -63,7 +72,7 @@ router.get('/descargar/:filename', soloAdmin, async (req, res) => {
   try {
     const cfg = await pool.query('SELECT valor FROM logistics.configuracion WHERE clave=$1', ['backup_dir']);
     const dir = (cfg.rows[0]?.valor || '~/backups/logistics').replace('~', process.env.HOME || '/root');
-    const filepath = path.join(dir, req.params.filename);
+    const filepath = sanitizePath(req.params.filename, dir);
     if (!fs.existsSync(filepath)) return res.status(404).json({ error: 'Archivo no encontrado' });
     res.download(filepath);
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -98,7 +107,7 @@ router.post('/restore/local/:filename', soloAdmin, async (req, res) => {
   try {
     const cfg = await pool.query('SELECT valor FROM logistics.configuracion WHERE clave=$1', ['backup_dir']);
     const dir = (cfg.rows[0]?.valor || '~/backups/logistics').replace('~', process.env.HOME || '/root');
-    const filepath = path.join(dir, req.params.filename);
+    const filepath = sanitizePath(req.params.filename, dir);
     if (!fs.existsSync(filepath)) return res.status(404).json({ error: 'Archivo no encontrado' });
     const zip = new AdmZip(filepath);
     const entry = zip.getEntry('backup.json');
