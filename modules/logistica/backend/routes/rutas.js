@@ -214,8 +214,39 @@ router.put('/:id', requirePermiso('editar', MODULE), async (req, res) => {
       [estado, distancia_total_real, tiempo_real, paradas_completadas, paradas_fallidas, hora_inicio_real, hora_fin_real, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Ruta no encontrada' });
+
+    // Si se completa la ruta, poblar historico_eficiencia
+    if (estado === 'completada') {
+      const r = result.rows[0];
+      const cant = r.cantidad_paradas || 1;
+      const comp = r.paradas_completadas || 0;
+      const fall = r.paradas_fallidas || 0;
+      const tasaExito = cant > 0 ? (comp / cant) * 100 : 0;
+      const efDist = r.distancia_total_estimada > 0
+        ? Math.max(0, (1 - Math.abs((r.distancia_total_real || 0) - r.distancia_total_estimada) / r.distancia_total_estimada)) * 100
+        : 0;
+      const efTiempo = r.tiempo_estimado > 0
+        ? Math.max(0, (1 - Math.abs((r.tiempo_real || 0) - r.tiempo_estimado) / r.tiempo_estimado)) * 100
+        : 0;
+      await pool.query(
+        `INSERT INTO logistics.historico_eficiencia
+         (ruta_id, vehiculo_id, conductor_id, fecha, paradas_planificadas, paradas_completadas,
+          paradas_fallidas, distancia_planificada, distancia_real, tiempo_planificado, tiempo_real,
+          tasa_exito, eficiencia_distancia, eficiencia_tiempo)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)`,
+        [r.id, r.vehiculo_id, r.conductor_id, r.fecha, cant, comp, fall,
+         r.distancia_total_estimada, r.distancia_total_real || r.distancia_total_estimada,
+         r.tiempo_estimado, r.tiempo_real || r.tiempo_estimado,
+         Math.round(tasaExito * 100) / 100, Math.round(efDist * 100) / 100, Math.round(efTiempo * 100) / 100]
+      );
+      // Actualizar eficiencia en la ruta
+      const efGeneral = (tasaExito * 0.5) + (efDist * 0.25) + (efTiempo * 0.25);
+      await pool.query('UPDATE logistics.rutas SET eficiencia=$1 WHERE id=$2', [Math.round(efGeneral * 100) / 100, r.id]);
+    }
+
     res.json({ exitosa: true, ruta: result.rows[0] });
   } catch (err) {
+    console.error('[rutas PUT]', err);
     res.status(500).json({ error: err.message });
   }
 });

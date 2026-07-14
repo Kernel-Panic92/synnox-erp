@@ -69,6 +69,7 @@ function navigate(page) {
   else if (page === 'vehiculos') cargarVehiculos();
   else if (page === 'pedidos') cargarPedidos();
   else if (page === 'rutas') cargarRutas();
+  else if (page === 'reportes') { inicializarReportes(); cargarReporte(); }
   else if (page === 'config') cargarConfig();
   else if (page === 'mapa') cargarMapa();
   else if (page === 'clientes') cargarClientes();
@@ -86,6 +87,7 @@ function renderSidebar(usuario) {
     { page: 'clientes', icon: '👤', label: 'Clientes', show: true },
     { page: 'sedes', icon: '🏢', label: 'Sedes', show: true },
     { page: 'rutas', icon: '🗺️', label: 'Rutas', show: true },
+    { page: 'reportes', icon: '📈', label: 'Reportes', show: true },
     { page: 'mapa', icon: '🗺️', label: 'Mapa', show: true },
     { page: 'config', icon: '⚙️', label: 'Configuración', show: isAdmin || modPermisos.includes('configurar') },
   ];
@@ -2312,6 +2314,272 @@ async function probarGmapsKey() {
     else if (d.status === 'REQUEST_DENIED') msg.innerHTML = '<span style="color:var(--danger)">✗ API key denegada — habilita Geocoding API y Places API</span>';
     else msg.innerHTML = '<span style="color:var(--danger)">✗ Error: ' + d.status + '</span>';
   } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
+}
+
+/* ── Reportes ── */
+const _rptState = { tipo: 'rutas', page: 1, sort: '', order: 'DESC' };
+
+const RPT_CONFIG = {
+  rutas: {
+    columns: [
+      { key: 'nombre', label: 'Nombre', sort: 'r.nombre' },
+      { key: 'fecha', label: 'Fecha', sort: 'r.fecha' },
+      { key: 'placa', label: 'Vehículo', sort: 'v.placa' },
+      { key: 'sede', label: 'Sede', sort: 'r.sede' },
+      { key: 'estado', label: 'Estado', sort: 'r.estado' },
+      { key: 'cantidad_paradas', label: 'Paradas', sort: 'r.cantidad_paradas' },
+      { key: 'paradas_completadas', label: 'Completadas', sort: 'r.paradas_completadas' },
+      { key: 'eficiencia', label: 'Eficiencia %', sort: 'r.eficiencia' },
+    ],
+    estados: [{ v: '', l: 'Todos' }, { v: 'planificada', l: 'Planificada' }, { v: 'en_ejecucion', l: 'En ejecución' }, { v: 'completada', l: 'Completada' }, { v: 'fallida', l: 'Fallida' }],
+    summaryKeys: ['total','planificadas','completadas','fallidas','eficiencia_promedio'],
+    summaryLabels: ['Total','Planificadas','Completadas','Fallidas','Eficiencia Prom.'],
+    summaryColors: ['var(--text)','var(--accent)','var(--success)','var(--danger)','var(--warning)'],
+    summarySuffix: ['','','','','%'],
+    filters: ['sede', 'estado'],
+  },
+  pedidos: {
+    columns: [
+      { key: 'numero_factura', label: 'Factura', sort: 'p.numero_factura' },
+      { key: 'cliente_nombre', label: 'Cliente', sort: 'p.cliente_nombre' },
+      { key: 'ciudad', label: 'Ciudad', sort: 'p.ciudad' },
+      { key: 'estado', label: 'Estado', sort: 'p.estado' },
+      { key: 'valor_credito', label: 'Valor', sort: 'p.valor_credito' },
+      { key: 'ruta_nombre', label: 'Ruta', sort: 'r.nombre' },
+      { key: 'created_at', label: 'Creado', sort: 'p.created_at' },
+    ],
+    estados: [{ v: '', l: 'Todos' }, { v: 'pendiente', l: 'Pendiente' }, { v: 'asignado', l: 'Asignado' }, { v: 'en_ruta', l: 'En ruta' }, { v: 'entregado', l: 'Entregado' }, { v: 'fallido', l: 'Fallido' }],
+    summaryKeys: ['total','pendientes','entregados','fallidos','valor_total'],
+    summaryLabels: ['Total','Pendientes','Entregados','Fallidos','Valor Total'],
+    summaryColors: ['var(--text)','var(--accent)','var(--success)','var(--danger)','var(--warning)'],
+    summarySuffix: ['','','','',''],
+    summaryFormat: ['int','int','int','int','currency'],
+    filters: ['estado', 'ciudad'],
+  },
+  vehiculos: {
+    columns: [
+      { key: 'placa', label: 'Placa', sort: 'v.placa' },
+      { key: 'alias', label: 'Alias', sort: 'v.alias' },
+      { key: 'estado', label: 'Estado', sort: 'v.estado' },
+      { key: 'sede', label: 'Sede', sort: 'v.sede' },
+      { key: 'capacidad_peso', label: 'Cap. Peso (kg)', sort: 'v.capacidad_peso' },
+      { key: 'capacidad_volumen', label: 'Cap. Vol. (m³)', sort: 'v.capacidad_volumen' },
+      { key: 'pedidos_activos', label: 'Pedidos Activos', sort: 'pedidos_activos' },
+    ],
+    estados: [{ v: '', l: 'Todos' }, { v: 'disponible', l: 'Disponible' }, { v: 'en_ruta', l: 'En ruta' }, { v: 'mantencion', l: 'Mantenimiento' }, { v: 'inactivo', l: 'Inactivo' }],
+    summaryKeys: ['total','disponibles','en_ruta','mantenimiento','capacidad_peso_total'],
+    summaryLabels: ['Total','Disponibles','En ruta','Mantenimiento','Cap. Peso Total'],
+    summaryColors: ['var(--text)','var(--success)','var(--warning)','var(--danger)','var(--accent)'],
+    summarySuffix: ['','','','',' kg'],
+    filters: ['estado', 'sede'],
+  },
+  eficiencia: {
+    columns: [
+      { key: 'placa', label: 'Vehículo', sort: 'v.placa' },
+      { key: 'fecha', label: 'Fecha', sort: 'h.fecha' },
+      { key: 'paradas_planificadas', label: 'Paradas Plan.', sort: 'h.paradas_planificadas' },
+      { key: 'paradas_completadas', label: 'Paradas Comp.', sort: 'h.paradas_completadas' },
+      { key: 'tasa_exito', label: 'Tasa Éxito %', sort: 'h.tasa_exito' },
+      { key: 'eficiencia_distancia', label: 'Efic. Dist. %', sort: 'h.eficiencia_distancia' },
+      { key: 'eficiencia_tiempo', label: 'Efic. Tiempo %', sort: 'h.eficiencia_tiempo' },
+    ],
+    estados: [],
+    summaryKeys: ['total_rutas','paradas_planificadas','paradas_completadas','tasa_exito_promedio','eficiencia_distancia_promedio'],
+    summaryLabels: ['Total Rutas','Paradas Plan.','Paradas Comp.','Tasa Éxito Prom.','Efic. Distancia Prom.'],
+    summaryColors: ['var(--text)','var(--accent)','var(--success)','var(--warning)','var(--accent)'],
+    summarySuffix: ['','','','%','%'],
+    filters: ['vehiculo'],
+  },
+};
+
+async function inicializarReportes() {
+  const hoy = new Date().toISOString().split('T')[0];
+  const hace30 = new Date(Date.now() - 30 * 864e5).toISOString().split('T')[0];
+  document.getElementById('rpt-fecha-desde').value = hace30;
+  document.getElementById('rpt-fecha-hasta').value = hoy;
+  // Poblar sedes
+  try {
+    const sedes = await api('/sedes');
+    const sel = document.getElementById('rpt-sede');
+    sel.innerHTML = '<option value="">Todas</option>' + (sedes.sedes||[]).map(s => `<option value="${esc(s.nombre)}">${esc(s.nombre)}</option>`).join('');
+  } catch {}
+  // Poblar vehículos
+  try {
+    const v = await api('/vehiculos');
+    const sel = document.getElementById('rpt-vehiculo');
+    sel.innerHTML = '<option value="">Todos</option>' + (v.vehiculos||[]).map(vv => `<option value="${vv.id}">${esc(vv.placa)} — ${esc(vv.alias||'')}</option>`).join('');
+  } catch {}
+}
+
+function cambiarTipoReporte(tipo) {
+  _rptState.tipo = tipo;
+  _rptState.page = 1;
+  _rptState.sort = '';
+  document.querySelectorAll('.rpt-tab').forEach(t => t.classList.toggle('active', t.dataset.tipo === tipo));
+  const cfg = RPT_CONFIG[tipo];
+  // Show/hide filters
+  document.getElementById('rpt-filter-sede-wrapper').style.display = cfg.filters.includes('sede') ? '' : 'none';
+  document.getElementById('rpt-filter-estado-wrapper').style.display = cfg.filters.includes('estado') ? '' : 'none';
+  document.getElementById('rpt-filter-ciudad-wrapper').style.display = cfg.filters.includes('ciudad') ? '' : 'none';
+  document.getElementById('rpt-filter-vehiculo-wrapper').style.display = cfg.filters.includes('vehiculo') ? '' : 'none';
+  // Poblar estados
+  const estSel = document.getElementById('rpt-estado');
+  if (cfg.estados.length) {
+    estSel.innerHTML = cfg.estados.map(e => `<option value="${e.v}">${e.l}</option>`).join('');
+    estSel.style.display = '';
+  } else {
+    estSel.style.display = 'none';
+  }
+  cargarReporte();
+}
+
+async function cargarReporte() {
+  const { tipo, page } = _rptState;
+  const cfg = RPT_CONFIG[tipo];
+  const tbody = document.getElementById('rpt-tbody');
+  const thead = document.getElementById('rpt-thead');
+  try {
+    const params = new URLSearchParams({
+      page,
+      limit: document.getElementById('rpt-page-size').value,
+      fechaDesde: document.getElementById('rpt-fecha-desde').value,
+      fechaHasta: document.getElementById('rpt-fecha-hasta').value,
+    });
+    if (_rptState.sort) { params.set('sort', _rptState.sort); params.set('order', _rptState.order); }
+    const sede = document.getElementById('rpt-sede').value;
+    if (sede) params.set('sede', sede);
+    const estado = document.getElementById('rpt-estado').value;
+    if (estado) params.set('estado', estado);
+    const ciudad = document.getElementById('rpt-ciudad').value;
+    if (ciudad) params.set('ciudad', ciudad);
+    const vehiculo = document.getElementById('rpt-vehiculo').value;
+    if (vehiculo) params.set('vehiculoId', vehiculo);
+
+    const data = await api('/reportes/' + tipo + '?' + params.toString());
+
+    // Summary
+    renderReporteSummary(data.summary, tipo);
+
+    // Counter
+    document.getElementById('rpt-counter').textContent = `Mostrando ${data.rows.length} de ${data.total} registros`;
+
+    // Table header
+    const sortField = _rptState.sort;
+    thead.innerHTML = '<tr>' + cfg.columns.map(c => {
+      const active = sortField === c.sort;
+      const dir = active && _rptState.order === 'ASC' ? ' ▲' : active ? ' ▼' : '';
+      return `<th onclick="ordenarReporte('${c.sort}')" style="cursor:pointer;user-select:none;white-space:nowrap">${c.label}${dir}</th>`;
+    }).join('') + '</tr>';
+
+    // Table body
+    if (!data.rows.length) {
+      tbody.innerHTML = '<tr><td colspan="' + cfg.columns.length + '" class="text-center text-muted" style="padding:32px;">Sin resultados</td></tr>';
+    } else {
+      tbody.innerHTML = data.rows.map(r => {
+        const vals = cfg.columns.map(c => {
+          let v = r[c.key];
+          if (v === null || v === undefined) return '—';
+          if (c.key === 'valor_credito' || c.key === 'valor_total') return '$' + Number(v).toLocaleString('es-CO', { minimumFractionDigits: 0 });
+          if (c.key === 'eficiencia' || c.key === 'tasa_exito' || c.key === 'eficiencia_distancia' || c.key === 'eficiencia_tiempo' || c.key === 'eficiencia_distancia_promedio' || c.key === 'tasa_exito_promedio') return Number(v).toFixed(1) + '%';
+          if (c.key === 'fecha' || c.key === 'created_at') return String(v).slice(0, 10);
+          if (c.key === 'estado') return `<span class="badge badge-${v==='planificada'||v==='pendiente'?'info':v==='completada'||v==='entregado'||v==='disponible'?'success':v==='en_ejecucion'||v==='en_ruta'?'warning':'danger'}">${v}</span>`;
+          if (c.key === 'capacidad_peso' || c.key === 'capacidad_peso_total') return Number(v).toLocaleString() + ' kg';
+          if (c.key === 'capacidad_volumen') return Number(v).toFixed(1) + ' m³';
+          return String(v);
+        });
+        return '<tr>' + vals.map(v => '<td>' + v + '</td>').join('') + '</tr>';
+      }).join('');
+    }
+
+    // Pagination
+    if (data.totalPages > 1) {
+      document.getElementById('rpt-pagination').innerHTML =
+        `<button class="btn btn-sm btn-secondary" onclick="cambiarPagina(-1)" ${page<=1?'disabled':''}>← Anterior</button>` +
+        `<span>Página ${page} de ${data.totalPages}</span>` +
+        `<button class="btn btn-sm btn-secondary" onclick="cambiarPagina(1)" ${page>=data.totalPages?'disabled':''}>Siguiente →</button>`;
+    } else {
+      document.getElementById('rpt-pagination').innerHTML = '';
+    }
+  } catch (e) {
+    tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted">Error: ' + e.message + '</td></tr>';
+  }
+}
+
+function renderReporteSummary(summary, tipo) {
+  const cfg = RPT_CONFIG[tipo];
+  const el = document.getElementById('rpt-summary');
+  el.innerHTML = cfg.summaryKeys.map((k, i) => {
+    let v = summary ? summary[k] : 0;
+    if (v === null || v === undefined) v = 0;
+    if (cfg.summaryFormat && cfg.summaryFormat[i] === 'currency') {
+      v = '$' + Number(v).toLocaleString('es-CO', { minimumFractionDigits: 0 });
+    } else if (cfg.summarySuffix[i] === '%') {
+      v = Number(v).toFixed(1) + '%';
+    } else if (cfg.summarySuffix[i] === ' kg') {
+      v = Number(v).toLocaleString() + ' kg';
+    } else {
+      v = Number(v).toLocaleString();
+    }
+    return `<div class="summary-item"><div class="summary-value" style="color:${cfg.summaryColors[i]}">${v}</div><div class="summary-label">${cfg.summaryLabels[i]}</div></div>`;
+  }).join('');
+}
+
+function ordenarReporte(campo) {
+  if (_rptState.sort === campo) {
+    _rptState.order = _rptState.order === 'ASC' ? 'DESC' : 'ASC';
+  } else {
+    _rptState.sort = campo;
+    _rptState.order = 'DESC';
+  }
+  _rptState.page = 1;
+  cargarReporte();
+}
+
+function cambiarPagina(dir) {
+  _rptState.page = Math.max(1, _rptState.page + dir);
+  cargarReporte();
+}
+
+function limpiarFiltrosReporte() {
+  document.getElementById('rpt-fecha-desde').value = '';
+  document.getElementById('rpt-fecha-hasta').value = '';
+  document.getElementById('rpt-sede').value = '';
+  document.getElementById('rpt-estado').value = '';
+  document.getElementById('rpt-ciudad').value = '';
+  document.getElementById('rpt-vehiculo').value = '';
+  _rptState.page = 1;
+  cargarReporte();
+}
+
+async function exportarReporte() {
+  const { tipo } = _rptState;
+  const token = getToken();
+  if (!token) { mostrarAlerta('Sesión no disponible', 'error'); return; }
+  mostrarAlerta('Generando Excel...', 'info');
+  try {
+    const body = { tipo,
+      fechaDesde: document.getElementById('rpt-fecha-desde').value,
+      fechaHasta: document.getElementById('rpt-fecha-hasta').value,
+      sede: document.getElementById('rpt-sede').value,
+      estado: document.getElementById('rpt-estado').value,
+      ciudad: document.getElementById('rpt-ciudad').value,
+      vehiculoId: document.getElementById('rpt-vehiculo').value,
+    };
+    const res = await fetch(API + '/reportes/exportar', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) { const e = await res.json(); throw new Error(e.error); }
+    const blob = await res.blob();
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `reporte_${tipo}_${new Date().toISOString().slice(0,10)}.xlsx`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    mostrarAlerta('Excel descargado', 'success');
+  } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
 init();

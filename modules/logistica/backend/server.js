@@ -40,6 +40,7 @@ import auditoriaRoutes from './routes/auditoria.js';
 import clientesRoutes from './routes/clientes.js';
 import sedesRoutes from './routes/sedes.js';
 import rutasPdfRoutes from './routes/rutas-pdf.js';
+import reportesRoutes from './routes/reportes.js';
 
 app.use('/api/health', healthRoutes);
 app.get('/api/rutas/diagnostico', verifyToken, async (req, res) => {
@@ -67,6 +68,7 @@ app.use('/api/auditoria', protect, auditoriaRoutes);
 app.use('/api/clientes', protect, clientesRoutes);
 app.use('/api/sedes', protect, sedesRoutes);
 app.use('/api/rutas-pdf', protect, rutasPdfRoutes);
+app.use('/api/reportes', protect, reportesRoutes);
 
 // GET /api/auth/me — verify JWT and return user info (auto-create if new)
 app.get('/api/auth/me', verifyToken, async (req, res) => {
