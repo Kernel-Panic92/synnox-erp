@@ -7,6 +7,7 @@ const rateLimit = require('express-rate-limit');
 const PORT = parseInt(process.env.PORT || '3002', 10);
 const app = express();
 
+app.set('trust proxy', 1);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 

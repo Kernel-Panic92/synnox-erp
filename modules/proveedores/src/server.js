@@ -15,6 +15,7 @@ const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeade
 const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, trustProxy: true, message: { error: 'Demasiados intentos de autenticación' } });
 
 // ─── Middlewares globales ─────────────────────────────────────────────────────
+app.set('trust proxy', 1);
 app.use(cookieParser());
 app.use(cors({
   origin: process.env.NODE_ENV === 'production'
