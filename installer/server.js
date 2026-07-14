@@ -7,7 +7,7 @@ const PORT = 3001;
 const INSTALL_DIR = path.resolve(__dirname, '..');
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
-let installState = { running: false, logs: [], step: '' };
+let installState = { running: false, logs: [], step: '', adminPass: '' };
 const sseClients = [];
 
 function sendSSE(data) {
@@ -86,7 +86,7 @@ async function runInstall(config) {
   installState.running = true;
   installState.logs = [];
   installState.step = 'Preparando instalación...';
-  log('=== Iniciando instalación de Horix ERP ===', 'start');
+  log('=== Iniciando instalación ===', 'start');
 
   try {
     // Step 1: Install system deps
@@ -104,12 +104,11 @@ async function runInstall(config) {
     if (config.clean) {
       installState.step = '🧹 Limpiando instalación anterior...';
       log('Eliminando datos existentes...', 'step');
-      // Drop PostgreSQL databases (only horix_erp needed)
-      for (const db of ['horix_launcher', 'horix_logistics', 'horix_docflow', 'horix_erp']) {
-        try { execSync(`su - postgres -c "psql -c \\"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${db}' AND pid <> pg_backend_pid();\\"" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
-        try { execSync(`su - postgres -c "dropdb ${db}" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
-      }
-      try { execSync(`su - postgres -c "createdb -O ${config.dbUser} horix_erp" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
+      // Drop PostgreSQL database
+      const dbName = config.dbName || 'mi_erp';
+      try { execSync(`su - postgres -c "psql -c \\"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${dbName}' AND pid <> pg_backend_pid();\\"" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
+      try { execSync(`su - postgres -c "dropdb ${dbName}" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
+      try { execSync(`su - postgres -c "createdb -O ${config.dbUser} ${dbName}" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
       // Delete SQLite databases
       for (const f of ['launcher/launcher.db', 'modules/nomina/horas_extra.db']) {
         try { fs.unlinkSync(path.join(INSTALL_DIR, f)); log(`Eliminado: ${f}`, 'ok'); } catch {}
@@ -119,7 +118,7 @@ async function runInstall(config) {
         try { fs.unlinkSync(path.join(INSTALL_DIR, dir, '.env')); } catch {}
       }
       // Stop PM2 processes
-      for (const name of ['horix-erp', 'horix-launcher', 'logistics', 'docflow', 'horix']) {
+      for (const name of ['synnoxerp', 'horix-erp', 'horix-launcher', 'logistics', 'docflow', 'horix']) {
         try { execSync(`pm2 delete ${name} 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
       }
       log('Instalación anterior eliminada', 'ok');
@@ -143,6 +142,7 @@ async function runInstall(config) {
     }
 
     // Step 2: Setup PostgreSQL
+    const dbName = config.dbName || 'mi_erp';
     const dbPass = config.dbPass || require('crypto').randomBytes(16).toString('hex');
     installState.dbPass = dbPass;
     const pgEnv = { ...process.env, PGPASSWORD: dbPass };
@@ -150,39 +150,55 @@ async function runInstall(config) {
     log('Creando usuario y databases...', 'step');
     try {
       execSync(`su - postgres -c "psql -tc \\"SELECT 1 FROM pg_roles WHERE rolname='${config.dbUser}'\\" | grep -q 1 || psql -c \\"CREATE USER ${config.dbUser} WITH PASSWORD '${dbPass}'\\"" 2>/dev/null || true`, { stdio: 'ignore', env: pgEnv });
-      for (const db of ['horix_launcher', 'horix_logistics', 'horix_docflow']) {
-        try { execSync(`su - postgres -c "psql -c \\"SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname='${db}' AND pid <> pg_backend_pid();\\"" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
-        try { execSync(`su - postgres -c "dropdb ${db}" 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
-      }
-      execSync(`su - postgres -c "psql -tc \\"SELECT 1 FROM pg_database WHERE datname='horix_erp'\\" | grep -q 1 || createdb -O ${config.dbUser} horix_erp" 2>/dev/null || true`, { stdio: 'ignore', env: pgEnv });
-      // Ensure password matches .env (idempotent)
+      execSync(`su - postgres -c "psql -tc \\"SELECT 1 FROM pg_database WHERE datname='${dbName}'\\" | grep -q 1 || createdb -O ${config.dbUser} ${dbName}" 2>/dev/null || true`, { stdio: 'ignore', env: pgEnv });
       execSync(`su - postgres -c "psql -c \\"ALTER USER ${config.dbUser} WITH PASSWORD '${dbPass}';\\"" 2>/dev/null || true`, { stdio: 'ignore' });
       log('PostgreSQL listo', 'ok');
     } catch (e) {
       log('Error PostgreSQL: ' + e.message, 'warn');
     }
 
-    // Step 3: Generate JWT_SECRET
+    // Step 3: Generate secrets
     const jwtSecret = require('crypto').randomBytes(32).toString('hex');
+    const companyName = config.companyName || 'Mi Empresa';
+    const companyDomain = config.domain || 'localhost';
+    const adminEmail = config.adminEmail || `admin@${companyDomain === 'localhost' ? 'miempresa.com' : companyDomain}`;
+    const adminPass = config.adminPass || require('crypto').randomBytes(4).toString('hex') + 'Admin1!';
+    installState.adminPass = adminPass;
 
-    // Step 4: Create single .env at root
+    // Step 4: Create .env at root with ALL config
     installState.step = 'Generando .env...';
     const envVars = {
-      PORT: 3002,
+      PORT: config.serverPort || 3002,
       JWT_SECRET: jwtSecret,
+      COMPANY_NAME: companyName,
+      COMPANY_DOMAIN: companyDomain,
       PGHOST: config.dbHost || 'localhost',
-      PGPORT: 5432,
-      PGUSER: config.dbUser,
+      PGPORT: config.dbPort || 5432,
+      PGUSER: config.dbUser || 'postgres',
       PGPASSWORD: dbPass,
-      PGDATABASE: 'horix_erp',
+      PGDATABASE: dbName,
       NODE_ENV: 'production',
-      ADMIN_EMAIL: config.adminEmail || 'admin@horix.com',
-      ADMIN_PASS: config.adminPass || 'admin123',
+      ADMIN_EMAIL: adminEmail,
+      ADMIN_PASS: adminPass,
+      SMTP_HOST: config.smtpHost || '',
+      SMTP_PORT: String(config.smtpPort || 587),
+      SMTP_SECURE: config.smtpSecure || 'false',
+      SMTP_USER: config.smtpUser || '',
+      SMTP_PASS: config.smtpPass || '',
+      SMTP_FROM: config.smtpFrom || adminEmail,
+      SMTP_FROM_NAME: config.smtpFromName || companyName,
+      INSTALL_DIR: config.installDir || '/opt/synnoxerp',
+      LAUNCHER_URL: `http://localhost:${config.serverPort || 3002}`,
       OSRM_URL: 'https://router.project-osrm.org',
     };
     const envContent = Object.entries(envVars).map(([k, v]) => `${k}=${v}`).join('\n') + '\n';
     fs.writeFileSync(path.join(INSTALL_DIR, '.env'), envContent);
-    log('.env creado en raíz', 'ok');
+
+    // Also write launcher .env (needed for SQLite launcher)
+    const launcherEnvDir = path.join(INSTALL_DIR, 'launcher');
+    if (!fs.existsSync(launcherEnvDir)) fs.mkdirSync(launcherEnvDir, { recursive: true });
+    fs.writeFileSync(path.join(launcherEnvDir, '.env'), `JWT_SECRET=${jwtSecret}\nADMIN_EMAIL=${adminEmail}\nADMIN_PASS=${adminPass}\nPORT=${config.serverPort || 3002}\nCOMPANY_NAME=${companyName}\nSMTP_FROM_NAME=${config.smtpFromName || companyName}\n`);
+    log('.env creado en raíz y launcher/', 'ok');
 
     // Step 5: npm install (single root)
     installState.step = 'Instalando dependencias npm...';
@@ -194,16 +210,16 @@ async function runInstall(config) {
     // Rebuild native addons
     try { await runCmd('npm', ['rebuild'], { cwd: INSTALL_DIR }); } catch {}
 
-    // Step 6: Migraciones (todas en horix_erp)
+    // Step 6: Migraciones (todas en la misma DB)
     installState.step = 'Ejecutando migraciones...';
-    const dbEnv = { ...process.env, PGPASSWORD: dbPass, PGHOST: config.dbHost || 'localhost', PGUSER: config.dbUser, PGPASSWORD: dbPass, PGDATABASE: 'horix_erp', DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_NAME: 'horix_erp' };
+    const dbEnv = { ...process.env, PGPASSWORD: dbPass, PGHOST: config.dbHost || 'localhost', PGUSER: config.dbUser, PGDATABASE: dbName, DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_NAME: dbName };
     try {
-      await runCmd('psql', ['-U', config.dbUser, '-h', config.dbHost || 'localhost', '-d', 'horix_erp', '-c', 'CREATE SCHEMA IF NOT EXISTS logistics;'], { env: pgEnv });
+      await runCmd('psql', ['-U', config.dbUser, '-h', config.dbHost || 'localhost', '-d', dbName, '-c', 'CREATE SCHEMA IF NOT EXISTS logistics;'], { env: pgEnv });
       const migDir = path.join(INSTALL_DIR, 'modules/logistica/backend/migrations');
       if (fs.existsSync(migDir)) {
         const files = fs.readdirSync(migDir).filter(f => f.endsWith('.sql')).sort();
         for (const f of files) {
-          try { await runCmd('psql', ['-U', config.dbUser, '-h', config.dbHost || 'localhost', '-d', 'horix_erp', '-f', path.join(migDir, f)], { env: pgEnv }); } catch {}
+          try { await runCmd('psql', ['-U', config.dbUser, '-h', config.dbHost || 'localhost', '-d', dbName, '-f', path.join(migDir, f)], { env: pgEnv }); } catch {}
         }
         log('Logistica: migraciones ok', 'ok');
       }
@@ -214,16 +230,16 @@ async function runInstall(config) {
       log('Proveedores: migraciones ok', 'ok');
     } catch (e) { log('Proveedores migrate: ' + e.message, 'warn'); }
 
-    // Step 7: Demo seeds (en horix_erp)
+    // Step 7: Demo seeds
     if (config.runSeeds !== false) {
       installState.step = 'Sembrando datos demo...';
-      if (fs.existsSync(path.join(INSTALL_DIR, 'modules/logistica/backend/db/seed-demo.js'))) {
+      if (config.modules.includes('logistica') && fs.existsSync(path.join(INSTALL_DIR, 'modules/logistica/backend/db/seed-demo.js'))) {
         try {
           await runCmd('node', ['backend/db/seed-demo.js'], { cwd: path.join(INSTALL_DIR, 'modules/logistica'), env: dbEnv });
           log('Logística: datos demo', 'ok');
         } catch (e) { log('Seed-demo logistica: ' + e.message, 'warn'); }
       }
-      if (fs.existsSync(path.join(INSTALL_DIR, 'modules/proveedores/src/db/seed-demo.js'))) {
+      if (config.modules.includes('proveedores') && fs.existsSync(path.join(INSTALL_DIR, 'modules/proveedores/src/db/seed-demo.js'))) {
         try {
           await runCmd('node', ['src/db/seed-demo.js'], { cwd: path.join(INSTALL_DIR, 'modules/proveedores'), env: dbEnv });
           log('Proveedores: datos demo', 'ok');
@@ -249,7 +265,8 @@ async function runInstall(config) {
     installState.step = 'Configurando Nginx...';
     try {
       const domain = config.domain || 'localhost';
-      const sslDir = '/etc/ssl/horix-platform';
+      const appName = (config.companyName || 'mi-empresa').toLowerCase().replace(/[^a-z0-9]/g, '-');
+      const sslDir = `/etc/ssl/${appName}`;
       if (!fs.existsSync(sslDir)) { execSync(`mkdir -p ${sslDir}`, { stdio: 'ignore' }); }
       if (!fs.existsSync(`${sslDir}/cert.pem`)) {
         execSync(`openssl req -x509 -nodes -days 3650 -newkey rsa:2048 -keyout ${sslDir}/key.pem -out ${sslDir}/cert.pem -subj "/CN=${domain}/O=SynnoxERP/C=CO" 2>/dev/null`, { stdio: 'ignore' });
@@ -265,8 +282,9 @@ server {
 }
 server { listen 80; server_name ${domain}; return 301 https://\$host\$request_uri; }
 `;
-      fs.writeFileSync('/etc/nginx/sites-available/horix-platform', nginxConf);
-      try { execSync('ln -sf /etc/nginx/sites-available/horix-platform /etc/nginx/sites-enabled/', { stdio: 'ignore' }); } catch {}
+      const appName = (config.companyName || 'mi-empresa').toLowerCase().replace(/[^a-z0-9]/g, '-');
+      fs.writeFileSync(`/etc/nginx/sites-available/${appName}`, nginxConf);
+      try { execSync(`ln -sf /etc/nginx/sites-available/${appName} /etc/nginx/sites-enabled/`, { stdio: 'ignore' }); } catch {}
       try { execSync('nginx -t 2>/dev/null && systemctl reload nginx || true', { stdio: 'ignore' }); } catch {}
       log('Nginx configurado', 'ok');
     } catch (e) { log('Nginx: ' + e.message, 'warn'); }
@@ -340,7 +358,7 @@ const server = http.createServer((req, res) => {
   // API: install status
   if (pathname === '/api/install/status' && method === 'GET') {
     res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ running: installState.running, step: installState.step, logs: installState.logs.slice(-50), dbPass: installState.dbPass || null }));
+    res.end(JSON.stringify({ running: installState.running, step: installState.step, logs: installState.logs.slice(-50), dbPass: installState.dbPass || null, adminPass: installState.adminPass || null }));
     return;
   }
 
@@ -375,7 +393,7 @@ server.listen(PORT, () => {
     ifaces?.forEach(i => { if (!i.internal && i.family === 'IPv4') addr = i.address; });
   });
   console.log(`╔═════════════════════════════════════════════════╗`);
-  console.log(`║     Horix ERP — Instalador Web                ║`);
+  console.log(`║     SynnoxERP — Instalador Web               ║`);
   console.log(`║                                               ║`);
   console.log(`║  Abre en tu navegador:                       ║`);
   console.log(`║    http://${addr}:${PORT}                        ║`);
