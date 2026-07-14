@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Horix ERP — Instalación</title>
+<title>SynnoxERP — Instalación</title>
 <style>
 :root {
   --bg: #0d0f14; --surface: #161a23; --surface2: #1e2330; --border: #2a3045;
@@ -19,7 +19,7 @@ body {
   background: radial-gradient(ellipse at top right, rgba(0,168,107,.08), transparent 50%),
               radial-gradient(ellipse at bottom left, rgba(0,168,107,.04), transparent 50%), var(--bg);
 }
-.wizard { max-width: 720px; margin: 0 auto; padding: 40px 20px; }
+.wizard { max-width: 740px; margin: 0 auto; padding: 40px 20px; }
 .header { text-align: center; margin-bottom: 32px; }
 .header h1 { font-size: 28px; letter-spacing: -.5px; }
 .header h1 span { color: var(--accent); }
@@ -46,6 +46,8 @@ body {
 }
 .card input:focus, .card select:focus { border-color: var(--accent); }
 .card input[type=checkbox] { width: auto; margin: 0; accent-color: var(--accent); }
+.form-row { display: flex; gap: 16px; }
+.form-row > * { flex: 1; }
 
 /* Module checkboxes */
 .mod-grid { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 16px; }
@@ -120,8 +122,8 @@ body {
 <body>
 <div class="wizard">
   <div class="header">
-    <h1><span>Horix</span> ERP</h1>
-    <p>Asistente de instalación — Configura tu plataforma en minutos</p>
+    <h1><span>Synnox</span>ERP</h1>
+    <p>Asistente de instalación — Configura tu plataforma ERP en minutos</p>
   </div>
 
   <div class="steps" id="steps">
@@ -132,13 +134,15 @@ body {
     <div class="step-ind" data-step="4"></div>
     <div class="step-ind" data-step="5"></div>
     <div class="step-ind" data-step="6"></div>
+    <div class="step-ind" data-step="7"></div>
+    <div class="step-ind" data-step="8"></div>
   </div>
 
-  <!-- Step 0: Welcome -->
+  <!-- Step 0: Welcome / Requirements -->
   <div class="page active" id="step-0">
     <div class="card">
       <h2>👋 Bienvenido</h2>
-      <p class="desc">Este asistente te guiará en la instalación de Horix ERP. Verificaremos los requisitos y configuraremos todo automáticamente.</p>
+      <p class="desc">Este asistente te guiará en la instalación del ERP. Verificaremos los requisitos y configuraremos todo automáticamente para tu empresa.</p>
       <div class="reqs" id="requirements"></div>
     </div>
     <div class="btn-row">
@@ -147,17 +151,68 @@ body {
     </div>
   </div>
 
-  <!-- Step 1: Database -->
+  <!-- Step 1: Company Info -->
   <div class="page" id="step-1">
     <div class="card">
+      <h2>🏢 Información de la empresa</h2>
+      <p class="desc">Estos datos se usarán para personalizar la plataforma: branding, emails y URLs.</p>
+      <label>Nombre de la empresa</label>
+      <input type="text" id="company-name" value="Mi Empresa" placeholder="Ej: Mi Empresa S.A.S">
+      <div class="form-row">
+        <div>
+          <label>Dominio público</label>
+          <input type="text" id="domain" value="localhost" placeholder="localhost para pruebas">
+        </div>
+        <div>
+          <label>Puerto HTTPS (Nginx)</label>
+          <input type="number" id="nginx-port" value="443" placeholder="443">
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>Email del administrador</label>
+          <input type="email" id="admin-email" placeholder="admin@miempresa.com">
+        </div>
+        <div>
+          <label>Contraseña del administrador</label>
+          <input type="text" id="admin-pass" placeholder="Se generará automáticamente">
+        </div>
+      </div>
+      <label>Email de envío (From) — déjalo vacío para usar el email del admin</label>
+      <input type="email" id="smtp-from" placeholder="noreply@miempresa.com">
+      <p style="font-size:12px;color:var(--muted);margin:-12px 0 16px;">Si se deja vacío, se usará el email del admin.</p>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="prevStep()">Atrás</button>
+      <button class="btn btn-primary" onclick="nextStep()">Continuar</button>
+    </div>
+  </div>
+
+  <!-- Step 2: Database -->
+  <div class="page" id="step-2">
+    <div class="card">
       <h2>🗄️ Base de datos</h2>
-      <p class="desc">Configura la conexión a PostgreSQL. Si PostgreSQL está en esta máquina, se auto-configurará.</p>
-      <label>Host</label>
-      <input type="text" id="db-host" value="localhost" placeholder="localhost">
-      <label>Puerto</label>
-      <input type="number" id="db-port" value="5432">
-      <label>Usuario</label>
-      <input type="text" id="db-user" value="horix">
+      <p class="desc">Configura la conexión a PostgreSQL. Si está en esta máquina, se auto-configurará.</p>
+      <div class="form-row">
+        <div>
+          <label>Host</label>
+          <input type="text" id="db-host" value="localhost" placeholder="localhost">
+        </div>
+        <div>
+          <label>Puerto</label>
+          <input type="number" id="db-port" value="5432">
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>Nombre de base de datos</label>
+          <input type="text" id="db-name" value="mi_erp" placeholder="mi_erp">
+        </div>
+        <div>
+          <label>Usuario</label>
+          <input type="text" id="db-user" placeholder="postgres">
+        </div>
+      </div>
       <label>Contraseña (déjalo en blanco para generar automáticamente)</label>
       <input type="text" id="db-pass" placeholder="Se generará automáticamente">
     </div>
@@ -167,17 +222,46 @@ body {
     </div>
   </div>
 
-  <!-- Step 2: Admin -->
-  <div class="page" id="step-2">
+  <!-- Step 3: SMTP -->
+  <div class="page" id="step-3">
     <div class="card">
-      <h2>🔐 Administrador</h2>
-      <p class="desc">Credenciales del super administrador de la plataforma.</p>
-      <label>Email</label>
-      <input type="email" id="admin-email" value="admin@horix.com">
-      <label>Contraseña</label>
-      <input type="text" id="admin-pass" value="admin123">
-      <label>Dominio público (deja localhost para pruebas locales)</label>
-      <input type="text" id="domain" value="localhost" placeholder="ej: horix.app">
+      <h2>📧 Correo SMTP</h2>
+      <p class="desc">Configura el servidor de correo para notificaciones, recuperación de contraseña y alertas.</p>
+      <div class="form-row">
+        <div>
+          <label>Host SMTP</label>
+          <input type="text" id="smtp-host" placeholder="smtp.miempresa.com">
+        </div>
+        <div>
+          <label>Puerto</label>
+          <input type="number" id="smtp-port" value="587">
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>Usuario</label>
+          <input type="text" id="smtp-user" placeholder="tu@email.com">
+        </div>
+        <div>
+          <label>Contraseña</label>
+          <input type="text" id="smtp-pass" placeholder="••••••••">
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>Seguridad</label>
+          <select id="smtp-secure">
+            <option value="false">STARTTLS (puerto 587)</option>
+            <option value="true">SSL/TLS (puerto 465)</option>
+            <option value="false">Ninguna</option>
+          </select>
+        </div>
+        <div>
+          <label>Nombre del remitente</label>
+          <input type="text" id="smtp-from-name" placeholder="Mi Empresa ERP">
+        </div>
+      </div>
+      <p style="font-size:13px;color:var(--muted);">💡 Puedes dejar esto en blanco y configurarlo después desde el panel de administración.</p>
     </div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="prevStep()">Atrás</button>
@@ -185,18 +269,46 @@ body {
     </div>
   </div>
 
-  <!-- Step 3: Modules -->
-  <div class="page" id="step-3">
+  <!-- Step 4: Advanced -->
+  <div class="page" id="step-4">
+    <div class="card">
+      <h2>⚙️ Configuración avanzada</h2>
+      <p class="desc">Opciones avanzadas de instalación. Los valores por defecto funcionan para la mayoría de los casos.</p>
+      <div class="form-row">
+        <div>
+          <label>Puerto del servidor</label>
+          <input type="number" id="server-port" value="3002">
+        </div>
+        <div>
+          <label>Directorio de instalación</label>
+          <input type="text" id="install-dir" value="/opt/synnoxerp">
+        </div>
+      </div>
+      <label>URL del repositorio Git (para actualizaciones)</label>
+      <input type="text" id="repo-url" value="https://github.com/Kernel-Panic92/synnox-erp.git" placeholder="https://github.com/tu-org/synnox-erp.git">
+      <label style="display:flex;align-items:center;gap:8px;cursor:pointer;">
+        <input type="checkbox" id="seed-demo" checked>
+        <span style="font-size:13px;">🌱 Sembrar datos demo (clientes, facturas, vehículos de prueba)</span>
+      </label>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="prevStep()">Atrás</button>
+      <button class="btn btn-primary" onclick="nextStep()">Continuar</button>
+    </div>
+  </div>
+
+  <!-- Step 5: Modules -->
+  <div class="page" id="step-5">
     <div class="card">
       <h2>🧩 Módulos</h2>
-      <p class="desc">Selecciona los módulos que deseas instalar. El launcher (panel principal) siempre se instala.</p>
+      <p class="desc">Selecciona los módulos que deseas instalar. El panel principal (Launcher) siempre se instala.</p>
       <div class="mod-grid" id="mod-list">
         <div class="mod-option checked" data-mod="proveedores">
           <input type="checkbox" checked style="display:none">
           <div class="mod-icon">📄</div>
           <div class="mod-info">
             <div class="mod-name">Proveedores</div>
-            <div class="mod-desc">Facturas, proveedores, flujo de aprobación</div>
+            <div class="mod-desc">Facturas electrónicas, flujo de aprobación</div>
           </div>
         </div>
         <div class="mod-option checked" data-mod="logistica">
@@ -216,10 +328,6 @@ body {
           </div>
         </div>
       </div>
-      <label style="display:flex;align-items:center;gap:8px;margin-top:12px;cursor:pointer;">
-        <input type="checkbox" id="seed-demo" checked>
-        <span style="font-size:13px;">🌱 Sembrar datos demo (clientes, facturas, vehículos de prueba)</span>
-      </label>
       <p style="font-size:13px;color:var(--muted);margin-top:8px;">💡 Los módulos comparten autenticación con el launcher (login único).</p>
     </div>
     <div class="btn-row">
@@ -228,8 +336,8 @@ body {
     </div>
   </div>
 
-  <!-- Step 4: Review -->
-  <div class="page" id="step-4">
+  <!-- Step 6: Review -->
+  <div class="page" id="step-6">
     <div class="card">
       <h2>📋 Revisar configuración</h2>
       <p class="desc">Confirma que todo esté correcto antes de comenzar la instalación.</p>
@@ -252,8 +360,8 @@ body {
     </div>
   </div>
 
-  <!-- Step 5: Installing -->
-  <div class="page" id="step-5">
+  <!-- Step 7: Installing -->
+  <div class="page" id="step-7">
     <div class="card">
       <h2 id="install-title">⚙️ Instalando...</h2>
       <p class="desc" id="install-status">Preparando...</p>
@@ -265,11 +373,11 @@ body {
     </div>
   </div>
 
-  <!-- Step 6: Complete -->
-  <div class="page" id="step-6">
+  <!-- Step 8: Complete -->
+  <div class="page" id="step-8">
     <div class="card">
       <h2>🎉 Instalación completada</h2>
-      <p class="desc">Horix ERP está listo para usar. Guarda estas credenciales.</p>
+      <p class="desc" id="complete-desc">Tu plataforma ERP está lista para usar. Guarda estas credenciales.</p>
       <div class="complete-grid" id="complete-info"></div>
       <p style="font-size:13px;color:var(--muted);margin-top:16px;">
         ⚠️ Cambia la contraseña del admin después del primer ingreso.

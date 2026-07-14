@@ -20,7 +20,16 @@
 - **Stale lockfile eliminado**: `modules/nomina/package-lock.json` (versión desincronizada 2.14.1 vs 2.16.2)
 - **`pnpm audit --prod`** disponible vía `npm run audit`
 
-### Cambios Sesión 9 — code review & security hardening
+### Cambios Sesión 9 — code review, security hardening & installer genérico
+
+- **Instalador WebUI rediseñado**: Ahora con 9 pasos que capturan toda la configuración de la empresa:
+  - Paso 1: Información de empresa (nombre, dominio, admin email/pass, email from)
+  - Paso 2: Base de datos (host, puerto, nombre DB, usuario, password)
+  - Paso 3: SMTP (host, puerto, seguridad, usuario, password, remitente)
+  - Paso 4: Avanzado (puerto servidor, directorio instalación, repo URL)
+  - Paso 5: Módulos (proveedores, logística, nómina)
+- **.env genérico**: `installer/server.js` ahora genera un `.env` completo con `COMPANY_NAME`, `COMPANY_DOMAIN`, `SMTP_*`, `INSTALL_DIR` y todas las variables de la empresa, sin valores hardcodeados de Vitamar/Horix.
+- **Sin branding**: Eliminadas todas las referencias a "Horix ERP", "Horix Platform" del instalador. El título ahora es "SynnoxERP".
 
 - **httpOnly: true**: Cookie `launcher_jwt` ahora con `httpOnly: true` (era `false`), `secure` condicional según `NODE_ENV=production`. Elimina vector de robo de JWT via XSS.
 - **JWT_SECRET**: Eliminado fallback `'dev-secret'` en `src/auth.js` — ahora `process.exit(1)` si no está configurado (consistente con `framework/auth.mjs` y `launcher/server.js`).
@@ -34,6 +43,21 @@
   - Dividir `launcher/server.js` (~1887 líneas → routers separados)
   - ESLint + Prettier config
   - Agregar helmet y rate limiting en proveedores
+
+### Fase 2 — Refactor hardcoded branding (pendiente para próxima sesión)
+
+El instalador ya genera un `.env` con `COMPANY_NAME`, `COMPANY_DOMAIN`, `SMTP_*`, etc.
+Pendiente: actualizar el código fuente para leer estas variables en lugar de tener strings hardcodeados (~350 referencias):
+
+- `modules/nomina/` — `Horix`, `horix_backup_*`, `horix@vitamar.com` en emails, `wb.creator = 'Horix'`
+- `modules/proveedores/` — `DocFlow` como app name, `noreply@tu-dominio.com` en SMTP
+- `modules/logistica/` — `vitamar` en container names, `horix-logistics` como package name
+- `launcher/` — `Horix Platform` en mail templates, `admin@horix.com` como fallback
+- `framework/` — URLs hardcodeadas a GitHub de Kernel-Panic92
+- READMEs, MANUALs, HTML footers con referencias a Kernel-Panic92
+- Seed data con `@horix.demo`
+- `backup_horasextra_template.sh` con `Horix` branding
+- Docker compose con `vitamar-*`
 
 ### Cambios Sesión 8 — seguridad (3 CVEs high cerrados)
 - **xlsx → exceljs**: Migrados 2 parsers de logística (`widgetechExcelParser.js`, `maestroClientesParser.js`). `xlsx` (SheetJS) abandonado en npm sin parche disponible. Reemplazado por `exceljs` (ya usado en root/nómina). Cierra CVE-2023-30533 (Prototype Pollution) y CVE-2024-22363 (ReDoS).
