@@ -1,12 +1,13 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (14 Jul 2026 — sesión 7)
+## Estado (14 Jul 2026 — sesión 8)
 
 ### Arquitectura
 - **Package manager**: pnpm (workspaces, strict mode, lockfile trackeado)
 - **Workspaces**: 6 módulos (root, launcher, proveedores, nómina, logística, wordpress-mcp)
 - **Servidor unificado**: 1 PM2 process, puerto 3002 (sin cambios)
 - **Auth/Docs/DB**: Sin cambios vs sesión 6
+- **Vulnerabilidades**: 0 (pnpm audit --prod)
 
 ### Cambios Sesión 7 — pnpm migration
 - **pnpm-workspace.yaml**: Creado con los 6 workspace packages
@@ -19,9 +20,15 @@
 - **Stale lockfile eliminado**: `modules/nomina/package-lock.json` (versión desincronizada 2.14.1 vs 2.16.2)
 - **`pnpm audit --prod`** disponible vía `npm run audit`
 
+### Cambios Sesión 8 — seguridad (3 CVEs high cerrados)
+- **xlsx → exceljs**: Migrados 2 parsers de logística (`widgetechExcelParser.js`, `maestroClientesParser.js`). `xlsx` (SheetJS) abandonado en npm sin parche disponible. Reemplazado por `exceljs` (ya usado en root/nómina). Cierra CVE-2023-30533 (Prototype Pollution) y CVE-2024-22363 (ReDoS).
+- **nodemailer ^8.0.5 → ^9.0.1**: Actualizado en root, launcher, proveedores, nómina y logística. Cierra GHSA-p6gq (raw message bypass — arbitrary file read + SSRF en ≤9.0.0).
+- **pnpm-lock.yaml**: Generado y pusheado al repo, habilitando `--frozen-lockfile` en install.sh.
+- **Resultado**: `pnpm audit --prod` reporta 0 vulnerabilidades.
+
 ### Pendientes
-- [ ] Primera ejecución de `pnpm install --prod` en servidor para generar `pnpm-lock.yaml`
-- [ ] Verificar que el servidor unificado arranca correctamente con `node server.js`
+- [x] Primera ejecución de `pnpm install --prod` en servidor para generar `pnpm-lock.yaml`
+- [x] Verificar que el servidor unificado arranca correctamente con `node server.js`
 - [ ] Ejecutar migración Nómina (Fase 0)
 - [ ] Observabilidad centralizada (tabla `auditoria_central`)
 - [ ] APIs internas entre módulos
