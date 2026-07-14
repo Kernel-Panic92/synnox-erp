@@ -25,7 +25,7 @@ async function obtenerConfigSmtp() {
         secure: data.config.smtp_secure === 'true',
         user: data.config.smtp_user || '',
         pass: data.config.smtp_pass || '',
-        from: data.config.smtp_from || data.config.smtp_user || 'logistics@vitamar.com'
+        from: data.config.smtp_from || data.config.smtp_user || 'smtp@localhost'
       };
     } catch (e) {
       console.warn('[CONFIG] Fallback SMTP local (launcher no disponible):', e.message);
@@ -37,7 +37,7 @@ async function obtenerConfigSmtp() {
     secure: cfg.smtp_tls === '1',
     user: cfg.smtp_usuario || '',
     pass: cfg.smtp_password || '',
-    from: cfg.smtp_remitente || cfg.smtp_usuario || 'logistics@vitamar.com'
+    from: cfg.smtp_remitente || cfg.smtp_usuario || 'smtp@localhost'
   };
 }
 
@@ -125,7 +125,7 @@ router.post('/test', soloAdmin, async (req, res) => {
         secure: tls === '1' || tls === true,
         user: req.body.usuario || '',
         pass: req.body.password || '',
-        from: req.body.remitente || req.body.usuario || 'logistics@vitamar.com'
+        from: req.body.remitente || req.body.usuario || 'smtp@localhost'
       };
     } else if (req.body.smtp_heredar === '1') {
       const launcherUrl = (req.body.launcher_url || 'http://localhost:3002').replace(/\/+$/, '');
@@ -138,7 +138,7 @@ router.post('/test', soloAdmin, async (req, res) => {
         secure: data.config.smtp_secure === 'true',
         user: data.config.smtp_user || '',
         pass: data.config.smtp_pass || '',
-        from: data.config.smtp_from || data.config.smtp_user || 'logistics@vitamar.com'
+        from: data.config.smtp_from || data.config.smtp_user || 'smtp@localhost'
       };
     } else {
       smtp = await obtenerConfigSmtp();

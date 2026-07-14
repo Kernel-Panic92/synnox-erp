@@ -331,16 +331,6 @@ function getModulos(onlyMcp) {
 
 
 
-function parseCookies(req) {
-  const raw = req.headers['cookie'] || '';
-  const result = {};
-  raw.split(';').forEach(pair => {
-    const idx = pair.indexOf('=');
-    if (idx !== -1) result[pair.slice(0, idx).trim()] = decodeURIComponent(pair.slice(idx + 1).trim());
-  });
-  return result;
-}
-
 function verificarToken(req, res, next) {
   let token = null;
   const header = req.headers.authorization;
@@ -379,12 +369,22 @@ function loginRateLimit(req, res, next) {
   req._loginRateLimitNow = now;
   next();
 }
+// Periodic cleanup: purge stale IP entries every 5 minutes
+setInterval(function() {
+  var cutoff = Date.now() - 360000;
+  for (var ip in loginAttempts) {
+    if (loginAttempts.hasOwnProperty(ip)) {
+      loginAttempts[ip] = loginAttempts[ip].filter(function(t) { return t > cutoff; });
+      if (loginAttempts[ip].length === 0) delete loginAttempts[ip];
+    }
+  }
+}, 300000);
 
 function logLoginAttempt(ip, email, exitoso) {
   db.prepare("INSERT INTO login_logs (ip, email, exitoso) VALUES (?, ?, ?)").run(ip || '', (email || '').toLowerCase().trim(), exitoso ? 1 : 0);
 }
 
-const { buildPayload, getUserWithPermissions } = require('./../framework/auth');
+const { buildPayload, getUserWithPermissions, parseCookies } = require('./../framework/auth');
 
 app.post('/api/auth/login', loginRateLimit, async (req, res) => {
   const { email, password } = req.body;
@@ -403,8 +403,8 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
     db.prepare("UPDATE usuarios SET actualizado = datetime('now') WHERE id = ?").run(user.id);
     res.cookie('launcher_jwt', token, {
-      httpOnly: false,
-      secure: false,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000
     });
@@ -889,7 +889,7 @@ app.post('/api/admin/modulos/scaffold', verificarToken, soloAdmin, async (req, r
       dependencies: { express: '^4.21.0', cors: '^2.8.5', jsonwebtoken: '^9.0.0', dotenv: '^16.0.0' }
     };
     fs.writeFileSync(path.join(modDir, 'package.json'), JSON.stringify(pkg, null, 2));
-    fs.writeFileSync(path.join(modDir, '.env'), `PORT=${listenPort}\nJWT_SECRET=${isInternal ? (process.env.JWT_SECRET || 'dev-secret') : 'change-me-' + id}\nMODULE_ID=${id}\n`);
+    fs.writeFileSync(path.join(modDir, '.env'), `PORT=${listenPort}\n# !!! IMPORTANTE: Cambia JWT_SECRET antes de usar en producción\nJWT_SECRET=change-me-${id}\nMODULE_ID=${id}\n`);
 
     const serverJs = isInternal ? (
 `import express from 'express';
@@ -905,7 +905,8 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || ${listenPort};
 const MODULE_ID = process.env.MODULE_ID || '${id}';
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) { console.error('ERROR: JWT_SECRET no configurado en módulo ' + MODULE_ID); process.exit(1); }
 
 app.use(cors());
 app.use(express.json());
@@ -950,7 +951,8 @@ dotenv.config();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || ${listenPort};
-const JWT_SECRET = process.env.JWT_SECRET || 'dev-secret';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) { console.error('ERROR: JWT_SECRET no configurado en módulo ' + MODULE_ID); process.exit(1); }
 
 app.use(cors());
 app.use(express.json());

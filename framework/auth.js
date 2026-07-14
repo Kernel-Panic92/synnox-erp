@@ -97,4 +97,14 @@ async function verifySessionValid(payload) {
   }
 }
 
-module.exports = { buildPayload, getUserWithPermissions, verifySessionValid };
+function parseCookies(req) {
+  const raw = req.headers['cookie'] || '';
+  const result = {};
+  raw.split(';').forEach(pair => {
+    const idx = pair.indexOf('=');
+    if (idx !== -1) result[pair.slice(0, idx).trim()] = decodeURIComponent(pair.slice(idx + 1).trim());
+  });
+  return result;
+}
+
+module.exports = { buildPayload, getUserWithPermissions, verifySessionValid, parseCookies };

@@ -6,7 +6,7 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 
-function parseCookies(req) {
+export function parseCookies(req) {
   const raw = req.headers['cookie'] || '';
   const result = {};
   raw.split(';').forEach(pair => {

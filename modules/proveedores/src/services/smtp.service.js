@@ -80,7 +80,7 @@ async function getTransporter() {
 
 async function getFromAddress() {
   const cfg = await getConfig();
-  return cfg.smtp_from || process.env.SMTP_FROM || process.env.SMTP_USER || 'noreply@tu-dominio.com';
+  return cfg.smtp_from || process.env.SMTP_FROM || process.env.SMTP_USER || 'smtp@localhost';
 }
 
 function getBaseUrl(reqHost) {

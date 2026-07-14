@@ -1,18 +1,8 @@
 const jwt = require('jsonwebtoken');
-const { verifySessionValid } = require('../../../../framework/auth');
+const { verifySessionValid, parseCookies } = require('../../../../framework/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) console.error('WARN: JWT_SECRET no configurado en proveedores');
-
-function parseCookies(req) {
-  const raw = req.headers['cookie'] || '';
-  const result = {};
-  raw.split(';').forEach(pair => {
-    const idx = pair.indexOf('=');
-    if (idx !== -1) result[pair.slice(0, idx).trim()] = decodeURIComponent(pair.slice(idx + 1).trim());
-  });
-  return result;
-}
 
 async function authMiddleware(req, res, next) {
   const cookies = parseCookies(req);

@@ -12,7 +12,7 @@ async function obtenerConfigSmtp(getConfig) {
         secure: data.config.smtp_secure === 'true',
         user: data.config.smtp_user || '',
         pass: data.config.smtp_pass || '',
-        from: data.config.smtp_from || data.config.smtp_from_name || 'horix@vitamar.com',
+        from: data.config.smtp_from || data.config.smtp_from_name || 'smtp@localhost',
         tls: data.config.smtp_secure === 'true'
       };
     } catch (e) {
@@ -25,7 +25,7 @@ async function obtenerConfigSmtp(getConfig) {
     secure: cfg.smtp_puerto === '465',
     user: cfg.smtp_usuario || '',
     pass: cfg.smtp_password || '',
-    from: cfg.smtp_remitente || cfg.smtp_usuario || 'horix@vitamar.com',
+    from: cfg.smtp_remitente || cfg.smtp_usuario || 'smtp@localhost',
     tls: cfg.smtp_tls === 'true'
   };
 }
