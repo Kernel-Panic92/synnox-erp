@@ -41,6 +41,14 @@ else
   ok "Node.js $(node -v)"
 fi
 
+# PNPM global
+if ! command -v pnpm &>/dev/null; then
+  npm install -g pnpm >/dev/null 2>&1
+  ok "pnpm $(pnpm -v) instalado"
+else
+  ok "pnpm $(pnpm -v)"
+fi
+
 # PM2 global
 if ! command -v pm2 &>/dev/null; then
   npm install -g pm2 >/dev/null 2>&1
@@ -141,12 +149,15 @@ fi
 # Cargar variables
 set -a; source "$CONFIG"; set +a
 
-# ─── 5. npm install ────────────────────────────────────────
+# ─── 5. pnpm install ───────────────────────────────────────
 echo ""
-echo ">>> Instalando dependencias npm..."
+echo ">>> Instalando dependencias (pnpm)..."
 cd "$INSTALL_DIR"
-npm install --omit=dev 2>/dev/null || warn "npm install tuvo problemas"
-ok "npm install completado"
+pnpm install --prod --frozen-lockfile 2>/dev/null || {
+  warn "pnpm install --frozen-lockfile falló — reintentando sin frozen"
+  pnpm install --prod 2>/dev/null || warn "pnpm install tuvo problemas"
+}
+ok "pnpm install completado (producción)"
 
 # ─── 6. Migraciones ────────────────────────────────────────
 echo ""

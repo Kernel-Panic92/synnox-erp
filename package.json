@@ -4,9 +4,14 @@
   "private": true,
   "description": "SynnoxERP — Plataforma de orquestación de módulos ERP",
   "main": "server.js",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "packageManager": "pnpm@9.15.4",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "audit": "pnpm audit --prod"
   },
   "dependencies": {
     "express": "^4.21.0",
@@ -34,5 +39,13 @@
     "xlsx": "^0.18.5",
     "axios": "^1.6.2",
     "@modelcontextprotocol/sdk": "^1.0.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.4"
+  },
+  "pnpm": {
+    "overrides": {
+      "uuid": "^11.0.5"
+    }
   }
 }

@@ -1,6 +1,35 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (08 Jul 2026 — sesión 6)
+## Estado (14 Jul 2026 — sesión 7)
+
+### Arquitectura
+- **Package manager**: pnpm (workspaces, strict mode, lockfile trackeado)
+- **Workspaces**: 6 módulos (root, launcher, proveedores, nómina, logística, wordpress-mcp)
+- **Servidor unificado**: 1 PM2 process, puerto 3002 (sin cambios)
+- **Auth/Docs/DB**: Sin cambios vs sesión 6
+
+### Cambios Sesión 7 — pnpm migration
+- **pnpm-workspace.yaml**: Creado con los 6 workspace packages
+- **.npmrc**: Configuración pnpm (strict-peer-dependencies, auto-install-peers, shamefully-hoist=false)
+- **Root package.json**: Agregado `engine: >=20.0.0`, `packageManager: pnpm@9.15.4`, `pnpm.overrides` consolidado, devDeps nodemon, script `audit`
+- **Normalización de versiones**: Alineados todos los `package.json` anidados para usar las mismas versiones que root (eliminando duplicación potencial con pnpm strict mode). Paquetes con breaking changes corregidos: `multer ^1.x→^2.1.1`, `bcrypt ^5.x→^6.0.0`, `nodemailer ^6.x→^8.0.5` en logistica
+- **Overrides migradas**: `overrides` de proveedores y nómina eliminados — ahora vía `pnpm.overrides` en root
+- **install.sh**: Agregada instalación de pnpm, reemplazado `npm install --omit=dev` por `pnpm install --prod --frozen-lockfile`
+- **.gitignore**: Agregado `package-lock.json` (global), `.pnpm-store/`
+- **Stale lockfile eliminado**: `modules/nomina/package-lock.json` (versión desincronizada 2.14.1 vs 2.16.2)
+- **`pnpm audit --prod`** disponible vía `npm run audit`
+
+### Pendientes
+- [ ] Primera ejecución de `pnpm install --prod` en servidor para generar `pnpm-lock.yaml`
+- [ ] Verificar que el servidor unificado arranca correctamente con `node server.js`
+- [ ] Ejecutar migración Nómina (Fase 0)
+- [ ] Observabilidad centralizada (tabla `auditoria_central`)
+- [ ] APIs internas entre módulos
+- [ ] Probar HTTPS en producción
+
+---
+
+## Estado Anterior (08 Jul 2026 — sesión 6)
 
 ### Arquitectura
 - **Servidor multi-proceso**: PM2 por módulo (launcher:3002, proveedores:3003, logística:3004, nómina:3005)
