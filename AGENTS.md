@@ -68,6 +68,7 @@
 - **HE_SECRET**: Fallback a `JWT_SECRET` en lugar de `process.exit(1)` cuando no está configurado.
 - **verifySessionValid**: Refactorizado de HTTP fetch a SQLite directo (elimina llamadas internas backend→backend).
 - **Password DB**: pg_hba.conf cambiado de `scram-sha-256` a `md5` para compatibilidad con Node pg driver.
+- **Dashboard widgets**: Backport desde repo Horix — widgets ahora muestran mes vencido (mes anterior) en vez del mes actual; gráfico excluye mes en curso.
 
 ### Cambios Sesión 8 — seguridad (3 CVEs high cerrados)
 - **xlsx → exceljs**: Migrados 2 parsers de logística (`widgetechExcelParser.js`, `maestroClientesParser.js`). `xlsx` (SheetJS) abandonado en npm sin parche disponible. Reemplazado por `exceljs` (ya usado en root/nómina). Cierra CVE-2023-30533 (Prototype Pollution) y CVE-2024-22363 (ReDoS).
