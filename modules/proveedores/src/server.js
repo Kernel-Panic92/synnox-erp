@@ -11,8 +11,8 @@ const app = express();
 const MODULE_ID = process.env.MODULE_ID || 'proveedores';
 
 // ─── Rate Limiting ────────────────────────────────────────────────────────────
-const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, trustProxy: true, message: { error: 'Demasiadas solicitudes' } });
-const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, trustProxy: true, message: { error: 'Demasiados intentos de autenticación' } });
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+const authLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 20, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiados intentos de autenticación' } });
 
 // ─── Middlewares globales ─────────────────────────────────────────────────────
 app.set('trust proxy', 1);
