@@ -442,13 +442,14 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
     const payload = buildPayload(userWithPerms);
     const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
     db.prepare("UPDATE usuarios SET actualizado = datetime('now') WHERE id = ?").run(user.id);
+    const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
     res.cookie('launcher_jwt', token, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
+      secure: isSecure,
       sameSite: 'lax',
       maxAge: 24 * 60 * 60 * 1000
     });
-    console.log(`[LOGIN] Cookie set for ${email}`);
+    console.log(`[LOGIN] Cookie set for ${email} (secure: ${isSecure})`);
     res.json({ jwt: token, usuario: payload, modulos: payload.modulos });
   } catch (e) { console.error('[LOGIN]', e.stack || e.message); res.status(500).json({ error: 'Error interno' }); }
 });
@@ -457,7 +458,7 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
 app.get('/api/cookie-test', (req, res) => {
   const raw = req.headers['cookie'] || '';
   const hasLauncherJwt = raw.includes('launcher_jwt=');
-  res.json({ hasCookie: !!raw, hasLauncherJwt: hasLauncherJwt, preview: raw.slice(0,100) });
+  res.json({ hasCookie: !!raw, hasLauncherJwt: hasLauncherJwt, preview: raw.slice(0,100), protocol: req.protocol });
 });
 
 // ── SMTP config ──
