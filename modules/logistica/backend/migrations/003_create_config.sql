@@ -24,5 +24,10 @@ INSERT INTO logistics.configuracion (clave, valor) VALUES
   ('smtp_remitente', ''),
   ('backup_auto', '0'),
   ('backup_dir', '~/backups/logistics'),
-  ('backup_max', '14')
+  ('backup_max', '14'),
+  ('widetech_url', 'https://web1ws.shareservice.co'),
+  ('widetech_user', ''),
+  ('widetech_password', ''),
+  ('widetech_lang', '1'),
+  ('widetech_rate_limit', '25')
 ON CONFLICT (clave) DO NOTHING;
