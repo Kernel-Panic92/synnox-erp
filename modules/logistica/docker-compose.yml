@@ -4,23 +4,23 @@ services:
   # PostgreSQL para Logistics
   postgres-logistics:
     image: postgis/postgis:15-3.3
-    container_name: vitamar-logistics-db
+    container_name: synnox-logistics-db
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_docker_env}
-      POSTGRES_DB: vitamar_logistics
+      POSTGRES_DB: synnox_logistics
     ports:
       - "5433:5432"
     volumes:
       - logistics-db:/var/lib/postgresql/data
     networks:
-      - vitamar-network
+      - synnox-network
 
   # OSRM (Open Source Routing Machine)
   # Imagen precomputada para Colombia
   osrm:
     image: osrm/osrm-backend:v5.27.1
-    container_name: vitamar-osrm
+    container_name: synnox-osrm
     volumes:
       # Descarga el mapa de Colombia desde: http://download.geofabrik.de/south-america/colombia-latest.osm.pbf
       # Y colócalo en un volumen o bind mount
@@ -29,7 +29,7 @@ services:
       - "5000:5000"
     command: osrm-routed --algorithm mld /data/colombia-latest.osrm
     networks:
-      - vitamar-network
+      - synnox-network
     # En desarrollo, puedes usar la API pública de OSRM sin levantar este servicio
 
 volumes:
@@ -37,7 +37,7 @@ volumes:
     driver: local
 
 networks:
-  vitamar-network:
+  synnox-network:
     driver: bridge
 
 # Para usar:
@@ -47,8 +47,8 @@ networks:
 # Host: localhost
 # Puerto: 5433
 # Usuario: postgres
-# Password: vitamar2024
-# BD: vitamar_logistics
+# Password: changeme_in_docker_env
+# BD: synnox_logistics
 #
 # OSRM (local):
 # http://localhost:5000

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════
-#  uninstall.sh — Desinstalador de Vitamar Docs
+#  uninstall.sh — Desinstalador del módulo Proveedores
 #
 #  Uso:
 #    chmod +x uninstall.sh
@@ -19,7 +19,7 @@ UNINSTALL_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo ""
 echo -e "${ROJO}══════════════════════════════════════════════${RESET}"
-echo -e "${ROJO}   Vitamar Docs — Desinstalador${RESET}"
+echo -e "${ROJO}   Módulo Proveedores — Desinstalador${RESET}"
 echo -e "${ROJO}══════════════════════════════════════════════${RESET}"
 echo ""
 
@@ -164,7 +164,7 @@ fi
 echo ""
 echo -e "${AZUL}── Limpiando respaldos viejos ──────────────────────${RESET}"
 
-for DIR in "$HOME"/*backup* "$HOME"/backups "$HOME"/docflow_* "$HOME"/vitamar-docs_*; do
+for DIR in "$HOME"/*backup* "$HOME"/backups "$HOME"/docflow_* "$HOME"/proveedores_*; do
   if [[ -d "$DIR" ]] && [[ "$DIR" != "$HOME" ]]; then
     rm -rf "$DIR"
     ok "Eliminado: $DIR"
@@ -183,7 +183,7 @@ fi
 # ── 7. Resumen final ────────────────────────────────────
 echo ""
 echo -e "${VERDE}══════════════════════════════════════════════${RESET}"
-echo -e "${VERDE}  ✅ Vitamar Docs desinstalado correctamente${RESET}"
+echo -e "${VERDE}  ✅ Módulo Proveedores desinstalado correctamente${RESET}"
 echo -e "${VERDE}══════════════════════════════════════════════${RESET}"
 echo ""
 echo "  Eliminaciones completadas:"

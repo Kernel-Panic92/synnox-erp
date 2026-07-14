@@ -53,7 +53,7 @@ async function renderCfgTab(){
               <div class="form-group"><label style="font-size:13px;text-transform:none;letter-spacing:normal;font-weight:400;">TLS</label><select id="cfg-tls"><option value="true" ${cfg.smtp_tls!=='false'?'selected':''}>Sí</option><option value="false" ${cfg.smtp_tls==='false'?'selected':''}>No</option></select></div>
               <div class="form-group"><label style="font-size:13px;text-transform:none;letter-spacing:normal;font-weight:400;">Usuario</label><input id="cfg-usuario" value="${esc(cfg.smtp_usuario||'')}"></div>
               <div class="form-group"><label style="font-size:13px;text-transform:none;letter-spacing:normal;font-weight:400;">Contraseña</label><input type="password" id="cfg-password" value="${cfg.smtp_password?'••••••••':''}"></div>
-              <div class="form-group"><label style="font-size:13px;text-transform:none;letter-spacing:normal;font-weight:400;">Remitente (From)</label><input id="cfg-remitente" value="${esc(cfg.smtp_remitente||'')}" placeholder="noreply@horix.com"></div>
+              <div class="form-group"><label style="font-size:13px;text-transform:none;letter-spacing:normal;font-weight:400;">Remitente (From)</label><input id="cfg-remitente" value="${esc(cfg.smtp_remitente||'')}" placeholder="noreply@ejemplo.com"></div>
             </div>
           </div>
           <div class="flex" style="margin-top:8px;">
@@ -124,7 +124,7 @@ async function renderCfgTab(){
           </div>
           <div style="border-top:1px solid var(--border);padding-top:20px;">
             <div style="font-size:13px;font-weight:600;margin-bottom:10px;">📂 Restaurar desde Archivo</div>
-            <p style="color:var(--muted);font-size:12px;margin-bottom:14px;line-height:1.6;">Sube un <strong style="color:var(--text)">.zip</strong> o <strong style="color:var(--text)">.json</strong> generado por Horix.</p>
+            <p style="color:var(--muted);font-size:12px;margin-bottom:14px;line-height:1.6;">Sube un <strong style="color:var(--text)">.zip</strong> o <strong style="color:var(--text)">.json</strong> generado por el sistema.</p>
             <div id="restore-drop" onclick="document.getElementById('restore-file').click()"
               style="border:2px dashed var(--border);border-radius:12px;padding:24px;text-align:center;cursor:pointer;margin-bottom:12px;transition:border-color 0.2s;"
               onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"

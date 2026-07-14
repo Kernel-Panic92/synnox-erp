@@ -1,4 +1,4 @@
-// helpers.js - Funciones utilitarias para Horix
+// helpers.js - Funciones utilitarias
 
 function teleError(path, status, method) {
   if (typeof enviarTelemetria === 'function') {

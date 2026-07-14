@@ -1,4 +1,4 @@
-// auditoria.js - Audit & Session monitoring module for Horix
+// auditoria.js - Audit & Session monitoring module
 
 function limpiarFiltrosAuditoria() {
   const buscar = document.getElementById('aud-buscar');

@@ -108,7 +108,7 @@ async function generarZip(tipo = 'completo', timestamp = Date.now()) {
   backupProgress.current = 7; backupProgress.message = 'Eventos'; backupProgress.stage = 'eventos';
 
   const data = {
-    app:       'DocFlow',
+    app:       process.env.COMPANY_NAME || 'SynnoxERP',
     version:   '1.0',
     tipo:      tipo,
     generado:  new Date().toISOString(),
@@ -321,7 +321,9 @@ router.post('/restore', soloAdmin, upload.single('backup'), async (req, res) => 
     return res.status(400).json({ error: 'backup.json corrupto' });
   }
 
-  if (data.app !== 'DocFlow') {
+  const APP_NAME = process.env.COMPANY_NAME || 'SynnoxERP';
+
+  if (data.app !== APP_NAME) {
     return res.status(400).json({ error: 'Archivo de backup incompatible' });
   }
 
@@ -431,7 +433,9 @@ router.post('/restore/local/:filename', soloAdmin, (req, res) => {
     return res.status(400).json({ error: 'backup.json corrupto' });
   }
 
-  if (data.app !== 'DocFlow') {
+  const APP_NAME = process.env.COMPANY_NAME || 'SynnoxERP';
+
+  if (data.app !== APP_NAME) {
     return res.status(400).json({ error: 'Archivo de backup incompatible' });
   }
 

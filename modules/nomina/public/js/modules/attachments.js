@@ -1,4 +1,4 @@
-// attachments.js - File attachment module for Horix
+// attachments.js - File attachment module
 
 let adjuntosSeleccionados = [];
 

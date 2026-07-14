@@ -1366,7 +1366,7 @@ function renderSmtp(el, c) {
           <div class="form-group"><label>TLS</label><select id="cfg-tls"><option value="1" ${c.smtp_tls==='1'?'selected':''}>Sí</option><option value="0" ${c.smtp_tls==='0'?'selected':''}>No</option></select></div>
           <div class="form-group"><label>Usuario</label><input id="cfg-usuario" value="${esc(c.smtp_usuario||'')}"></div>
           <div class="form-group"><label>Contraseña</label><input type="password" id="cfg-password" value="${c.smtp_password?'••••••••':''}"></div>
-          <div class="form-group"><label>Remitente (From)</label><input id="cfg-remitente" value="${esc(c.smtp_remitente||'')}" placeholder="logistics@vitamar.com"></div>
+          <div class="form-group"><label>Remitente (From)</label><input id="cfg-remitente" value="${esc(c.smtp_remitente||'')}" placeholder="logistics@localhost"></div>
         </div>
       </div>
       <div class="flex" style="margin-top:8px;">

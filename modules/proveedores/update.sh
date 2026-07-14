@@ -1,13 +1,13 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════
-#  update.sh — Actualizador de Vitamar Docs
+#  update.sh — Actualizador del módulo Proveedores
 #
 #  Uso:
 #    chmod +x update.sh
 #    ./update.sh
 #
 #  Requiere:
-#    - GitHub Personal Access Token en ~/.vitamar_token
+#    - GitHub Personal Access Token en ~/.synnox_token
 #    - Repo público o token con acceso al repo privado
 # ═══════════════════════════════════════════════════════════════
 set -e
@@ -19,24 +19,24 @@ warn() { echo -e "${AMARILLO}  ⚠ $1${RESET}"; }
 err()  { echo -e "${ROJO}  ✗ $1${RESET}"; exit 1; }
 
 INSTALL_DIR="$(cd "$(dirname "$0")" && pwd)"
-REPO="Kernel-Panic92/docflow"
+REPO="synnox-erp/proveedores"
 PM2_NAME="docflow"
 
 echo ""
 echo -e "${AZUL}══════════════════════════════════════════════${RESET}"
-echo -e "${AZUL}   DocFlow — Actualizador${RESET}"
+echo -e "${AZUL}   Módulo Proveedores — Actualizador${RESET}"
 echo -e "${AZUL}══════════════════════════════════════════════${RESET}"
 echo ""
 
 # ── Validaciones ──────────────────────────────────────────────
 [[ "$OSTYPE" != "linux-gnu"* ]] && err "Este script es para Linux (Ubuntu/Debian)."
 command -v jq &>/dev/null || { warn "jq no encontrado. Instalando..."; sudo apt-get install -y jq; }
-command -v pm2 &>/dev/null || err "PM2 no encontrado. ¿Está instalado Vitamar Docs?"
-[[ ! -f "$INSTALL_DIR/src/server.js" ]] && err "No se encontró src/server.js. Ejecuta desde el directorio de Vitamar Docs."
+command -v pm2 &>/dev/null || err "PM2 no encontrado. ¿Está instalado el módulo?"
+[[ ! -f "$INSTALL_DIR/src/server.js" ]] && err "No se encontró src/server.js. Ejecuta desde el directorio del módulo."
 
 # ── Token de GitHub ──────────────────────────────────────────
 USER_HOME=$(eval echo ~${SUDO_USER:-$USER})
-GITHUB_TOKEN=$(xargs < "$USER_HOME/.vitamar_token" 2>/dev/null || echo '')
+GITHUB_TOKEN=$(xargs < "$USER_HOME/.synnox_token" 2>/dev/null || echo '')
 
 if [[ -n "$GITHUB_TOKEN" ]]; then
   AUTH_HEADER="Authorization: Bearer $GITHUB_TOKEN"
@@ -165,7 +165,7 @@ NEW_VERSION=$(node -e "console.log(require('./package.json').version || 'descono
 
 echo ""
 echo -e "${VERDE}══════════════════════════════════════════════${RESET}"
-echo -e "${VERDE}  ✅ Vitamar Docs actualizado${RESET}"
+echo -e "${VERDE}  ✅ Módulo Proveedores actualizado${RESET}"
 echo -e "${VERDE}══════════════════════════════════════════════${RESET}"
 echo ""
 echo -e "  📦 Versión anterior: $CURRENT_VERSION"

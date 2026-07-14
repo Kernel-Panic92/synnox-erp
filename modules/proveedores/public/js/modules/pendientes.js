@@ -1,4 +1,4 @@
-// pendientes.js - Pendientes, Causación and Por Pagar views for DocFlow
+// pendientes.js - Pendientes, Causación and Por Pagar views
 
 let pendFiltro='todas';
 let pendBusqueda='';

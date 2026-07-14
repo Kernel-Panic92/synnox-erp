@@ -1,4 +1,4 @@
-// telemetry.js — Telemetry module for Horix
+// telemetry.js — Telemetry module
 
 function enviarTelemetria(evento, datos) {
   try {

@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════
-#  backup_horasextra.sh — Backup automático de Horix
+#  backup_horasextra.sh — Backup automático de SynnoxERP
 #  Generado por install.sh — NO editar manualmente las variables
 #  Para reconfigurar, edita las variables en la sección CONFIG.
 #
@@ -22,8 +22,8 @@ SMB_PASS="__SMB_PASS__"
 
 RETENER_DIAS=30
 FECHA=$(date +"%Y-%m-%d_%H-%M-%S")
-NOMBRE="horix_backup_${FECHA}.zip"
-LOG_TAG="[Horix Backup]"
+NOMBRE="backup_${FECHA}.zip"
+LOG_TAG="[Nomina Backup]"
 ERROR_RED=""
 BACKUP_TOKEN="${BACKUP_TOKEN:-}"
 # ──────────────────────────────────────────────────────────────
@@ -106,7 +106,7 @@ if [ "$USAR_NAS" = "true" ]; then
       echo "$LOG_TAG  ✓ Copia en red: $BACKUP_RED/$NOMBRE"
       RED_OK=true
       # Rotar backups viejos en NAS (antes de desmontar)
-      find "$BACKUP_RED" -name "horix_backup_*.zip" -mtime +$RETENER_DIAS -type f -delete
+      find "$BACKUP_RED" -name "backup_*.zip" -mtime +$RETENER_DIAS -type f -delete
     else
       echo "$LOG_TAG  ✗ ERROR: No se pudo copiar a la red"
     fi
@@ -117,7 +117,7 @@ if [ "$USAR_NAS" = "true" ]; then
   fi
 fi
 
-find "$BACKUP_LOCAL" -name "horix_backup_*.zip" -mtime +$RETENER_DIAS -type f -delete
+find "$BACKUP_LOCAL" -name "backup_*.zip" -mtime +$RETENER_DIAS -type f -delete
 
 TAMANO_FINAL=$(du -sh "$ARCHIVO_LOCAL" 2>/dev/null | cut -f1 || echo "desconocido")
 
@@ -139,7 +139,7 @@ require('fs').writeFileSync(
 );
 "
 
-TOTAL_LOCAL=$(find "$BACKUP_LOCAL" -name "horix_backup_*.zip" -type f 2>/dev/null | wc -l)
+TOTAL_LOCAL=$(find "$BACKUP_LOCAL" -name "backup_*.zip" -type f 2>/dev/null | wc -l)
 echo ""
 if [ -n "$ERROR_RED" ]; then
   echo "$LOG_TAG  ⚠ Backup local OK — errores en la red: $ERROR_RED"

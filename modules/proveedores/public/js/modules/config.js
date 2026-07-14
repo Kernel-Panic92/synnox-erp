@@ -52,7 +52,7 @@ async function renderCfgTab(cfg){
 
       <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:20px">
         <div style="font-family:var(--font-head);font-size:16px;font-weight:700;margin-bottom:12px">Nombre de la aplicación</div>
-        <div class="field"><label>NOMBRE</label><input type="text" id="cfg-app-nombre" value="${esc(cfg.app_nombre?.valor||'DocFlow')}" placeholder="DocFlow"/></div>
+          <div class="field"><label>NOMBRE</label><input type="text" id="cfg-app-nombre" value="${esc(cfg.app_nombre?.valor||'SynnoxERP')}" placeholder="SynnoxERP"/></div>
         <div style="display:flex;gap:10px;margin-top:16px">
           <button class="btn btn-primary" onclick="guardarCfg('general')">💾 Guardar</button>
         </div>
@@ -337,11 +337,11 @@ async function guardarCfg(tab){
     data.empresa_nombre=$('cfg-empresa-nombre')?.value?.trim()||'';
     data.empresa_nit=$('cfg-empresa-nit')?.value?.trim()||'';
     data.empresa_logo=$('cfg-empresa-logo-url')?.value?.trim()||'';
-    data.app_nombre=$('cfg-app-nombre')?.value?.trim()||'DocFlow';
+    data.app_nombre=$('cfg-app-nombre')?.value?.trim()||'SynnoxERP';
     const r=await api('PUT','/configuracion',data);
     toast('Configuración guardada','success');
     if(data.app_nombre||data.empresa_logo){
-      document.title=data.app_nombre||'DocFlow';
+      document.title=data.app_nombre||'SynnoxERP';
     }
     rConfig();
     return;

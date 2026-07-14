@@ -1,6 +1,6 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (14 Jul 2026 — sesión 8)
+## Estado (14 Jul 2026 — sesión 9)
 
 ### Arquitectura
 - **Package manager**: pnpm (workspaces, strict mode, lockfile trackeado)
@@ -44,20 +44,20 @@
   - ESLint + Prettier config
   - Agregar helmet y rate limiting en proveedores
 
-### Fase 2 — Refactor hardcoded branding (pendiente para próxima sesión)
+#### Cambios Sesión 9 (14 Jul 2026) — Fase 2: Refactor hardcoded branding
 
-El instalador ya genera un `.env` con `COMPANY_NAME`, `COMPANY_DOMAIN`, `SMTP_*`, etc.
-Pendiente: actualizar el código fuente para leer estas variables en lugar de tener strings hardcodeados (~350 referencias):
-
-- `modules/nomina/` — `Horix`, `horix_backup_*`, `horix@vitamar.com` en emails, `wb.creator = 'Horix'`
-- `modules/proveedores/` — `DocFlow` como app name, `noreply@tu-dominio.com` en SMTP
-- `modules/logistica/` — `vitamar` en container names, `horix-logistics` como package name
-- `launcher/` — `Horix Platform` en mail templates, `admin@horix.com` como fallback
-- `framework/` — URLs hardcodeadas a GitHub de Kernel-Panic92
-- READMEs, MANUALs, HTML footers con referencias a Kernel-Panic92
-- Seed data con `@horix.demo`
-- `backup_horasextra_template.sh` con `Horix` branding
-- Docker compose con `vitamar-*`
+- **COMPANY_NAME como fuente única**: `launcher/server.js` ahora inyecta `COMPANY_NAME` (desde env o `SMTP_FROM_NAME`) como fallback de `smtp_from_name`. Todos los módulos leen `process.env.COMPANY_NAME` o `process.env.APP_NAME` donde antes tenían strings hardcodeados.
+- **COMPANY_DOMAIN**: Creado y usado en lugar de `'admin@horix.com'` → `admin@${COMPANY_DOMAIN}`.
+- **INSTALL_DIR**: Nuevo default `/opt/synnoxerp` (era `/opt/horix-platform`). Todas las rutas en launcher/server.js lo usan.
+- **launcher/mail.js**: HTML de emails ahora dinámico con `getFromName()` en lugar de `'Horix Platform'` hardcodeado.
+- **modules/nomina/**: `Horix` → `APP_NAME` en emails, `wb.creator`, subjects, headers HTML; `horix_backup_*` → `backup_*`; `@horix.demo` → `@ejemplo.com`; `horix-mcp` → `synnox-nomina-mcp`.
+- **modules/proveedores/**: `DocFlow` → `COMPANY_NAME` en SMTP, backup, health check; DB default `horix_erp` → `synnox_erp` (consistente con root).
+- **modules/logistica/**: `vitamar-*` → `synnox-*` en docker-compose; DB default `horix_erp` → `synnox_erp`; `HorixLogistics` → `SynnoxERP Logistics`.
+- **nginx/**: `horix.app` → `synnoxerp.app`.
+- **framework/**: `initHorixFramework` → `initFramework`; URLs GitHub de Kernel-Panic92 eliminadas.
+- **installer/**: URLs `Kernel-Panic92/synnox-erp.git` → `synnoxerp/synnox-erp.git`.
+- **`.gitignore`**: Rutas legacy `modules/horix/` → `modules/nomina/`, etc.
+- **Resultado**: 0 referencias a `Horix`, `vitamar`, `Kernel-Panic92`, `DocFlow` en código fuente (solo en AGENTS.md).
 
 ### Cambios Sesión 8 — seguridad (3 CVEs high cerrados)
 - **xlsx → exceljs**: Migrados 2 parsers de logística (`widgetechExcelParser.js`, `maestroClientesParser.js`). `xlsx` (SheetJS) abandonado en npm sin parche disponible. Reemplazado por `exceljs` (ya usado en root/nómina). Cierra CVE-2023-30533 (Prototype Pollution) y CVE-2024-22363 (ReDoS).
@@ -68,6 +68,7 @@ Pendiente: actualizar el código fuente para leer estas variables en lugar de te
 ### Pendientes
 - [x] Primera ejecución de `pnpm install --prod` en servidor para generar `pnpm-lock.yaml`
 - [x] Verificar que el servidor unificado arranca correctamente con `node server.js`
+- [x] Fase 2 — Refactor hardcoded branding (~350 referencias eliminadas)
 - [ ] Ejecutar migración Nómina (Fase 0)
 - [ ] Observabilidad centralizada (tabla `auditoria_central`)
 - [ ] APIs internas entre módulos

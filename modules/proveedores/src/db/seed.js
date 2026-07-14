@@ -11,11 +11,11 @@ async function seed() {
     // ─── Áreas ────────────────────────────────────────────────────────────────
     console.log('  → Áreas...');
     const areasData = [
-      { nombre: 'Sistemas',             email: 'sistemas@docflow.com' },
-      { nombre: 'Dirección de Planta', email: 'planta@docflow.com' },
-      { nombre: 'Logística',           email: 'logistica@docflow.com' },
-      { nombre: 'Contabilidad',        email: 'contabilidad@docflow.com' },
-      { nombre: 'Gerencia',            email: 'gerencia@docflow.com' },
+      { nombre: 'Sistemas',             email: 'sistemas@ejemplo.com' },
+      { nombre: 'Dirección de Planta', email: 'planta@ejemplo.com' },
+      { nombre: 'Logística',           email: 'logistica@ejemplo.com' },
+      { nombre: 'Contabilidad',        email: 'contabilidad@ejemplo.com' },
+      { nombre: 'Gerencia',            email: 'gerencia@ejemplo.com' },
     ];
 
     const areaIds = {};

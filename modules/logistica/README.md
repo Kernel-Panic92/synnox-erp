@@ -1,6 +1,6 @@
-# Horix Logistics - Módulo de Optimización de Rutas
+# SynnoxERP Logistics - Módulo de Optimización de Rutas
 
-Sistema de optimización de rutas y logística para Vitamar S.A. Integrado con Horix ERP.
+Sistema de optimización de rutas y logística. Integrado con SynnoxERP.
 
 ## 📋 Características
 
@@ -20,7 +20,7 @@ Sistema de optimización de rutas y logística para Vitamar S.A. Integrado con H
 Backend: Node.js + Express
 BD: PostgreSQL
 Motor VRP: OSRM + Nearest Neighbor + 2-opt
-Frontend: Vanilla JS SPA (estilo Horix/DocFlow)
+Frontend: Vanilla JS SPA
 ```
 
 ## 📦 Instalación
@@ -28,8 +28,8 @@ Frontend: Vanilla JS SPA (estilo Horix/DocFlow)
 ### Opción rápida (recomendada)
 
 ```bash
-git clone https://github.com/Kernel-Panic92/horix-logistics.git
-cd horix-logistics
+git clone <repo-url> synnox-logistics
+cd synnox-logistics
 sudo bash install.sh
 ```
 
@@ -40,8 +40,8 @@ El instalador guía paso a paso: puerto, conexión PostgreSQL, credenciales admi
 ### 1. Clonar el repositorio
 
 ```bash
-git clone https://github.com/Kernel-Panic92/horix-logistics.git
-cd horix-logistics
+git clone <repo-url> synnox-logistics
+cd synnox-logistics
 ```
 
 ### 2. Configurar variables de entorno
@@ -55,10 +55,10 @@ Contenido básico de `.env`:
 
 ```
 DB_USER=postgres
-DB_PASSWORD=vitamar2024
+DB_PASSWORD=changeme
 DB_HOST=localhost
 DB_PORT=5433
-DB_NAME=vitamar_logistics
+DB_NAME=synnox_logistics
 PORT=3004
 OSRM_URL=https://router.project-osrm.org
 ```
@@ -73,7 +73,7 @@ npm install
 
 ```bash
 # Si necesitas crear la BD manualmente:
-createdb -U postgres -W vitamar_logistics
+createdb -U postgres -W synnox_logistics
 
 # Ejecutar migraciones
 npm run db:migrate
@@ -187,7 +187,7 @@ curl http://localhost:3004/api/rutas?fecha=2024-06-16
 ## 🔧 Estructura de carpetas
 
 ```
-horix-logistics/
+synnox-logistics/
 ├── backend/
 │   ├── server.js               ← Express + JWT + static files + MCP
 │   ├── config/
@@ -271,7 +271,7 @@ Extrae automáticamente:
 
 ### Fase 3
 - [ ] App móvil para conductores
-- [ ] Integración con Horix (MCP)
+- [ ] Integración con SynnoxERP (MCP)
 - [ ] Análisis de eficiencia avanzado
 
 ## 🔐 Seguridad
@@ -304,7 +304,7 @@ pm2 stop logistics
 
 ## 📞 Soporte
 
-Para reportar problemas, contactar a: Edgar (Sistemas, Vitamar)
+Para reportar problemas, contactar al administrador del sistema
 
 ---
 

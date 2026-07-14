@@ -49,7 +49,7 @@ module.exports = function({ getConfig, nodemailer, escapeHtml, BASE_URL, APP_NAM
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
-<title>Horix - Novedades</title>
+<title>Nómina - Novedades</title>
 <style>
 @media only screen and (max-width: 620px) {
   .email-container { width: 100% !important; padding: 20px 15px !important; }
@@ -65,7 +65,7 @@ module.exports = function({ getConfig, nodemailer, escapeHtml, BASE_URL, APP_NAM
 <table class="email-container" width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff;border-radius:12px;border:1px solid #e0e4ea;max-width:100%;">
 <tr>
 <td align="center" class="email-content" style="padding:30px 25px;color:#2c3e50;font-size:15px;line-height:1.8;text-align:left;">
-<h1 class="email-title" style="color:#2563eb;font-size:28px;margin:0 0 8px;font-weight:bold;">Horix</h1>
+<h1 class="email-title" style="color:#2563eb;font-size:28px;margin:0 0 8px;font-weight:bold;">${APP_NAME}</h1>
 <p style="color:#6b7a8f;font-size:13px;margin:0 0 25px;">Sistema de Control de Novedades</p>
 <div>${cuerpoHtml}${htmlAdicional}</div>
 <div style="margin-top:25px;padding-top:18px;border-top:1px solid #e0e4ea;text-align:center;">

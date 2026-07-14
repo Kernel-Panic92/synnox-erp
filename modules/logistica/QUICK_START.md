@@ -1,20 +1,20 @@
-# 🚀 Guía de Inicio Rápido - Horix Logistics
+# 🚀 Guía de Inicio Rápido - SynnoxERP Logistics
 
 ## ¿Qué tienes?
 
-He creado un **módulo completo de logística** para Vitamar que:
+Módulo completo de logística que:
 
 ✅ Importa PDFs de SIESA (planillas de cuadre)  
 ✅ Importa Excel de Widetech (posiciones GPS)  
 ✅ Optimiza rutas automáticamente  
-✅ Corre bajo PM2 (como Horix/DocFlow)  
+✅ Corre bajo PM2  
 ✅ Usa PostgreSQL dedicado  
 ✅ API REST lista para usar  
 
 ## 📦 Archivos entregados
 
 ```
-horix-logistics/
+synnox-logistics/
 ├── 📄 README.md                    (Documentación completa)
 ├── 📦 package.json                 (Dependencias npm)
 ├── ⚙️  .env.example                (Variables de entorno)
@@ -44,10 +44,10 @@ horix-logistics/
 ### 1. Copiar estructura al servidor
 
 ```bash
-# En el servidor donde corre Horix/DocFlow
+# En el servidor
 cd /ruta/a/proyectos
-git clone <tu-repo> horix-logistics
-cd horix-logistics
+git clone <tu-repo> synnox-logistics
+cd synnox-logistics
 ```
 
 ### 2. Instalar dependencias
@@ -71,7 +71,7 @@ DB_USER=postgres
 DB_PASSWORD=tu_password_postgre
 DB_HOST=localhost
 DB_PORT=5433  # O el puerto donde corre tu PostgreSQL
-DB_NAME=vitamar_logistics
+DB_NAME=synnox_logistics
 PORT=3004
 OSRM_URL=https://router.project-osrm.org
 ```
@@ -92,9 +92,9 @@ pm2 status
 pm2 logs logistics
 ```
 
-## 🔗 Próximo paso: Integración con Horix
+## 🔗 Próximo paso: Integración con Launcher
 
-Para que aparezca en el Launcher de Horix, necesitas:
+Para que aparezca en el Launcher, necesitas:
 
 1. **Agregar ruta en Launcher:**
    ```javascript
@@ -202,9 +202,9 @@ curl -X POST http://localhost:3004/api/rutas/generar \
 
 ## ⚠️ Requisitos
 
-- ✅ PostgreSQL (puedes compartir con DocFlow)
+- ✅ PostgreSQL
 - ✅ Node.js 16+
-- ✅ PM2 (ya tienes si corre DocFlow)
+- ✅ PM2
 - ✅ Internet (para OSRM público, o Docker para OSRM local)
 
 ## 🚨 Troubleshooting
@@ -216,7 +216,7 @@ curl -X POST http://localhost:3004/api/rutas/generar \
 psql -U postgres -l
 
 # Crear BD si no existe
-createdb -U postgres vitamar_logistics
+createdb -U postgres synnox_logistics
 ```
 
 ### Error: "OSRM no responde"
@@ -245,7 +245,7 @@ pm2 logs logistics
 ### Mediano plazo (Próx. 2 meses)
 - [ ] App móvil para conductores
 - [ ] Seguimiento en tiempo real
-- [ ] Integración MCP con Horix
+- [ ] Integración MCP con SynnoxERP
 
 ### Largo plazo
 - [ ] Análisis de eficiencia/ML

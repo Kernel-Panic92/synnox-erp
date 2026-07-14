@@ -408,13 +408,13 @@ function createRouter() {
   router.use(express.json());
 
   // GET — health check
-  router.get('/', (req, res) => res.json({ status: 'ok', server: 'horix-mcp' }));
+  router.get('/', (req, res) => res.json({ status: 'ok', server: 'synnox-nomina-mcp' }));
 
   // Sin OAuth por ahora — aceptamos todas las requests
   router.use((req, res, next) => next());
 
   // GET — health check
-  router.get('/', (req, res) => res.json({ status: 'ok', server: 'horix-mcp' }));
+  router.get('/', (req, res) => res.json({ status: 'ok', server: 'synnox-nomina-mcp' }));
 
   // POST — MCP JSON-RPC
   router.post('/', (req, res) => {
@@ -434,7 +434,7 @@ function createRouter() {
         return res.json(rpcResult(id, {
           protocolVersion: '2025-03-26',
           capabilities: { tools: {} },
-          serverInfo: { name: 'horix-mcp', version: '1.0.0' }
+          serverInfo: { name: 'synnox-nomina-mcp', version: '1.0.0' }
         }));
       }
 

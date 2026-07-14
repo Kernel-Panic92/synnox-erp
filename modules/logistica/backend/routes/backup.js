@@ -18,7 +18,7 @@ router.get('/', soloAdmin, async (req, res) => {
   try {
     const zip = new AdmZip();
     const tablas = ['vehiculos', 'pedidos_logistica', 'rutas', 'paradas_ruta', 'configuracion', 'usuarios'];
-    const backup = { app: 'HorixLogistics', version: '1.0', generado: new Date().toISOString() };
+    const backup = { app: 'SynnoxLogistics', version: '1.0', generado: new Date().toISOString() };
     for (const t of tablas) {
       try {
         const r = await pool.query(`SELECT * FROM logistics.${t}`);

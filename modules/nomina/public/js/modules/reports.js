@@ -1,4 +1,4 @@
-// reports.js - Reports module for Horix
+// reports.js - Reports module
 
 let _rptPage = 0;
 let _rptPageSize = 100;

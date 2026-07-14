@@ -1,4 +1,4 @@
-# Horix Framework — Crear un nuevo módulo desde cero
+# SynnoxERP Framework — Crear un nuevo módulo desde cero
 
 ## Estructura del proyecto
 
@@ -25,7 +25,7 @@ modulo/
 Usa `init.sh` para copiar la base:
 
 ```bash
-bash horix-erp/framework/init.sh /ruta/del/modulo/public
+bash framework/init.sh /ruta/del/modulo/public
 ```
 
 Esto copia `base.css`, `components.css`, `framework.js`, `theme.js` y genera `index.html`.
@@ -136,14 +136,14 @@ async function ejecutarTool(name, args) {
 - JSON-RPC 2.0 (campos: `jsonrpc`, `id`, `method`, `params`)
 - Implementar: `initialize`, `ping`, `tools/list`, `tools/call`
 - Tool names en snake_case, español
-- El gateway de horix-erp prefija las tools con `{module_id}_`
+- El gateway de la plataforma prefija las tools con `{module_id}_`
 
 ## 4. Registrar en la plataforma
 
 Ejecuta este script (adaptando valores):
 
 ```bash
-cd /opt/horix-platform/launcher
+cd /opt/synnoxerp/launcher
 node -e "
 const Database = require('better-sqlite3');
 const db = new Database('launcher.db');
@@ -177,7 +177,7 @@ location /mi-modulo/ {
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-## 6. initHorixFramework options
+## 6. initFramework options
 
 | Opción | Default | Descripción |
 |--------|---------|-------------|
@@ -192,7 +192,7 @@ Si el módulo se sirve desde un proxy prefix (ej: `:9443/mi-modulo/`), pasar `ba
 ## 7. PM2
 
 ```bash
-pm2 start /opt/horix-platform/mi-modulo/backend/server.js --name mi-modulo
+pm2 start /opt/synnoxerp/mi-modulo/backend/server.js --name mi-modulo
 pm2 save
 ```
 

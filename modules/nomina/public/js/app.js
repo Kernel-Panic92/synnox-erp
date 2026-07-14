@@ -1,4 +1,4 @@
-// app.js - Main initialization and global state for Horix
+// app.js - Main initialization and global state
 
 const PAGINAS_VALIDAS = ['dashboard','historial','empleados','nomina','registro','reportes','centros','configuracion','tipos','siesa'];
 function paginaSegura(hash) {

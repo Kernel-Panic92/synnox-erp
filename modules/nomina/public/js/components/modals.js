@@ -1,4 +1,4 @@
-// modals.js - Modal management for Horix
+// modals.js - Modal management
 
 function cerrarModal(id) {
   const modal = document.getElementById(id);

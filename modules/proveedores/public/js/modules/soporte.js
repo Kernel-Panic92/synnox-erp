@@ -1,4 +1,4 @@
-// soporte.js - Soporte de pago upload/view for DocFlow
+// soporte.js - Soporte de pago upload/view
 
 function mSubirSoporte(id){
   showM('Adjuntar soporte de pago',`

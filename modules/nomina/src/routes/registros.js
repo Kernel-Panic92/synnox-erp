@@ -1,7 +1,7 @@
 const express = require('express');
 
 module.exports = function createRegistrosRouter({
-  db, uid, BASE_URL,
+  db, uid, BASE_URL, APP_NAME,
   getConfig, enviarCorreo, rolTienePermiso,
   middlewares
 }) {
@@ -290,7 +290,7 @@ module.exports = function createRegistrosRouter({
     try {
       const reg = db.prepare('SELECT r.*, u.email as creadorEmail, u.nombre as creadorNombre FROM registros r JOIN usuarios u ON r.creadoPor = u.id WHERE r.id = ?').get(req.params.id);
       if (reg?.creadorEmail) enviarCorreo(reg.creadorEmail, `Tu hora extra fue ${estado === 'aprobado' ? 'aprobada' : 'rechazada'}`,
-        `Hola ${reg.creadorNombre},\n\nTu registro de hora extra ha sido ${estado === 'aprobado' ? 'aprobado' : 'rechazado'}:\n\nFecha: ${reg.fecha}\nHoras: ${reg.horas}\nTipo: ${reg.tipo}\n\n${observaciones ? 'Observaciones: ' + observaciones : ''}\n\nSaludos,\nHorix`
+        `Hola ${reg.creadorNombre},\n\nTu registro de hora extra ha sido ${estado === 'aprobado' ? 'aprobado' : 'rechazado'}:\n\nFecha: ${reg.fecha}\nHoras: ${reg.horas}\nTipo: ${reg.tipo}\n\n${observaciones ? 'Observaciones: ' + observaciones : ''}\n\nSaludos,\n${APP_NAME || 'Nómina'}`
       ).catch(e => console.error('Notificación email falló:', e.message));
     } catch (e) { console.error('Error preparando notificación:', e.message); }
 

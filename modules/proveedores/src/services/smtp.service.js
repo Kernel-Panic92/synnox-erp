@@ -15,7 +15,7 @@ async function getConfig() {
       cachedConfig[row.clave] = row.valor;
     }
     if (!cachedConfig.empresa_nombre) {
-      cachedConfig.empresa_nombre = 'DocFlow';
+      cachedConfig.empresa_nombre = process.env.COMPANY_NAME || 'SynnoxERP';
     }
     // Inherit from launcher if enabled
     if (cachedConfig.smtp_heredar === '1' || cachedConfig.smtp_heredar === 'true') {
@@ -38,7 +38,7 @@ async function getConfig() {
     return cachedConfig;
   } catch (e) {
     console.error('[SMTP] Error cargando config:', e.message);
-    return { empresa_nombre: 'DocFlow' };
+    return { empresa_nombre: process.env.COMPANY_NAME || 'SynnoxERP' };
   }
 }
 
@@ -48,7 +48,7 @@ function clearCache() {
 
 async function getEmpresaNombre() {
   const cfg = await getConfig();
-  return cfg.empresa_nombre || 'DocFlow';
+  return cfg.empresa_nombre || process.env.COMPANY_NAME || 'SynnoxERP';
 }
 
 async function getTransporter() {
@@ -114,7 +114,7 @@ async function enviar({ para, asunto, html, text }) {
 
 async function enviarRecuperacion(usuario, token, reqHost) {
   const cfg = await getConfig();
-  const empresaNombre = cfg.empresa_nombre || 'DocFlow';
+  const empresaNombre = cfg.empresa_nombre || process.env.COMPANY_NAME || 'SynnoxERP';
   const baseUrl = getBaseUrl(reqHost);
   const enlace  = `${baseUrl}/reset-password.html?token=${token}`;
 

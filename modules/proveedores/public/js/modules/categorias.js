@@ -1,4 +1,4 @@
-// categorias.js - Category management for DocFlow
+// categorias.js - Category management
 
 let catExp=null;
 async function rCats(){

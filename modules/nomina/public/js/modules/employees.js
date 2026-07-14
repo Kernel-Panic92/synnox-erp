@@ -1,4 +1,4 @@
-// employees.js - Employees & Centers module for Horix
+// employees.js - Employees & Centers module
 
 let _empFiltroCorruptos = false;
 let _empCorruptosIds = new Set();

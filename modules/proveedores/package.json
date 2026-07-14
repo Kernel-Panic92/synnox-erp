@@ -1,8 +1,8 @@
 {
   "name": "docflow",
   "version": "1.1.12",
-  "description": "Gestión documental de facturas electrónicas - DocFlow",
-  "author": "Kernel-Panic92",
+  "description": "Gestión documental de facturas electrónicas",
+  "author": "",
   "main": "src/server.js",
   "engines": {
     "node": ">=20.0.0"

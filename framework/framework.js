@@ -1,6 +1,5 @@
-/* ── Horix Framework - JavaScript core ── */
-/* Repo: https://github.com/Kernel-Panic92/horix-erp/tree/main/framework */
-/* Usage: initHorixFramework({ apiPrefix: '/api', themeKey: 'myapp_theme', tokenKey: 'myapp_token', basePath: '/logistics' }) */
+/* ── SynnoxERP Framework - JavaScript core ── */
+/* Usage: initFramework({ apiPrefix: '/api', themeKey: 'myapp_theme', tokenKey: 'myapp_token', basePath: '/logistics' }) */
 
 // ── Config ──
 let HF = {
@@ -14,7 +13,7 @@ let HF = {
 };
 
 // ── Init ──
-function initHorixFramework(opts = {}) {
+function initFramework(opts = {}) {
   HF.API = (opts.basePath || '') + (opts.apiPrefix || '/api');
   HF.TOKEN_KEY = opts.tokenKey || 'hf_token';
   HF.THEME_KEY = opts.themeKey || 'hf_theme';

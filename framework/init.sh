@@ -1,5 +1,5 @@
 #!/bin/bash
-# ── Horix Framework - init.sh ──
+# ── SynnoxERP Framework - init.sh ──
 # Uso: bash init.sh /ruta/del/nuevo-modulo/public
 # Copia los archivos del framework a un nuevo módulo y genera el HTML base
 
@@ -141,4 +141,4 @@ echo "✓ Framework instalado en $DEST"
 echo "Próximos pasos:"
 echo "  1. Agrega los nav-items en <nav id='sidebar-nav'>"
 echo "  2. Agrega las páginas en <div class='main-body'>"
-echo "  3. Configura initHorixFramework({ apiPrefix, tokenKey, routes: { dashboard: cargarDashboard } })"
+echo "  3. Configura initFramework({ apiPrefix, tokenKey, routes: { dashboard: cargarDashboard } })"

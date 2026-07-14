@@ -1,4 +1,4 @@
-# Manual del Usuario de Consulta — Horix
+# Manual del Usuario de Consulta — SynnoxERP
 
 > Sistema de Gestión de Horas Extras y Novedades de Nómina
 
@@ -6,7 +6,7 @@
 
 ## 1. Inicio de Sesión
 
-1. Abre el navegador y ve a la URL de Horix
+1. Abre el navegador y ve a la URL del sistema
 2. Ingresa tu **correo electrónico** y **contraseña** asignados
 3. Si es tu primer inicio, el sistema te pedirá cambiar la contraseña
 

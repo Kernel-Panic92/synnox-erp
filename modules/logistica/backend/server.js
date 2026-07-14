@@ -101,7 +101,7 @@ app.get('/api/version', (req, res) => {
     const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
     res.json({ version: pkg.version || '1.0.0', nombre: pkg.name, branch: 'main' });
   } catch {
-    res.json({ version: '1.0.0', nombre: 'Horix Logistics', branch: 'main' });
+    res.json({ version: '1.0.0', nombre: 'SynnoxERP Logistics', branch: 'main' });
   }
 });
 

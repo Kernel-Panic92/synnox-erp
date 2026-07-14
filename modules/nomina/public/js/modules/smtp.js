@@ -1,4 +1,4 @@
-// smtp.js - SMTP Configuration module for Horix
+// smtp.js - SMTP Configuration module
 
 async function cargarSmtp() {
   try {

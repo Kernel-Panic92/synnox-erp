@@ -1,13 +1,13 @@
 {
-  "horix": {
+  "nomina": {
     "url": "http://localhost:3000",
     "token": ""
   },
-  "docflow": {
+  "proveedores": {
     "url": "http://localhost:3100",
     "token": ""
   },
-  "logistics": {
+  "logistica": {
     "url": "http://localhost:3004",
     "token": ""
   }
