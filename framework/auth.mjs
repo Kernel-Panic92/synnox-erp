@@ -1,4 +1,9 @@
 import jwt from 'jsonwebtoken';
+import { createRequire } from 'module';
+import { fileURLToPath } from 'url';
+import path from 'path';
+const require = createRequire(import.meta.url);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) {
@@ -73,16 +78,18 @@ function setCachedSeq(userId, seq) {
   _seqCache.set(userId, { seq, ts: Date.now() });
 }
 
-export async function verifySessionValid(payload) {
+export function verifySessionValid(payload) {
   try {
-    const launcherUrl = process.env.LAUNCHER_URL || 'http://localhost:3002';
     const cachedSeq = getCachedSeq(payload.id);
     if (cachedSeq !== null) return cachedSeq === payload.seq;
-    const res = await fetch(launcherUrl + '/api/internal/usuario-seq/' + payload.id, { signal: AbortSignal.timeout(2000) });
-    if (!res.ok) return true;
-    const data = await res.json();
-    setCachedSeq(payload.id, data.seq);
-    return data.seq === payload.seq;
+    const Database = require('better-sqlite3');
+    const dbPath = path.join(__dirname, '..', 'launcher', 'launcher.db');
+    const ldb = new Database(dbPath, { readonly: true });
+    const row = ldb.prepare('SELECT seq FROM usuarios WHERE id = ?').get(payload.id);
+    ldb.close();
+    const seq = row ? row.seq : payload.seq;
+    setCachedSeq(payload.id, seq);
+    return seq === payload.seq;
   } catch {
     return true;
   }
