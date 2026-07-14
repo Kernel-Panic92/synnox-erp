@@ -178,7 +178,7 @@ app.use('/api/nominas', require('./src/routes/nominas')({ db, uid, middlewares: 
 // REGISTROS
 // ─────────────────────────────────────────────
 app.use('/api/registros', require('./src/routes/registros')({
-  db, uid, BASE_URL, getConfig, enviarCorreo, rolTienePermiso,
+  db, uid, BASE_URL, APP_NAME, getConfig, enviarCorreo, rolTienePermiso,
   middlewares: { todosRoles, adminRrhh, adminRrhhOp, podeEditar, podeAprobar, autenticar, requierePermiso }
 }));
 

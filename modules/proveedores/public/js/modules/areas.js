@@ -1,4 +1,4 @@
-// areas.js - Area management for DocFlow
+// areas.js - Area management
 
 async function rAreas(){
   S.areas=await api('GET','/areas');

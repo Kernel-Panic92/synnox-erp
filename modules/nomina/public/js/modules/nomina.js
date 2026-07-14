@@ -1,4 +1,4 @@
-// nomina.js - Payroll periods module for Horix
+// nomina.js - Payroll periods module
 
 function toggleNomAnio(anio) {
   if (!_nomCollapsed) return;

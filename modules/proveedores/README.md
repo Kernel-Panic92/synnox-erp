@@ -1,6 +1,6 @@
-# DocFlow
+# Módulo Proveedores
 
-Sistema de gestión documental para facturas electrónicas colombianas (DIAN). Importa automáticamente facturas desde correo IMAP, las procesa mediante un flujo de aprobación configurable y las envía a causación y pago.
+Módulo de gestión de facturas electrónicas del proveedores para SynnoxERP. Importa automáticamente facturas desde correo IMAP, las procesa mediante un flujo de aprobación configurable y las envía a causación y pago.
 
 ## Stack
 
@@ -23,8 +23,8 @@ Sistema de gestión documental para facturas electrónicas colombianas (DIAN). I
 
 ```bash
 # Clonar el repositorio
-git clone https://github.com/Kernel-Panic92/docflow.git
-cd docflow
+git clone <repo-url>
+cd proveedores
 
 # Ejecutar el instalador interactivo
 chmod +x install.sh
@@ -48,8 +48,8 @@ El instalador configurará automáticamente:
 ### 1. Clonar repositorio
 
 ```bash
-git clone https://github.com/Kernel-Panic92/docflow.git
-cd docflow
+git clone <repo-url>
+cd proveedores
 ```
 
 ### 2. Instalar dependencias del sistema
@@ -258,8 +258,8 @@ Accede a `http://TU_SERVIDOR:3100` o a través de Nginx en `http://TU_DOMINIO`
 ## Acceso inicial
 
 ```
-Email:    admin@docflow.com
-Password: docflow2025
+Email:    admin@synnoxerp.local
+Password: synnox2025
 ```
 
 ⚠️ Cambiar la contraseña en el primer acceso.
@@ -425,7 +425,7 @@ El actualizador:
 5. Ofrece ejecutar migraciones
 6. Reinicia el servicio
 
-**Requiere:** Token de GitHub en `~/.docflow_token` (para repos privados).
+**Requiere:** Token de GitHub en `~/.synnox_token` (para repos privados).
 
 ### Método manual
 

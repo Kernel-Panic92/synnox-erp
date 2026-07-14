@@ -1,4 +1,4 @@
-// dashboard.js - Dashboard module for Horix
+// dashboard.js - Dashboard module
 
 const _charts = {};
 let _dragSrc = null;

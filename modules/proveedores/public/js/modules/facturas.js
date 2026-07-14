@@ -1,4 +1,4 @@
-// facturas.js - Facturas listing, detail, filter, CRUD for DocFlow
+// facturas.js - Facturas listing, detail, filter, CRUD
 
 async function verPdf(id){
   try {

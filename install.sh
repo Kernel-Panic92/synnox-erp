@@ -8,7 +8,7 @@ set -euo pipefail
 # ─────────────────────────────────────────────────────────────
 
 BRANCH="${1:-refactor/monorepo-auth}"
-INSTALL_DIR="/opt/horix-platform"
+INSTALL_DIR="/opt/synnoxerp"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFIG="$INSTALL_DIR/.env"
 VERDE="\033[0;32m"; ROJO="\033[0;31m"; AMARILLO="\033[1;33m"; RESET="\033[0m"
@@ -95,7 +95,7 @@ else
     cd "$INSTALL_DIR"
     ok "Archivos copiados desde $SCRIPT_DIR"
   else
-    git clone -b "$BRANCH" https://github.com/Kernel-Panic92/horix-erp.git "$INSTALL_DIR" 2>/dev/null || {
+    git clone -b "$BRANCH" https://github.com/synnoxerp/synnox-erp.git "$INSTALL_DIR" 2>/dev/null || {
       err "No se pudo clonar el repo"
       exit 1
     }

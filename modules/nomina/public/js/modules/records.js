@@ -1,4 +1,4 @@
-// records.js - Records (Registration + History) module for Horix
+// records.js - Records (Registration + History) module
 
 function actualizarSedeReg() {
   const empId = document.getElementById('reg-empleado')?.value;

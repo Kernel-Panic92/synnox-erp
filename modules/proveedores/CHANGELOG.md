@@ -1,4 +1,4 @@
-# DocFlow - Changelog
+# Módulo Proveedores - Changelog
 
 ## v1.1.12 - Updater Fix
 Fecha: 2026-04-24
@@ -264,8 +264,8 @@ No hay tests unitarios ni de integración.
 
 ```bash
 # Clone project
-git clone https://github.com/Kernel-Panic92/docflow.git
-cd docflow
+git clone <repo-url>
+cd proveedores
 
 # Install dependencies
 npm install
@@ -282,5 +282,5 @@ pm2 start src/server.js --name docflow
 ```
 
 ## Acceso inicial
-- Email: admin@docflow.com
+- Email: admin@synnoxerp.local
 - Password: (configurado en .env o durante setup)

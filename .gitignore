@@ -19,10 +19,10 @@ wordpress-mcp/package-lock.json
 # DB
 launcher/launcher.db
 launcher/backups/
-modules/horix/horas_extra.db
-modules/horix/backups/
-modules/docflow/backups/
-modules/logistics/.env
-modules/logistics/backups/
-modules/docflow/.env
-modules/docflow/backups/
+modules/nomina/horas_extra.db
+modules/nomina/backups/
+modules/proveedores/backups/
+modules/logistica/.env
+modules/logistica/backups/
+modules/proveedores/.env
+modules/proveedores/backups/

@@ -23,7 +23,7 @@ const config = {
   smtpFromName: '',
   serverPort: 3002,
   installDir: '/opt/synnoxerp',
-  repoUrl: 'https://github.com/Kernel-Panic92/synnox-erp.git',
+  repoUrl: 'https://github.com/synnoxerp/synnox-erp.git',
   modules: ['proveedores', 'logistica'],
   clean: false,
   runSeeds: true,
@@ -153,7 +153,7 @@ nextStep = function() {
   if (currentStep === 4) {
     config.serverPort = parseInt(document.getElementById('server-port').value) || 3002;
     config.installDir = document.getElementById('install-dir').value.trim() || '/opt/synnoxerp';
-    config.repoUrl = document.getElementById('repo-url').value.trim() || 'https://github.com/Kernel-Panic92/synnox-erp.git';
+    config.repoUrl = document.getElementById('repo-url').value.trim() || 'https://github.com/synnoxerp/synnox-erp.git';
     config.runSeeds = document.getElementById('seed-demo').checked;
   }
   if (currentStep === 5) {

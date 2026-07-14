@@ -1,4 +1,4 @@
-// security.js - Security & Rate-Limit module for Horix
+// security.js - Security & Rate-Limit module
 
 async function cargarSeguridadStatus() {
   const loadingEl  = document.getElementById('sec-bloqueadas-loading');

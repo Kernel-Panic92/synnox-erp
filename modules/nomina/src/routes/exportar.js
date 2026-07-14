@@ -56,7 +56,7 @@ module.exports = function({ db, ExcelJS, getConfig, enviarCorreo, rolTienePermis
       ];
 
       const wb = new ExcelJS.Workbook();
-      wb.creator = 'Horix';
+      wb.creator = process.env.APP_NAME || 'Nómina';
       const ws = wb.addWorksheet('Novedades');
       const headerRow = ws.addRow(headers);
       headerRow.eachCell((cell) => { cell.font = { bold: true, size: 11, name: 'Calibri' }; cell.alignment = { horizontal: 'center', vertical: 'center', wrapText: true }; });
@@ -117,7 +117,7 @@ module.exports = function({ db, ExcelJS, getConfig, enviarCorreo, rolTienePermis
       if (!rows.length) return res.status(404).json({ error: 'No hay datos para exportar' });
 
       const wb = new ExcelJS.Workbook();
-      wb.creator = 'Horix';
+      wb.creator = process.env.APP_NAME || 'Nómina';
       const ws = wb.addWorksheet('Reporte Novedades');
 
       const columns = [

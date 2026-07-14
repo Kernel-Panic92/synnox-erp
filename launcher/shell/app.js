@@ -1188,7 +1188,7 @@ async function loadNginx() {
     if (data.actual) {
       statusEl.innerHTML = '<span style="color:var(--success);font-size:13px;">✓ Configuración actual coincide con la generada</span>';
     } else if (data.actual === '') {
-      statusEl.innerHTML = '<span style="color:var(--muted);font-size:13px;">No hay archivo nginx en /etc/nginx/sites-available/horix-erp</span>';
+      statusEl.innerHTML = '<span style="color:var(--muted);font-size:13px;">No hay archivo nginx en /etc/nginx/sites-available/synnoxerp</span>';
     } else {
       statusEl.innerHTML = '<span style="color:var(--warning);font-size:13px;">⚠ La configuración actual difiere de la generada</span>';
     }
@@ -1481,7 +1481,7 @@ function previewGrad() {
   gradColors = { c1: c[0], c2: c[1], c3: c[2] };
   updateSliderVals(c[0], c[1], c[2]);
   applyGradients(c[0], c[1], c[2]);
-  localStorage.setItem('horix_grad', JSON.stringify({ c1: c[0], c2: c[1], c3: c[2] }));
+  localStorage.setItem('app_grad', JSON.stringify({ c1: c[0], c2: c[1], c3: c[2] }));
 }
 
 async function loadGradConfig() {
@@ -1497,7 +1497,7 @@ async function loadGradConfig() {
   } catch (e) { console.error('grad fetch fail', e); }
   if (!c1) {
     try {
-      var saved = localStorage.getItem('horix_grad');
+      var saved = localStorage.getItem('app_grad');
       if (saved) { var p = JSON.parse(saved); if (p.c1) { c1 = p.c1; c2 = p.c2; c3 = p.c3; } }
     } catch (e) {}
   }
@@ -1527,7 +1527,7 @@ async function saveGradConfig() {
     document.getElementById('grad-result').innerHTML = data.ok
       ? '<span style="color:var(--success);">\u2705 Colores guardados</span>'
       : '<span style="color:var(--danger);">\u274c Error al guardar</span>';
-    if (data.ok) localStorage.setItem('horix_grad', JSON.stringify({ c1: c[0], c2: c[1], c3: c[2] }));
+    if (data.ok) localStorage.setItem('app_grad', JSON.stringify({ c1: c[0], c2: c[1], c3: c[2] }));
   } catch (e) {
     document.getElementById('grad-result').innerHTML = '<span style="color:var(--danger);">\u274c ' + e.message + '</span>';
   } finally {

@@ -1,4 +1,4 @@
-// backup.js - Backup and restore views for DocFlow
+// backup.js - Backup and restore views
 
 async function rBackup(){
   $('content').innerHTML=`
@@ -43,7 +43,7 @@ async function rBackup(){
         <div style="border-top:1px solid var(--border);padding-top:20px;">
           <div style="font-size:13px;font-weight:600;margin-bottom:10px;">📂 Restaurar desde Archivo</div>
           <p style="color:var(--muted);font-size:12px;margin-bottom:14px;line-height:1.6;">
-            Sube un <strong style="color:var(--text)">.zip</strong> generado por DocFlow.
+            Sube un <strong style="color:var(--text)">.zip</strong> generado por el sistema.
           </p>
           <div id="restore-drop" onclick="document.getElementById('restore-file').click()"
             style="border:2px dashed var(--border);border-radius:12px;padding:24px;text-align:center;cursor:pointer;margin-bottom:12px;transition:border-color 0.2s;"

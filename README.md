@@ -27,8 +27,8 @@ Plataforma ERP modular con arquitectura monorepo unificado. Un solo servidor, tr
 ## Instalación rápida
 
 ```bash
-git clone -b refactor/monorepo-auth https://github.com/Kernel-Panic92/horix-erp.git
-cd horix-erp
+git clone -b main https://github.com/synnoxerp/synnox-erp.git
+cd synnox-erp
 sudo bash install.sh
 ```
 

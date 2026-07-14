@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import pool from '../config/db.js';
 
 const NOMINATIM_URL = 'https://nominatim.openstreetmap.org';
-const USER_AGENT = 'HorixLogistics/1.0 (vitamar)';
+const USER_AGENT = 'SynnoxERP-Logistics/1.0';
 let ultimaSolicitud = 0;
 
 function esperarMs(ms) {

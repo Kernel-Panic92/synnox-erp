@@ -1,4 +1,4 @@
-/* ── Horix Framework - Components (buttons, cards, tables, forms, modals, badges, etc.) ── */
+/* ── SynnoxERP Framework - Components (buttons, cards, tables, forms, modals, badges, etc.) ── */
 
 /* ── Buttons ── */
 button, .btn {
@@ -92,7 +92,7 @@ button, .btn {
 .drop-zone p { color: var(--muted); font-size: 14px; }
 .drop-zone .filename { color: var(--accent); font-weight: 600; margin-top: 6px; display: none; }
 
-/* ── Client card grid (Horix style) ── */
+/* ── Client card grid ── */
 .cli-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 14px; }
 .cli-card { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; padding: 18px; transition: border-color .2s; }
 .cli-card:hover { border-color: var(--accent); }

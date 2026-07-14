@@ -3,7 +3,7 @@
 ## Pendientes / Known Issues
 
 ### Medios
-- [ ] **URLs hardcodeadas** - La dirección `horixvitamar.fortiddns.com` está hardcoded en múltiples lugares para emails
+- [x] **URLs hardcodeadas** - Direcciones hardcoded reemplazadas por variables de entorno
 - [ ] **CORS permisivo** - `server.js:21` usa `cors()` sin restricciones (acepta cualquier origen)
 
 ### Bajos

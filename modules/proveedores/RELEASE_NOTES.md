@@ -1,4 +1,4 @@
-# DocFlow v1.1.5
+# Módulo Proveedores v1.1.5
 
 ## Novedades de esta versión
 - Panel de configuración completo con 8 pestañas: General, IMAP, SMTP, Tiempos, Seguridad, Backups, Tareas, Actualizar
@@ -31,14 +31,14 @@
 
 ## Instalación
 ```bash
-git clone https://github.com/Kernel-Panic92/docflow.git
-cd docflow
+git clone <repo-url>
+cd proveedores
 npm install
 cp .env.example .env
 npm run migrate
-pm2 start src/server.js --name docflow
+pm2 start src/server.js --name proveedores
 ```
 
 ## Credenciales por defecto
-- Email: admin@docflow.com
-- Password: docflow2025
+- Email: admin@synnoxerp.local
+- Password: synnox2025

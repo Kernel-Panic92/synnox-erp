@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════
-#  install.sh — Instalador automático de Horix v2.5.0
+#  install.sh — Instalador automático de SynnoxERP v2.5.0
 #
 #  Uso:
 #    chmod +x install.sh
@@ -19,7 +19,7 @@ INSTALL_DIR="$(pwd)"
 
 echo ""
 echo -e "${AZUL}══════════════════════════════════════════════${RESET}"
-echo -e "${AZUL}   Horix — Instalador v2.5.0${RESET}"
+echo -e "${AZUL}   SynnoxERP — Instalador v2.5.0${RESET}"
 echo -e "${AZUL}   Sistema de Control de Horas Extra${RESET}"
 echo -e "${AZUL}══════════════════════════════════════════════${RESET}"
 echo ""
@@ -118,7 +118,7 @@ fi
 ok ".backup_token creado"
 
 # ── 7. Carpeta de backups
-BACKUP_LOCAL="$HOME/backups/horix"
+BACKUP_LOCAL="$HOME/backups/nomina"
 mkdir -p "$BACKUP_LOCAL"
 ok "Carpeta de backups: $BACKUP_LOCAL"
 
@@ -134,8 +134,8 @@ if [[ "$CONF_NAS" =~ ^[Ss]$ ]]; then
   read -p "  IP/ruta del share (ej: //192.168.1.10/Backups): " SMB_SERVER
   read -p "  Usuario del NAS: " SMB_USER
   read -s -p "  Contraseña del NAS: " SMB_PASS; echo ""
-  read -p "  Subcarpeta en el NAS [Horix_Backups]: " NAS_SUB
-  NAS_SUB=${NAS_SUB:-"Horix_Backups"}
+  read -p "  Subcarpeta en el NAS [Nomina_Backups]: " NAS_SUB
+  NAS_SUB=${NAS_SUB:-"Nomina_Backups"}
   BACKUP_RED="$SMB_MOUNT/$NAS_SUB"
   ok "NAS configurado: $SMB_SERVER"
 fi
@@ -158,7 +158,7 @@ fi
 
 # ── 9. PM2
 info "Iniciando con PM2..."
-if pm2 list | grep -q "horix"; then pm2 restart horix; else pm2 start server.js --name "horix"; fi
+if pm2 list | grep -q "synnox-nomina"; then pm2 restart synnox-nomina; else pm2 start server.js --name "synnox-nomina"; fi
 pm2 save
 pm2 startup | tail -1 | bash 2>/dev/null || warn "Ejecuta manualmente: pm2 startup"
 ok "Aplicación en PM2"
@@ -168,7 +168,7 @@ echo ""
 read -p "  ¿Configurar backup automático diario a las 2 AM? [s/N]: " CONF_CRON
 if [[ "$CONF_CRON" =~ ^[Ss]$ ]]; then
   chmod +x "$INSTALL_DIR/backup_horasextra.sh"
-  CRON_LINE="0 2 * * * $INSTALL_DIR/backup_horasextra.sh >> /var/log/backup_horix.log 2>&1"
+  CRON_LINE="0 2 * * * $INSTALL_DIR/backup_horasextra.sh >> /var/log/backup_nomina.log 2>&1"
   (sudo crontab -l 2>/dev/null | grep -v "backup_horasextra"; echo "$CRON_LINE") | sudo crontab -
   ok "Cron configurado"
 fi
@@ -188,7 +188,7 @@ if [[ "$CONF_HTTPS" =~ ^[Ss]$ ]]; then
   fi
   ok "Nginx: $(nginx -v 2>&1)"
 
-  read -p "  Dominio del servidor (ej: horix.empresa.local): " HTTPS_DOMAIN
+  read -p "  Dominio del servidor (ej: nomina.empresa.local): " HTTPS_DOMAIN
   while [[ -z "$HTTPS_DOMAIN" ]]; do
     warn "El dominio es requerido."
     read -p "  Dominio: " HTTPS_DOMAIN
@@ -204,7 +204,7 @@ if [[ "$CONF_HTTPS" =~ ^[Ss]$ ]]; then
   read -p "  Selecciona [1/2]: " CERT_TIPO
   CERT_TIPO=${CERT_TIPO:-1}
 
-  NGINX_CONF="/etc/nginx/sites-available/horix"
+  NGINX_CONF="/etc/nginx/sites-available/synnox-nomina"
 
   if [[ "$CERT_TIPO" == "2" ]]; then
     # ── Let's Encrypt
@@ -222,14 +222,14 @@ if [[ "$CONF_HTTPS" =~ ^[Ss]$ ]]; then
     fi
 
     # Nginx debe escuchar en 80 para la validación
-    sudo tee /etc/nginx/sites-available/horix-certbot > /dev/null << CERTEOF
+    sudo tee /etc/nginx/sites-available/synnox-nomina-certbot > /dev/null << CERTEOF
 server {
     listen 80;
     server_name $HTTPS_DOMAIN;
     location / { return 200 'ok'; }
 }
 CERTEOF
-    sudo ln -sf /etc/nginx/sites-available/horix-certbot /etc/nginx/sites-enabled/horix-certbot
+    sudo ln -sf /etc/nginx/sites-available/synnox-nomina-certbot /etc/nginx/sites-enabled/synnox-nomina-certbot
     sudo rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
     sudo systemctl restart nginx
 
@@ -238,7 +238,7 @@ CERTEOF
     sudo certbot certonly --nginx -d "$HTTPS_DOMAIN" --non-interactive --agree-tos -m "$CERTBOT_EMAIL" || \
       err "Certbot falló. Verifica que el dominio resuelva a esta IP y los puertos 80/443 estén abiertos."
 
-    sudo rm -f /etc/nginx/sites-enabled/horix-certbot
+    sudo rm -f /etc/nginx/sites-enabled/synnox-nomina-certbot
     SSL_CERT="/etc/letsencrypt/live/$HTTPS_DOMAIN/fullchain.pem"
     SSL_KEY="/etc/letsencrypt/live/$HTTPS_DOMAIN/privkey.pem"
     ok "Certificado Let's Encrypt obtenido"
@@ -247,19 +247,19 @@ CERTEOF
 
   else
     # ── Autofirmado
-    CERT_DIR="/etc/ssl/horix"
+    CERT_DIR="/etc/ssl/synnox-nomina"
     info "Generando certificado SSL autofirmado (válido 10 años)..."
     sudo mkdir -p "$CERT_DIR"
     sudo openssl req -x509 -nodes -days 3650 -newkey rsa:2048 \
       -keyout "$CERT_DIR/key.pem" \
       -out    "$CERT_DIR/cert.pem" \
-      -subj "/C=CO/ST=Antioquia/L=Medellin/O=Horix/CN=$HTTPS_DOMAIN" \
+      -subj "/C=CO/ST=Antioquia/L=Medellin/O=SynnoxERP/CN=$HTTPS_DOMAIN" \
       -addext "subjectAltName=DNS:$HTTPS_DOMAIN,DNS:localhost,IP:127.0.0.1" 2>/dev/null
     sudo chmod 600 "$CERT_DIR/key.pem"
     sudo chmod 644 "$CERT_DIR/cert.pem"
     SSL_CERT="$CERT_DIR/cert.pem"
     SSL_KEY="$CERT_DIR/key.pem"
-    CERT_EXPORT="$HOME/horix_cert.crt"
+    CERT_EXPORT="$HOME/synnox-nomina_cert.crt"
     sudo cp "$CERT_DIR/cert.pem" "$CERT_EXPORT"
     sudo chown "$USER" "$CERT_EXPORT"
     ok "Certificado autofirmado generado → $CERT_EXPORT"
@@ -308,7 +308,7 @@ server {
 }
 NGINXEOF
 
-  sudo ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/horix
+  sudo ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/synnox-nomina
   sudo rm -f /etc/nginx/sites-enabled/default 2>/dev/null || true
   sudo nginx -t || err "Error en configuración de Nginx"
   sudo systemctl restart nginx
@@ -342,17 +342,17 @@ if [[ "$CONF_F2B" =~ ^[Ss]$ ]]; then
     warn "Si Nginx no está activo, los intentos fallidos no serán detectados."
   fi
 
-  sudo tee /etc/fail2ban/filter.d/horix-login.conf > /dev/null << 'F2BFILTER'
+  sudo tee /etc/fail2ban/filter.d/synnox-nomina-login.conf > /dev/null << 'F2BFILTER'
 [Definition]
 failregex = ^<HOST> .* "POST /api/auth/login HTTP.*" 401
 ignoreregex =
 F2BFILTER
 
-  sudo tee /etc/fail2ban/jail.d/horix.conf > /dev/null << F2BJAIL
-[horix-login]
+  sudo tee /etc/fail2ban/jail.d/synnox-nomina.conf > /dev/null << F2BJAIL
+[synnox-nomina-login]
 enabled   = false
 port      = $F2B_PORT,80,443
-filter    = horix-login
+filter    = synnox-nomina-login
 logpath   = $NGINX_LOG
 backend   = polling
 maxretry  = 5
@@ -365,15 +365,15 @@ F2BJAIL
   sudo systemctl restart fail2ban
   ok "Fail2ban activo en puerto $F2B_PORT"
   info "Comandos útiles de Fail2ban:"
-  echo -e "    sudo fail2ban-client status horix-login"
-  echo -e "    sudo fail2ban-client set horix-login unbanip <IP>"
+  echo -e "    sudo fail2ban-client status synnox-nomina-login"
+  echo -e "    sudo fail2ban-client set synnox-nomina-login unbanip <IP>"
 fi
 
 # Configurar sudoers para mount NAS (independiente de Fail2ban)
 if [[ "$USAR_NAS" == "true" ]]; then
   echo "$USER ALL=(ALL) NOPASSWD: /bin/mount, /bin/umount, /usr/bin/mkdir, /bin/mkdir" | \
-    sudo tee /etc/sudoers.d/horix-mount > /dev/null
-  sudo chmod 440 /etc/sudoers.d/horix-mount
+    sudo tee /etc/sudoers.d/synnox-nomina-mount > /dev/null
+  sudo chmod 440 /etc/sudoers.d/synnox-nomina-mount
   ok "Permisos sudo para mount configurados"
 fi
 
@@ -381,7 +381,7 @@ fi
 SERVER_IP=$(hostname -I | awk '{print $1}')
 echo ""
 echo -e "${VERDE}══════════════════════════════════════════════${RESET}"
-echo -e "${VERDE}  ✅ Horix v2.5.0 instalado correctamente${RESET}"
+echo -e "${VERDE}  ✅ SynnoxERP v2.5.0 instalado correctamente${RESET}"
 echo -e "${VERDE}══════════════════════════════════════════════${RESET}"
 echo ""
 echo -e "  🏢 Empresa:  $EMPRESA"
@@ -399,9 +399,9 @@ echo ""
 echo -e "${AMARILLO}  ⚠ Configura el SMTP en Configuración → Config. Correo.${RESET}"
 RAMA=$(git branch --show-current 2>/dev/null || echo "desconocida")
 echo -e "  🌿 Rama:     $RAMA"
-[[ "$CERT_TIPO" == "1" && -n "$HTTPS_URL" ]] && echo -e "${AMARILLO}  ⚠ Instala el certificado ~/horix_cert.crt en los equipos clientes.${RESET}"
+[[ "$CERT_TIPO" == "1" && -n "$HTTPS_URL" ]] && echo -e "${AMARILLO}  ⚠ Instala el certificado ~/synnox-nomina_cert.crt en los equipos clientes.${RESET}"
 [[ "$CERT_TIPO" == "1" && -n "$HTTPS_URL" ]] && echo -e "${AMARILLO}  ⚠ Agrega al DNS interno: $SERVER_IP  $HTTPS_DOMAIN${RESET}"
 echo ""
-echo -e "  pm2 logs horix      # Ver logs"
-echo -e "  pm2 restart horix   # Reiniciar"
+echo -e "  pm2 logs synnox-nomina      # Ver logs"
+echo -e "  pm2 restart synnox-nomina   # Reiniciar"
 echo ""

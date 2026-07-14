@@ -36,8 +36,9 @@ module.exports = function createConfiguracionRouter({ db, getConfig, encryptSmtp
 
   router.post('/test', soloAdmin, async (req, res) => {
     try {
-      await enviarCorreo(req.usuario.email, 'Prueba SMTP — Horix',
-        `Hola ${req.usuario.nombre},\n\nEsta es una prueba de conexión SMTP desde Horix.\n\nSi recibes este mensaje, la configuración es correcta ✓\n\nSaludos,\nEquipo HORIX`);
+      const APP_NAME = process.env.APP_NAME || 'Nómina';
+      await enviarCorreo(req.usuario.email, `Prueba SMTP — ${APP_NAME}`,
+        `Hola ${req.usuario.nombre},\n\nEsta es una prueba de conexión SMTP desde ${APP_NAME}.\n\nSi recibes este mensaje, la configuración es correcta ✓\n\nSaludos,\nEquipo ${APP_NAME}`);
       res.json({ ok: true });
     } catch (e) {
       console.error('Error prueba SMTP:', e.message);

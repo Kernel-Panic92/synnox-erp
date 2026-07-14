@@ -36,7 +36,7 @@ Object.entries(roleCounts).forEach(([role, count]) => {
     users.push({
       id: uid(),
       nombre: `${fn} ${ln}`,
-      email: `${role}${i + 1}@horix.demo`,
+      email: `${role}${i + 1}@ejemplo.com`,
       password: hashPassword('Demo123*'),
       rol: role,
       sede,
@@ -196,7 +196,7 @@ try {
   console.log('\n✅ Datos de demostración cargados exitosamente!\n');
   console.log('📋 Credenciales de acceso (todas usan password: Demo123*):');
   users.forEach(u => console.log(`   ${u.rol.padEnd(12)} ${u.email}`));
-  console.log('\n   Ejemplo: admin1@horix.demo / Demo123*\n');
+  console.log('\n   Ejemplo: admin1@ejemplo.com / Demo123*\n');
 
 } catch (err) {
   console.error('❌ Error al cargar datos:', err.message);

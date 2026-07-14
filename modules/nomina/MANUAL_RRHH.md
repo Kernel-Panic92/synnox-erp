@@ -1,4 +1,4 @@
-# Manual de RRHH — Horix
+# Manual de RRHH — SynnoxERP
 
 > Sistema de Gestión de Horas Extras y Novedades de Nómina
 
@@ -6,7 +6,7 @@
 
 ## 1. Inicio de Sesión
 
-1. Abre el navegador y ve a la URL de Horix
+1. Abre el navegador y ve a la URL del sistema
 2. Ingresa tu **correo electrónico** y **contraseña** asignados por el administrador
 3. Haz clic en **"Iniciar Sesión"**
 
@@ -305,7 +305,7 @@ Haz clic en **⎋** en el sidebar (parte inferior) y confirma.
 
 ---
 
-*Documento generado para Horix v2.10.0*
+*Documento generado para SynnoxERP v2.10.0*
 © 2026 Edgar Velasquez
-github.com/Kernel-Panic92/Horix
+github.com/Kernel-Panic92/synnox-erp
 Todos los derechos reservados

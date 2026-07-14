@@ -1,8 +1,8 @@
-# 📦 Horix Logistics - Resumen Ejecutivo
+# 📦 SynnoxERP Logistics - Resumen Ejecutivo
 
 ## ¿Qué es?
 
-Un **módulo completo de optimización de rutas y logística** para Vitamar, diseñado para integrarse con tu arquitectura actual de **Horix ERP**. Maneja importación de datos de **SIESA** y **Widetech**, optimiza rutas automáticamente, y expone una API REST lista para usar.
+Módulo completo de optimización de rutas y logística. Maneja importación de datos de **SIESA** y **Widetech**, optimiza rutas automáticamente, y expone una API REST lista para usar.
 
 ## ✅ Lo que ya tienes
 
@@ -34,9 +34,9 @@ Un **módulo completo de optimización de rutas y logística** para Vitamar, dis
 
 ### 1. Copiar archivos
 ```bash
-cd /ruta/donde/está/horix-docflow
-git clone <tu-repo> horix-logistics
-cd horix-logistics
+cd /ruta/de/aplicaciones
+git clone <tu-repo> synnox-logistics
+cd synnox-logistics
 ```
 
 ### 2. Instalar
@@ -159,7 +159,7 @@ logistics.importaciones     → Log de imports
 Host: localhost
 Puerto: 5433 (o el tuyo)
 Usuario: postgres
-BD: vitamar_logistics
+BD: synnox_logistics
 ```
 
 ---
@@ -202,7 +202,7 @@ DB_USER=postgres
 DB_PASSWORD=tu_password
 DB_HOST=localhost
 DB_PORT=5433
-DB_NAME=vitamar_logistics
+DB_NAME=synnox_logistics
 
 # Servidor
 PORT=3004
@@ -257,7 +257,7 @@ curl http://localhost:3004/api/rutas?fecha=2024-06-16
 ## 📁 Estructura de archivos
 
 ```
-horix-logistics/
+synnox-logistics/
 ├── README.md                      (Doc. técnica completa)
 ├── QUICK_START.md                 (Inicio rápido)
 ├── package.json                   (Dependencias)
@@ -318,7 +318,7 @@ frontend/                          (React - próximamente)
 psql -U postgres -l
 
 # Crear BD si no existe
-createdb -U postgres vitamar_logistics
+createdb -U postgres synnox_logistics
 ```
 
 ### Error: "OSRM no responde"

@@ -1,4 +1,4 @@
-// modals.js - Modal management for DocFlow
+// modals.js - Modal management
 // Extracted from public/app.js
 
 function showM(title,body,w=560){

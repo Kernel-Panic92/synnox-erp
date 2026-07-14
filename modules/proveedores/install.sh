@@ -1,6 +1,6 @@
 #!/bin/bash
 # ═══════════════════════════════════════════════════════════════
-#  install.sh — Instalador automático de DocFlow v1.1.7
+#  install.sh — Instalador automático del módulo Proveedores
 #
 #  Uso:
 #    chmod +x install.sh
@@ -20,8 +20,8 @@ VERSION=$(node -e "console.log(require('$INSTALL_DIR/package.json').version)" 2>
 
 echo ""
 echo -e "${AZUL}══════════════════════════════════════════════${RESET}"
-echo -e "${AZUL}   DocFlow — Instalador v${VERSION}${RESET}"
-echo -e "${AZUL}   Sistema de Gestión Documental${RESET}"
+echo -e "${AZUL}   Proveedores — Instalador v${VERSION}${RESET}"
+echo -e "${AZUL}   Módulo de gestión de facturas${RESET}"
 echo -e "${AZUL}══════════════════════════════════════════════${RESET}"
 echo ""
 
@@ -40,7 +40,7 @@ if [[ "$INSTALL_DIR" == /mnt/* ]]; then
   warn "Ejecutando desde filesystem de Windows (WSL)."
   warn "Copiando a carpeta de Linux..."
   
-  NEW_DIR="$HOME/docflow"
+  NEW_DIR="$HOME/proveedores"
   if [[ -d "$NEW_DIR" ]]; then
     warn "Ya existe $NEW_DIR. Usando ese directorio."
     cd "$NEW_DIR"
@@ -144,8 +144,8 @@ echo -e "${AZUL}── Configuración general ───────────�
 read -p "  Puerto del servidor [3100]: " PUERTO
 PUERTO=${PUERTO:-3100}
 
-read -p "  Nombre de la empresa [DocFlow]: " EMPRESA
-EMPRESA=${EMPRESA:-"DocFlow"}
+  read -p "  Nombre de la empresa [${COMPANY_NAME:-SynnoxERP}]: " EMPRESA
+EMPRESA=${EMPRESA:-${COMPANY_NAME:-"SynnoxERP"}}
 
 # ── 6. Base de datos ──────────────────────────────────────────
 echo ""
@@ -157,8 +157,8 @@ DB_HOST=${DB_HOST:-"localhost"}
 read -p "  Puerto de PostgreSQL [5432]: " DB_PORT
 DB_PORT=${DB_PORT:-"5432"}
 
-read -p "  Nombre de la base de datos [docflow]: " DB_NAME
-DB_NAME=${DB_NAME:-"docflow"}
+read -p "  Nombre de la base de datos [proveedores]: " DB_NAME
+DB_NAME=${DB_NAME:-"proveedores"}
 
 read -p "  Usuario de PostgreSQL [postgres]: " DB_USER
 DB_USER=${DB_USER:-"postgres"}
@@ -219,13 +219,13 @@ read -p "  ¿Configurar FortiMail ahora? [s/N]: " CONF_IMAP
 IMAP_HOST="" IMAP_PORT="993" IMAP_USER="" IMAP_PASSWORD="" IMAP_TLS="true" IMAP_POLL="5"
 
 if [[ "$CONF_IMAP" =~ ^[Ss]$ ]]; then
-  read -p "  Host FortiMail (ej: mail.docflow.com): " IMAP_HOST
+  read -p "  Host FortiMail (ej: mail.ejemplo.com): " IMAP_HOST
   [[ -z "$IMAP_HOST" ]] && err "El host de FortiMail es requerido."
 
   read -p "  Puerto IMAP [993]: " IMAP_PORT
   IMAP_PORT=${IMAP_PORT:-"993"}
 
-  read -p "  Correo de facturas (ej: facturas@docflow.com): " IMAP_USER
+  read -p "  Correo de facturas (ej: facturas@ejemplo.com): " IMAP_USER
   [[ -z "$IMAP_USER" ]] && err "El correo es requerido."
 
   read -s -p "  Contraseña del correo: " IMAP_PASSWORD
@@ -246,13 +246,13 @@ read -p "  ¿Configurar correo saliente para notificaciones? [s/N]: " CONF_SMTP
 SMTP_HOST="" SMTP_PORT="587" SMTP_USER="" SMTP_PASSWORD="" SMTP_FROM=""
 
 if [[ "$CONF_SMTP" =~ ^[Ss]$ ]]; then
-  read -p "  Host SMTP (ej: mail.docflow.com): " SMTP_HOST
+  read -p "  Host SMTP (ej: mail.ejemplo.com): " SMTP_HOST
   read -p "  Puerto SMTP [587]: " SMTP_PORT
   SMTP_PORT=${SMTP_PORT:-"587"}
   read -p "  Usuario SMTP: " SMTP_USER
   read -s -p "  Contraseña SMTP: " SMTP_PASSWORD; echo ""
-  read -p "  Nombre remitente [DocFlow Docs]: " SMTP_FROM_NAME
-  SMTP_FROM_NAME=${SMTP_FROM_NAME:-"DocFlow Docs"}
+  read -p "  Nombre remitente [SynnoxERP]: " SMTP_FROM_NAME
+  SMTP_FROM_NAME=${SMTP_FROM_NAME:-"SynnoxERP"}
   SMTP_FROM="$SMTP_FROM_NAME <$SMTP_USER>"
   ok "SMTP configurado: $SMTP_HOST:$SMTP_PORT"
 else
@@ -368,8 +368,8 @@ if [[ "$CONF_NAS" =~ ^[Ss]$ ]]; then
   read -p "  IP/ruta del share (ej: //192.168.1.10/Backups): " SMB_SERVER
   read -p "  Usuario del NAS: " SMB_USER
   read -s -p "  Contraseña del NAS: " SMB_PASS; echo ""
-  read -p "  Subcarpeta en el NAS [DocFlowDocs_Backups]: " NAS_SUB
-  NAS_SUB=${NAS_SUB:-"DocFlowDocs_Backups"}
+  read -p "  Subcarpeta en el NAS [Proveedores_Backups]: " NAS_SUB
+  NAS_SUB=${NAS_SUB:-"Proveedores_Backups"}
   BACKUP_RED="$SMB_MOUNT/$NAS_SUB"
   ok "NAS configurado: $SMB_SERVER"
 fi
@@ -378,7 +378,7 @@ fi
 info "Generando script de backup..."
 cat > "$INSTALL_DIR/backup.sh" << BACKUPEOF
 #!/bin/bash
-# ── Backup automático DocFlow ──────────────────────────────
+# ── Backup automático Proveedores ──────────────────────────
 set -e
 TIMESTAMP=\$(date +%Y%m%d_%H%M%S)
 BACKUP_LOCAL="$BACKUP_LOCAL"
@@ -447,7 +447,7 @@ fi
 
 # ── 15. PM2 ───────────────────────────────────────────────────
 echo ""
-info "Iniciando DocFlow con PM2..."
+info "Iniciando módulo Proveedores con PM2..."
 
 # Generar ecosystem.config.js
 cat > "$INSTALL_DIR/ecosystem.config.js" << PM2EOF
@@ -528,7 +528,7 @@ if [[ "$CONF_HTTPS" =~ ^[Ss]$ ]]; then
   fi
   ok "Nginx: $(nginx -v 2>&1)"
 
-  read -p "  Dominio del servidor (ej: docs.docflow.com): " HTTPS_DOMAIN
+  read -p "  Dominio del servidor (ej: ejemplo.com): " HTTPS_DOMAIN
   while [[ -z "$HTTPS_DOMAIN" ]]; do
     warn "El dominio es requerido."
     read -p "  Dominio: " HTTPS_DOMAIN
@@ -723,7 +723,7 @@ RAMA=$(git -C "$INSTALL_DIR" branch --show-current 2>/dev/null || echo "—")
 
 echo ""
 echo -e "${VERDE}══════════════════════════════════════════════${RESET}"
-echo -e "${VERDE}  ✅ DocFlow v${VERSION} instalado correctamente${RESET}"
+echo -e "${VERDE}  ✅ Proveedores v${VERSION} instalado correctamente${RESET}"
 echo -e "${VERDE}══════════════════════════════════════════════${RESET}"
 echo ""
 echo -e "  🏢 Empresa:    $EMPRESA"
@@ -732,13 +732,13 @@ echo -e "  🌐 HTTP:       http://$SERVER_IP:$PUERTO"
 echo -e "  🗄️  Base datos: $DB_NAME @ $DB_HOST:$DB_PORT"
 [[ -n "$IMAP_USER" ]] && echo -e "  📧 FortiMail:  $IMAP_USER (cada ${IMAP_POLL}min)"
 echo ""
-echo "  ╔══════════════════════════════════════╗"
-echo "  ║     CREDENCIALES POR DEFECTO         ║"
-echo "  ║  Usuario: admin@docflow.com          ║"
-echo "  ║  Password: docflow2025               ║"
-echo "  ║  ⚠  Cambia la contraseña            ║"
-echo "  ║     tras el primer login             ║"
-echo "  ╚══════════════════════════════════════╝"
+  echo "  ╔══════════════════════════════════════╗"
+  echo "  ║     CREDENCIALES POR DEFECTO         ║"
+  echo "  ║  Usuario: admin@synnoxerp.local      ║"
+  echo "  ║  Password: synnox2025                ║"
+  echo "  ║  ⚠  Cambia la contraseña            ║"
+  echo "  ║     tras el primer login             ║"
+  echo "  ╚══════════════════════════════════════╝"
 echo ""
 echo -e "${AMARILLO}  ⚠  Escalación nivel 1: sin acción en ${HORAS_ESC1}h → jefe del área${RESET}"
 echo -e "${AMARILLO}  ⚠  Escalación nivel 2: sin acción en $((HORAS_ESC1 + HORAS_ESC2))h → gerencia${RESET}"

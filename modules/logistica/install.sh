@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 
-# ── Horix Logistics - Instalador ──
+# ── SynnoxERP Logistics - Instalador ──
 # Uso: sudo ./install.sh
 
 ROJO='\033[0;31m'; VERDE='\033[0;32m'; AMARILLO='\033[1;33m'; AZUL='\033[0;34m'; NC='\033[0m'
@@ -17,7 +17,7 @@ cd "$INSTALL_DIR"
 
 echo ""
 info "============================================"
-info "  Horix Logistics - Instalación"
+info "  SynnoxERP Logistics - Instalación"
 info "============================================"
 echo ""
 
@@ -61,8 +61,8 @@ if [ ! -f .env ]; then
   [ -z "$DB_PORT" ] && DB_PORT=5432
   sed -i "s/^DB_PORT=.*/DB_PORT=$DB_PORT/" .env
 
-  read -p "Nombre BD [vitamar_logistics]: " DB_NAME
-  [ -z "$DB_NAME" ] && DB_NAME=vitamar_logistics
+  read -p "Nombre BD [synnox_logistics]: " DB_NAME
+  [ -z "$DB_NAME" ] && DB_NAME=synnox_logistics
   sed -i "s/^DB_NAME=.*/DB_NAME=$DB_NAME/" .env
 
   read -p "Usuario BD [postgres]: " DB_USER
@@ -72,8 +72,8 @@ if [ ! -f .env ]; then
   read -s -p "Contraseña BD: " DB_PASS; echo ""
   sed -i "s/^DB_PASSWORD=.*/DB_PASSWORD=$DB_PASS/" .env
 
-  read -p "Email admin [admin@vitamar.com]: " ADMIN_EMAIL
-  [ -z "$ADMIN_EMAIL" ] && ADMIN_EMAIL=admin@vitamar.com
+  read -p "Email admin [admin@localhost]: " ADMIN_EMAIL
+  [ -z "$ADMIN_EMAIL" ] && ADMIN_EMAIL=admin@localhost
   sed -i "s/^ADMIN_EMAIL=.*/ADMIN_EMAIL=$ADMIN_EMAIL/" .env
 
   read -s -p "Contraseña admin [admin123]: " ADMIN_PASS; echo ""

@@ -6,7 +6,7 @@ let _sqlite = null;
 
 function getSQLite(dbPath) {
   if (!_sqlite) {
-    _sqlite = new Database(dbPath || path.join(__dirname, '..', 'data', 'horix.db'));
+    _sqlite = new Database(dbPath || path.join(__dirname, '..', 'data', 'synnox.db'));
     _sqlite.pragma('journal_mode = WAL');
   }
   return _sqlite;
@@ -15,7 +15,7 @@ function getSQLite(dbPath) {
 const pg = new Pool({
   host: process.env.PGHOST || 'localhost',
   port: parseInt(process.env.PGPORT || '5432'),
-  database: process.env.PGDATABASE || 'horix_erp',
+  database: process.env.PGDATABASE || 'synnox_erp',
   user: process.env.PGUSER || 'postgres',
   password: process.env.PGPASSWORD || '',
   max: 20,

@@ -1,4 +1,4 @@
-// import.js - CSV Import module for Horix
+// import.js - CSV Import module
 
 let _impFile = null;
 

@@ -201,7 +201,7 @@ router.get('/smtp/test', requireRol('admin'), async (req, res) => {
       await transporter.verify();
       await transporter.sendMail({
         from, to: req.usuario.email,
-        subject: 'Prueba SMTP - DocFlow (heredado)',
+        subject: 'Prueba SMTP - ' + (process.env.COMPANY_NAME || 'SynnoxERP') + ' (heredado)',
         text: 'Configuración SMTP heredada del Launcher.\n\nSi recibes este correo, la herencia funciona correctamente.',
       });
       return res.json({ ok: true, mensaje: 'Configuración SMTP correcta (heredada)' });
@@ -238,7 +238,7 @@ router.get('/smtp/test', requireRol('admin'), async (req, res) => {
     await transporter.sendMail({
       from: fromAddr,
       to: user,
-      subject: 'Prueba SMTP - DocFlow',
+      subject: 'Prueba SMTP - ' + (process.env.COMPANY_NAME || 'SynnoxERP'),
       text: 'Esta es una prueba de configuracion SMTP.\n\nSi recibes este correo, la configuracion es correcta.',
     });
     
@@ -370,15 +370,15 @@ router.put('/seguridad', requireRol('admin'), async (req, res) => {
     if (fail2ban_enabled === 'true') {
       try {
         execSync(`cat > /etc/fail2ban/jail.local << 'EOF'
-[docflow]
+[proveedores]
 enabled = true
 port = 3100
-filter = docflow
+filter = proveedores
 logpath = ${APP_DIR}/logs/*.log
 maxretry = ${fail2ban_maxretry || 10}
 bantime = ${fail2ban_bantime || 3600}
 findtime = ${fail2ban_findtime || 600}
-action = iptables-allports[name=docflow]
+action = iptables-allports[name=proveedores]
 EOF`, { stdio: 'pipe' });
         
         execSync('systemctl restart fail2ban 2>/dev/null || true', { stdio: 'pipe' });
@@ -605,7 +605,7 @@ router.put('/cron', requireRol('admin'), async (req, res) => {
     const dianCmd = `${SCRIPT_DIR}/cron-dian.sh`;
     const notifCmd = `${SCRIPT_DIR}/cron-notificaciones.sh`;
     
-    const lines = ['# DocFlow - Tareas programadas'];
+    const lines = ['# Tareas programadas'];
     
     if (cron_imap) lines.push(`${cron_imap} ${imapCmd}`);
     if (cron_escalaciones) lines.push(`${cron_escalaciones} ${escCmd}`);

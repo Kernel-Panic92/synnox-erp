@@ -1,4 +1,4 @@
-/* ── Horix Framework - Theme loader from Launcher ── */
+/* ── SynnoxERP Framework - Theme loader from Launcher ── */
 /* Incluye <script src="/js/theme.js"></script> y llama a `aplicarTheme()` en el <head> para evitar FOUC */
 
 const THEME_DEFAULTS = {

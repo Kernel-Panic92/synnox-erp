@@ -1,4 +1,4 @@
-# Horix ![GitHub package.json version](https://img.shields.io/github/package-json/v/Kernel-Panic92/Horix?label=versi%C3%B3n) — Sistema de Control de Horas Extra
+# SynnoxERP — Sistema de Control de Horas Extra
 
 Sistema web para la gestión y control de horas extra, reportes e histórico
 
@@ -17,15 +17,15 @@ Sistema web para la gestión y control de horas extra, reportes e histórico
 Para clonar el repositorio tienes dos opciones:
 - Usar SSH (requiere configurar una clave SSH en GitHub):
 ```bash
-git clone git@github.com:Kernel-Panic92/Horix.git horix
+git clone git@github.com:Kernel-Panic92/synnox-erp.git
 ```
 - Usar HTTPS (no requiere clave SSH):
 ```bash
-git clone https://github.com/Kernel-Panic92/Horix.git horix
+git clone https://github.com/Kernel-Panic92/synnox-erp.git
 ```
 Luego:
 ```bash
-cd horix
+cd synnox-erp
 chmod +x install.sh
 ./install.sh
 ```
@@ -47,14 +47,14 @@ Si seleccionas HTTPS durante la instalación, el instalador:
 1. Instala Nginx si no está presente
 2. Genera un certificado SSL autofirmado válido por 10 años
 3. Configura Nginx como reverse proxy (HTTPS → Node.js)
-4. Exporta el certificado a `~/horix_cert.crt` para distribuirlo a los clientes
+4. Exporta el certificado a `~/synnox-nomina_cert.crt` para distribuirlo a los clientes
 
 ### Distribución del certificado en red con Active Directory
 
 **DNS interno** — Agrega un registro A en `dnsmgmt.msc`:
 ```
 Zona: tudominio.local → Nuevo host (A)
-  Nombre: horix
+  Nombre: nomina
   IP: <IP del servidor>
 ```
 
@@ -62,7 +62,7 @@ Zona: tudominio.local → Nuevo host (A)
 ```
 Configuración del equipo → Directivas → Configuración de Windows
   → Configuración de seguridad → Directivas de clave pública
-    → Entidades de certificación raíz de confianza → Importar → horix_cert.crt
+    → Entidades de certificación raíz de confianza → Importar → synnox-nomina_cert.crt
 ```
 
 Luego aplica con `gpupdate /force` en los equipos cliente.
@@ -86,20 +86,20 @@ Luego aplica con `gpupdate /force` en los equipos cliente.
 ## Comandos útiles
 
 ```bash
-pm2 logs horix          # Ver logs en tiempo real
-pm2 restart horix       # Reiniciar servidor
-pm2 stop horix          # Detener servidor
+pm2 logs synnox-nomina          # Ver logs en tiempo real
+pm2 restart synnox-nomina       # Reiniciar servidor
+pm2 stop synnox-nomina          # Detener servidor
 ./backup_horasextra_template.sh  # Ejecutar backup manual
 node seed-demo.js       # Cargar datos de prueba
 sudo crontab -l         # Ver tareas programadas
-sudo fail2ban-client status horix-login   # Ver IPs bloqueadas
-sudo fail2ban-client set horix-login unbanip <IP>  # Desbloquear IP
+sudo fail2ban-client status synnox-nomina-login   # Ver IPs bloqueadas
+sudo fail2ban-client set synnox-nomina-login unbanip <IP>  # Desbloquear IP
 ```
 
 ## Estructura del proyecto
 
 ```
-horix/
+synnox-nomina/
 ├── server.js                   # Backend monolítico — Express + SQLite
 ├── public/
 │   ├── index.html               # Frontend SPA
@@ -181,4 +181,4 @@ Consulta el archivo [LICENSE](LICENSE) para más información.
   4) Copiar la clave pública: `cat ~/.ssh/id_ed25519.pub` y pegarla en GitHub en Settings > SSH and GPG keys > New SSH key.
   5) Probar conexión: `ssh -T git@github.com` (deberías ver un mensaje de éxito).
 - Si ya usas HTTPS y quieres convertir el remoto a HTTPS:
-  - Cambia el remote: `git remote set-url origin https://github.com/Kernel-Panic92/Horix.git`
+  - Cambia el remote: `git remote set-url origin https://github.com/Kernel-Panic92/synnox-erp.git`

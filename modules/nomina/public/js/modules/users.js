@@ -1,4 +1,4 @@
-// users.js - User management module for Horix
+// users.js - User management module
 
 let _empAsigSeleccionados = new Set();
 

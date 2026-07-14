@@ -1,13 +1,13 @@
-# 🔗 Integración Horix Logistics con Launcher
+# 🔗 Integración de Logistics con Launcher
 
 ## ¿Cómo se ve desde el Launcher?
 
-Cuando todo esté listo, Logistics aparecerá como un módulo más en el menú de Horix, igual a DocFlow, WordPress, etc.
+Cuando todo esté listo, Logistics aparecerá como un módulo más en el menú del Launcher.
 
 ```
-┌─ HORIX LAUNCHER ─────────────────┐
+┌─ LAUNCHER ───────────────────────┐
 │                                  │
-│ 📊 Horix (HR/Overtime)           │
+│ 📊 SynnoxERP (HR/Overtime)       │
 │ 📄 DocFlow (Invoicing)           │
 │ 🌐 WordPress (Shop)              │
 │ 🚚 Logistics (Routes) ← NUEVO    │
@@ -22,10 +22,10 @@ Cuando todo esté listo, Logistics aparecerá como un módulo más en el menú d
 ### 1. Asegurar que Logistics corre en el mismo servidor
 
 ```bash
-# En tu servidor (donde corre Horix/DocFlow):
+# En tu servidor:
 cd /var/www/apps/
-git clone <url-repo> horix-logistics
-cd horix-logistics
+git clone <url-repo> synnox-logistics
+cd synnox-logistics
 npm install
 npm run db:migrate
 pm2 start ecosystem.config.cjs
@@ -41,18 +41,11 @@ curl http://localhost:3004/api/health
 
 ### 3. Agregar al Launcher
 
-En tu archivo de configuración del Launcher (donde defines DocFlow, WordPress, etc):
+En tu archivo de configuración del Launcher:
 
-**Antes (sin Logistics):**
+**Configuración de módulos:**
 ```javascript
 const modules = [
-  {
-    id: 'horix',
-    name: 'Horix',
-    url: 'http://localhost:3001',
-    icon: 'briefcase',
-    color: '#FF6B35'
-  },
   {
     id: 'docflow',
     name: 'DocFlow',
@@ -62,18 +55,10 @@ const modules = [
   },
   // ... otros módulos
 ];
-```
 
-**Después (con Logistics):**
+**Agregar Logistics:**
 ```javascript
 const modules = [
-  {
-    id: 'horix',
-    name: 'Horix',
-    url: 'http://localhost:3001',
-    icon: 'briefcase',
-    color: '#FF6B35'
-  },
   {
     id: 'docflow',
     name: 'DocFlow',
@@ -91,8 +76,6 @@ const modules = [
   // ... otros módulos
 ];
 ```
-
----
 
 ## Integración MCP (para usar desde Claude)
 
@@ -217,7 +200,7 @@ app.use('/api/mcp', mcpRoutes);
 
 ### Paso 3: Agregar a Launcher MCP
 
-En tu configuración del MCP Gateway del Launcher:
+En la configuración del MCP Gateway del Launcher:
 
 ```javascript
 {
@@ -320,9 +303,9 @@ pm2 monit
 
 ## Notas de arquitectura
 
-- **Puerto 3004:** Logistics API (no conflictúa con Horix 3001 ni DocFlow 3002)
-- **BD compartida:** PostgreSQL en 5432 (o el puerto que uses)
-- **Auth:** Por ahora nada (agregar JWT después)
+- **Puerto 3004:** Logistics API
+- **BD:** PostgreSQL
+- **Auth:** JWT (heredado del Launcher)
 - **CORS:** Habilitado para Launcher
 
 ---
@@ -352,5 +335,5 @@ pm2 monit
 
 **¡Integración lista!** 🎉
 
-Una vez que termines el Frontend, Logistics será un módulo completo dentro de Horix.
+Una vez que termines el Frontend, Logistics será un módulo completo dentro del sistema.
 

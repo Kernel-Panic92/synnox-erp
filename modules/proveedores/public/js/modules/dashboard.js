@@ -1,4 +1,4 @@
-// dashboard.js - Dashboard rendering, sync, and charts for DocFlow
+// dashboard.js - Dashboard rendering, sync, and charts
 
 let _chartJsLoaded = false;
 const _charts = {};

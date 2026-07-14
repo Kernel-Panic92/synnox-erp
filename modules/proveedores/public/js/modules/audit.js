@@ -1,4 +1,4 @@
-// audit.js - Audit log views for DocFlow
+// audit.js - Audit log views
 
 let auditTab='accesos';
 async function rAudit(){

@@ -111,7 +111,7 @@ async function handleInitialize(id) {
     result: {
       protocolVersion: '0.1.0',
       capabilities: { tools: {} },
-      serverInfo: { name: 'horix-logistics', version: '1.0.0' }
+      serverInfo: { name: 'synnox-logistics', version: '1.0.0' }
     }
   };
 }

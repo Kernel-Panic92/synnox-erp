@@ -1,4 +1,4 @@
-// backup.js - Backup & Restore module for Horix
+// backup.js - Backup & Restore module
 
 let restoreFile = null;
 let _backupListenerInit = false;

@@ -150,7 +150,7 @@ router.post('/test', soloAdmin, async (req, res) => {
     });
     await transporter.sendMail({
       from: smtp.from, to: req.user.email,
-      subject: '🔧 Prueba SMTP - Horix Logistics',
+      subject: '🔧 Prueba SMTP - SynnoxERP Logistics',
       text: 'Si recibes esto, la configuración SMTP funciona correctamente.'
     });
     res.json({ exitosa: true, mensaje: 'Correo de prueba enviado a ' + req.user.email });

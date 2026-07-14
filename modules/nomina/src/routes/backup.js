@@ -35,7 +35,7 @@ module.exports = function createBackupRouter({
       zip.addFile('registros.csv', Buffer.from(toCSV(data.registros), 'utf8'));
       zip.addFile('usuarios.csv', Buffer.from(toCSV(data.usuarios), 'utf8'));
       const fecha = new Date().toISOString().slice(0, 10);
-      const filename = `horasextra_backup_${fecha}.zip`;
+      const filename = `backup_${fecha}.zip`;
       const buffer = zip.toBuffer();
       res.setHeader('Content-Type', 'application/zip');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
@@ -49,8 +49,9 @@ module.exports = function createBackupRouter({
     const { error, detalle } = req.body;
     const fecha = new Date().toLocaleString('es-CO', { timeZone: 'America/Bogota' });
     try {
+      const APP_NAME = process.env.APP_NAME || 'Nómina';
       await enviarCorreo(getAdminEmail()||req.usuario.email, `⚠ Error en Backup Automático — HorasExtra ${fecha}`,
-        `Hola,\n\nEl backup automático programado de HorasExtra falló el ${fecha}.\n\nError:\n${error||'Error desconocido'}\n\nDetalle:\n${detalle||'Sin detalle adicional'}\n\nSaludos,\nSistema Horix`);
+        `Hola,\n\nEl backup automático programado de HorasExtra falló el ${fecha}.\n\nError:\n${error||'Error desconocido'}\n\nDetalle:\n${detalle||'Sin detalle adicional'}\n\nSaludos,\nSistema ${APP_NAME}`);
       res.json({ ok: true });
     } catch(e) { console.error('Error enviando alerta backup:', e.message); res.status(500).json({ error: 'No se pudo enviar el correo' }); }
   });
@@ -58,14 +59,14 @@ module.exports = function createBackupRouter({
   function getBackupDir() {
     const candidatos = ['last_backup.json', '.ultimo_backup.json'].map(f => path.join(__dirname, f));
     for (const f of candidatos) {
-      try { if (fs.existsSync(f) && JSON.parse(fs.readFileSync(f,'utf8')).archivo) { const d = path.join(require('os').homedir(),'backups','horix'); if (fs.existsSync(d)) return d; } } catch (e) { console.warn('Error leyendo archivo de backup:', f, e.message); }
+      try { if (fs.existsSync(f) && JSON.parse(fs.readFileSync(f,'utf8')).archivo) { const d = path.join(require('os').homedir(),'backups','nomina'); if (fs.existsSync(d)) return d; } } catch (e) { console.warn('Error leyendo archivo de backup:', f, e.message); }
     }
-    const fb = path.join(require('os').homedir(),'backups','horix');
+    const fb = path.join(require('os').homedir(),'backups','nomina');
     return fs.existsSync(fb) ? fb : null;
   }
 
   function backupFileInDir(dir, filename) {
-    if (!dir||!filename||!/^horix_backup_[\w\-]+\.zip$/.test(filename)) return null;
+    if (!dir||!filename||!/^backup_[\w\-]+\.zip$/.test(filename)) return null;
     try { const files = fs.readdirSync(dir).filter(f=>f===filename); return files.length===1?path.join(dir,files[0]):null; } catch (e) { console.warn('Error leyendo directorio de backups:', e.message); return null; }
   }
 
@@ -74,7 +75,7 @@ module.exports = function createBackupRouter({
     const dir = getBackupDir();
     if (!dir||!fs.existsSync(dir)) return res.json([]);
     try {
-      const archivos = fs.readdirSync(dir).filter(f=>f.startsWith('horix_backup_')&&f.endsWith('.zip'))
+      const archivos = fs.readdirSync(dir).filter(f=>f.startsWith('backup_')&&f.endsWith('.zip'))
         .map(f => { const st=fs.statSync(path.join(dir,f)); return {nombre:f,tamaño:st.size,fecha:st.mtime.toISOString()}; })
         .sort((a,b)=>new Date(b.fecha)-new Date(a.fecha)).slice(0,7);
       res.json(archivos);
@@ -122,9 +123,10 @@ module.exports = function createBackupRouter({
       const admins=db.prepare("SELECT email FROM usuarios WHERE rol='admin' AND activo=1").all();
       const fecha=new Date().toLocaleString('es-CO',{timeZone:'America/Bogota'});
       const tam=lines.find(l=>l.includes('.zip')&&l.includes('Backup:'))?.match(/\(([^)]+)\)/)?.[1]||'desconocido';
-      const nom=lines.find(l=>l.includes('horix_backup_'))?.match(/horix_backup_[\w\-\.]+/)?.[0]||'—';
+      const nom=lines.find(l=>l.includes('backup_'))?.match(/backup_[\w\-\.]+/)?.[0]||'—';
       const redOk=lines.some(l=>l.includes('Copia en red'));
-      const asunto=ok?`✅ Backup completado — Horix ${fecha}`:`❌ Error en Backup — Horix ${fecha}`;
+      const APP_NAME = process.env.APP_NAME || 'Nómina';
+      const asunto=ok?`✅ Backup completado — ${APP_NAME} ${fecha}`:`❌ Error en Backup — ${APP_NAME} ${fecha}`;
       const texto=ok?`Backup completado.\n\nArchivo: ${nom}\nTamaño: ${tam}\nCopia NAS: ${redOk?'✓ Realizada':'No configurada'}`:`Backup falló.\n\nError: ${errs.join('; ')||'Error desconocido'}`;
       for (const a of admins) try{await enviarCorreo(a.email,asunto,texto);}catch(e){console.warn('Error enviando correo de backup:', e.message);}
       if (err&&!ok) return res.json({ok:false,salida:[...lines,...errs],error:err.message});

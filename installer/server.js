@@ -118,7 +118,7 @@ async function runInstall(config) {
         try { fs.unlinkSync(path.join(INSTALL_DIR, dir, '.env')); } catch {}
       }
       // Stop PM2 processes
-      for (const name of ['synnoxerp', 'horix-erp', 'horix-launcher', 'logistics', 'docflow', 'horix']) {
+      for (const name of ['synnoxerp', 'horix-erp', 'logistics', 'docflow', 'horix']) {
         try { execSync(`pm2 delete ${name} 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
       }
       log('Instalación anterior eliminada', 'ok');
@@ -252,7 +252,7 @@ async function runInstall(config) {
     // Step 8: PM2 (single process)
     installState.step = 'Configurando PM2...';
     try {
-      for (const name of ['horix-erp', 'logistics', 'docflow', 'horix', 'horix-launcher', 'synnoxerp']) {
+      for (const name of ['horix-erp', 'logistics', 'docflow', 'horix', 'synnoxerp']) {
         try { execSync(`pm2 delete ${name} 2>/dev/null || true`, { stdio: 'ignore' }); } catch {}
       }
       await runCmd('pm2', ['start', 'server.js', '--name', 'synnoxerp'], { cwd: INSTALL_DIR });

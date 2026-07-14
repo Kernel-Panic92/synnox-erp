@@ -49,7 +49,7 @@ app.use('/mcp', mcp.createMiddleware());
 app.get('/api/health', (req, res) => {
   res.json({
     ok: true,
-    app: 'DocFlow',
+    app: process.env.COMPANY_NAME || 'SynnoxERP',
     version: '1.0.0',
     env: process.env.NODE_ENV,
     ts: new Date().toISOString(),
