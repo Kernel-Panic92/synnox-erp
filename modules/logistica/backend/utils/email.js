@@ -22,7 +22,7 @@ async function obtenerConfigSmtp() {
         secure: data.config.smtp_secure === 'true',
         user: data.config.smtp_user || '',
         pass: data.config.smtp_pass || '',
-        from: data.config.smtp_from || data.config.smtp_user || 'logistics@vitamar.com'
+        from: data.config.smtp_from || data.config.smtp_user || 'smtp@localhost'
       };
     } catch (e) {
       console.warn('[EMAIL] Fallback a config local (launcher no disponible):', e.message);
@@ -34,7 +34,7 @@ async function obtenerConfigSmtp() {
     secure: cfg.smtp_tls === '1',
     user: cfg.smtp_usuario || '',
     pass: cfg.smtp_password || '',
-    from: cfg.smtp_remitente || cfg.smtp_usuario || 'logistics@vitamar.com'
+    from: cfg.smtp_remitente || cfg.smtp_usuario || 'smtp@localhost'
   };
 }
 

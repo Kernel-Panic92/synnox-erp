@@ -1,8 +1,10 @@
 const crypto = require('crypto');
-const bcrypt = require('bcrypt');
+const bcrypt = require('bcryptjs');
 
 const BCRYPT_ROUNDS = 12;
-const AES_KEY = crypto.scryptSync(process.env.HE_SECRET || 'dev_secret_not_for_prod', 'he_salt_aes', 32);
+const HE_SECRET = process.env.HE_SECRET;
+if (!HE_SECRET) { console.error('ERROR: HE_SECRET no configurado para encriptación SMTP en crypto.js'); process.exit(1); }
+const AES_KEY = crypto.scryptSync(HE_SECRET, 'he_salt_aes', 32);
 
 function hashPassword(p) {
   return bcrypt.hash(p, BCRYPT_ROUNDS);

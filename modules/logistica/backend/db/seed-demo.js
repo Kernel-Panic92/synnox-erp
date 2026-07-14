@@ -1,5 +1,5 @@
 // Seed sintético para logistics — datos de negocio con coordenadas reales en Cali, Colombia
-import bcrypt from 'bcrypt';
+import bcrypt from 'bcryptjs';
 import pool from '../config/db.js';
 
 const sedes = [

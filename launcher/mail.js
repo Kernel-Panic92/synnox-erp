@@ -38,7 +38,7 @@ function isConfigured() {
 }
 
 function getFromAddress() {
-  return _config.smtp_from || _config.smtp_user || 'noreply@horix-platform.local';
+  return _config.smtp_from || _config.smtp_user || 'smtp@localhost';
 }
 
 function getFromName() {

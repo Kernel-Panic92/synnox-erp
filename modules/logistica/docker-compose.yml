@@ -7,7 +7,7 @@ services:
     container_name: vitamar-logistics-db
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: vitamar2024
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme_in_docker_env}
       POSTGRES_DB: vitamar_logistics
     ports:
       - "5433:5432"
