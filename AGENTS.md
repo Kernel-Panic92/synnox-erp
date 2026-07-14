@@ -1,6 +1,6 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (14 Jul 2026 — sesión 9)
+## Estado (14 Jul 2026 — sesión 10)
 
 ### Arquitectura
 - **Package manager**: pnpm (workspaces, strict mode, lockfile trackeado)
@@ -61,7 +61,7 @@
 - **`.gitignore`**: Rutas legacy `modules/horix/` → `modules/nomina/`, etc.
 - **Resultado**: 0 referencias a `Horix`, `vitamar`, `Kernel-Panic92`, `DocFlow` en código fuente (solo en AGENTS.md).
 
-#### Correcciones en producción (sesión actual)
+#### Correcciones en producción (sesión 9)
 
 - **express-rate-limit**: Eliminado `trustProxy` inválido de opciones; usado `app.set('trust proxy', 1)` en su lugar. Fix a `ERR_ERL_PERMISSIVE_TRUST_PROXY` y `ERR_ERL_UNKNOWN_OPTION`.
 - **Cookie Secure**: Cambiado de `NODE_ENV === 'production'` a verificación dinámica del protocolo real (`req.protocol`). Fix a cookie no visible en navegador por `secure: true` + HTTP.
@@ -69,6 +69,21 @@
 - **verifySessionValid**: Refactorizado de HTTP fetch a SQLite directo (elimina llamadas internas backend→backend).
 - **Password DB**: pg_hba.conf cambiado de `scram-sha-256` a `md5` para compatibilidad con Node pg driver.
 - **Dashboard widgets**: Backport desde repo Horix — widgets ahora muestran mes vencido (mes anterior) en vez del mes actual; gráfico excluye mes en curso.
+
+### Cambios Sesión 10 (14 Jul 2026) — Reportes logística + UX rutas
+
+- **Rutas — filtro de fecha**: Default a hoy al cargar la página. Nuevo checkbox "Todas" que deshabilita el filtro y muestra todas las rutas sin restricción de fecha.
+- **Rutas — botón Completar**: Botón ✓ por fila (solo visible si estado ≠ completada/fallida). Confirma con modal y llama a PUT con `estado: 'completada'` + `hora_fin_real`.
+- **historico_eficiencia auto-poblado**: Al marcar ruta como completada via PUT, se inserta automáticamente en `logistics.historico_eficiencia` con: `tasa_exito` (50% peso), `eficiencia_distancia` (25%), `eficiencia_tiempo` (25%). Se actualiza `r.eficiencia` en la ruta.
+- **PUT /:id mejorado**: Acepta `hora_inicio_real` y `hora_fin_real` además de los campos existentes.
+- **Módulo de reportes**: Nuevo `backend/routes/reportes.js` con 4 endpoints:
+  - `GET /api/reportes/rutas` — rutas con filtros (fecha, sede, estado), resumen y paginación server-side
+  - `GET /api/reportes/pedidos` — pedidos por estado/ciudad, valor total agregado
+  - `GET /api/reportes/vehiculos` — flota con capacidad y pedidos activos por vehículo
+  - `GET /api/reportes/eficiencia` — desde `historico_eficiencia` con filtros por fecha y vehículo
+  - `POST /api/reportes/exportar` — Excel (exceljs) con cabecera azul, auto-filtro, fila congelada, formato moneda COP
+- **Página Reportes en frontend**: 4 tabs (Rutas/Pedidos/Vehículos/Eficiencia), filtros dinámicos según el tipo, tarjetas de resumen, tabla paginada con columnas sorteables, selector de registros por página, botón Exportar Excel.
+- **Fix export**: No depende de `getToken()` (cookie httpOnly no legible desde JS). Usa `fetch` directo con cookie automática.
 
 ### Cambios Sesión 8 — seguridad (3 CVEs high cerrados)
 - **xlsx → exceljs**: Migrados 2 parsers de logística (`widgetechExcelParser.js`, `maestroClientesParser.js`). `xlsx` (SheetJS) abandonado en npm sin parche disponible. Reemplazado por `exceljs` (ya usado en root/nómina). Cierra CVE-2023-30533 (Prototype Pollution) y CVE-2024-22363 (ReDoS).
