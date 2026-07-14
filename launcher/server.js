@@ -9,12 +9,12 @@ const crypto = require('crypto');
 const { execSync } = require('child_process');
 const mail = require('./mail');
 const rateLimit = require('express-rate-limit');
-const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, trustProxy: true, message: { error: 'Demasiadas solicitudes' } });
-const mcpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, trustProxy: true, message: { error: 'Demasiadas solicitudes' } });
-const publicLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, trustProxy: true, message: { error: 'Demasiadas solicitudes' } });
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+const mcpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+const publicLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 
 const app = express();
-app.set('trust proxy', true);
+app.set('trust proxy', 1);
 app.use(express.json());
 
 function sanitizePath(input, base) {
@@ -953,10 +953,10 @@ const MODULE_ID = process.env.MODULE_ID || '${id}';
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) { console.error('ERROR: JWT_SECRET no configurado en módulo ' + MODULE_ID); process.exit(1); }
 
-const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false, trustProxy: true, message: { error: 'Demasiadas solicitudes' } });
-const mcpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, trustProxy: true, message: { error: 'Demasiadas solicitudes' } });
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+const mcpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 
-app.set('trust proxy', true);
+app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json());
 app.use('/api', apiLimiter);
@@ -1006,10 +1006,10 @@ const PORT = process.env.PORT || ${listenPort};
 const JWT_SECRET = process.env.JWT_SECRET;
 if (!JWT_SECRET) { console.error('ERROR: JWT_SECRET no configurado en módulo ' + MODULE_ID); process.exit(1); }
 
-const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false, trustProxy: true, message: { error: 'Demasiadas solicitudes' } });
-const mcpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, trustProxy: true, message: { error: 'Demasiadas solicitudes' } });
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 300, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+const mcpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 
-app.set('trust proxy', true);
+app.set('trust proxy', 1);
 app.use(cors());
 app.use(express.json());
 app.use('/api', apiLimiter);
