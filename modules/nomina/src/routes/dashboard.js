@@ -38,9 +38,10 @@ module.exports = function({ db, middlewares: { todosRoles } }) {
     try {
       const u = req.usuario;
       const currentYear = new Date().getFullYear();
-      const currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
       const yearStart = currentYear + '-01-01';
-      const mesPrefix = currentYear + '-' + currentMonth;
+      const prevDate = new Date();
+      prevDate.setMonth(prevDate.getMonth() - 1);
+      const mesPrefix = prevDate.getFullYear() + '-' + String(prevDate.getMonth() + 1).padStart(2, '0');
 
       const permisos = db.prepare('SELECT permiso FROM permisos_roles WHERE rol = ?').all(u.rol).map(p => p.permiso);
       const verTodos = permisos.includes('ver_todos');

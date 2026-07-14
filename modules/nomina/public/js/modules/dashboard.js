@@ -212,7 +212,7 @@ async function renderDashboard() {
   if (!data) return;
 
   const mesesAnio = [];
-  for (let m = 1; m <= now.getMonth() + 1; m++)
+  for (let m = 1; m < now.getMonth() + 1; m++)
     mesesAnio.push(currentYear + '-' + String(m).padStart(2, '0'));
 
   // 1. Hours by Month
