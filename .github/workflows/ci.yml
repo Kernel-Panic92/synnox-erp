@@ -11,7 +11,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node-version: [20]
+        node-version: [22]
 
     steps:
       - uses: actions/checkout@v4
@@ -25,14 +25,14 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: pnpm
 
-      - run: pnpm install --frozen-lockfile
+      - run: pnpm install
         name: Install dependencies
 
       - run: pnpm audit --prod
         name: Security audit
 
-      - run: >
-          find . -name '*.js' -not -path './node_modules/*'
-          -not -path './.pnpm-store/*' -not -path './modules/*/node_modules/*'
-          -exec node --check {} +
+      - run: |
+          find . -name '*.js' -not -path './node_modules/*' \
+            -not -path './.pnpm-store/*' -not -path './modules/*/node_modules/*' \
+            -exec node --check {} +
         name: Syntax check
