@@ -164,7 +164,7 @@ async function abrirModalDetalleTarea(id) {
     const comentarios = comRes.comentarios || [];
     await cargarNombresUsuarios(comentarios.map(c => c.usuario_id));
 
-    const content = document.getElementById('modal-detalle-content');
+    const content = document.getElementById('modal-detalle-body');
     content.innerHTML = `
       <div class="modal-title">${esc(t.titulo)}</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
