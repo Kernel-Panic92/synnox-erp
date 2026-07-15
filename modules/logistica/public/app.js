@@ -2476,44 +2476,6 @@ async function pushRutaWidetech() {
     cargarRutasParaSync();
   } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
 }
-  try {
-    const q = `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}${plate ? '&plate='+encodeURIComponent(plate) : ''}`;
-    const data = await api('/widetech-sync/travels' + q);
-    const travels = data.travels || [];
-    if (data.orphan_vehicles?.created > 0) {
-      msg.innerHTML = `<span style="color:var(--success)">✓ ${travels.length} viajes · ${data.orphan_vehicles.created} vehículos importados automáticamente</span>`;
-    } else {
-      msg.innerHTML = `<span style="color:var(--success)">✓ ${travels.length} viajes encontrados</span>`;
-    }
-    if (!travels.length) { tbl.innerHTML = '<p class="text-muted" style="padding:20px;">Sin viajes en este rango</p>'; return; }
-    tbl.innerHTML = `
-      <div class="tbl-wrap">
-        <table class="tbl">
-          <thead><tr>
-            <th>Remisión</th><th>Placa</th><th>Conductor</th><th>Inicio</th><th>Fin</th>
-            <th>Origen</th><th>Destino</th><th>Distancia</th><th>Estado</th><th></th>
-          </tr></thead>
-          <tbody>${travels.map(t => {
-            const vehOk = t.vehiculo_id ? '' : 'style="color:var(--warning)"';
-            return `<tr>
-              <td>${esc(t.Referral)}</td>
-              <td><strong ${vehOk}>${esc(t.Plate)}</strong>${t.vehiculo_alias ? '<br><small>' + esc(t.vehiculo_alias) + '</small>' : ''}</td>
-              <td>${esc(t.Driver)}</td>
-              <td><small>${esc(t.SDate)}</small></td>
-              <td><small>${esc(t.EDate)}</small></td>
-              <td>${esc(t.OriginCity)}</td>
-              <td>${esc(t.DestinationCity)}</td>
-              <td>${t.Distance || '—'}</td>
-              <td><span class="badge badge-${t.Status==='4'||t.Status==='5'?'danger':'info'}">${esc(t.StatusName)}</span></td>
-              <td>
-                <button class="btn btn-sm btn-secondary" onclick="importarWtViaje('${esc(t.Plate)}','${esc(t.Driver)}','${esc(t.OriginCity)}','${esc(t.DestinationCity)}','${t.LatOrigin||''}','${t.LngOrigin||''}','${t.LatDestination||''}','${t.LngDestination||''}','${esc(t.SDate)}')" title="Importar como ruta">📥</button>
-              </td>
-            </tr>`;
-          }).join('')}</tbody>
-        </table>
-      </div>`;
-  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
-}
 
 async function renderWtVehiculos(el) {
   el.innerHTML = `
