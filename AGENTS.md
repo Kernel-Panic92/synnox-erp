@@ -8,21 +8,34 @@
 - **20 archivos creados**: backend (ESM), frontend modular (SPA con sidebar), 5 páginas
 - **DB**: PostgreSQL schema `projects.*` — tablas `proyectos`, `tareas`, `comentarios`
 - **Kanban**: Drag & drop HTML5 con 4 columnas fijas (Pendiente → En Progreso → Revisión → Completada)
-- **Vistas**: Dashboard (gráfico pie + stats), Proyectos (tarjetas con %), Tareas (tabla con filtros), Tablero Kanban, Reportes
+- **Vistas**: Dashboard (gráfico pie + stats + tabla por asignado), Proyectos (tarjetas con %), Tareas (tabla con filtros/paginación), Tablero Kanban, Reportes
 - **Auth**: `framework/auth.mjs` — `verifyToken`, `verifySession`, `requireModule('proyectos')` + 10 permisos granulares
 - **API REST**: CRUD proyectos, CRUD tareas con filtros/paginación, comentarios, reordenar Kanban, dashboard
 - **Integración**: Montado en root `server.js` como ESM, registrado en `pnpm-workspace.yaml`, `modulos_plataforma`, `MODULOS_FIJOS`, `SUBMODULOS`, widget en `cargarModuleSummary()`
-- **Usuarios compartidos**: FK lógico a `usuarios.id` de SQLite (launcher), nombres consultados vía `GET /api/usuarios`
-- **Instalación pendiente**: Ejecutar `pnpm install` en raíz + `node backend/migrations/run.js` en módulo para crear schema
-- **Pendiente**: Ejecutar migración DB proyectos en PostgreSQL
+- **Usuarios compartidos**: FK lógico a `usuarios.id` de SQLite (launcher), nombres consultados vía `GET /api/usuarios` (better-sqlite3)
+- **Framework**: `loadVersion()` estándar en framework.js + clase `.version` en sidebar
+- **Features**: Asignación de tareas a usuarios, botón ✓ completar rápido (tabla + Kanban), métricas por usuario
 
 ### Arquitectura (sin cambios vs sesión 10)
+
+### Bugs corregidos Sesión 11
+- **SCRAM password**: `pg` Pool recibía `''` (string vacío) — fix: `undefined` + `dotenv.config()` en db.js y run.js
+- **httpOnly cookie**: Frontend intentaba leer cookie httpOnly via JS — fix: quitar chequeo `getToken()` en init()
+- **HF.api()**: Llamadas a `HF.api()` que no existe — fix: usar `api()` global del framework
+- **mostrarApp()**: Framework accedía a `#login-screen` inexistente — fix: función `mostrarAppInterno()`
+- **Sidebar inconsistente**: Estructura diferente a logística — fix: reestructurar para coincidir con framework
+- **Path launcher.db**: Necesitaba 4 `../` no 3 — fix: corregir ruta en usuarios.js
+- **better-sqlite3**: Dependencia faltante en package.json — fix: agregarla
+- **Doble estado**: UPDATE asignaba `estado` dos veces — fix: `columna` toma precedencia
+- **modal-detalle-content**: ID inexistente — fix: usar `modal-detalle-body`
+- **Dropdown duplicado**: `selectUsuarios()` + HTML ambos incluían "Sin asignar" — fix: quitar del HTML
+- **Botones detalle**: Usaban `cerrarModal()` en vez de `cerrarModalDetalle()` — fix: corregir función
 
 ## Estado (14 Jul 2026 — sesión 10)
 
 ### Arquitectura
 - **Package manager**: pnpm (workspaces, strict mode, lockfile trackeado)
-- **Workspaces**: 6 módulos (root, launcher, proveedores, nómina, logística, wordpress-mcp)
+- **Workspaces**: 7 módulos (root, launcher, proveedores, nómina, logística, proyectos, wordpress-mcp)
 - **Servidor unificado**: 1 PM2 process, puerto 3002 (sin cambios)
 - **Auth/Docs/DB**: Sin cambios vs sesión 6
 - **Vulnerabilidades**: 0 (pnpm audit --prod)
