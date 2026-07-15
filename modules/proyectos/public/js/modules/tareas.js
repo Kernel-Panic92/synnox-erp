@@ -4,7 +4,7 @@ let _tareasProyectos = [];
 async function cargarProyectosSelect() {
   if (_tareasProyectos.length) return;
   try {
-    const data = await HF.api('/proyectos');
+    const data = await api('/proyectos');
     _tareasProyectos = data.proyectos || [];
     const sel = document.getElementById('filtro-proyecto');
     if (sel) sel.innerHTML = '<option value="">Todos los proyectos</option>' + _tareasProyectos.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
@@ -26,7 +26,7 @@ async function cargarTareas() {
   params.set('limit', '20');
 
   try {
-    const data = await HF.api('/tareas?' + params.toString());
+    const data = await api('/tareas?' + params.toString());
     const tareas = data.tareas || [];
     const ids = tareas.map(t => t.asignado_a).filter(Boolean);
     await cargarNombresUsuarios(ids);
@@ -64,7 +64,7 @@ async function abrirModalTarea(id) {
   await cargarProyectosSelect();
   let t = null;
   if (id) {
-    try { const d = await HF.api('/tareas/' + id); t = d.tarea; } catch {}
+    try { const d = await api('/tareas/' + id); t = d.tarea; } catch {}
   }
 
   const usuarios = Object.entries(_nombresUsuarios).map(([id, nom]) => `<option value="${id}" ${t?.asignado_a == id ? 'selected' : ''}>${esc(nom)}</option>`).join('');
@@ -121,10 +121,10 @@ async function guardarTarea(id) {
   if (!body.titulo) return toast('El titulo es requerido', 'error');
   try {
     if (id) {
-      await HF.api('/tareas/' + id, { method: 'PUT', body: JSON.stringify(body) });
+      await api('/tareas/' + id, { method: 'PUT', body: JSON.stringify(body) });
       toast('Tarea actualizada', 'success');
     } else {
-      await HF.api('/tareas', { method: 'POST', body: JSON.stringify(body) });
+      await api('/tareas', { method: 'POST', body: JSON.stringify(body) });
       toast('Tarea creada', 'success');
     }
     cerrarModal();
@@ -137,7 +137,7 @@ async function eliminarTarea(id) {
   const ok = await confirmarModal('Eliminar Tarea', 'Eliminar esta tarea?');
   if (!ok) return;
   try {
-    await HF.api('/tareas/' + id, { method: 'DELETE' });
+    await api('/tareas/' + id, { method: 'DELETE' });
     toast('Tarea eliminada', 'success');
     cargarTareas();
   } catch (err) { toast(err.message, 'error'); }
@@ -146,8 +146,8 @@ async function eliminarTarea(id) {
 async function abrirModalDetalleTarea(id) {
   try {
     const [tareaRes, comRes] = await Promise.all([
-      HF.api('/tareas/' + id),
-      HF.api('/tareas/' + id + '/comentarios')
+      api('/tareas/' + id),
+      api('/tareas/' + id + '/comentarios')
     ]);
     const t = tareaRes.tarea;
     await cargarNombresUsuarios([t.asignado_a, t.reportero].filter(Boolean));
@@ -198,7 +198,7 @@ async function agregarComentario(tareaId) {
   const contenido = input.value.trim();
   if (!contenido) return;
   try {
-    await HF.api('/tareas/' + tareaId + '/comentarios', { method: 'POST', body: JSON.stringify({ contenido }) });
+    await api('/tareas/' + tareaId + '/comentarios', { method: 'POST', body: JSON.stringify({ contenido }) });
     input.value = '';
     abrirModalDetalleTarea(tareaId);
   } catch (err) { toast(err.message, 'error'); }

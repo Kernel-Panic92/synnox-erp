@@ -14,7 +14,7 @@ async function cargarTablero() {
   }
   try {
     const params = new URLSearchParams({ proyecto_id: proyectoId, limit: '200' });
-    const data = await HF.api('/tareas?' + params.toString());
+    const data = await api('/tareas?' + params.toString());
     const tareas = data.tareas || [];
     const ids = tareas.map(t => t.asignado_a).filter(Boolean);
     await cargarNombresUsuarios(ids);
@@ -57,7 +57,7 @@ async function soltarTarea(event, columnaDestino) {
   if (!tareaId || isNaN(tareaId)) return;
 
   try {
-    await HF.api('/tareas/reordenar', { method: 'PUT', body: JSON.stringify({ tarea_id: tareaId, columna: columnaDestino, orden: 0 }) });
+    await api('/tareas/reordenar', { method: 'PUT', body: JSON.stringify({ tarea_id: tareaId, columna: columnaDestino, orden: 0 }) });
     toast('Tarea movida a ' + _columnas.find(c => c.id === columnaDestino)?.label || columnaDestino, 'success');
     cargarTablero();
   } catch (err) { toast(err.message, 'error'); }
@@ -65,7 +65,7 @@ async function soltarTarea(event, columnaDestino) {
 
 async function cargarProyectosSelectKanban() {
   try {
-    const data = await HF.api('/proyectos');
+    const data = await api('/proyectos');
     const proyectos = data.proyectos || [];
     const sel = document.getElementById('tablero-proyecto');
     const current = sel.value;

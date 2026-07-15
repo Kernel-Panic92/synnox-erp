@@ -1,6 +1,6 @@
 async function cargarDashboard() {
   try {
-    const data = await HF.api('/dashboard');
+    const data = await api('/dashboard');
     const estados = data.estados || [];
     const recientes = data.recientes || [];
     const porAsignado = data.porAsignado || [];
