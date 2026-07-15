@@ -31,9 +31,13 @@ import proyectosRoutes from './routes/proyectos.js';
 import tareasRoutes from './routes/tareas.js';
 import comentariosRoutes from './routes/comentarios.js';
 import usuariosRoutes from './routes/usuarios.js';
+import evidenciasRoutes from './routes/evidencias.js';
+import aprobacionRoutes from './routes/aprobacion.js';
 
 const protect = [verifyToken, verifySession, requireModule(MODULE_ID)];
 
+app.use('/api/tareas', protect, evidenciasRoutes);
+app.use('/api', protect, aprobacionRoutes);
 app.use('/api/proyectos', protect, proyectosRoutes);
 app.use('/api/tareas', protect, tareasRoutes);
 app.use('/api/tareas', protect, comentariosRoutes);
@@ -66,11 +70,15 @@ app.get('/api/dashboard', verifyToken, async (req, res) => {
        FROM projects.tareas t LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id
        ORDER BY t.updated_at DESC LIMIT 10`
     );
+    const aprobacion = await pool.query(
+      `SELECT COUNT(*) AS pendientes FROM projects.tareas WHERE estado_aprobacion = 'pendiente' AND estado = 'revision'`
+    );
     res.json({
       exitosa: true,
       estados: estados.rows,
       porAsignado: porAsignado.rows,
-      recientes: recientes.rows
+      recientes: recientes.rows,
+      aprobacion: aprobacion.rows[0]
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -93,6 +101,7 @@ import { createMiddleware } from './mcp/index.js';
 app.use('/mcp', createMiddleware());
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 app.use((err, req, res, next) => {
   console.error('Error:', err);

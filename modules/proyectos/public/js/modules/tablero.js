@@ -39,9 +39,15 @@ async function cargarTablero() {
                 ${t.asignado_a ? `<span>&#x1F464; ${esc(nombreUsuario(t.asignado_a))}</span>` : ''}
                 ${t.fecha_limite ? `<span>&#x1F4C5; ${formatDate(t.fecha_limite)}</span>` : ''}
               </div>
-              ${t.columna !== 'completada' ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;gap:4px">
-                <button class="btn btn-xs btn-success" onclick="event.stopPropagation();completarTareaRapida(${t.id})" title="Completar">&#10003; Completar</button>
+              ${t.columna === 'en_progreso' && t.asignado_a ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;gap:4px">
+                <button class="btn btn-xs btn-info" onclick="event.stopPropagation();enviarARevision(${t.id})" title="Enviar a revision">&#x1F504; Revisión</button>
               </div>` : ''}
+              ${t.columna === 'revision' && usuario?.rol === 'admin' ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;gap:4px">
+                <button class="btn btn-xs btn-success" onclick="event.stopPropagation();aprobarTarea(${t.id})" title="Aprobar">&#10003; Aprobar</button>
+                <button class="btn btn-xs btn-danger" onclick="event.stopPropagation();rechazarTarea(${t.id})" title="Rechazar">&#10007;</button>
+              </div>` : ''}
+              ${t.columna === 'revision' && usuario?.rol !== 'admin' ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--warning)">&#x23F3; Pend. aprobación</div>` : ''}
+              ${t.estado_aprobacion === 'rechazada' ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--danger)" title="${esc(t.motivo_rechazo || '')}">&#x26A0; Rechazada</div>` : ''}
             </div>
           `).join('')}
         </div>

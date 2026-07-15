@@ -17,11 +17,15 @@ async function cargarProyectos() {
       const completadas = parseInt(p.tareas_completadas) || 0;
       const pct = total > 0 ? Math.round((completadas / total) * 100) : 0;
       const estadoCls = p.estado === 'completado' ? 'badge-success' : p.estado === 'archivado' ? 'badge-muted' : 'badge-info';
+      const aprobCls = p.estado_aprobacion === 'aprobada' ? 'badge-success' : p.estado_aprobacion === 'rechazada' ? 'badge-danger' : 'badge-muted';
       return `
         <div class="card" style="cursor:pointer">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
             <strong style="font-size:15px">${esc(p.nombre)}</strong>
-            <span class="badge ${estadoCls}">${p.estado || 'activo'}</span>
+            <span style="display:flex;gap:6px">
+              <span class="badge ${aprobCls}">${p.estado_aprobacion || 'pendiente'}</span>
+              <span class="badge ${estadoCls}">${p.estado || 'activo'}</span>
+            </span>
           </div>
           ${p.descripcion ? `<p style="font-size:12px;color:var(--muted);margin-bottom:10px">${esc(p.descripcion)}</p>` : ''}
           ${p.fecha_limite ? `<div style="font-size:11px;color:var(--muted);margin-bottom:8px">&#x1F4C5; ${formatDate(p.fecha_limite)}</div>` : ''}
@@ -34,7 +38,9 @@ async function cargarProyectos() {
             <div style="width:${pct}%;height:100%;background:var(--accent);border-radius:10px;transition:width .3s"></div>
           </div>
           <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${pct}% completado (${completadas}/${total})</div>
-          <div style="display:flex;gap:6px">
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            ${p.estado_aprobacion !== 'aprobada' && usuario?.rol === 'admin' ? `<button class="btn btn-xs btn-success" onclick="event.stopPropagation();aprobarProyecto(${p.id})">Aprobar</button>` : ''}
+            ${p.estado_aprobacion === 'aprobada' && usuario?.rol === 'admin' ? `<button class="btn btn-xs btn-danger" onclick="event.stopPropagation();rechazarProyecto(${p.id})">Desaprobar</button>` : ''}
             <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();abrirModalProyecto(${p.id})">Editar</button>
             <button class="btn btn-xs btn-danger" onclick="event.stopPropagation();eliminarProyecto(${p.id})">Eliminar</button>
           </div>
@@ -93,6 +99,22 @@ async function eliminarProyecto(id) {
   try {
     await api('/proyectos/' + id, { method: 'DELETE' });
     toast('Proyecto eliminado', 'success');
+    cargarProyectos();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function aprobarProyecto(id) {
+  try {
+    await api('/proyectos/' + id + '/aprobar', { method: 'PUT' });
+    toast('Proyecto aprobado', 'success');
+    cargarProyectos();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function rechazarProyecto(id) {
+  try {
+    await api('/proyectos/' + id + '/rechazar', { method: 'PUT' });
+    toast('Proyecto desaprobado', 'warning');
     cargarProyectos();
   } catch (err) { toast(err.message, 'error'); }
 }

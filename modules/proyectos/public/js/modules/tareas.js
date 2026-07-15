@@ -35,15 +35,19 @@ async function cargarTareas() {
       <tr>
         <td><a href="#" onclick="event.preventDefault();abrirModalDetalleTarea(${t.id})" style="font-weight:600">${esc(t.titulo)}</a></td>
         <td style="font-size:12px;color:var(--muted)">${esc(t.proyecto_nombre || '—')}</td>
-        <td>${badgeEstado(t.estado)}</td>
+        <td>${badgeEstado(t.estado)} ${t.estado === 'revision' ? badgeAprobacion(t.estado_aprobacion) : ''}</td>
         <td>${badgePrioridad(t.prioridad)}</td>
         <td class="nombre-asignado">${t.asignado_a ? esc(nombreUsuario(t.asignado_a)) : '<span style="color:var(--muted)">Sin asignar</span>'}</td>
         <td style="font-size:12px;color:var(--muted)">${formatDate(t.fecha_limite)}</td>
-        <td>
-          ${t.estado !== 'completada' ? `<button class="btn btn-xs btn-success" onclick="completarTareaRapida(${t.id})" title="Marcar completada">&#10003;</button>` : ''}
-          <button class="btn btn-xs btn-secondary" onclick="abrirModalTarea(${t.id})" title="Editar">&#9998;</button>
-          <button class="btn btn-xs btn-danger" onclick="eliminarTarea(${t.id})" title="Eliminar">&#10005;</button>
-        </td>
+    <td>
+      ${t.estado === 'en_progreso' ? `<button class="btn btn-xs btn-info" onclick="enviarARevision(${t.id})" title="Enviar a revision">&#x1F504; Revision</button>` : ''}
+      ${t.estado === 'revision' && usuario?.rol === 'admin' ? `<button class="btn btn-xs btn-success" onclick="aprobarTarea(${t.id})" title="Aprobar">&#10003;</button>` : ''}
+      ${t.estado === 'revision' && usuario?.rol === 'admin' ? `<button class="btn btn-xs btn-danger" onclick="rechazarTarea(${t.id})" title="Rechazar">&#10007;</button>` : ''}
+      ${t.estado === 'revision' && usuario?.rol !== 'admin' ? `<span class="badge badge-warning">Pend. aprobación</span>` : ''}
+      ${t.estado !== 'completada' && t.estado !== 'revision' ? `<button class="btn btn-xs btn-success" onclick="completarTareaRapida(${t.id})" title="Marcar completada">&#10003;</button>` : ''}
+      <button class="btn btn-xs btn-secondary" onclick="abrirModalTarea(${t.id})" title="Editar">&#9998;</button>
+      <button class="btn btn-xs btn-danger" onclick="eliminarTarea(${t.id})" title="Eliminar">&#10005;</button>
+    </td>
       </tr>
     `).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">No se encontraron tareas</td></tr>';
 
@@ -61,12 +65,70 @@ function tareasPagina(dir) {
   cargarTareas();
 }
 
+async function enviarARevision(id) {
+  try {
+    await api('/tareas/' + id, { method: 'PUT', body: JSON.stringify({ estado: 'revision', columna: 'revision' }) });
+    toast('Tarea enviada a revisión', 'success');
+    cargarTareas();
+    if (_currentPage === 'tablero') cargarTablero();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
 async function completarTareaRapida(id) {
   try {
     await api('/tareas/' + id, { method: 'PUT', body: JSON.stringify({ estado: 'completada', columna: 'completada' }) });
     toast('Tarea completada', 'success');
     cargarTareas();
     if (_currentPage === 'tablero') cargarTablero();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function aprobarTarea(id) {
+  try {
+    await api('/tareas/' + id + '/aprobar', { method: 'PUT' });
+    toast('Tarea aprobada', 'success');
+    cargarTareas();
+    if (_currentPage === 'tablero') cargarTablero();
+    if (document.getElementById('modal-detalle')?.classList.contains('show')) abrirModalDetalleTarea(id);
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function rechazarTarea(id) {
+  const res = await window.prompt('Motivo de rechazo:');
+  if (!res || !res.trim()) return;
+  try {
+    await api('/tareas/' + id + '/rechazar', { method: 'PUT', body: JSON.stringify({ motivo: res.trim() }) });
+    toast('Tarea rechazada', 'warning');
+    cargarTareas();
+    if (_currentPage === 'tablero') cargarTablero();
+    cerrarModalDetalle();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function subirEvidencia(tareaId) {
+  const desc = document.getElementById('evidencia-desc')?.value?.trim() || '';
+  const fileInput = document.getElementById('evidencia-file');
+  if (!fileInput?.files?.length && !desc) return toast('Agrega un archivo o una descripción', 'error');
+  const formData = new FormData();
+  if (desc) formData.append('descripcion', desc);
+  if (fileInput?.files?.length) formData.append('archivo', fileInput.files[0]);
+  try {
+    const headers = {};
+    if (HF.TOKEN) headers['Authorization'] = 'Bearer ' + HF.TOKEN;
+    const res = await fetch(HF.API + '/tareas/' + tareaId + '/evidencias', { method: 'POST', body: formData, headers });
+    if (!res.ok) { const d = await res.json(); throw new Error(d.error || 'Error al subir evidencia'); }
+    toast('Evidencia subida', 'success');
+    abrirModalDetalleTarea(tareaId);
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function eliminarEvidencia(id) {
+  const ok = await confirmarModal('Eliminar Evidencia', 'Eliminar esta evidencia?');
+  if (!ok) return;
+  try {
+    await api('/tareas/evidencias/' + id, { method: 'DELETE' });
+    toast('Evidencia eliminada', 'success');
+    abrirModalDetalleTarea(window._tareaActual);
   } catch (err) { toast(err.message, 'error'); }
 }
 
@@ -154,21 +216,82 @@ async function eliminarTarea(id) {
 }
 
 async function abrirModalDetalleTarea(id) {
+  window._tareaActual = id;
   try {
-    const [tareaRes, comRes] = await Promise.all([
+    const [tareaRes, comRes, evRes] = await Promise.all([
       api('/tareas/' + id),
-      api('/tareas/' + id + '/comentarios')
+      api('/tareas/' + id + '/comentarios'),
+      api('/tareas/' + id + '/evidencias')
     ]);
     const t = tareaRes.tarea;
-    await cargarNombresUsuarios([t.asignado_a, t.reportero].filter(Boolean));
+    await cargarNombresUsuarios([t.asignado_a, t.reportero, t.aprobado_por].filter(Boolean));
     const comentarios = comRes.comentarios || [];
     await cargarNombresUsuarios(comentarios.map(c => c.usuario_id));
+    const evidencias = evRes.evidencias || [];
+    await cargarNombresUsuarios(evidencias.map(e => e.usuario_id));
 
+    const esAdmin = usuario?.rol === 'admin';
     const content = document.getElementById('modal-detalle-body');
+
+    const evidenciaHtml = `
+      <div class="evidencia-section" style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
+        <strong style="font-size:13px">Evidencias (${evidencias.length})</strong>
+        <div style="max-height:250px;overflow-y:auto;margin:8px 0">
+          ${evidencias.map(e => {
+            const ext = e.archivo_nombre ? e.archivo_nombre.split('.').pop().toLowerCase() : '';
+            const esImagen = ['jpg','jpeg','png','gif','webp'].includes(ext);
+            return `
+              <div class="evidencia-item" style="padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:8px;background:var(--surface)">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px">
+                  <div>
+                    <strong style="font-size:12px">${esc(nombreUsuario(e.usuario_id))}</strong>
+                    <span style="color:var(--muted);font-size:11px;margin-left:6px">${formatDate(e.created_at)}</span>
+                  </div>
+                  ${esAdmin ? `<button class="btn btn-xs btn-danger" onclick="eliminarEvidencia(${e.id})" title="Eliminar">&#10005;</button>` : ''}
+                </div>
+                ${e.descripcion ? `<p style="font-size:12px;margin-bottom:6px">${esc(e.descripcion)}</p>` : ''}
+                ${e.archivo_path ? (esImagen
+                  ? `<img src="/uploads/evidencias/${e.archivo_path}" style="max-width:100%;max-height:200px;border-radius:6px;cursor:pointer" onclick="window.open('/uploads/evidencias/${e.archivo_path}')" alt="${esc(e.archivo_nombre)}">`
+                  : `<div style="font-size:11px"><a href="/uploads/evidencias/${e.archivo_path}" target="_blank" style="color:var(--accent)">&#x1F4CE; ${esc(e.archivo_nombre)} (${e.archivo_tamanio ? Math.round(e.archivo_tamanio/1024) + 'KB' : '?'})</a></div>`
+                ) : ''}
+              </div>
+            `;
+          }).join('') || '<p style="color:var(--muted);font-size:12px;padding:8px 0">Sin evidencias subidas</p>'}
+        </div>
+        <div class="evidencia-upload" style="display:flex;flex-direction:column;gap:8px;padding:10px;border:1px dashed var(--border);border-radius:8px">
+          <textarea id="evidencia-desc" placeholder="Describe la evidencia (opcional)..." style="font-size:12px;min-height:50px;resize:vertical"></textarea>
+          <div style="display:flex;gap:8px;align-items:center">
+            <input id="evidencia-file" type="file" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx" style="flex:1;font-size:12px">
+            <button class="btn btn-sm btn-primary" onclick="subirEvidencia(${t.id})">Subir</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const aprobacionHtml = t.estado === 'revision' ? `
+      <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
+        <strong style="font-size:13px">Aprobación</strong>
+        <div style="margin-top:8px;display:flex;gap:8px">
+          ${esAdmin
+            ? `<button class="btn btn-sm btn-success" onclick="aprobarTarea(${t.id})">&#10003; Aprobar</button>
+               <button class="btn btn-sm btn-danger" onclick="rechazarTarea(${t.id})">&#10007; Rechazar</button>`
+            : `<span class="badge badge-warning">Pendiente de aprobación por administrador</span>`
+          }
+        </div>
+      </div>
+    ` : '';
+
+    const rechazoHtml = t.motivo_rechazo ? `
+      <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:12px">
+        <strong style="font-size:13px;color:var(--danger)">Rechazada</strong>
+        <p style="font-size:12px;margin-top:4px;padding:8px;background:rgba(239,68,68,.08);border-radius:6px">${esc(t.motivo_rechazo)}</p>
+      </div>
+    ` : '';
+
     content.innerHTML = `
       <div class="modal-title">${esc(t.titulo)}</div>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
-        ${badgeEstado(t.estado)} ${badgePrioridad(t.prioridad)}
+        ${badgeEstado(t.estado)} ${badgeAprobacion(t.estado_aprobacion)} ${badgePrioridad(t.prioridad)}
         <span class="badge badge-muted">${esc(t.tipo || 'tarea')}</span>
       </div>
       <p style="font-size:13px;color:var(--muted);margin-bottom:12px">${esc(t.descripcion || 'Sin descripcion')}</p>
@@ -177,7 +300,12 @@ async function abrirModalDetalleTarea(id) {
         <div>Asignado: <strong>${t.asignado_a ? esc(nombreUsuario(t.asignado_a)) : '—'}</strong></div>
         <div>Fecha limite: <strong>${formatDate(t.fecha_limite)}</strong></div>
         <div>Estimacion: <strong>${t.estimacion_horas ? t.estimacion_horas + 'h' : '—'}</strong></div>
+        ${t.aprobado_por ? `<div>Aprobado por: <strong>${esc(nombreUsuario(t.aprobado_por))}</strong></div>` : ''}
+        ${t.aprobado_en ? `<div>Aprobado el: <strong>${formatDate(t.aprobado_en)}</strong></div>` : ''}
       </div>
+      ${rechazoHtml}
+      ${evidenciaHtml}
+      ${aprobacionHtml}
       <div style="border-top:1px solid var(--border);padding-top:12px;margin-bottom:8px">
         <strong style="font-size:13px">Comentarios (${comentarios.length})</strong>
       </div>

@@ -97,8 +97,20 @@ router.put('/:id', async (req, res) => {
       updates.push(`columna = $${idx++}`); params.push(columna);
       const est = COLUMNA_A_ESTADO[columna];
       if (est) { updates.push(`estado = $${idx++}`); params.push(est); }
+      if (columna !== 'completada') {
+        updates.push(`estado_aprobacion = 'pendiente'`);
+        updates.push(`aprobado_por = NULL`);
+        updates.push(`aprobado_en = NULL`);
+        updates.push(`motivo_rechazo = NULL`);
+      }
     } else if (estado !== undefined) {
       updates.push(`estado = $${idx++}`); params.push(estado);
+      if (estado !== 'completada') {
+        updates.push(`estado_aprobacion = 'pendiente'`);
+        updates.push(`aprobado_por = NULL`);
+        updates.push(`aprobado_en = NULL`);
+        updates.push(`motivo_rechazo = NULL`);
+      }
     }
     if (asignado_a !== undefined) { updates.push(`asignado_a = $${idx++}`); params.push(asignado_a); }
     if (fecha_limite !== undefined) { updates.push(`fecha_limite = $${idx++}`); params.push(fecha_limite); }
@@ -126,8 +138,9 @@ router.put('/reordenar', async (req, res) => {
     const { tarea_id, columna, orden } = req.body;
     if (!tarea_id || !columna) return res.status(400).json({ error: 'tarea_id y columna requeridos' });
     const est = COLUMNA_A_ESTADO[columna] || 'pendiente';
+    const resetAprobacion = columna !== 'completada' ? `, estado_aprobacion = 'pendiente', aprobado_por = NULL, aprobado_en = NULL, motivo_rechazo = NULL` : '';
     const result = await pool.query(
-      `UPDATE projects.tareas SET columna = $1, estado = $2, orden = COALESCE($3, orden), updated_at = NOW()
+      `UPDATE projects.tareas SET columna = $1, estado = $2, orden = COALESCE($3, orden)${resetAprobacion}, updated_at = NOW()
        WHERE id = $4 RETURNING *`,
       [columna, est, orden || 0, tarea_id]
     );
