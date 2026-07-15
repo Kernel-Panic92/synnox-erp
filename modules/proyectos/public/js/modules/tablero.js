@@ -32,14 +32,16 @@ async function cargarTablero() {
           ${items.map(t => `
             <div class="kanban-card" draggable="true" data-tarea-id="${t.id}"
               ondragstart="event.dataTransfer.setData('text/plain', '${t.id}');event.target.classList.add('dragging')"
-              ondragend="event.target.classList.remove('dragging')"
-              onclick="abrirModalDetalleTarea(${t.id})">
-              <div class="card-title">${esc(t.titulo)}</div>
+              ondragend="event.target.classList.remove('dragging')">
+              <div class="card-title" onclick="abrirModalDetalleTarea(${t.id})" style="cursor:pointer">${esc(t.titulo)}</div>
               <div class="card-meta">
                 ${badgePrioridad(t.prioridad)}
                 ${t.asignado_a ? `<span>&#x1F464; ${esc(nombreUsuario(t.asignado_a))}</span>` : ''}
                 ${t.fecha_limite ? `<span>&#x1F4C5; ${formatDate(t.fecha_limite)}</span>` : ''}
               </div>
+              ${t.columna !== 'completada' ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;gap:4px">
+                <button class="btn btn-xs btn-success" onclick="event.stopPropagation();completarTareaRapida(${t.id})" title="Completar">&#10003; Completar</button>
+              </div>` : ''}
             </div>
           `).join('')}
         </div>
