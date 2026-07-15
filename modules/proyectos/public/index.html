@@ -4,157 +4,40 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>Proyectos — SynnoxERP</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="components.css">
 <style>
-:root {
-  --bg: #0f1117; --surface: #181c25; --surface2: #1f2433; --border: #2a3050;
-  --accent: #7c6df0; --accent2: #a89bfb; --accent-bg: rgba(124,109,240,.08);
-  --success: #10b981; --warning: #f59e0b; --danger: #ef4444;
-  --text: #e2e8f0; --muted: #64748b;
-  --sidebar-w: 232px; --radius: 10px; --shadow: 0 1px 3px rgba(0,0,0,.3);
-}
-body.light {
-  --bg: #f1f5f9; --surface: #ffffff; --surface2: #f8fafc; --border: #e2e8f0;
-  --accent: #7c6df0; --accent2: #6366f1; --accent-bg: rgba(124,109,240,.06);
-  --text: #1e293b; --muted: #64748b;
-  --shadow: 0 1px 3px rgba(0,0,0,.08);
-}
-*{margin:0;padding:0;box-sizing:border-box}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);font-size:14px;min-height:100vh;line-height:1.5}
-a{color:var(--accent);text-decoration:none;transition:color .15s}
-a:hover{color:var(--accent2)}
-input,select,textarea{font-family:inherit;font-size:13px;padding:8px 12px;border:1px solid var(--border);border-radius:var(--radius);background:var(--surface);color:var(--text);outline:none;transition:all .2s}
-input:focus,select:focus,textarea:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-bg)}
-textarea{resize:vertical;min-height:60px}
-button{cursor:pointer;font-family:inherit}
-
-.app-layout{display:flex;min-height:100vh}
-.sidebar{width:var(--sidebar-w);background:linear-gradient(180deg,#181c27 0%,#13161e 100%);border-right:1px solid rgba(255,255,255,.06);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .25s ease}
-body.light .sidebar{background:linear-gradient(180deg,#ffffff 0%,#f8fafc 100%);border-right-color:var(--border)}
-.sidebar-brand{padding:20px 18px;font-size:16px;font-weight:700;color:#fff;border-bottom:1px solid rgba(255,255,255,.06);letter-spacing:-.2px;display:flex;align-items:center;gap:8px}
-body.light .sidebar-brand{color:var(--accent);border-bottom-color:var(--border)}
-.sidebar-brand::before{content:'';display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--accent)}
-.sidebar-nav{flex:1;padding:12px 8px;overflow-y:auto}
-.nav-item{padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:rgba(255,255,255,.5);transition:all .15s;border-radius:8px;margin-bottom:2px}
-body.light .nav-item{color:var(--muted)}
-.nav-item:hover{color:var(--text);background:rgba(255,255,255,.06)}
-body.light .nav-item:hover{background:var(--surface2)}
-.nav-item.active{color:#fff;background:var(--accent);font-weight:600}
-body.light .nav-item.active{color:#fff}
-.nav-item .icon{font-size:15px;width:20px;text-align:center;flex-shrink:0}
-.sidebar-footer{padding:12px 10px;border-top:1px solid rgba(255,255,255,.06)}
-body.light .sidebar-footer{border-top-color:var(--border)}
-.sidebar-user{display:flex;align-items:center;gap:10px;cursor:pointer;padding:10px;border-radius:10px;transition:background .15s}
-.sidebar-user:hover{background:rgba(255,255,255,.06)}
-body.light .sidebar-user:hover{background:var(--surface2)}
-.avatar{width:34px;height:34px;border-radius:10px;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0}
-.hamburger{display:none;background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;padding:4px;margin-right:12px}
-
-.main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column}
-.main-header{display:flex;align-items:center;padding:14px 28px;background:var(--surface);border-bottom:1px solid var(--border);gap:12px;position:sticky;top:0;z-index:50;backdrop-filter:blur(8px)}
-.main-header h3{font-size:17px;font-weight:700;letter-spacing:-.3px}
-.header-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
-.main-body{padding:24px 28px;flex:1}
-.page{display:none}
-.page.active{display:block}
-
-.btn{padding:8px 16px;border-radius:8px;font-size:13px;font-weight:600;border:1px solid transparent;display:inline-flex;align-items:center;gap:6px;transition:all .15s;letter-spacing:-.1px}
-.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 1px 3px rgba(124,109,240,.3)}
-.btn-primary:hover{background:var(--accent2);border-color:var(--accent2);transform:translateY(-1px);box-shadow:0 4px 12px rgba(124,109,240,.25)}
-.btn-success{background:var(--success);color:#fff}
-.btn-success:hover{opacity:.9}
-.btn-danger{background:var(--danger);color:#fff}
-.btn-danger:hover{opacity:.9}
-.btn-secondary{background:var(--surface2);color:var(--text);border-color:var(--border)}
-.btn-secondary:hover{background:var(--border);border-color:var(--border)}
-.btn-sm{padding:6px 12px;font-size:12px}
-.btn-xs{padding:4px 10px;font-size:11px;border-radius:6px}
-
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow);transition:box-shadow .15s}
-.card:hover{box-shadow:0 4px 12px rgba(0,0,0,.08)}
-body.light .card:hover{box-shadow:0 4px 16px rgba(0,0,0,.06)}
-.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:24px}
-.stat-card{text-align:center;padding:18px 14px;border-radius:var(--radius);background:var(--surface);border:1px solid var(--border);box-shadow:var(--shadow);transition:all .2s}
-.stat-card:hover{transform:translateY(-2px);box-shadow:0 6px 16px rgba(0,0,0,.1)}
-.stat-card .num{font-size:30px;font-weight:800;letter-spacing:-.5px}
-.stat-card .lbl{font-size:11px;color:var(--muted);margin-top:4px;font-weight:500;text-transform:uppercase;letter-spacing:.5px}
-
-table{width:100%;border-collapse:collapse}
-thead th{padding:10px 14px;text-align:left;font-size:11px;font-weight:700;color:var(--muted);border-bottom:2px solid var(--border);white-space:nowrap;text-transform:uppercase;letter-spacing:.5px}
-tbody td{padding:11px 14px;border-bottom:1px solid var(--border);font-size:13px}
-tbody tr{transition:background .1s}
-tbody tr:hover{background:var(--accent-bg)}
-.badge{display:inline-flex;align-items:center;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.2px}
-.badge-success{background:rgba(16,185,129,.12);color:#10b981}
-body.light .badge-success{background:rgba(16,185,129,.1);color:#059669}
-.badge-warning{background:rgba(245,158,11,.12);color:#f59e0b}
-body.light .badge-warning{background:rgba(245,158,11,.1);color:#d97706}
-.badge-danger{background:rgba(239,68,68,.12);color:#ef4444}
-body.light .badge-danger{background:rgba(239,68,68,.1);color:#dc2626}
-.badge-info{background:rgba(124,109,240,.12);color:var(--accent)}
-body.light .badge-info{background:rgba(124,109,240,.08);color:var(--accent2)}
-.badge-muted{background:rgba(100,116,139,.1);color:var(--muted)}
-
-.priority-alta{color:#f59e0b;font-weight:600}
-.priority-critica{color:#ef4444;font-weight:700}
-.priority-media{color:var(--text)}
-.priority-baja{color:var(--muted)}
-
-.filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;align-items:center}
-.filters select,.filters input{min-width:150px}
-.spacer{flex:1}
-
-.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);backdrop-filter:blur(4px);z-index:200;align-items:center;justify-content:center}
-.modal-overlay.show{display:flex}
-.modal{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px;max-width:560px;width:90%;max-height:85vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
-.modal-title{font-size:18px;font-weight:700;margin-bottom:18px;letter-spacing:-.3px}
-.modal-actions{margin-top:22px;display:flex;gap:8px;justify-content:flex-end}
-.form-group{margin-bottom:14px}
-.form-group label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px}
-.form-group input,.form-group select,.form-group textarea{width:100%}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
-
 .kanban{display:flex;gap:16px;overflow-x:auto;padding-bottom:16px;min-height:350px}
-.kanban-col{min-width:270px;flex:1;background:var(--surface2);border-radius:var(--radius);padding:14px;border:1px solid var(--border);transition:background .15s}
-.kanban-col.drag-over{background:var(--accent-bg);border-color:var(--accent)}
-.kanban-col h4{padding:8px 12px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center;color:var(--muted)}
-.kanban-col h4 .count{font-size:11px;color:var(--muted);font-weight:500;background:var(--surface);padding:2px 8px;border-radius:10px}
-.kanban-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:14px;margin-bottom:10px;cursor:grab;transition:all .15s;user-select:none;box-shadow:var(--shadow)}
-.kanban-card:hover{border-color:var(--accent);box-shadow:0 4px 12px rgba(0,0,0,.1);transform:translateY(-1px)}
+.kanban-col{min-width:270px;flex:1;background:var(--surface2);border-radius:12px;padding:14px;border:1px solid var(--border);transition:background .15s}
+.kanban-col.drag-over{background:rgba(0,168,107,.06);border-color:var(--accent)}
+.kanban-col h4{padding:8px 10px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center;color:var(--muted)}
+.kanban-col h4 .count{font-size:11px;color:var(--muted);font-weight:500;background:var(--surface);padding:2px 8px;border-radius:10px;border:1px solid var(--border)}
+.kanban-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:10px;cursor:grab;transition:all .15s;user-select:none}
+.kanban-card:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.1)}
 .kanban-card.dragging{opacity:.4;border-style:dashed}
-.kanban-card .card-title{font-weight:600;font-size:13px;margin-bottom:8px;line-height:1.4}
+.kanban-card .card-title{font-weight:600;font-size:13px;margin-bottom:8px}
 .kanban-card .card-meta{font-size:11px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .kanban-card .card-meta span{display:inline-flex;align-items:center;gap:3px}
-
-.toast-container{position:fixed;top:16px;right:16px;z-index:999;display:flex;flex-direction:column;gap:8px}
-.toast{padding:12px 20px;border-radius:10px;font-size:13px;font-weight:600;color:#fff;animation:slideIn .3s ease;box-shadow:0 4px 16px rgba(0,0,0,.2)}
-.toast-success{background:var(--success)}
-.toast-error{background:var(--danger)}
-.toast-info{background:var(--accent)}
-@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
-
-.empty-state{text-align:center;padding:48px 20px;color:var(--muted)}
-.empty-state .icon{font-size:44px;margin-bottom:14px}
-.empty-state p{font-size:14px}
-
-.nombre-asignado{display:inline-flex;align-items:center;gap:4px}
-
-@media(max-width:768px){
-  .sidebar{transform:translateX(-100%)}
-  .sidebar.open{transform:translateX(0)}
-  .main{margin-left:0}
-  .hamburger{display:block}
-  .kanban{flex-direction:column}
-  .kanban-col{min-width:100%}
-  .form-row{grid-template-columns:1fr}
-}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:24px}
+.proy-card{cursor:pointer;transition:border-color .15s}
+.proy-card:hover{border-color:var(--accent)}
+.proy-card .prog-bar{background:var(--surface2);border-radius:10px;height:6px;margin:10px 0}
+.proy-card .prog-fill{height:100%;background:var(--accent);border-radius:10px;transition:width .3s}
+.proy-card .prog-text{font-size:11px;color:var(--muted)}
+.proy-card .proy-stats{display:flex;gap:10px;font-size:11px;color:var(--muted);margin-bottom:6px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+@media(max-width:768px){.kanban{flex-direction:column}.kanban-col{min-width:100%}.form-row{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<div class="app-layout">
 
+<!-- Sidebar overlay for mobile -->
+<div class="sidebar-overlay" id="sidebar-overlay"></div>
+
+<!-- Sidebar -->
 <aside class="sidebar" id="sidebar">
-  <div class="sidebar-brand">Proyectos</div>
-  <nav class="sidebar-nav" id="sidebar-nav">
+  <div class="logo"><span>Proyectos</span></div>
+  <nav id="sidebar-nav">
     <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">&#x1F4CA;</span> Dashboard</div>
     <div class="nav-item" data-page="proyectos" onclick="navigate('proyectos')"><span class="icon">&#x1F4C1;</span> Proyectos</div>
     <div class="nav-item" data-page="tareas" onclick="navigate('tareas')"><span class="icon">&#x2705;</span> Tareas</div>
@@ -162,108 +45,106 @@ body.light .badge-info{background:rgba(124,109,240,.08);color:var(--accent2)}
     <div class="nav-item" data-page="reportes" onclick="navigate('reportes')"><span class="icon">&#x1F4C8;</span> Reportes</div>
   </nav>
   <div class="sidebar-footer">
-    <div class="sidebar-user" onclick="logout()">
-      <div class="avatar" id="user-avatar">U</div>
-      <div>
-        <div id="user-name" style="font-size:13px;font-weight:600"></div>
-        <div id="user-role" style="font-size:11px;color:var(--muted)"></div>
-      </div>
+    <div class="user-info">
+      <div class="name" id="user-name"></div>
+      <div class="role" id="user-role"></div>
+      <span class="role-badge" id="user-badge"></span>
     </div>
-    <div style="margin-top:6px;font-size:10px;color:var(--muted);text-align:center">SynnoxERP Proyectos v1.0</div>
+    <div class="nav-item" onclick="mostrarLogoutConfirm()"><span class="icon">&#x1F6AA;</span> Cerrar sesion</div>
   </div>
 </aside>
 
-<div class="main">
-  <div class="main-header">
-    <button class="hamburger" onclick="toggleSidebar()" title="Menu">&#9776;</button>
-    <h3 id="page-title">Dashboard</h3>
-    <div class="header-actions">
-      <button class="btn btn-sm btn-secondary" onclick="toggleTheme()" title="Tema">&#127763;</button>
-    </div>
-  </div>
-  <div class="main-body">
-
-    <div class="page active" id="page-dashboard">
-      <div class="card-grid" id="dash-stats"></div>
-      <div class="card" style="margin-bottom:16px"><canvas id="chart-estados" width="400" height="200"></canvas></div>
-      <div class="card"><h4 style="margin-bottom:12px">Tareas recientes</h4><table><thead><tr><th>Titulo</th><th>Proyecto</th><th>Estado</th><th>Prioridad</th></tr></thead><tbody id="dash-recientes"></tbody></table></div>
-    </div>
-
-    <div class="page" id="page-proyectos">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
-        <div style="font-size:13px;color:var(--muted)" id="proyectos-count">0 proyectos</div>
-        <button class="btn btn-primary btn-sm" onclick="abrirModalProyecto()">+ Nuevo Proyecto</button>
+<!-- App screen -->
+<div id="app-screen">
+  <div class="main">
+    <div class="main-header">
+      <button class="hamburger" onclick="toggleSidebar()">&#9776;</button>
+      <h2 id="page-title">Dashboard</h2>
+      <div class="header-actions">
+        <button class="theme-toggle" onclick="toggleTheme()" title="Cambiar tema">&#127763;</button>
       </div>
-      <div class="card-grid" id="proyectos-grid"></div>
     </div>
+    <div class="main-body">
 
-    <div class="page" id="page-tareas">
-      <div class="filters" id="tareas-filters">
-        <select id="filtro-proyecto" onchange="cargarTareas()"><option value="">Todos los proyectos</option></select>
-        <select id="filtro-estado" onchange="cargarTareas()">
-          <option value="">Todos los estados</option>
-          <option value="pendiente">Pendiente</option>
-          <option value="en_progreso">En Progreso</option>
-          <option value="revision">Revision</option>
-          <option value="completada">Completada</option>
-        </select>
-        <select id="filtro-prioridad" onchange="cargarTareas()">
-          <option value="">Todas las prioridades</option>
-          <option value="baja">Baja</option>
-          <option value="media">Media</option>
-          <option value="alta">Alta</option>
-          <option value="critica">Critica</option>
-        </select>
-        <input id="filtro-busqueda" type="text" placeholder="Buscar tarea..." oninput="cargarTareas()">
-        <div class="spacer"></div>
-        <button class="btn btn-primary btn-sm" onclick="abrirModalTarea()">+ Nueva Tarea</button>
+      <!-- Dashboard -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-row" id="dash-stats"></div>
+        <div class="card mb-20"><canvas id="chart-estados" height="220"></canvas></div>
+        <div class="card"><h3 style="margin-bottom:12px">Tareas recientes</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Titulo</th><th>Proyecto</th><th>Estado</th><th>Prioridad</th></tr></thead><tbody id="dash-recientes"></tbody></table></div></div>
       </div>
-      <div class="card" style="overflow-x:auto">
-        <table>
-          <thead><tr>
-            <th>Titulo</th><th>Proyecto</th><th>Estado</th><th>Prioridad</th>
-            <th>Asignado</th><th>Fecha Limite</th><th></th>
-          </tr></thead>
-          <tbody id="tareas-tbody"></tbody>
-        </table>
+
+      <!-- Proyectos -->
+      <div class="page" id="page-proyectos">
+        <div class="flex mb-12"><div class="spacer text-muted" id="proyectos-count">0 proyectos</div><button class="btn btn-primary btn-sm" onclick="abrirModalProyecto()">+ Nuevo Proyecto</button></div>
+        <div class="card-grid" id="proyectos-grid"></div>
       </div>
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:12px;color:var(--muted)">
-        <span id="tareas-info"></span>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-sm btn-secondary" onclick="tareasPagina(-1)">Anterior</button>
-          <button class="btn btn-sm btn-secondary" onclick="tareasPagina(1)">Siguiente</button>
+
+      <!-- Tareas -->
+      <div class="page" id="page-tareas">
+        <div class="filters" id="tareas-filters">
+          <select id="filtro-proyecto" onchange="cargarTareas()"><option value="">Todos los proyectos</option></select>
+          <select id="filtro-estado" onchange="cargarTareas()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="en_progreso">En Progreso</option><option value="revision">Revision</option><option value="completada">Completada</option></select>
+          <select id="filtro-prioridad" onchange="cargarTareas()"><option value="">Todas las prioridades</option><option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option><option value="critica">Critica</option></select>
+          <input id="filtro-busqueda" type="text" placeholder="Buscar tarea..." oninput="cargarTareas()">
+          <div class="spacer"></div>
+          <button class="btn btn-primary btn-sm" onclick="abrirModalTarea()">+ Nueva Tarea</button>
         </div>
+        <div class="tbl-wrap">
+          <table class="tbl"><thead><tr><th>Titulo</th><th>Proyecto</th><th>Estado</th><th>Prioridad</th><th>Asignado</th><th>Fecha Limite</th><th></th></tr></thead><tbody id="tareas-tbody"></tbody></table>
+        </div>
+        <div class="flex mt-12" style="justify-content:space-between"><span class="text-muted" id="tareas-info" style="font-size:12px"></span><div class="flex gap-sm"><button class="btn btn-secondary btn-sm" onclick="tareasPagina(-1)">Anterior</button><button class="btn btn-secondary btn-sm" onclick="tareasPagina(1)">Siguiente</button></div></div>
       </div>
-    </div>
 
-    <div class="page" id="page-tablero">
-      <div class="filters">
-        <select id="tablero-proyecto" onchange="cargarTablero()"><option value="">Selecciona un proyecto</option></select>
+      <!-- Tablero Kanban -->
+      <div class="page" id="page-tablero">
+        <div class="filters"><select id="tablero-proyecto" onchange="cargarTablero()"><option value="">Selecciona un proyecto</option></select></div>
+        <div class="kanban" id="kanban-board"></div>
       </div>
-      <div class="kanban" id="kanban-board"></div>
-    </div>
 
-    <div class="page" id="page-reportes">
-      <div class="card-grid" id="rpt-estados"></div>
-      <div class="card" style="margin-bottom:16px"><h4 style="margin-bottom:12px">Tareas por asignado (pendientes)</h4><table><thead><tr><th>Asignado</th><th>Total</th></tr></thead><tbody id="rpt-asignado"></tbody></table></div>
-    </div>
+      <!-- Reportes -->
+      <div class="page" id="page-reportes">
+        <div class="stats-row" id="rpt-estados"></div>
+        <div class="card"><h3 style="margin-bottom:12px">Tareas por asignado (pendientes)</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Asignado</th><th>Total</th></tr></thead><tbody id="rpt-asignado"></tbody></table></div></div>
+      </div>
 
+    </div>
   </div>
 </div>
 
-</div>
-
+<!-- Modal principal -->
 <div class="modal-overlay" id="modal-overlay">
-  <div class="modal" id="modal-content"></div>
+  <div class="modal">
+    <h3 id="modal-title"></h3>
+    <div class="modal-desc" id="modal-desc"></div>
+    <div id="modal-body"></div>
+    <div class="modal-actions" id="modal-actions"></div>
+  </div>
 </div>
 
+<!-- Modal detalle tarea -->
 <div class="modal-overlay" id="modal-detalle">
-  <div class="modal" id="modal-detalle-content" style="max-width:640px"></div>
+  <div class="modal" style="max-width:640px">
+    <div id="modal-detalle-body"></div>
+  </div>
 </div>
 
-<div class="toast-container" id="toast-container"></div>
+<!-- Modal logout -->
+<div class="modal-overlay" id="modal-logout">
+  <div class="modal" style="max-width:380px;text-align:center">
+    <div style="font-size:44px;margin:12px 0">&#x1F6AA;</div>
+    <h3>Cerrar sesion</h3>
+    <div class="modal-desc">Volveras al launcher principal.</div>
+    <div class="modal-actions" style="justify-content:center">
+      <button class="btn btn-secondary" onclick="cerrarLogoutConfirm()">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmarLogout()">Salir</button>
+    </div>
+  </div>
+</div>
 
-<script src="js/utils/api.js"></script>
+<div id="toast-container"></div>
+
+<script src="framework.js"></script>
+<script src="theme.js"></script>
 <script src="js/utils/helpers.js"></script>
 <script src="js/modules/dashboard.js"></script>
 <script src="js/modules/proyectos.js"></script>
@@ -271,6 +152,5 @@ body.light .badge-info{background:rgba(124,109,240,.08);color:var(--accent2)}
 <script src="js/modules/tablero.js"></script>
 <script src="js/modules/reportes.js"></script>
 <script src="app.js"></script>
-
 </body>
 </html>

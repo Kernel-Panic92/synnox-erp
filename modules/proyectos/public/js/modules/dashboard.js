@@ -1,6 +1,6 @@
 async function cargarDashboard() {
   try {
-    const data = await api('/dashboard');
+    const data = await HF.api('/dashboard');
     const estados = data.estados || [];
     const recientes = data.recientes || [];
     const porAsignado = data.porAsignado || [];
@@ -12,11 +12,11 @@ async function cargarDashboard() {
     const total = estados.reduce((s, e) => s + parseInt(e.count), 0);
 
     document.getElementById('dash-stats').innerHTML = `
-      <div class="card stat-card"><div class="num" style="color:var(--text)">${total}</div><div class="lbl">Total Tareas</div></div>
-      <div class="card stat-card"><div class="num" style="color:#f59e0b">${pendiente}</div><div class="lbl">Pendientes</div></div>
-      <div class="card stat-card"><div class="num" style="color:var(--accent)">${enProgreso}</div><div class="lbl">En Progreso</div></div>
-      <div class="card stat-card"><div class="num" style="color:#a78bfa">${revision}</div><div class="lbl">En Revision</div></div>
-      <div class="card stat-card"><div class="num" style="color:#10b981">${completada}</div><div class="lbl">Completadas</div></div>
+      <div class="stat-card"><div class="stat-label">Total Tareas</div><div class="stat-value">${total}</div></div>
+      <div class="stat-card"><div class="stat-label">Pendientes</div><div class="stat-value" style="color:var(--warning)">${pendiente}</div></div>
+      <div class="stat-card"><div class="stat-label">En Progreso</div><div class="stat-value" style="color:var(--accent)">${enProgreso}</div></div>
+      <div class="stat-card"><div class="stat-label">En Revision</div><div class="stat-value" style="color:var(--accent2)">${revision}</div></div>
+      <div class="stat-card"><div class="stat-label">Completadas</div><div class="stat-value" style="color:var(--success)">${completada}</div></div>
     `;
 
     const canvas = document.getElementById('chart-estados');

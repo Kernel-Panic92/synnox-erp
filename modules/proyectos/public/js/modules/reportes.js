@@ -1,6 +1,6 @@
 async function cargarReportes() {
   try {
-    const data = await api('/dashboard');
+    const data = await HF.api('/dashboard');
     const estados = data.estados || [];
     const porAsignado = data.porAsignado || [];
 
@@ -11,11 +11,11 @@ async function cargarReportes() {
     const total = estados.reduce((s, e) => s + parseInt(e.count), 0);
 
     document.getElementById('rpt-estados').innerHTML = `
-      <div class="card stat-card"><div class="num">${total}</div><div class="lbl">Total Tareas</div></div>
-      <div class="card stat-card"><div class="num" style="color:#fdcb6e">${pendiente}</div><div class="lbl">Pendientes (${total > 0 ? Math.round((pendiente/total)*100) : 0}%)</div></div>
-      <div class="card stat-card"><div class="num" style="color:var(--accent)">${enProgreso}</div><div class="lbl">En Progreso (${total > 0 ? Math.round((enProgreso/total)*100) : 0}%)</div></div>
-      <div class="card stat-card"><div class="num" style="color:#a29bfe">${revision}</div><div class="lbl">En Revision</div></div>
-      <div class="card stat-card"><div class="num" style="color:#00b894">${completada}</div><div class="lbl">Completadas (${total > 0 ? Math.round((completada/total)*100) : 0}%)</div></div>
+      <div class="stat-card"><div class="stat-label">Total Tareas</div><div class="stat-value">${total}</div></div>
+      <div class="stat-card"><div class="stat-label">Pendientes</div><div class="stat-value" style="color:var(--warning)">${pendiente} <span style="font-size:14px;color:var(--muted)">(${total > 0 ? Math.round((pendiente/total)*100) : 0}%)</span></div></div>
+      <div class="stat-card"><div class="stat-label">En Progreso</div><div class="stat-value" style="color:var(--accent)">${enProgreso} <span style="font-size:14px;color:var(--muted)">(${total > 0 ? Math.round((enProgreso/total)*100) : 0}%)</span></div></div>
+      <div class="stat-card"><div class="stat-label">En Revision</div><div class="stat-value" style="color:var(--accent2)">${revision}</div></div>
+      <div class="stat-card"><div class="stat-label">Completadas</div><div class="stat-value" style="color:var(--success)">${completada} <span style="font-size:14px;color:var(--muted)">(${total > 0 ? Math.round((completada/total)*100) : 0}%)</span></div></div>
     `;
 
     const ids = porAsignado.map(r => r.asignado_a).filter(Boolean);
