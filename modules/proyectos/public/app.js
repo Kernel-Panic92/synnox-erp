@@ -30,6 +30,11 @@ function logout() {
   window.location.href = '/';
 }
 
+function mostrarAppInterno() {
+  document.getElementById('app-screen').style.display = 'block';
+  navigate(HF.themePages[0] || 'dashboard');
+}
+
 async function cargarNombresUsuarios(ids) {
   const faltantes = ids.filter(id => !_nombresUsuarios[id]);
   if (!faltantes.length) return;
@@ -48,7 +53,10 @@ async function init() {
     const data = await api('/auth/me');
     usuario = data;
     HF.USER = data;
-    mostrarApp();
+    if (data.nombre) document.getElementById('user-name').textContent = data.nombre;
+    if (data.rol) document.getElementById('user-role').textContent = data.rol === 'admin' ? 'Administrador' : (data.perfil_nombre || data.rol);
+    if (data.rol) document.getElementById('user-badge').textContent = data.rol;
+    mostrarAppInterno();
   } catch {
     logout();
   }
