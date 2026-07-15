@@ -2405,7 +2405,7 @@ async function testWidetech() {
 }
 
 /* ── Widetech Sync Tab ── */
-let wtTab = 'viajes';
+let wtTab = 'sync';
 
 async function rWidetech() {
   document.querySelectorAll('#wt-tabs .rpt-tab').forEach(b => b.classList.toggle('active', b.dataset.wt === wtTab));
@@ -2552,7 +2552,6 @@ async function checkPlacaWidetech() {
       msg.innerHTML = '<span style="color:var(--warning)">⚠️ Placa ' + plate + ' no encontrada en Widetech</span>';
     }
   } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
-}
 }
 
 async function cargarWtCheckVehiculos() {
