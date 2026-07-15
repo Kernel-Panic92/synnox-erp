@@ -15,12 +15,11 @@ const soloAdmin = (req, res, next) => {
 
 router.post('/import-xlsx', soloAdmin, upload.single('file'), async (req, res) => {
   try {
-    if (!req.files?.file) return res.status(400).json({ error: 'Archivo xlsx requerido' });
-    const file = req.files.file;
-    const ext = file.name.split('.').pop().toLowerCase();
+    if (!req.file) return res.status(400).json({ error: 'Archivo xlsx requerido' });
+    const ext = req.file.originalname.split('.').pop().toLowerCase();
     if (ext !== 'xlsx') return res.status(400).json({ error: 'Solo se aceptan archivos .xlsx' });
     const wb = new ExcelJS.Workbook();
-    await wb.xlsx.load(file.data);
+    await wb.xlsx.load(req.file.buffer);
     const ws = wb.worksheets[0];
     if (!ws || ws.rowCount < 3) return res.status(400).json({ error: 'El archivo no tiene datos válidos' });
     const headerRow = ws.getRow(2);
