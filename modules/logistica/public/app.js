@@ -2397,8 +2397,7 @@ async function testWidetech() {
     const body = {
       url: document.getElementById('wt-url').value.trim(),
       user: document.getElementById('wt-user').value.trim(),
-      password,
-      lang: document.getElementById('wt-lang').value
+      password
     };
     const data = await api('/widetech/test', { method: 'POST', body: JSON.stringify(body) });
     msg.innerHTML = '<span style="color:var(--success)">✓ ' + data.mensaje + '</span>';
