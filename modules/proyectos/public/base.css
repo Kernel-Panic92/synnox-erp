@@ -58,6 +58,7 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
 .sidebar nav .nav-item .icon { font-size: 18px; width: 24px; text-align: center; }
 .sidebar .sidebar-footer { padding: 12px 20px; border-top: 1px solid var(--border); }
 .sidebar .sidebar-footer .nav-item { font-size: 13px; padding: 8px 0; }
+.sidebar .sidebar-footer .version { margin-top: 10px; text-align: center; font-size: 10px; color: var(--muted); line-height: 1.6; opacity: 0.7; }
 
 .main { margin-left: var(--sidebar-w); min-height: 100vh; display: flex; flex-direction: column; }
 .main-header {
