@@ -32,11 +32,16 @@
 <body>
 
 <!-- Sidebar overlay for mobile -->
-<div class="sidebar-overlay" id="sidebar-overlay"></div>
+<div class="sidebar-overlay" onclick="closeSidebar()"></div>
 
 <!-- Sidebar -->
 <aside class="sidebar" id="sidebar">
-  <div class="logo"><span>Proyectos</span></div>
+  <div class="logo">📋 <span>Proyectos</span></div>
+  <div class="user-info">
+    <div class="name" id="user-name"></div>
+    <div class="role" id="user-role"></div>
+    <span class="badge" id="user-badge"></span>
+  </div>
   <nav id="sidebar-nav">
     <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">&#x1F4CA;</span> Dashboard</div>
     <div class="nav-item" data-page="proyectos" onclick="navigate('proyectos')"><span class="icon">&#x1F4C1;</span> Proyectos</div>
@@ -45,12 +50,12 @@
     <div class="nav-item" data-page="reportes" onclick="navigate('reportes')"><span class="icon">&#x1F4C8;</span> Reportes</div>
   </nav>
   <div class="sidebar-footer">
-    <div class="user-info">
-      <div class="name" id="user-name"></div>
-      <div class="role" id="user-role"></div>
-      <span class="role-badge" id="user-badge"></span>
+    <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesion">
+      <span style="font-size:18px">&#x23FB;</span> Cerrar sesion
+    </button>
+    <div style="margin-top:10px;text-align:center;font-size:10px;color:var(--muted);line-height:1.6;opacity:0.7">
+      <div>SynnoxERP Proyectos v1.0</div>
     </div>
-    <div class="nav-item" onclick="mostrarLogoutConfirm()"><span class="icon">&#x1F6AA;</span> Cerrar sesion</div>
   </div>
 </aside>
 
@@ -131,12 +136,12 @@
 <!-- Modal logout -->
 <div class="modal-overlay" id="modal-logout">
   <div class="modal" style="max-width:380px;text-align:center">
-    <div style="font-size:44px;margin:12px 0">&#x1F6AA;</div>
-    <h3>Cerrar sesion</h3>
-    <div class="modal-desc">Volveras al launcher principal.</div>
-    <div class="modal-actions" style="justify-content:center">
+    <div style="font-size:44px;margin-bottom:8px">&#x1F44B;</div>
+    <div class="modal-title" style="font-size:20px">Cerrar sesion</div>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:8px">Estas seguro de que deseas cerrar tu sesion?</p>
+    <div style="display:flex;gap:10px;justify-content:center;margin-top:20px;padding-top:16px;border-top:1px solid var(--border)">
       <button class="btn btn-secondary" onclick="cerrarLogoutConfirm()">Cancelar</button>
-      <button class="btn btn-danger" onclick="confirmarLogout()">Salir</button>
+      <button class="btn btn-danger" onclick="confirmarLogout()">Cerrar sesion</button>
     </div>
   </div>
 </div>
