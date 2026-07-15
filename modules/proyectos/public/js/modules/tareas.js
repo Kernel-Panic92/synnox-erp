@@ -195,8 +195,8 @@ async function abrirModalDetalleTarea(id) {
         <button class="btn btn-sm btn-primary" onclick="agregarComentario(${t.id})">Enviar</button>
       </div>
       <div class="modal-actions">
-        <button class="btn btn-sm btn-primary" onclick="cerrarModal();abrirModalTarea(${t.id})">Editar Tarea</button>
-        <button class="btn btn-sm btn-secondary" onclick="cerrarModal()">Cerrar</button>
+        <button class="btn btn-sm btn-primary" onclick="cerrarModalDetalle();abrirModalTarea(${t.id})">Editar Tarea</button>
+        <button class="btn btn-sm btn-secondary" onclick="cerrarModalDetalle()">Cerrar</button>
       </div>
     `;
     document.getElementById('modal-detalle').classList.add('show');
