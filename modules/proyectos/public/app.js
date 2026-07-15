@@ -72,8 +72,6 @@ function nombreUsuario(id) {
 }
 
 async function init() {
-  const t = getToken();
-  if (!t) return logout();
   try {
     const data = await api('/auth/me');
     usuario = data;
