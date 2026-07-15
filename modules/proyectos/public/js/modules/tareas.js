@@ -103,7 +103,7 @@ async function abrirModalTarea(id) {
         <option value="revision" ${t?.estado === 'revision' ? 'selected' : ''}>Revision</option>
         <option value="completada" ${t?.estado === 'completada' ? 'selected' : ''}>Completada</option>
       </select></div>
-      <div class="form-group"><label>Asignado a</label><select id="tarea-asignado"><option value="">Sin asignar</option>${usuarios}</select></div>
+      <div class="form-group"><label>Asignado a</label><select id="tarea-asignado">${usuarios}</select></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label>Fecha Limite</label><input type="date" id="tarea-fecha" value="${t?.fecha_limite ? t.fecha_limite.split('T')[0] : ''}"></div>
