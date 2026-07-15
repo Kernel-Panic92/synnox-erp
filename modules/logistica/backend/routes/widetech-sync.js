@@ -15,17 +15,20 @@ const soloAdmin = (req, res, next) => {
 
 router.post('/import-xlsx', soloAdmin, upload.single('file'), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'Archivo xlsx requerido' });
+    console.log('[import-xlsx] req.file:', req.file ? { name: req.file.originalname, size: req.file.size, mime: req.file.mimetype } : 'null');
+    if (!req.file) return res.status(400).json({ error: 'Archivo xlsx requerido — req.file es null' });
     const ext = req.file.originalname.split('.').pop().toLowerCase();
     if (ext !== 'xlsx') return res.status(400).json({ error: 'Solo se aceptan archivos .xlsx' });
     const wb = new ExcelJS.Workbook();
     await wb.xlsx.load(req.file.buffer);
     const ws = wb.worksheets[0];
+    console.log('[import-xlsx] worksheet:', ws?.name, 'rows:', ws?.rowCount);
     if (!ws || ws.rowCount < 3) return res.status(400).json({ error: 'El archivo no tiene datos válidos' });
     const headerRow = ws.getRow(2);
     const colMap = {};
-    headerRow.eachCell((cell, colNumber) => {
+    headerRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
       const val = String(cell.value || '').trim().toLowerCase();
+      console.log(`[import-xlsx] col ${colNumber}: "${val}"`);
       if (val === 'mobile') colMap.plate = colNumber;
       if (val === 'name') colMap.name = colNumber;
       if (val === 'latitude') colMap.lat = colNumber;
@@ -33,11 +36,13 @@ router.post('/import-xlsx', soloAdmin, upload.single('file'), async (req, res) =
       if (val === 'location') colMap.location = colNumber;
       if (val === 'status') colMap.status = colNumber;
     });
-    if (!colMap.plate) return res.status(400).json({ error: 'No se encontró columna "Mobile" en el archivo' });
+    console.log('[import-xlsx] colMap:', colMap);
+    if (!colMap.plate) return res.status(400).json({ error: 'No se encontró columna "Mobile"', colMap });
     const vehicles = [];
     for (let i = 3; i <= ws.rowCount; i++) {
       const row = ws.getRow(i);
       const plate = String(row.getCell(colMap.plate).value || '').trim().toUpperCase();
+      console.log(`[import-xlsx] row ${i}: plate="${plate}" type="${typeof row.getCell(colMap.plate).value}"`);
       if (!plate || plate.length < 3) continue;
       vehicles.push({
         plate,
