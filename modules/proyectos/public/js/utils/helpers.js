@@ -1,51 +1,8 @@
-function esc(s) {
-  if (!s && s !== 0) return '';
-  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-}
-
 function formatDate(d) {
   if (!d) return '—';
   const dt = new Date(d);
   if (isNaN(dt)) return '—';
   return dt.toISOString().split('T')[0];
-}
-
-function toast(mensaje, tipo = 'info') {
-  const container = document.getElementById('toast-container');
-  const el = document.createElement('div');
-  el.className = 'toast toast-' + tipo;
-  el.textContent = mensaje;
-  container.appendChild(el);
-  setTimeout(() => { el.remove(); }, 4000);
-}
-
-function abrirModal(title, bodyHtml, actionsHtml) {
-  const overlay = document.getElementById('modal-overlay');
-  const content = document.getElementById('modal-content');
-  content.innerHTML = `
-    <div class="modal-title">${esc(title)}</div>
-    ${bodyHtml}
-    ${actionsHtml ? '<div class="modal-actions">' + actionsHtml + '</div>' : ''}
-  `;
-  overlay.classList.add('show');
-}
-
-function cerrarModal() {
-  document.getElementById('modal-overlay').classList.remove('show');
-  document.getElementById('modal-detalle').classList.remove('show');
-}
-
-function confirmarModal(title, message) {
-  return new Promise(resolve => {
-    abrirModal(title, `<p>${esc(message)}</p>`,
-      '<button class="btn btn-sm btn-secondary" onclick="cerrarModal();resolveModal(false)">Cancelar</button>' +
-      '<button class="btn btn-sm btn-danger" onclick="cerrarModal();resolveModal(true)">Confirmar</button>'
-    );
-    window.resolveModal = (val) => {
-      delete window.resolveModal;
-      resolve(val);
-    };
-  });
 }
 
 function badgeEstado(estado) {
@@ -60,6 +17,39 @@ function badgePrioridad(p) {
   return `<span class="badge ${cls[p] || 'badge-muted'}">${labels[p] || p}</span>`;
 }
 
+function abrirModalDetalle(title, bodyHtml, actionsHtml) {
+  document.getElementById('modal-detalle-body').innerHTML = `
+    ${title ? '<h3>' + esc(title) + '</h3>' : ''}
+    ${bodyHtml}
+    ${actionsHtml ? '<div class="modal-actions">' + actionsHtml + '</div>' : ''}
+  `;
+  document.getElementById('modal-detalle').classList.add('show');
+}
+
+function cerrarModalDetalle() {
+  document.getElementById('modal-detalle').classList.remove('show');
+}
+
+function confirmarModal(title, message) {
+  return new Promise(resolve => {
+    confirmar({
+      titulo: title,
+      mensaje: message,
+      btnTxt: 'Confirmar',
+      onConfirm: () => resolve(true)
+    });
+    const orig = window._confirmCb;
+    window._confirmCb = () => { if (orig) orig(); resolve(true); };
+  });
+}
+
 document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') cerrarModal();
+  if (e.key === 'Escape') {
+    cerrarModal();
+    cerrarModalDetalle();
+  }
+});
+
+document.getElementById('modal-detalle')?.addEventListener('click', function(e) {
+  if (e.target === this) cerrarModalDetalle();
 });
