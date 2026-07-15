@@ -93,11 +93,12 @@ router.put('/:id', async (req, res) => {
     if (descripcion !== undefined) { updates.push(`descripcion = $${idx++}`); params.push(descripcion); }
     if (tipo !== undefined) { updates.push(`tipo = $${idx++}`); params.push(tipo); }
     if (prioridad !== undefined) { updates.push(`prioridad = $${idx++}`); params.push(prioridad); }
-    if (estado !== undefined) { updates.push(`estado = $${idx++}`); params.push(estado); }
     if (columna !== undefined) {
       updates.push(`columna = $${idx++}`); params.push(columna);
       const est = COLUMNA_A_ESTADO[columna];
       if (est) { updates.push(`estado = $${idx++}`); params.push(est); }
+    } else if (estado !== undefined) {
+      updates.push(`estado = $${idx++}`); params.push(estado);
     }
     if (asignado_a !== undefined) { updates.push(`asignado_a = $${idx++}`); params.push(asignado_a); }
     if (fecha_limite !== undefined) { updates.push(`fecha_limite = $${idx++}`); params.push(fecha_limite); }
