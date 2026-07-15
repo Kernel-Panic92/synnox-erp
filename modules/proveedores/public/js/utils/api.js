@@ -2,21 +2,32 @@ const $=id=>document.getElementById(id);
 
 const BASE = window.BASE || '';
 
-function getToken() {
-  const c = document.cookie.split('; ').find(r => r.startsWith('launcher_jwt='));
-  const t = c ? c.split('=')[1] : null;
-  console.log('[getToken] found:', !!c, 'preview:', t ? t.slice(0,20)+'...' : 'null');
-  return t;
+let _sessionExpiredShown = false;
+
+function showSessionExpiredModal() {
+  if (_sessionExpiredShown) return;
+  _sessionExpiredShown = true;
+  stopSyncPoll?.();
+  const overlay = document.createElement('div');
+  overlay.id = 'session-expired-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center';
+  overlay.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;max-width:400px;text-align:center">
+    <div style="font-size:48px;margin-bottom:16px">🔒</div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:8px">Sesión expirada</div>
+    <div style="color:var(--muted);margin-bottom:20px">Tu sesión ha expirado. Inicia sesión nuevamente para continuar.</div>
+    <button class="btn btn-primary" onclick="window.location.href='/'">Volver al inicio</button>
+  </div>`;
+  document.body.appendChild(overlay);
 }
 
 async function api(m,p,b,isF){
-  const o={method:m,headers:{Authorization:`Bearer ${getToken()}`}};
+  const o={method:m,headers:{}};
   if(b&&!isF){o.headers['Content-Type']='application/json';o.body=JSON.stringify(b)}
   else if(isF)o.body=b;
   const url=m==='GET'?`${BASE}/api${p}${p.includes('?')?'&':'?'}_t=${Date.now()}`:`${BASE}/api${p}`;
   const r=await fetch(url,o);
   if (r.status === 401) {
-    window.location.href = '/';
+    showSessionExpiredModal();
     throw new Error('Sesión expirada');
   }
   const j=await r.json().catch(()=>({}));

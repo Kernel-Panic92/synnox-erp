@@ -69,8 +69,20 @@ function terminarSync(creadas, duplicadas, errores) {
 }
 
 function obtenerEstado() {
-  // No timeout - let IMAP finish naturally
-  // The IMAP download has its own error handling
+  const STUCK_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutes
+  
+  // Auto-reset if stuck: syncing but no progress for too long
+  if (syncState.sincronizando && syncState._startedAt) {
+    const elapsed = Date.now() - syncState._startedAt;
+    const noProgress = syncState.procesando === 0 && syncState.totalMensajes > 0;
+    if (noProgress && elapsed > STUCK_TIMEOUT_MS) {
+      console.error('[SyncState] Sync stuck — auto-resetting after', Math.round(elapsed/1000), 's with no progress');
+      syncState.sincronizando = false;
+      syncState.mensaje = 'Sincronización cancelada por timeout (sin progreso por 10 minutos)';
+      syncState.errores = syncState.totalMensajes;
+      guardarEstado();
+    }
+  }
   
   // Calculate ETA
   let eta = null;
