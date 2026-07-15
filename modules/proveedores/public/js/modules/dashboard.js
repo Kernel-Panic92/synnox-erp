@@ -69,7 +69,7 @@ async function rDash(){
   const storageHtml=cargarStorage(d.storage);
   $('content').innerHTML=`
     <div class="page-header"><div><div class="page-title">Dashboard</div><div class="page-sub">${esTesorero?'Gestión de pagos':esComprador?'Facturas por aprobar':'Resumen general'}</div></div></div>
-    ${!esComprador?sync.bar:''}
+    ${!esComprador?`<div id="sync-bar-container">${sync.bar}</div>`:''}
     <div class="stats-row">${stats}${storageHtml}</div>
     <div class="tbl">
       <div class="tbl-head"><div class="tbl-title">Actividad reciente</div><button class="btn btn-primary btn-sm" onclick="mNuevaF()">+ Nueva</button></div>
@@ -242,11 +242,20 @@ async function reiniciarSync(){
     if(S.view==='dashboard')rDash();
   }catch(e){toast(e.message,'error')}
 }
+
+async function updateSyncBar(){
+  try{
+    const syncEl=document.getElementById('sync-bar-container');
+    if(!syncEl)return;
+    const sync=await checkSyncStatus();
+    syncEl.innerHTML=sync.bar;
+    if(!sync.sincronizando)stopSyncPoll();
+  }catch(e){console.log('[SyncPoll] error:',e.message)}
+}
+
 function startSyncPoll(){
   if(syncPollInterval)return;
-  syncPollInterval=setInterval(async()=>{
-    if(S.view==='dashboard')await rDash();
-  },2000);
+  syncPollInterval=setInterval(updateSyncBar,3000);
 }
 function stopSyncPoll(){
   if(syncPollInterval){clearInterval(syncPollInterval);syncPollInterval=null}
