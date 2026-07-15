@@ -74,6 +74,7 @@ function navigate(page) {
   else if (page === 'mapa') cargarMapa();
   else if (page === 'clientes') cargarClientes();
   else if (page === 'sedes') cargarSedes();
+  else if (page === 'widetech') rWidetech();
 }
 
 /* ── Init ── */
@@ -89,6 +90,7 @@ function renderSidebar(usuario) {
     { page: 'rutas', icon: '🗺️', label: 'Rutas', show: true },
     { page: 'reportes', icon: '📈', label: 'Reportes', show: true },
     { page: 'mapa', icon: '🗺️', label: 'Mapa', show: true },
+    { page: 'widetech', icon: '🛰️', label: 'Widetech', show: isAdmin || modPermisos.includes('configurar') },
     { page: 'config', icon: '⚙️', label: 'Configuración', show: isAdmin || modPermisos.includes('configurar') },
   ];
   const nav = document.getElementById('sidebar-nav');
@@ -2403,7 +2405,206 @@ async function testWidetech() {
   } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
 }
 
-/* ── Reportes ── */
+/* ── Widetech Sync Tab ── */
+let wtTab = 'viajes';
+
+async function rWidetech() {
+  document.querySelectorAll('#wt-tabs .rpt-tab').forEach(b => b.classList.toggle('active', b.dataset.wt === wtTab));
+  const el = document.getElementById('wt-content');
+  if (wtTab === 'viajes') renderWtViajes(el);
+  else if (wtTab === 'vehiculos') renderWtVehiculos(el);
+  else if (wtTab === 'zonas') renderWtZonas(el);
+}
+
+function escFiltroFechaWt() {
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}/${m}/${day} 00:00:00`;
+}
+
+async function renderWtViajes(el) {
+  const hoy = new Date();
+  const hace30 = new Date(hoy.getTime() - 15 * 24 * 60 * 60 * 1000);
+  const defStart = `${hace30.getFullYear()}/${String(hace30.getMonth()+1).padStart(2,'0')}/${String(hace30.getDate()).padStart(2,'0')} 00:00:00`;
+  const defEnd = escFiltroFechaWt();
+  el.innerHTML = `
+    <div class="card">
+      <h4 style="margin-bottom:16px;font-family:var(--font-head);">🚛 Viajes Widetech</h4>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+        Viajes registrados en Widetech. Los vehículos no existentes en logística se importan automáticamente.
+      </p>
+      <div class="form-grid" style="grid-template-columns:1fr 1fr auto;margin-bottom:14px;">
+        <div class="form-group">
+          <label>Fecha inicio</label>
+          <input id="wt-start" value="${defStart}" placeholder="YYYY/MM/dd HH:mm:ss" style="font-family:monospace;font-size:13px;">
+        </div>
+        <div class="form-group">
+          <label>Fecha fin</label>
+          <input id="wt-end" value="${defEnd}" placeholder="YYYY/MM/dd HH:mm:ss" style="font-family:monospace;font-size:13px;">
+        </div>
+        <div class="form-group" style="align-self:flex-end;">
+          <label>Placa (opcional)</label>
+          <input id="wt-plate" placeholder="ABC123" style="text-transform:uppercase;">
+        </div>
+      </div>
+      <div class="flex">
+        <button class="btn btn-primary" onclick="cargarWtViajes()">🔍 Consultar</button>
+      </div>
+      <div id="wt-viajes-msg" style="margin-top:10px;font-size:13px;"></div>
+    </div>
+    <div id="wt-viajes-table" style="margin-top:14px;"></div>`;
+}
+
+async function cargarWtViajes() {
+  const msg = document.getElementById('wt-viajes-msg');
+  const tbl = document.getElementById('wt-viajes-table');
+  msg.innerHTML = '<span class="text-muted">Consultando Widetech (espera ~25s por rate-limit)...</span>';
+  tbl.innerHTML = '';
+  const start = document.getElementById('wt-start').value.trim();
+  const end = document.getElementById('wt-end').value.trim();
+  const plate = document.getElementById('wt-plate').value.trim();
+  if (!start || !end) { msg.innerHTML = '<span style="color:var(--danger)">✗ Fechas requeridas</span>'; return; }
+  try {
+    const q = `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}${plate ? '&plate='+encodeURIComponent(plate) : ''}`;
+    const data = await api('/widetech-sync/travels' + q);
+    const travels = data.travels || [];
+    if (data.orphan_vehicles?.created > 0) {
+      msg.innerHTML = `<span style="color:var(--success)">✓ ${travels.length} viajes · ${data.orphan_vehicles.created} vehículos importados automáticamente</span>`;
+    } else {
+      msg.innerHTML = `<span style="color:var(--success)">✓ ${travels.length} viajes encontrados</span>`;
+    }
+    if (!travels.length) { tbl.innerHTML = '<p class="text-muted" style="padding:20px;">Sin viajes en este rango</p>'; return; }
+    tbl.innerHTML = `
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr>
+            <th>Remisión</th><th>Placa</th><th>Conductor</th><th>Inicio</th><th>Fin</th>
+            <th>Origen</th><th>Destino</th><th>Distancia</th><th>Estado</th><th></th>
+          </tr></thead>
+          <tbody>${travels.map(t => {
+            const vehOk = t.vehiculo_id ? '' : 'style="color:var(--warning)"';
+            return `<tr>
+              <td>${esc(t.Referral)}</td>
+              <td><strong ${vehOk}>${esc(t.Plate)}</strong>${t.vehiculo_alias ? '<br><small>' + esc(t.vehiculo_alias) + '</small>' : ''}</td>
+              <td>${esc(t.Driver)}</td>
+              <td><small>${esc(t.SDate)}</small></td>
+              <td><small>${esc(t.EDate)}</small></td>
+              <td>${esc(t.OriginCity)}</td>
+              <td>${esc(t.DestinationCity)}</td>
+              <td>${t.Distance || '—'}</td>
+              <td><span class="badge badge-${t.Status==='4'||t.Status==='5'?'danger':'info'}">${esc(t.StatusName)}</span></td>
+              <td>
+                <button class="btn btn-sm btn-secondary" onclick="importarWtViaje('${esc(t.Plate)}','${esc(t.Driver)}','${esc(t.OriginCity)}','${esc(t.DestinationCity)}','${t.LatOrigin||''}','${t.LngOrigin||''}','${t.LatDestination||''}','${t.LngDestination||''}','${esc(t.SDate)}')" title="Importar como ruta">📥</button>
+              </td>
+            </tr>`;
+          }).join('')}</tbody>
+        </table>
+      </div>`;
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
+}
+
+async function importarWtViaje(placa, conductor, origen, destino, latO, lngO, latD, lngD, fecha) {
+  const ok = await confirmarModal('Importar viaje', `¿Importar viaje de ${placa} (${origen} → ${destino}) como ruta en logística?`);
+  if (!ok) return;
+  const msg = document.getElementById('wt-viajes-msg');
+  try {
+    const data = await api('/widetech-sync/import-travel', {
+      method: 'POST',
+      body: JSON.stringify({ placa, conductor, origen, destino, lat_origen: latO, lng_origen: lngO, lat_destino: latD, lng_destino: lngD, fecha })
+    });
+    mostrarAlerta(data.mensaje + ' — ID ruta: ' + data.ruta.id, 'success');
+    cargarWtViajes();
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
+}
+
+async function renderWtVehiculos(el) {
+  el.innerHTML = `
+    <div class="card" style="max-width:600px;">
+      <h4 style="margin-bottom:16px;font-family:var(--font-head);">🚦 Estado de vehículos en Widetech</h4>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+        Verifica mediante CheckBoot si cada vehículo tiene conexión activa en la plataforma Widetech.
+        <br><strong>Nota:</strong> Esto consulta la API por cada vehículo individualmente (rate-limit ~25s por vehículo).
+      </p>
+      <button class="btn btn-primary" onclick="cargarWtCheckVehiculos()">🔍 Verificar todos</button>
+      <div id="wt-vehiculos-msg" style="margin-top:10px;font-size:13px;"></div>
+    </div>
+    <div id="wt-vehiculos-table" style="margin-top:14px;"></div>`;
+}
+
+async function cargarWtCheckVehiculos() {
+  const msg = document.getElementById('wt-vehiculos-msg');
+  const tbl = document.getElementById('wt-vehiculos-table');
+  msg.innerHTML = '<span class="text-muted">Consultando Widetech para cada vehículo...</span>';
+  tbl.innerHTML = '';
+  try {
+    const data = await api('/widetech-sync/check-vehicles', { method: 'POST' });
+    const results = data.results || [];
+    msg.innerHTML = `<span style="color:var(--success)">✓ ${results.length} vehículos verificados</span>`;
+    if (!results.length) { tbl.innerHTML = '<p class="text-muted" style="padding:20px;">No hay vehículos registrados</p>'; return; }
+    tbl.innerHTML = `
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>Placa</th><th>Estado</th><th>Último GPS</th></tr></thead>
+          <tbody>${results.map(r => `
+            <tr>
+              <td><strong>${esc(r.placa)}</strong></td>
+              <td>${r.online ? '<span class="badge badge-success">🟢 Online</span>' : r.error ? '<span class="badge badge-danger" title="'+esc(r.error)+'">🔴 Error</span>' : '<span class="badge badge-warning">🟡 Sin boot</span>'}</td>
+              <td><small>${r.ultimo_gps || '—'}</small></td>
+            </tr>
+          `).join('')}</tbody>
+        </table>
+      </div>`;
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
+}
+
+async function renderWtZonas(el) {
+  el.innerHTML = `
+    <div class="card" style="max-width:600px;">
+      <h4 style="margin-bottom:16px;font-family:var(--font-head);">📐 Zonas Widetech (Geocercas)</h4>
+      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+        Geocercas configuradas en la plataforma Widetech. Puedes consultarlas y visualizar sus polígonos.
+      </p>
+      <div class="form-group">
+        <label>Nombre de zona (opcional — vacío trae todas)</label>
+        <input id="wt-zone-name" placeholder="Dejar vacío para todas">
+      </div>
+      <button class="btn btn-primary" onclick="cargarWtZonas()">🔍 Consultar zonas</button>
+      <div id="wt-zonas-msg" style="margin-top:10px;font-size:13px;"></div>
+    </div>
+    <div id="wt-zonas-table" style="margin-top:14px;"></div>`;
+}
+
+async function cargarWtZonas() {
+  const msg = document.getElementById('wt-zonas-msg');
+  const tbl = document.getElementById('wt-zonas-table');
+  msg.innerHTML = '<span class="text-muted">Consultando zonas Widetech...</span>';
+  tbl.innerHTML = '';
+  try {
+    const name = document.getElementById('wt-zone-name').value.trim();
+    const q = name ? '?name=' + encodeURIComponent(name) : '';
+    const data = await api('/widetech-sync/zones' + q);
+    const zones = data.zones || [];
+    msg.innerHTML = `<span style="color:var(--success)">✓ ${zones.length} zonas encontradas</span>`;
+    if (!zones.length) { tbl.innerHTML = '<p class="text-muted" style="padding:20px;">Sin zonas disponibles</p>'; return; }
+    tbl.innerHTML = `
+      <div class="tbl-wrap">
+        <table class="tbl">
+          <thead><tr><th>ID</th><th>Nombre</th><th>Latitud</th><th>Longitud</th><th>Tipo</th></tr></thead>
+          <tbody>${zones.map(z => `
+            <tr>
+              <td>${z.cpID || z.id || '—'}</td>
+              <td><strong>${esc(z.cpName || z.Name || '—')}</strong></td>
+              <td>${z.cpLat || '—'}</td>
+              <td>${z.cpLng || '—'}</td>
+              <td>${z.cpType || '—'}</td>
+            </tr>
+          `).join('')}</tbody>
+        </table>
+      </div>`;
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
+}
 const _rptState = { tipo: 'rutas', page: 1, sort: '', order: 'DESC' };
 
 const RPT_CONFIG = {

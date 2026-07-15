@@ -551,16 +551,35 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
       <!-- Mapa -->
       <div class="page" id="page-mapa">
         <div class="page-header flex" style="justify-content:space-between;align-items:center;">
-          <div><h3>Mapa</h3><p>Rutas planificadas y posición de vehículos</p></div>
-          <div class="flex gap-sm">
-            <input type="date" id="mapa-fecha" onchange="cargarMapa()" style="width:auto;">
-            <select id="mapa-filtro-ruta" onchange="filtrarMapaRuta()" style="width:auto;">
+          <div><h3>Mapa</h3><p>Visualización de rutas y ubicaciones</p></div>
+          <div class="flex gap-sm" style="flex-wrap:wrap;">
+            <input type="date" id="mapa-fecha" onchange="cargarMapa()" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:13px;">
+            <select id="mapa-filtro-ruta" onchange="filtrarMapaRuta()" style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:13px;display:none;">
               <option value="">Todas las rutas</option>
             </select>
             <button class="btn btn-sm btn-secondary" onclick="reiniciarMapa()">🔄</button>
           </div>
         </div>
         <div id="mapa-contenedor" style="height:calc(100vh - 180px);border-radius:12px;border:1px solid var(--border);overflow:hidden;"></div>
+      </div>
+
+      <!-- Widetech -->
+      <div class="page" id="page-widetech">
+        <div class="page-header">
+          <h3>🛰️ Widetech</h3>
+          <p>Datos de seguimiento GPS desde Widetech</p>
+        </div>
+        <div style="margin-bottom:18px;">
+          <div class="rpt-tabs" id="wt-tabs">
+            <div class="rpt-tab active" data-wt="viajes" onclick="wtTab='viajes';rWidetech()">🚛 Viajes</div>
+            <div class="rpt-tab" data-wt="vehiculos" onclick="wtTab='vehiculos';rWidetech()">🚦 Estado vehículos</div>
+            <div class="rpt-tab" data-wt="zonas" onclick="wtTab='zonas';rWidetech()">📐 Zonas</div>
+          </div>
+        </div>
+        <div id="wt-content">
+          <p class="text-muted">Selecciona una pestaña para cargar datos de Widetech.</p>
+          <p style="font-size:13px;color:var(--muted);">Antes de usar, configura las credenciales en <a href="#" onclick="navigate('config');cfgTab='widetech';rConfig()" style="color:var(--accent)">Configuración → Widetech</a>.</p>
+        </div>
       </div>
 
       <!-- Configuración -->
