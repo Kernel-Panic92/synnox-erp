@@ -11,7 +11,7 @@ router.get('/', async (req, res) => {
   try {
     const { q } = req.query;
     const Database = require('better-sqlite3');
-    const dbPath = path.join(__dirname, '..', '..', '..', 'launcher', 'launcher.db');
+    const dbPath = path.join(__dirname, '..', '..', '..', '..', 'launcher', 'launcher.db');
     const ldb = new Database(dbPath, { readonly: true });
     let sql = 'SELECT id, nombre, email, rol FROM usuarios WHERE activo = 1';
     const params = [];
