@@ -9,24 +9,13 @@ const soloAdmin = (req, res, next) => {
   next();
 };
 
-router.get('/travels', soloAdmin, async (req, res) => {
+router.post('/check-plate', soloAdmin, async (req, res) => {
   try {
     await wt.loadConfig();
-    const start = req.query.start;
-    const end = req.query.end;
-    if (!start || !end) return res.status(400).json({ error: 'Parámetros start y end requeridos (YYYY/MM/dd HH:mm:ss)' });
-    const travels = await wt.getTravel({ startDate: start, endDate: end, plate: req.query.plate || '' });
-    const orphanResult = await wt.syncOrphanVehicles(travels);
-    const plates = [...new Set(travels.map(t => t.Plate).filter(Boolean))];
-    const vehiculos = await pool.query('SELECT id, placa, alias FROM logistics.vehiculos WHERE placa = ANY($1)', [plates.length ? plates : ['']]);
-    const vMap = {};
-    for (const v of vehiculos.rows) vMap[v.placa] = v;
-    const enriched = travels.map(t => ({
-      ...t,
-      vehiculo_id: vMap[t.Plate]?.id || null,
-      vehiculo_alias: vMap[t.Plate]?.alias || null,
-    }));
-    res.json({ exitosa: true, travels: enriched, orphan_vehicles: orphanResult });
+    const { plate } = req.body;
+    if (!plate) return res.status(400).json({ error: 'Placa requerida' });
+    const result = await wt.checkPlate(plate.toUpperCase());
+    res.json({ exitosa: true, ...result });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -61,39 +50,49 @@ router.get('/zones', soloAdmin, async (req, res) => {
   }
 });
 
-router.post('/import-travel', soloAdmin, async (req, res) => {
-  const { placa, conductor, origen, destino, lat_origen, lng_origen, lat_destino, lng_destino, fecha } = req.body;
-  if (!placa) return res.status(400).json({ error: 'Placa requerida' });
+router.post('/push-route', soloAdmin, async (req, res) => {
   try {
-    const vResult = await pool.query('SELECT id FROM logistics.vehiculos WHERE placa = $1', [placa]);
-    if (!vResult.rows.length) return res.status(400).json({ error: `Vehículo ${placa} no existe en logística. Sincroniza viajes primero para auto-importarlo.` });
-    const vehiculoId = vResult.rows[0].id;
-    const routeDate = fecha ? fecha.slice(0, 10) : new Date().toISOString().slice(0, 10);
-    const r = await pool.query(
-      `INSERT INTO logistics.rutas (nombre, fecha, vehiculo_id, conductor_nombre, estado, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, 'planificada', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-       RETURNING id`,
-      [`Widetech ${placa} ${routeDate}`, routeDate, vehiculoId, conductor || '']
+    await wt.loadConfig();
+    const { rutaId } = req.body;
+    if (!rutaId) return res.status(400).json({ error: 'rutaId requerido' });
+    const ruta = await pool.query(
+      `SELECT r.*, v.placa FROM logistics.rutas r
+       JOIN logistics.vehiculos v ON v.id = r.vehiculo_id
+       WHERE r.id = $1`, [rutaId]
     );
-    if (origen && destino) {
-      await pool.query(
-        `INSERT INTO logistics.pedidos_logistica (numero_factura, cliente_nombre, direccion, latitud, longitud, estado, ruta_id, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, 'pendiente', $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        [`WT-${r.rows[0].id}`, origen, origen, lat_origen || null, lng_origen || null, r.rows[0].id]
-      );
-    }
-    if (destino && destino !== origen) {
-      await pool.query(
-        `INSERT INTO logistics.pedidos_logistica (numero_factura, cliente_nombre, direccion, latitud, longitud, estado, ruta_id, created_at, updated_at)
-         VALUES ($1, $2, $3, $4, $5, 'pendiente', $6, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        [`WT-${r.rows[0].id}-D`, destino, destino, lat_destino || null, lng_destino || null, r.rows[0].id]
-      );
-    }
+    if (!ruta.rows.length) return res.status(404).json({ error: 'Ruta no encontrada' });
+    const r = ruta.rows[0];
     const paradas = await pool.query(
-      'UPDATE logistics.rutas SET cantidad_paradas = (SELECT COUNT(*) FROM logistics.pedidos_logistica WHERE ruta_id = $1) WHERE id = $1 RETURNING id, nombre, fecha, cantidad_paradas',
-      [r.rows[0].id]
+      `SELECT p.direccion, p.latitud, p.longitud, p.cliente_nombre
+       FROM logistics.pedidos_logistica p
+       WHERE p.ruta_id = $1 ORDER BY p.id`, [rutaId]
     );
-    res.json({ exitosa: true, mensaje: 'Ruta importada desde Widetech', ruta: paradas.rows[0] });
+    const checkpoints = paradas.rows.map((p, i) => ({
+      name: p.cliente_nombre || p.direccion || `Parada ${i + 1}`,
+      lat: p.latitud,
+      lng: p.longitud,
+      order: i + 1
+    }));
+    const first = paradas.rows[0] || {};
+    const last = paradas.rows[paradas.rows.length - 1] || {};
+    const result = await wt.pushRoute({
+      manifest: `LOG-${rutaId}-${r.fecha ? r.fecha.slice(0, 10).replace(/-/g, '') : ''}`,
+      plate: r.placa,
+      date: r.fecha || '',
+      driver: r.conductor_nombre || '',
+      origin: first.direccion || first.cliente_nombre || '',
+      destination: last.direccion || last.cliente_nombre || '',
+      latOrigin: first.latitud,
+      lngOrigin: first.longitud,
+      checkpoints
+    });
+    await pool.query(
+      `INSERT INTO logistics.configuracion (clave, valor, updated_at)
+       VALUES ('widtech_sync_log', $1, CURRENT_TIMESTAMP)
+       ON CONFLICT (clave) DO UPDATE SET valor = $1, updated_at = CURRENT_TIMESTAMP`,
+      [JSON.stringify({ ruta_id: rutaId, fecha: new Date().toISOString(), manifiesto: `LOG-${rutaId}`, ok: true })]
+    );
+    res.json({ exitosa: true, mensaje: `Ruta ${rutaId} enviada a Widetech`, resultado: result });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

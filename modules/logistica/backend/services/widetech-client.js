@@ -61,21 +61,31 @@ class WidetechClient {
     });
   }
 
-  async getTravel({ startDate, endDate, plate }) {
-    const body = { strStartDate: startDate, strEndDate: endDate };
-    if (plate) body.strPlate = plate;
-    const data = await this._request('/TravelConsole/rest/GetTravel', body);
-    if (data.Code !== 0 && data.Code !== 110 && data.Code !== 100) {
-      throw new Error(`Widetech GetTravel error ${data.Code}: ${data.Desc}`);
-    }
-    return this._parseTable(data);
-  }
-
   async checkBoot(plate) {
     const data = await this._request('/TravelConsole/rest/CheckBoot', { strPlate: plate });
     if (data.Code === 112) return { exists: false, dateGps: null };
     if (data.Code !== 0) throw new Error(`Widetech CheckBoot error ${data.Code}: ${data.Desc}`);
     return { exists: true, dateGps: data.DynamicJson?.DateGPS || null };
+  }
+
+  async checkPlate(plate) {
+    try {
+      const boot = await this.checkBoot(plate);
+      const existing = await pool.query('SELECT id FROM logistics.vehiculos WHERE placa = $1', [plate]);
+      const enLogistica = existing.rows.length > 0;
+      if (!enLogistica) {
+        await pool.query(
+          `INSERT INTO logistics.vehiculos (placa, alias, estado, created_at, updated_at)
+           VALUES ($1, $2, 'desconocido', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+           ON CONFLICT (placa) DO NOTHING`,
+          [plate, '🛰️ Widetech']
+        );
+      }
+      return { exists: true, plate, dateGps: boot.dateGps, enLogistica, importada: !enLogistica };
+    } catch (err) {
+      if (err.message.includes('CheckBoot error 112')) return { exists: false, plate, dateGps: null, enLogistica: false, importada: false };
+      throw err;
+    }
   }
 
   async getZones(zoneName) {
@@ -97,20 +107,20 @@ class WidetechClient {
     return zones;
   }
 
-  async createItinerary(data) {
+  async pushRoute(route) {
     const body = {
       objItinerario: {
-        strManifest: data.manifest || '',
-        strPlate: data.plate || '',
-        strDate: data.date || '',
-        strHour: data.hour || '',
-        strDriver: data.driver || '',
-        strOrigin: data.origin || '',
-        strDestination: data.destination || '',
-        strLatitude: data.latOrigin || '',
-        strLongitude: data.lngOrigin || '',
+        strManifest: route.manifest || `RUTA-${route.rutaId}`,
+        strPlate: route.plate || '',
+        strDate: route.date || '',
+        strHour: route.hour || '',
+        strDriver: route.driver || '',
+        strOrigin: route.origin || '',
+        strDestination: route.destination || '',
+        strLatitude: route.latOrigin || '',
+        strLongitude: route.lngOrigin || '',
       },
-      objCheckpoint: (data.checkpoints || []).map((cp, i) => ({
+      objCheckpoint: (route.checkpoints || []).map((cp, i) => ({
         cpId: i + 1,
         cpName: cp.name || '',
         cpLatitude: String(cp.lat || ''),
@@ -150,26 +160,6 @@ class WidetechClient {
     const data = await this._request('/TravelConsole/rest/CreateVehicle', body);
     if (data.Code !== 0) throw new Error(`Widetech CreateVehicle error ${data.Code}: ${data.Desc}`);
     return data.DynamicJson?.MobileID || data.Desc;
-  }
-
-  async syncOrphanVehicles(travels) {
-    const plates = [...new Set(travels.map(t => t.Plate).filter(Boolean))];
-    if (!plates.length) return { created: 0, existing: 0 };
-    const existing = await pool.query('SELECT placa FROM logistics.vehiculos WHERE placa = ANY($1)', [plates]);
-    const existingPlates = new Set(existing.rows.map(r => r.placa));
-    let created = 0;
-    for (const plate of plates) {
-      if (!existingPlates.has(plate)) {
-        await pool.query(
-          `INSERT INTO logistics.vehiculos (placa, alias, estado, created_at, updated_at)
-           VALUES ($1, $2, 'desconocido', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-           ON CONFLICT (placa) DO NOTHING`,
-          [plate, '🛰️ Widetech']
-        );
-        created++;
-      }
-    }
-    return { created, existing: existingPlates.size };
   }
 }
 

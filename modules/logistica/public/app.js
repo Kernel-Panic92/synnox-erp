@@ -2410,61 +2410,72 @@ let wtTab = 'viajes';
 async function rWidetech() {
   document.querySelectorAll('#wt-tabs .rpt-tab').forEach(b => b.classList.toggle('active', b.dataset.wt === wtTab));
   const el = document.getElementById('wt-content');
-  if (wtTab === 'viajes') renderWtViajes(el);
+  if (wtTab === 'sync') renderWtSync(el);
   else if (wtTab === 'vehiculos') renderWtVehiculos(el);
   else if (wtTab === 'zonas') renderWtZonas(el);
 }
 
 
 
-function fmtDateInput(d) {
-  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
-}
 
-async function renderWtViajes(el) {
-  const hoy = new Date();
-  const hace15 = new Date(hoy.getTime() - 15 * 24 * 60 * 60 * 1000);
-  const defStart = fmtDateInput(hace15);
-  const defEnd = fmtDateInput(hoy);
+async function renderWtSync(el) {
   el.innerHTML = `
     <div class="card">
-      <h4 style="margin-bottom:16px;font-family:var(--font-head);">🚛 Viajes Widetech</h4>
+      <h4 style="margin-bottom:16px;font-family:var(--font-head);">🔄 Sincronizar rutas con Widetech</h4>
       <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
-        Viajes registrados en Widetech. Los vehículos no existentes en logística se importan automáticamente.
+        Las rutas de logística se pueden empujar a Widetech como itinerarios (CreateItinerary).
+        Selecciona una ruta y asígnale un conductor para enviarla.
       </p>
       <div class="form-grid" style="grid-template-columns:1fr 1fr auto;margin-bottom:14px;">
         <div class="form-group">
-          <label>Fecha inicio</label>
-          <input type="date" id="wt-start" value="${defStart}">
+          <label>Ruta</label>
+          <select id="wt-sync-ruta" style="max-width:100%;">
+            <option value="">— Cargando rutas —</option>
+          </select>
         </div>
         <div class="form-group">
-          <label>Fecha fin</label>
-          <input type="date" id="wt-end" value="${defEnd}">
+          <label>Conductor (opcional)</label>
+          <input id="wt-sync-driver" placeholder="Nombre del conductor">
         </div>
         <div class="form-group" style="align-self:flex-end;">
-          <label>Placa (opcional)</label>
-          <input id="wt-plate" placeholder="ABC123" style="text-transform:uppercase;">
+          <button class="btn btn-primary" onclick="pushRutaWidetech()">📤 Enviar a Widetech</button>
         </div>
       </div>
-      <div class="flex">
-        <button class="btn btn-primary" onclick="cargarWtViajes()">🔍 Consultar</button>
-      </div>
-      <div id="wt-viajes-msg" style="margin-top:10px;font-size:13px;"></div>
+      <div id="wt-sync-msg" style="margin-top:10px;font-size:13px;"></div>
     </div>
-    <div id="wt-viajes-table" style="margin-top:14px;"></div>`;
+    <div id="wt-sync-log" style="margin-top:14px;"></div>`;
+  cargarRutasParaSync();
 }
 
-async function cargarWtViajes() {
-  const msg = document.getElementById('wt-viajes-msg');
-  const tbl = document.getElementById('wt-viajes-table');
-  msg.innerHTML = '<span class="text-muted">Consultando Widetech (espera ~25s por rate-limit)...</span>';
-  tbl.innerHTML = '';
-  const startRaw = document.getElementById('wt-start').value;
-  const endRaw = document.getElementById('wt-end').value;
-  const plate = document.getElementById('wt-plate').value.trim();
-  if (!startRaw || !endRaw) { msg.innerHTML = '<span style="color:var(--danger)">✗ Fechas requeridas</span>'; return; }
-  const start = startRaw.replace(/-/g, '/') + ' 00:00:00';
-  const end = endRaw.replace(/-/g, '/') + ' 23:59:59';
+async function cargarRutasParaSync() {
+  const sel = document.getElementById('wt-sync-ruta');
+  try {
+    const data = await api('/rutas?estado=planificada');
+    const rutas = data.rutas || [];
+    if (!rutas.length) {
+      sel.innerHTML = '<option value="">— No hay rutas planificadas —</option>';
+      return;
+    }
+    sel.innerHTML = '<option value="">— Seleccionar ruta —</option>' +
+      rutas.map(r => `<option value="${r.id}">#${r.id} ${r.nombre || 'Sin nombre'} — ${r.placa || '?'} ${r.fecha ? r.fecha.slice(0,10) : ''}</option>`).join('');
+  } catch {
+    sel.innerHTML = '<option value="">— Error al cargar —</option>';
+  }
+}
+
+async function pushRutaWidetech() {
+  const rutaId = document.getElementById('wt-sync-ruta').value;
+  const msg = document.getElementById('wt-sync-msg');
+  if (!rutaId) { msg.innerHTML = '<span style="color:var(--danger)">✗ Selecciona una ruta</span>'; return; }
+  const ok = await confirmarModal('Enviar a Widetech', '¿Enviar la ruta #' + rutaId + ' como itinerario a Widetech?');
+  if (!ok) return;
+  msg.innerHTML = '<span class="text-muted">Enviando a Widetech (espera ~25s)...</span>';
+  try {
+    const data = await api('/widetech-sync/push-route', { method: 'POST', body: JSON.stringify({ rutaId: parseInt(rutaId) }) });
+    msg.innerHTML = '<span style="color:var(--success)">✓ ' + data.mensaje + '</span>';
+    cargarRutasParaSync();
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
+}
   try {
     const q = `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}${plate ? '&plate='+encodeURIComponent(plate) : ''}`;
     const data = await api('/widetech-sync/travels' + q);
@@ -2504,32 +2515,44 @@ async function cargarWtViajes() {
   } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
 }
 
-async function importarWtViaje(placa, conductor, origen, destino, latO, lngO, latD, lngD, fecha) {
-  const ok = await confirmarModal('Importar viaje', `¿Importar viaje de ${placa} (${origen} → ${destino}) como ruta en logística?`);
-  if (!ok) return;
-  const msg = document.getElementById('wt-viajes-msg');
-  try {
-    const data = await api('/widetech-sync/import-travel', {
-      method: 'POST',
-      body: JSON.stringify({ placa, conductor, origen, destino, lat_origen: latO, lng_origen: lngO, lat_destino: latD, lng_destino: lngD, fecha })
-    });
-    mostrarAlerta(data.mensaje + ' — ID ruta: ' + data.ruta.id, 'success');
-    cargarWtViajes();
-  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
-}
-
 async function renderWtVehiculos(el) {
   el.innerHTML = `
     <div class="card" style="max-width:600px;">
       <h4 style="margin-bottom:16px;font-family:var(--font-head);">🚦 Estado de vehículos en Widetech</h4>
       <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
         Verifica mediante CheckBoot si cada vehículo tiene conexión activa en la plataforma Widetech.
-        <br><strong>Nota:</strong> Esto consulta la API por cada vehículo individualmente (rate-limit ~25s por vehículo).
+        También puedes consultar una placa específica que exista en Widetech pero no en logística — se importará automáticamente.
       </p>
-      <button class="btn btn-primary" onclick="cargarWtCheckVehiculos()">🔍 Verificar todos</button>
+      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
+        <input id="wt-check-placa" placeholder="ABC123" style="text-transform:uppercase;flex:1;min-width:120px;">
+        <button class="btn btn-secondary" onclick="checkPlacaWidetech()">🔍 Verificar placa</button>
+      </div>
+      <div id="wt-check-placa-msg" style="margin-top:6px;font-size:13px;margin-bottom:14px;"></div>
+      <hr style="border-color:var(--border);margin-bottom:16px;">
+      <button class="btn btn-primary" onclick="cargarWtCheckVehiculos()">🔍 Verificar todos los vehículos</button>
       <div id="wt-vehiculos-msg" style="margin-top:10px;font-size:13px;"></div>
     </div>
     <div id="wt-vehiculos-table" style="margin-top:14px;"></div>`;
+}
+
+async function checkPlacaWidetech() {
+  const plate = document.getElementById('wt-check-placa').value.trim().toUpperCase();
+  const msg = document.getElementById('wt-check-placa-msg');
+  if (!plate) { msg.innerHTML = '<span style="color:var(--danger)">✗ Ingresa una placa</span>'; return; }
+  msg.innerHTML = '<span class="text-muted">Consultando placa ' + plate + '...</span>';
+  try {
+    const data = await api('/widetech-sync/check-plate', { method: 'POST', body: JSON.stringify({ plate }) });
+    if (data.exists) {
+      let txt = '✓ Placa ' + plate + ' existe en Widetech';
+      if (data.importada) txt += ' — importada a logística como nuevo vehículo';
+      else txt += ' — ya estaba en logística';
+      if (data.dateGps) txt += ' (último GPS: ' + data.dateGps + ')';
+      msg.innerHTML = '<span style="color:var(--success)">' + txt + '</span>';
+    } else {
+      msg.innerHTML = '<span style="color:var(--warning)">⚠️ Placa ' + plate + ' no encontrada en Widetech</span>';
+    }
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
+}
 }
 
 async function cargarWtCheckVehiculos() {
