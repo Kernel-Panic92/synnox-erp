@@ -36,29 +36,27 @@ router.put('/config', soloAdmin, async (req, res) => {
 
 router.post('/test', soloAdmin, async (req, res) => {
   try {
-    const { url, user, password, lang } = req.body;
+    const { url, user, password } = req.body;
     const baseUrl = (url || 'https://web1ws.shareservice.co').replace(/\/+$/, '');
-    const loginUrl = baseUrl + '/SpaceApi/rest/LoginUser';
-    const body = JSON.stringify({
-      strLogin: user || '',
-      strPassword: password || '',
-      intLang: parseInt(lang || '1')
-    });
-    const apiRes = await fetch(loginUrl, {
+    const testUrl = baseUrl + '/TravelConsole/rest/GetTimeoutRules';
+    const auth = 'Basic ' + Buffer.from(`${user || ''}:${password || ''}`, 'utf8').toString('base64');
+    const apiRes = await fetch(testUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body,
+      headers: { 'Content-Type': 'application/json', 'Authorization': auth },
+      body: '{}',
       signal: AbortSignal.timeout(15000)
     });
     const data = await apiRes.json();
-    if (data.Err?.Code === 0 && data.Sign && data.Token) {
-      res.json({ exitosa: true, mensaje: 'Conexión exitosa — token obtenido correctamente' });
-    } else if (data.Err?.Code === 110 || data.Code === 110) {
-      res.json({ exitosa: true, mensaje: 'Conexión exitosa — el token previo sigue vigente (válido 2h)' });
+    if (data.Code === 0 || data.Code === 100) {
+      res.json({ exitosa: true, mensaje: 'Conexión exitosa — autenticación Basic Auth válida' });
     } else {
-      const code = data.Err?.Code ?? data.Code ?? '?';
-      const desc = data.Err?.Desc ?? data.Desc ?? 'Error desconocido';
-      res.status(400).json({ error: `Error ${code}: ${desc}` });
+      const code = data.Code ?? '?';
+      const desc = data.Desc ?? 'Error desconocido';
+      if (code === 1 || code === 101) {
+        res.status(400).json({ error: `Error ${code}: Usuario o contraseña incorrectos` });
+      } else {
+        res.status(400).json({ error: `Error ${code}: ${desc}` });
+      }
     }
   } catch (err) {
     if (err.name === 'TimeoutError' || err.name === 'AbortError') {

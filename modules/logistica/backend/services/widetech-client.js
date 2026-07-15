@@ -5,11 +5,7 @@ class WidetechClient {
     this.baseUrl = '';
     this.user = '';
     this.pass = '';
-    this.lang = '1';
     this.rateLimitMs = 25000;
-    this.sign = null;
-    this.token = null;
-    this.expirationDate = null;
     this.lastRequest = 0;
     this._loaded = false;
   }
@@ -22,7 +18,6 @@ class WidetechClient {
     this.baseUrl = (cfg.widetech_url || 'https://web1ws.shareservice.co').replace(/\/+$/, '');
     this.user = cfg.widetech_user || '';
     this.pass = cfg.widetech_password || '';
-    this.lang = cfg.widetech_lang || '1';
     const rl = parseInt(cfg.widetech_rate_limit) || 25;
     this.rateLimitMs = Math.max(20000, rl * 1000);
     this._loaded = true;
@@ -42,50 +37,17 @@ class WidetechClient {
     this.lastRequest = Date.now();
   }
 
-  async _login() {
-    const url = this.baseUrl + '/SpaceApi/rest/LoginUser';
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ strLogin: this.user, strPassword: this.pass, intLang: parseInt(this.lang) }),
-      signal: AbortSignal.timeout(15000)
-    });
-    const data = await res.json();
-    if (data.Err?.Code !== 0 || !data.Sign || !data.Token) {
-      const code = data.Err?.Code ?? '?';
-      const desc = data.Err?.Desc ?? 'Error desconocido';
-      throw new Error(`Widetech login falló (${code}): ${desc}`);
-    }
-    this.sign = data.Sign;
-    this.token = data.Token;
-    this.expirationDate = data.ExpirationDate ? new Date(data.ExpirationDate) : null;
-  }
-
-  _isTokenExpired() {
-    if (!this.expirationDate) return true;
-    return new Date() >= new Date(this.expirationDate.getTime() - 5 * 60 * 1000);
-  }
-
-  async _ensureAuth() {
-    if (!this.user || !this.pass) throw new Error('Widetech no configurado');
+  async _request(path, body = {}) {
+    if (!this.user || !this.pass) throw new Error('Widetech no configurado — configura usuario y contraseña en Configuración');
     if (!this._loaded) await this.loadConfig();
-    if (!this.sign || !this.token || this._isTokenExpired()) {
-      await this._login();
-    }
-  }
-
-  async _request(path, body = {}, useAuthObj = true) {
     await this._rateLimit();
     const url = this.baseUrl + path;
-    const headers = { 'Content-Type': 'application/json' };
-    let requestBody = body;
-    if (useAuthObj) {
-      await this._ensureAuth();
-      headers['Authorization'] = this.basicAuth;
-    } else {
-      headers['Authorization'] = this.basicAuth;
-    }
-    const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(requestBody), signal: AbortSignal.timeout(30000) });
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': this.basicAuth },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(30000)
+    });
     return res.json();
   }
 
