@@ -40,7 +40,7 @@ async function cargarTareas() {
         <td class="nombre-asignado">${t.asignado_a ? esc(nombreUsuario(t.asignado_a)) : '<span style="color:var(--muted)">Sin asignar</span>'}</td>
         <td style="font-size:12px;color:var(--muted)">${formatDate(t.fecha_limite)}</td>
     <td>
-      ${t.estado === 'en_progreso' ? `<button class="btn btn-xs btn-info" onclick="enviarARevision(${t.id})" title="Enviar a revision">&#x1F504; Revision</button>` : ''}
+      ${t.estado === 'en_progreso' ? `<button class="btn btn-xs btn-info" onclick="abrirModalSolicitarRevision(${t.id})" title="Solicitar revision">&#x1F504; Revisión</button>` : ''}
       ${t.estado === 'revision' && usuario?.rol === 'admin' ? `<button class="btn btn-xs btn-success" onclick="aprobarTarea(${t.id})" title="Aprobar">&#10003;</button>` : ''}
       ${t.estado === 'revision' && usuario?.rol === 'admin' ? `<button class="btn btn-xs btn-danger" onclick="rechazarTarea(${t.id})" title="Rechazar">&#10007;</button>` : ''}
       ${t.estado === 'revision' && usuario?.rol !== 'admin' ? `<span class="badge badge-warning">Pend. aprobación</span>` : ''}
@@ -65,10 +65,48 @@ function tareasPagina(dir) {
   cargarTareas();
 }
 
-async function enviarARevision(id) {
+async function abrirModalSolicitarRevision(tareaId) {
+  let tareaData = null;
+  try { const d = await api('/tareas/' + tareaId); tareaData = d.tarea; } catch {}
+  const body = `
+    <div style="margin-bottom:12px">
+      <strong style="font-size:14px">${esc(tareaData?.titulo || 'Tarea #' + tareaId)}</strong>
+      <p style="font-size:12px;color:var(--muted);margin-top:4px">Adjunta evidencia y comenta para solicitar la revisión al administrador</p>
+    </div>
+    <div style="border:1px dashed var(--border);border-radius:8px;padding:12px;margin-bottom:12px">
+      <div class="form-group"><label>Archivo de evidencia</label><input id="rev-file" type="file" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx" style="font-size:13px"></div>
+      <div class="form-group" style="margin-top:8px"><label>Descripción de la evidencia</label><textarea id="rev-desc" placeholder="Describe el trabajo realizado..." style="min-height:60px;resize:vertical"></textarea></div>
+    </div>
+    <div class="form-group"><label>Comentario para el revisor (opcional)</label><textarea id="rev-comentario" placeholder="Agrega notas o comentarios para el admin..." style="min-height:50px;resize:vertical"></textarea></div>
+  `;
+  const actions = `
+    <button class="btn btn-sm btn-secondary" onclick="cerrarModal()">Cancelar</button>
+    <button class="btn btn-sm btn-primary" onclick="ejecutarSolicitarRevision(${tareaId})">&#x1F504; Solicitar revisión</button>
+  `;
+  abrirModal('Solicitar Revisión', '', body, actions);
+}
+
+async function ejecutarSolicitarRevision(tareaId) {
+  const desc = document.getElementById('rev-desc')?.value?.trim();
+  const fileInput = document.getElementById('rev-file');
+  const comentario = document.getElementById('rev-comentario')?.value?.trim();
+
   try {
-    await api('/tareas/' + id, { method: 'PUT', body: JSON.stringify({ estado: 'revision', columna: 'revision' }) });
+    if (fileInput?.files?.length || desc) {
+      const formData = new FormData();
+      if (desc) formData.append('descripcion', desc);
+      if (fileInput?.files?.length) formData.append('archivo', fileInput.files[0]);
+      const headers = {};
+      if (HF.TOKEN) headers['Authorization'] = 'Bearer ' + HF.TOKEN;
+      const evRes = await fetch(HF.API + '/tareas/' + tareaId + '/evidencias', { method: 'POST', body: formData, headers });
+      if (!evRes.ok) { const d = await evRes.json(); throw new Error(d.error || 'Error al subir evidencia'); }
+    }
+    if (comentario) {
+      await api('/tareas/' + tareaId + '/comentarios', { method: 'POST', body: JSON.stringify({ contenido: comentario }) });
+    }
+    await api('/tareas/' + tareaId, { method: 'PUT', body: JSON.stringify({ estado: 'revision', columna: 'revision' }) });
     toast('Tarea enviada a revisión', 'success');
+    cerrarModal();
     cargarTareas();
     if (_currentPage === 'tablero') cargarTablero();
   } catch (err) { toast(err.message, 'error'); }

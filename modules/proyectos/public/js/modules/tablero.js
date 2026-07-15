@@ -38,7 +38,7 @@ async function cargarTablero() {
                 ${t.fecha_limite ? `<span>&#x1F4C5; ${formatDate(t.fecha_limite)}</span>` : ''}
               </div>
               ${t.columna === 'en_progreso' && t.asignado_a ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;gap:4px">
-                <button class="btn btn-xs btn-info" onclick="event.stopPropagation();enviarARevision(${t.id})" title="Enviar a revision">&#x1F504; Revisión</button>
+                <button class="btn btn-xs btn-info" onclick="event.stopPropagation();abrirModalSolicitarRevision(${t.id})" title="Solicitar revision">&#x1F504; Revisión</button>
               </div>` : ''}
               ${t.columna === 'revision' && usuario?.rol === 'admin' ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;gap:4px">
                 <button class="btn btn-xs btn-success" onclick="event.stopPropagation();aprobarTarea(${t.id})" title="Aprobar">&#10003; Aprobar</button>
