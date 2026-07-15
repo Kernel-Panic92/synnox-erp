@@ -34,7 +34,7 @@ async function cargarNombresUsuarios(ids) {
   const faltantes = ids.filter(id => !_nombresUsuarios[id]);
   if (!faltantes.length) return;
   try {
-    const data = await HF.api('/usuarios');
+    const data = await api('/usuarios');
     for (const u of data.usuarios || []) _nombresUsuarios[u.id] = u.nombre;
   } catch {}
 }
@@ -45,7 +45,7 @@ function nombreUsuario(id) {
 
 async function init() {
   try {
-    const data = await HF.api('/auth/me');
+    const data = await api('/auth/me');
     usuario = data;
     HF.USER = data;
     mostrarApp();

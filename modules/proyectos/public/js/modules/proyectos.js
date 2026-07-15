@@ -2,7 +2,7 @@ let _proyectos = [];
 
 async function cargarProyectos() {
   try {
-    const data = await HF.api('/proyectos');
+    const data = await api('/proyectos');
     _proyectos = data.proyectos || [];
     document.getElementById('proyectos-count').textContent = `${_proyectos.length} proyecto(s)`;
     const grid = document.getElementById('proyectos-grid');
@@ -76,10 +76,10 @@ async function guardarProyecto(id) {
   if (!body.nombre) return toast('El nombre es requerido', 'error');
   try {
     if (id) {
-      await HF.api('/proyectos/' + id, { method: 'PUT', body: JSON.stringify(body) });
+      await api('/proyectos/' + id, { method: 'PUT', body: JSON.stringify(body) });
       toast('Proyecto actualizado', 'success');
     } else {
-      await HF.api('/proyectos', { method: 'POST', body: JSON.stringify(body) });
+      await api('/proyectos', { method: 'POST', body: JSON.stringify(body) });
       toast('Proyecto creado', 'success');
     }
     cerrarModal();
@@ -91,7 +91,7 @@ async function eliminarProyecto(id) {
   const ok = await confirmarModal('Eliminar Proyecto', 'Se eliminaran tambien todas las tareas del proyecto. Continuar?');
   if (!ok) return;
   try {
-    await HF.api('/proyectos/' + id, { method: 'DELETE' });
+    await api('/proyectos/' + id, { method: 'DELETE' });
     toast('Proyecto eliminado', 'success');
     cargarProyectos();
   } catch (err) { toast(err.message, 'error'); }
