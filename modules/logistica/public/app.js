@@ -2493,6 +2493,12 @@ async function renderWtVehiculos(el) {
       </div>
       <div id="wt-bulk-progress" style="margin-top:10px;"></div>
       <hr style="border-color:var(--border);margin:16px 0;">
+      <h5 style="margin-bottom:8px;font-size:13px;color:var(--accent);">📄 Importar desde archivo Widetech (.xlsx)</h5>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">Exporta tu flota desde Widetech (OnLine System → LastLocation) y sube el archivo aquí.</p>
+      <input type="file" id="wt-xlsx-file" accept=".xlsx" style="display:none;" onchange="subirXlsxWidetech()">
+      <button class="btn btn-secondary" onclick="document.getElementById('wt-xlsx-file').click()">📎 Seleccionar archivo .xlsx</button>
+      <div id="wt-xlsx-msg" style="margin-top:8px;font-size:13px;"></div>
+      <hr style="border-color:var(--border);margin:16px 0;">
       <h5 style="margin-bottom:8px;font-size:13px;color:var(--accent);">🔍 Verificar placa individual</h5>
       <div style="display:flex;gap:10px;flex-wrap:wrap;">
         <input id="wt-check-placa" placeholder="ABC123" style="text-transform:uppercase;flex:1;min-width:120px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:13px;">
@@ -2546,6 +2552,42 @@ async function bulkImportarPlacas() {
     progress.innerHTML = resultHtml;
     msg.innerHTML = `<span style="color:var(--success)">✓ Completado</span>`;
   } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; progress.innerHTML = ''; }
+}
+
+async function subirXlsxWidetech() {
+  const input = document.getElementById('wt-xlsx-file');
+  const msg = document.getElementById('wt-xlsx-msg');
+  const file = input.files[0];
+  if (!file) return;
+  msg.innerHTML = '<span class="text-muted">Subiendo y procesando archivo...</span>';
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const t = getToken();
+    const res = await fetch(API + '/widetech-sync/import-xlsx', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + t },
+      body: formData
+    });
+    if (res.status === 401) { logout(); throw new Error('Sesión expirada'); }
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error del servidor');
+    const s = data.summary;
+    let html = `<div style="padding:10px;background:var(--surface2);border-radius:8px;font-size:13px;">`;
+    html += `<strong>✅ ${s.imported} importados</strong> · <strong>📍 ${s.existing} ya existían</strong> · <strong>Total: ${s.total}</strong>`;
+    html += `</div>`;
+    if (data.vehicles?.length) {
+      html += `<div style="margin-top:8px;max-height:200px;overflow-y:auto;">`;
+      for (const v of data.vehicles) {
+        const icon = v.created ? '🆕' : '✅';
+        const loc = v.location ? ' — ' + esc(v.location.substring(0, 60)) : '';
+        html += `<div style="font-size:12px;padding:2px 0;">${icon} <strong>${v.plate}</strong>${loc}</div>`;
+      }
+      html += `</div>`;
+    }
+    msg.innerHTML = html;
+    input.value = '';
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
 }
 
 async function checkPlacaWidetech() {

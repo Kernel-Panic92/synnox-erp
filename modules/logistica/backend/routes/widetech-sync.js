@@ -1,6 +1,10 @@
 import express from 'express';
 import pool from '../config/db.js';
 import wt from '../services/widetech-client.js';
+import ExcelJS from 'exceljs';
+import multer from 'multer';
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 const router = express.Router();
 
@@ -8,6 +12,76 @@ const soloAdmin = (req, res, next) => {
   if (req.user?.rol !== 'admin') return res.status(403).json({ error: 'Solo administradores' });
   next();
 };
+
+router.post('/import-xlsx', soloAdmin, upload.single('file'), async (req, res) => {
+  try {
+    if (!req.files?.file) return res.status(400).json({ error: 'Archivo xlsx requerido' });
+    const file = req.files.file;
+    const ext = file.name.split('.').pop().toLowerCase();
+    if (ext !== 'xlsx') return res.status(400).json({ error: 'Solo se aceptan archivos .xlsx' });
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(file.data);
+    const ws = wb.worksheets[0];
+    if (!ws || ws.rowCount < 3) return res.status(400).json({ error: 'El archivo no tiene datos válidos' });
+    const headerRow = ws.getRow(2);
+    const colMap = {};
+    headerRow.eachCell((cell, colNumber) => {
+      const val = String(cell.value || '').trim().toLowerCase();
+      if (val === 'mobile') colMap.plate = colNumber;
+      if (val === 'name') colMap.name = colNumber;
+      if (val === 'latitude') colMap.lat = colNumber;
+      if (val === 'length') colMap.lng = colNumber;
+      if (val === 'location') colMap.location = colNumber;
+      if (val === 'status') colMap.status = colNumber;
+    });
+    if (!colMap.plate) return res.status(400).json({ error: 'No se encontró columna "Mobile" en el archivo' });
+    const vehicles = [];
+    for (let i = 3; i <= ws.rowCount; i++) {
+      const row = ws.getRow(i);
+      const plate = String(row.getCell(colMap.plate).value || '').trim().toUpperCase();
+      if (!plate || plate.length < 3) continue;
+      vehicles.push({
+        plate,
+        name: colMap.name ? String(row.getCell(colMap.name).value || '').trim() : '',
+        lat: colMap.lat ? parseFloat(row.getCell(colMap.lat).value) || null : null,
+        lng: colMap.lng ? parseFloat(row.getCell(colMap.lng).value) || null : null,
+        location: colMap.location ? String(row.getCell(colMap.location).value || '').trim() : '',
+        status: colMap.status ? String(row.getCell(colMap.status).value || '').trim() : ''
+      });
+    }
+    if (!vehicles.length) return res.status(400).json({ error: 'No se encontraron vehículos válidos' });
+    const result = [];
+    for (const v of vehicles) {
+      try {
+        const existing = await pool.query('SELECT id FROM logistics.vehiculos WHERE placa = $1', [v.plate]);
+        let created = false;
+        if (!existing.rows.length) {
+          await pool.query(
+            `INSERT INTO logistics.vehiculos (placa, alias, ultima_posicion_lat, ultima_posicion_lng, created_at, updated_at)
+             VALUES ($1, $2, $3, $4, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+            [v.plate, v.name || '🛰️ Widetech', v.lat, v.lng]
+          );
+          created = true;
+        } else {
+          if (v.lat && v.lng) {
+            await pool.query(
+              `UPDATE logistics.vehiculos SET ultima_posicion_lat = $1, ultima_posicion_lng = $2, updated_at = CURRENT_TIMESTAMP
+               WHERE placa = $3 AND (ultima_posicion_lat IS NULL OR ultima_posicion_lng IS NULL)`,
+              [v.lat, v.lng, v.plate]
+            );
+          }
+        }
+        result.push({ plate: v.plate, created, lat: v.lat, lng: v.lng, location: v.location, status: v.status });
+      } catch (e) {
+        result.push({ plate: v.plate, created: false, error: e.message });
+      }
+    }
+    const imported = result.filter(r => r.created).length;
+    res.json({ exitosa: true, vehicles: result, summary: { total: vehicles.length, imported, existing: vehicles.length - imported } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 router.post('/check-plate', soloAdmin, async (req, res) => {
   try {
