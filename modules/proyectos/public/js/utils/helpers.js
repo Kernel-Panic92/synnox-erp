@@ -11,6 +11,12 @@ function badgeEstado(estado) {
   return `<span class="badge ${map[estado] || 'badge-muted'}">${labels[estado] || estado}</span>`;
 }
 
+function badgeAprobacion(estado) {
+  const map = { pendiente: 'badge-muted', aprobada: 'badge-success', rechazada: 'badge-danger' };
+  const labels = { pendiente: 'Pendiente', aprobada: 'Aprobada', rechazada: 'Rechazada' };
+  return `<span class="badge ${map[estado] || 'badge-muted'}">${labels[estado] || estado}</span>`;
+}
+
 function badgePrioridad(p) {
   const cls = { baja: 'badge-muted', media: 'badge-info', alta: 'badge-warning', critica: 'badge-danger' };
   const labels = { baja: 'Baja', media: 'Media', alta: 'Alta', critica: 'Critica' };

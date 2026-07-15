@@ -4,18 +4,21 @@ async function cargarDashboard() {
     const estados = data.estados || [];
     const recientes = data.recientes || [];
     const porAsignado = data.porAsignado || [];
+    const aprobacion = data.aprobacion || {};
 
     const pendiente = estados.find(e => e.estado === 'pendiente')?.count || 0;
     const enProgreso = estados.find(e => e.estado === 'en_progreso')?.count || 0;
     const revision = estados.find(e => e.estado === 'revision')?.count || 0;
     const completada = estados.find(e => e.estado === 'completada')?.count || 0;
     const total = estados.reduce((s, e) => s + parseInt(e.count), 0);
+    const pendientesAprob = parseInt(aprobacion.pendientes) || 0;
 
     document.getElementById('dash-stats').innerHTML = `
       <div class="stat-card"><div class="stat-label">Total Tareas</div><div class="stat-value">${total}</div></div>
       <div class="stat-card"><div class="stat-label">Pendientes</div><div class="stat-value" style="color:var(--warning)">${pendiente}</div></div>
       <div class="stat-card"><div class="stat-label">En Progreso</div><div class="stat-value" style="color:var(--accent)">${enProgreso}</div></div>
       <div class="stat-card"><div class="stat-label">En Revision</div><div class="stat-value" style="color:var(--accent2)">${revision}</div></div>
+      <div class="stat-card"><div class="stat-label">Pend. Aprobacion</div><div class="stat-value" style="color:${pendientesAprob > 0 ? 'var(--warning)' : 'var(--muted)'}">${pendientesAprob}</div></div>
       <div class="stat-card"><div class="stat-label">Completadas</div><div class="stat-value" style="color:var(--success)">${completada}</div></div>
     `;
 
@@ -100,7 +103,7 @@ async function cargarDashboard() {
         <tr>
           <td><strong>${esc(t.titulo)}</strong></td>
           <td><span style="font-size:12px;color:var(--muted)">${esc(t.proyecto_nombre || '—')}</span></td>
-          <td>${badgeEstado(t.estado)}</td>
+          <td>${badgeEstado(t.estado)} ${t.estado === 'revision' ? badgeAprobacion(t.estado_aprobacion) : ''}</td>
           <td>${badgePrioridad(t.prioridad)}</td>
         </tr>
       `).join('');
