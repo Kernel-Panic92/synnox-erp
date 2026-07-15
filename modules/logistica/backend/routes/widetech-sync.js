@@ -98,4 +98,39 @@ router.post('/push-route', soloAdmin, async (req, res) => {
   }
 });
 
+router.post('/bulk-check-plates', soloAdmin, async (req, res) => {
+  try {
+    await wt.loadConfig();
+    const { plates } = req.body;
+    if (!Array.isArray(plates) || !plates.length) return res.status(400).json({ error: 'Array de placas requerido' });
+    const unique = [...new Set(plates.map(p => p.toUpperCase().trim()).filter(Boolean))];
+    const results = [];
+    for (const plate of unique) {
+      try {
+        const boot = await wt.checkBoot(plate);
+        let created = false;
+        if (boot.exists) {
+          const existing = await pool.query('SELECT id FROM logistics.vehiculos WHERE placa = $1', [plate]);
+          if (!existing.rows.length) {
+            await pool.query(
+              `INSERT INTO logistics.vehiculos (placa, alias, estado, created_at, updated_at)
+               VALUES ($1, $2, 'desconocido', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
+              [plate, '🛰️ Widetech']
+            );
+            created = true;
+          }
+        }
+        results.push({ plate, exists: boot.exists, dateGps: boot.dateGps, created });
+      } catch (e) {
+        results.push({ plate, exists: false, dateGps: null, created: false, error: e.message });
+      }
+    }
+    const imported = results.filter(r => r.created).length;
+    const found = results.filter(r => r.exists).length;
+    res.json({ exitosa: true, results, summary: { total: unique.length, found, imported, notFound: unique.length - found } });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

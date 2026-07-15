@@ -2482,19 +2482,70 @@ async function renderWtVehiculos(el) {
     <div class="card" style="max-width:600px;">
       <h4 style="margin-bottom:16px;font-family:var(--font-head);">🚦 Estado de vehículos en Widetech</h4>
       <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
-        Verifica mediante CheckBoot si cada vehículo tiene conexión activa en la plataforma Widetech.
-        También puedes consultar una placa específica que exista en Widetech pero no en logística — se importará automáticamente.
+        Importa vehículos desde Widetech o verifica su estado de conexión.
       </p>
-      <div style="display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap;">
-        <input id="wt-check-placa" placeholder="ABC123" style="text-transform:uppercase;flex:1;min-width:120px;">
-        <button class="btn btn-secondary" onclick="checkPlacaWidetech()">🔍 Verificar placa</button>
+      <h5 style="margin-bottom:8px;font-size:13px;color:var(--accent);">📥 Importar placas desde Widetech</h5>
+      <p style="font-size:12px;color:var(--muted);margin-bottom:8px;">Pega las placas separadas por coma, espacio o salto de línea.</p>
+      <textarea id="wt-bulk-plates" rows="4" placeholder="WOU345, BJS360, VDW339, ITX050&#10;TMI968 KOL658 TDY762 WOU022 BKL711 SNU621" style="width:100%;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:8px 12px;color:var(--text);font-size:13px;font-family:monospace;resize:vertical;"></textarea>
+      <div class="flex" style="margin-top:8px;">
+        <button class="btn btn-primary" onclick="bulkImportarPlacas()">🔍 Verificar e importar</button>
+        <span id="wt-bulk-msg" style="font-size:13px;"></span>
+      </div>
+      <div id="wt-bulk-progress" style="margin-top:10px;"></div>
+      <hr style="border-color:var(--border);margin:16px 0;">
+      <h5 style="margin-bottom:8px;font-size:13px;color:var(--accent);">🔍 Verificar placa individual</h5>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <input id="wt-check-placa" placeholder="ABC123" style="text-transform:uppercase;flex:1;min-width:120px;background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:7px 12px;color:var(--text);font-size:13px;">
+        <button class="btn btn-secondary" onclick="checkPlacaWidetech()">🔍 Verificar</button>
       </div>
       <div id="wt-check-placa-msg" style="margin-top:6px;font-size:13px;margin-bottom:14px;"></div>
-      <hr style="border-color:var(--border);margin-bottom:16px;">
-      <button class="btn btn-primary" onclick="cargarWtCheckVehiculos()">🔍 Verificar todos los vehículos</button>
+      <hr style="border-color:var(--border);margin:16px 0;">
+      <h5 style="margin-bottom:8px;font-size:13px;color:var(--accent);">🔍 Verificar todos los vehículos de logística</h5>
+      <button class="btn btn-primary" onclick="cargarWtCheckVehiculos()">🔍 Verificar todos</button>
       <div id="wt-vehiculos-msg" style="margin-top:10px;font-size:13px;"></div>
     </div>
     <div id="wt-vehiculos-table" style="margin-top:14px;"></div>`;
+}
+
+async function bulkImportarPlacas() {
+  const raw = document.getElementById('wt-bulk-plates').value.trim();
+  const msg = document.getElementById('wt-bulk-msg');
+  const progress = document.getElementById('wt-bulk-progress');
+  if (!raw) { msg.innerHTML = '<span style="color:var(--danger)">Pega al menos una placa</span>'; return; }
+  const plates = raw.split(/[,;\s\n\r\t]+/).map(p => p.trim().toUpperCase()).filter(Boolean);
+  const unique = [...new Set(plates)];
+  const total = unique.length;
+  msg.innerHTML = `<span class="text-muted">Verificando ${total} placas... (~${Math.ceil(total * 0.5)} min)</span>`;
+  progress.innerHTML = '';
+  try {
+    let done = 0;
+    const batchSize = 1;
+    const interval = setInterval(() => {
+      if (done < total) {
+        const pct = Math.round((done / total) * 100);
+        progress.innerHTML = `<div style="background:var(--surface2);border-radius:6px;height:6px;overflow:hidden;"><div style="height:100%;width:${pct}%;background:var(--accent);transition:width .3s;"></div></div><span style="font-size:12px;color:var(--muted);">${done}/${total}</span>`;
+      }
+    }, 1000);
+    const data = await api('/widetech-sync/bulk-check-plates', {
+      method: 'POST',
+      body: JSON.stringify({ plates: unique })
+    });
+    clearInterval(interval);
+    progress.innerHTML = '';
+    const s = data.summary;
+    let resultHtml = `<div style="margin-top:10px;padding:10px;background:var(--surface2);border-radius:8px;font-size:13px;">`;
+    resultHtml += `<strong>✅ ${s.imported} importados</strong> · <strong>📍 ${s.found - s.imported} ya existían</strong> · <strong>❌ ${s.notFound} no encontrados en Widetech</strong>`;
+    resultHtml += `</div>`;
+    resultHtml += `<div style="margin-top:8px;max-height:200px;overflow-y:auto;">`;
+    for (const r of data.results) {
+      const icon = r.created ? '🆕' : r.exists ? '✅' : '❌';
+      const detail = r.dateGps ? ` (último GPS: ${r.dateGps})` : r.error ? ` (${r.error})` : '';
+      resultHtml += `<div style="font-size:12px;padding:2px 0;">${icon} <strong>${r.plate}</strong>${detail}</div>`;
+    }
+    resultHtml += `</div>`;
+    progress.innerHTML = resultHtml;
+    msg.innerHTML = `<span style="color:var(--success)">✓ Completado</span>`;
+  } catch (e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; progress.innerHTML = ''; }
 }
 
 async function checkPlacaWidetech() {
