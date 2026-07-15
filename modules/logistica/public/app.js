@@ -2415,19 +2415,17 @@ async function rWidetech() {
   else if (wtTab === 'zonas') renderWtZonas(el);
 }
 
-function escFiltroFechaWt() {
-  const d = new Date();
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${y}/${m}/${day} 00:00:00`;
+
+
+function fmtDateInput(d) {
+  return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
 }
 
 async function renderWtViajes(el) {
   const hoy = new Date();
-  const hace30 = new Date(hoy.getTime() - 15 * 24 * 60 * 60 * 1000);
-  const defStart = `${hace30.getFullYear()}/${String(hace30.getMonth()+1).padStart(2,'0')}/${String(hace30.getDate()).padStart(2,'0')} 00:00:00`;
-  const defEnd = escFiltroFechaWt();
+  const hace15 = new Date(hoy.getTime() - 15 * 24 * 60 * 60 * 1000);
+  const defStart = fmtDateInput(hace15);
+  const defEnd = fmtDateInput(hoy);
   el.innerHTML = `
     <div class="card">
       <h4 style="margin-bottom:16px;font-family:var(--font-head);">🚛 Viajes Widetech</h4>
@@ -2437,11 +2435,11 @@ async function renderWtViajes(el) {
       <div class="form-grid" style="grid-template-columns:1fr 1fr auto;margin-bottom:14px;">
         <div class="form-group">
           <label>Fecha inicio</label>
-          <input id="wt-start" value="${defStart}" placeholder="YYYY/MM/dd HH:mm:ss" style="font-family:monospace;font-size:13px;">
+          <input type="date" id="wt-start" value="${defStart}">
         </div>
         <div class="form-group">
           <label>Fecha fin</label>
-          <input id="wt-end" value="${defEnd}" placeholder="YYYY/MM/dd HH:mm:ss" style="font-family:monospace;font-size:13px;">
+          <input type="date" id="wt-end" value="${defEnd}">
         </div>
         <div class="form-group" style="align-self:flex-end;">
           <label>Placa (opcional)</label>
@@ -2461,10 +2459,12 @@ async function cargarWtViajes() {
   const tbl = document.getElementById('wt-viajes-table');
   msg.innerHTML = '<span class="text-muted">Consultando Widetech (espera ~25s por rate-limit)...</span>';
   tbl.innerHTML = '';
-  const start = document.getElementById('wt-start').value.trim();
-  const end = document.getElementById('wt-end').value.trim();
+  const startRaw = document.getElementById('wt-start').value;
+  const endRaw = document.getElementById('wt-end').value;
   const plate = document.getElementById('wt-plate').value.trim();
-  if (!start || !end) { msg.innerHTML = '<span style="color:var(--danger)">✗ Fechas requeridas</span>'; return; }
+  if (!startRaw || !endRaw) { msg.innerHTML = '<span style="color:var(--danger)">✗ Fechas requeridas</span>'; return; }
+  const start = startRaw.replace(/-/g, '/') + ' 00:00:00';
+  const end = endRaw.replace(/-/g, '/') + ' 23:59:59';
   try {
     const q = `?start=${encodeURIComponent(start)}&end=${encodeURIComponent(end)}${plate ? '&plate='+encodeURIComponent(plate) : ''}`;
     const data = await api('/widetech-sync/travels' + q);
