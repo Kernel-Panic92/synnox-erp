@@ -39,6 +39,22 @@ function initFramework(opts = {}) {
     document.getElementById('sidebar')?.classList.remove('open');
     this.classList.remove('show');
   });
+
+  // Load module version
+  loadVersion();
+}
+
+// ── Version ──
+async function loadVersion() {
+  const el = document.getElementById('app-version');
+  if (!el) return;
+  try {
+    const data = await api('/version');
+    const ver = data.version || '1.0.0';
+    const branch = data.branch ? ' [' + data.branch + ']' : '';
+    el.textContent = 'v' + ver + branch;
+    window._appVer = 'v' + ver + branch;
+  } catch { el.textContent = 'v—'; window._appVer = 'v—'; }
 }
 
 // ── HTTP client ──
