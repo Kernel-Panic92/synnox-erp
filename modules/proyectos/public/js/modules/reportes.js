@@ -26,10 +26,11 @@ async function cargarReportes() {
       return `
         <tr>
           <td><span class="nombre-asignado">&#x1F464; ${esc(nombreUsuario(r.asignado_a))}</span></td>
-          <td><strong>${r.total}</strong> <span style="color:var(--muted)">(${pct}%)</span></td>
+          <td><strong>${r.total}</strong></td>
+          <td><span style="color:var(--muted)">${pct}% del total</span></td>
         </tr>
       `;
-    }).join('') || '<tr><td colspan="2" style="text-align:center;color:var(--muted);padding:20px">No hay datos</td></tr>';
+    }).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--muted);padding:20px">No hay datos</td></tr>';
   } catch (err) {
     document.getElementById('rpt-estados').innerHTML = '<div class="card" style="grid-column:1/-1;text-align:center;color:var(--muted)">Error al cargar reportes</div>';
   }

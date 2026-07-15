@@ -2,6 +2,7 @@ const BASE = location.pathname.match(/^\/(\w+)\//) ? '/' + RegExp.$1 : '';
 let usuario = null;
 let _currentPage = 'dashboard';
 let _nombresUsuarios = {};
+let _todosUsuarios = [];
 
 initFramework({
   basePath: BASE,
@@ -35,17 +36,36 @@ function mostrarAppInterno() {
   navigate(HF.themePages[0] || 'dashboard');
 }
 
+async function cargarTodosLosUsuarios() {
+  if (_todosUsuarios.length) return _todosUsuarios;
+  try {
+    const data = await api('/usuarios');
+    _todosUsuarios = data.usuarios || [];
+    for (const u of _todosUsuarios) _nombresUsuarios[u.id] = u.nombre;
+    return _todosUsuarios;
+  } catch { return []; }
+}
+
 async function cargarNombresUsuarios(ids) {
   const faltantes = ids.filter(id => !_nombresUsuarios[id]);
   if (!faltantes.length) return;
-  try {
-    const data = await api('/usuarios');
-    for (const u of data.usuarios || []) _nombresUsuarios[u.id] = u.nombre;
-  } catch {}
+  if (!_todosUsuarios.length) {
+    await cargarTodosLosUsuarios();
+    return;
+  }
+  for (const id of faltantes) {
+    const u = _todosUsuarios.find(x => x.id === id);
+    if (u) _nombresUsuarios[id] = u.nombre;
+  }
 }
 
 function nombreUsuario(id) {
   return _nombresUsuarios[id] || ('#' + id);
+}
+
+function selectUsuarios(selectedId) {
+  return '<option value="">Sin asignar</option>' +
+    _todosUsuarios.map(u => `<option value="${u.id}" ${u.id == selectedId ? 'selected' : ''}>${esc(u.nombre)} (${esc(u.email)})</option>`).join('');
 }
 
 async function init() {
@@ -56,6 +76,7 @@ async function init() {
     if (data.nombre) document.getElementById('user-name').textContent = data.nombre;
     if (data.rol) document.getElementById('user-role').textContent = data.rol === 'admin' ? 'Administrador' : (data.perfil_nombre || data.rol);
     if (data.rol) document.getElementById('user-badge').textContent = data.rol;
+    await cargarTodosLosUsuarios();
     mostrarAppInterno();
   } catch {
     logout();

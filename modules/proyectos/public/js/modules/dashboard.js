@@ -90,7 +90,8 @@ async function cargarDashboard() {
     }
 
     const idsAsignados = recientes.map(r => r.asignado_a).filter(Boolean);
-    await cargarNombresUsuarios(idsAsignados);
+    const idsAsignadosActivos = porAsignado.map(r => r.asignado_a).filter(Boolean);
+    await cargarNombresUsuarios([...new Set([...idsAsignados, ...idsAsignadosActivos])]);
 
     if (!recientes.length) {
       document.getElementById('dash-recientes').innerHTML = '<tr><td colspan="4" class="empty-state" style="padding:32px"><div class="icon">&#x1F4CB;</div><p>Crea tu primera tarea para verla aqui</p></td></tr>';
@@ -103,6 +104,18 @@ async function cargarDashboard() {
           <td>${badgePrioridad(t.prioridad)}</td>
         </tr>
       `).join('');
+    }
+
+    if (porAsignado.length) {
+      const asignadoHtml = porAsignado.slice(0, 8).map(r => `
+        <tr>
+          <td>&#x1F464; ${esc(nombreUsuario(r.asignado_a))}</td>
+          <td><strong>${r.total}</strong> <span style="color:var(--muted)">pendiente(s)</span></td>
+        </tr>
+      `).join('');
+      document.getElementById('dash-asignado').innerHTML = asignadoHtml;
+    } else {
+      document.getElementById('dash-asignado').innerHTML = '<tr><td colspan="2" style="color:var(--muted);text-align:center;padding:12px">Sin tareas asignadas</td></tr>';
     }
   } catch (err) {
     document.getElementById('dash-stats').innerHTML = '<div class="card" style="grid-column:1/-1;text-align:center;color:var(--muted);padding:40px">Error al cargar dashboard</div>';

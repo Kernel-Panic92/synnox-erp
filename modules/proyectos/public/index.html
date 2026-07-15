@@ -74,7 +74,10 @@
       <!-- Dashboard -->
       <div class="page active" id="page-dashboard">
         <div class="stats-row" id="dash-stats"></div>
-        <div class="card mb-20"><canvas id="chart-estados" height="220"></canvas></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+          <div class="card"><h3 style="margin-bottom:12px">Distribucion por estado</h3><canvas id="chart-estados" height="200"></canvas></div>
+          <div class="card"><h3 style="margin-bottom:12px">Tareas pendientes por usuario</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Usuario</th><th>Pendientes</th></tr></thead><tbody id="dash-asignado"></tbody></table></div></div>
+        </div>
         <div class="card"><h3 style="margin-bottom:12px">Tareas recientes</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Titulo</th><th>Proyecto</th><th>Estado</th><th>Prioridad</th></tr></thead><tbody id="dash-recientes"></tbody></table></div></div>
       </div>
 
@@ -109,7 +112,7 @@
       <!-- Reportes -->
       <div class="page" id="page-reportes">
         <div class="stats-row" id="rpt-estados"></div>
-        <div class="card"><h3 style="margin-bottom:12px">Tareas por asignado (pendientes)</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Asignado</th><th>Total</th></tr></thead><tbody id="rpt-asignado"></tbody></table></div></div>
+        <div class="card"><h3 style="margin-bottom:12px">Tareas pendientes por usuario</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Usuario</th><th>Pendientes</th><th>Porcentaje</th></tr></thead><tbody id="rpt-asignado"></tbody></table></div></div>
       </div>
 
     </div>

@@ -40,6 +40,7 @@ async function cargarTareas() {
         <td class="nombre-asignado">${t.asignado_a ? esc(nombreUsuario(t.asignado_a)) : '<span style="color:var(--muted)">Sin asignar</span>'}</td>
         <td style="font-size:12px;color:var(--muted)">${formatDate(t.fecha_limite)}</td>
         <td>
+          ${t.estado !== 'completada' ? `<button class="btn btn-xs btn-success" onclick="completarTareaRapida(${t.id})" title="Marcar completada">&#10003;</button>` : ''}
           <button class="btn btn-xs btn-secondary" onclick="abrirModalTarea(${t.id})" title="Editar">&#9998;</button>
           <button class="btn btn-xs btn-danger" onclick="eliminarTarea(${t.id})" title="Eliminar">&#10005;</button>
         </td>
@@ -60,6 +61,15 @@ function tareasPagina(dir) {
   cargarTareas();
 }
 
+async function completarTareaRapida(id) {
+  try {
+    await api('/tareas/' + id, { method: 'PUT', body: JSON.stringify({ estado: 'completada', columna: 'completada' }) });
+    toast('Tarea completada', 'success');
+    cargarTareas();
+    if (_currentPage === 'tablero') cargarTablero();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
 async function abrirModalTarea(id) {
   await cargarProyectosSelect();
   let t = null;
@@ -67,7 +77,7 @@ async function abrirModalTarea(id) {
     try { const d = await api('/tareas/' + id); t = d.tarea; } catch {}
   }
 
-  const usuarios = Object.entries(_nombresUsuarios).map(([id, nom]) => `<option value="${id}" ${t?.asignado_a == id ? 'selected' : ''}>${esc(nom)}</option>`).join('');
+  const usuarios = selectUsuarios(t?.asignado_a);
 
   const body = `
     <div class="form-group"><label>Proyecto</label><select id="tarea-proyecto">${_tareasProyectos.map(p => `<option value="${p.id}" ${(t?.proyecto_id == p.id) ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}</select></div>
