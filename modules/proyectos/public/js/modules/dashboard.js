@@ -12,30 +12,40 @@ async function cargarDashboard() {
     const total = estados.reduce((s, e) => s + parseInt(e.count), 0);
 
     document.getElementById('dash-stats').innerHTML = `
-      <div class="card stat-card"><div class="num">${total}</div><div class="lbl">Total Tareas</div></div>
-      <div class="card stat-card"><div class="num" style="color:var(--warning)">${pendiente}</div><div class="lbl">Pendientes</div></div>
+      <div class="card stat-card"><div class="num" style="color:var(--text)">${total}</div><div class="lbl">Total Tareas</div></div>
+      <div class="card stat-card"><div class="num" style="color:#f59e0b">${pendiente}</div><div class="lbl">Pendientes</div></div>
       <div class="card stat-card"><div class="num" style="color:var(--accent)">${enProgreso}</div><div class="lbl">En Progreso</div></div>
-      <div class="card stat-card"><div class="num">${revision}</div><div class="lbl">En Revision</div></div>
-      <div class="card stat-card"><div class="num" style="color:var(--success)">${completada}</div><div class="lbl">Completadas</div></div>
+      <div class="card stat-card"><div class="num" style="color:#a78bfa">${revision}</div><div class="lbl">En Revision</div></div>
+      <div class="card stat-card"><div class="num" style="color:#10b981">${completada}</div><div class="lbl">Completadas</div></div>
     `;
 
     const canvas = document.getElementById('chart-estados');
     if (canvas) {
       const ctx = canvas.getContext('2d');
-      const w = canvas.parentElement.clientWidth - 40;
-      canvas.width = Math.min(w, 400);
-      canvas.height = 200;
-      const cx = canvas.width / 2;
-      const cy = 100;
-      const r = 80;
-      const values = [pendiente, enProgreso, revision, completada].filter(v => v > 0);
-      const colors = ['#fdcb6e', '#6c5ce7', '#a29bfe', '#00b894'];
-      const sum = values.reduce((a, b) => a + b, 0);
+      const card = canvas.parentElement;
+      const w = card.clientWidth - 40;
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = Math.min(w, 500) * dpr;
+      canvas.height = 220 * dpr;
+      canvas.style.width = Math.min(w, 500) + 'px';
+      canvas.style.height = '220px';
+      ctx.scale(dpr, dpr);
 
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const cw = Math.min(w, 500);
+      const ch = 220;
+      const cx = cw * 0.35;
+      const cy = ch / 2;
+      const r = 80;
+      const colors = ['#f59e0b', '#7c6df0', '#a78bfa', '#10b981'];
+      const sum = total;
+
+      ctx.clearRect(0, 0, cw, ch);
+
       if (sum > 0) {
         let start = -Math.PI / 2;
+        const values = [pendiente, enProgreso, revision, completada];
         values.forEach((v, i) => {
+          if (v <= 0) return;
           const slice = (v / sum) * Math.PI * 2;
           ctx.beginPath();
           ctx.moveTo(cx, cy);
@@ -47,37 +57,53 @@ async function cargarDashboard() {
       } else {
         ctx.beginPath();
         ctx.arc(cx, cy, r, 0, Math.PI * 2);
-        ctx.fillStyle = '#2a3045';
+        ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--border').trim() || '#e2e8f0';
         ctx.fill();
+        ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted').trim() || '#64748b';
+        ctx.font = '12px -apple-system, sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Sin datos', cx, cy + 4);
+        ctx.textAlign = 'start';
       }
 
       const legends = [
-        { label: 'Pendiente', color: '#fdcb6e', val: pendiente },
-        { label: 'En Progreso', color: '#6c5ce7', val: enProgreso },
-        { label: 'Revision', color: '#a29bfe', val: revision },
-        { label: 'Completada', color: '#00b894', val: completada }
+        { label: 'Pendiente', color: '#f59e0b', val: pendiente },
+        { label: 'En Progreso', color: '#7c6df0', val: enProgreso },
+        { label: 'Revision', color: '#a78bfa', val: revision },
+        { label: 'Completada', color: '#10b981', val: completada }
       ];
+      const textColor = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#1e293b';
+      const lx = cw * 0.62;
       legends.forEach((l, i) => {
-        const y = 15 + i * 18;
+        const y = 40 + i * 32;
         ctx.fillStyle = l.color;
-        ctx.fillRect(canvas.width - 140, y, 12, 12);
-        ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text').trim() || '#e8ecf5';
-        ctx.font = '11px sans-serif';
-        ctx.fillText(`${l.label} (${l.val})`, canvas.width - 124, y + 11);
+        ctx.beginPath();
+        ctx.roundRect(lx, y - 2, 16, 16, 3);
+        ctx.fill();
+        ctx.fillStyle = textColor;
+        ctx.font = '600 12px -apple-system, sans-serif';
+        ctx.fillText(l.label, lx + 22, y + 11);
+        ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted').trim() || '#64748b';
+        ctx.font = '12px -apple-system, sans-serif';
+        ctx.fillText('(' + l.val + ')', lx + 22 + ctx.measureText(l.label).width + 6, y + 11);
       });
     }
 
     const idsAsignados = recientes.map(r => r.asignado_a).filter(Boolean);
     await cargarNombresUsuarios(idsAsignados);
 
-    document.getElementById('dash-recientes').innerHTML = recientes.map(t => `
-      <tr>
-        <td><strong>${esc(t.titulo)}</strong></td>
-        <td><span style="font-size:12px;color:var(--muted)">${esc(t.proyecto_nombre || '—')}</span></td>
-        <td>${badgeEstado(t.estado)}</td>
-        <td>${badgePrioridad(t.prioridad)}</td>
-      </tr>
-    `).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:20px">No hay tareas recientes</td></tr>';
+    if (!recientes.length) {
+      document.getElementById('dash-recientes').innerHTML = '<tr><td colspan="4" class="empty-state" style="padding:32px"><div class="icon">&#x1F4CB;</div><p>Crea tu primera tarea para verla aqui</p></td></tr>';
+    } else {
+      document.getElementById('dash-recientes').innerHTML = recientes.map(t => `
+        <tr>
+          <td><strong>${esc(t.titulo)}</strong></td>
+          <td><span style="font-size:12px;color:var(--muted)">${esc(t.proyecto_nombre || '—')}</span></td>
+          <td>${badgeEstado(t.estado)}</td>
+          <td>${badgePrioridad(t.prioridad)}</td>
+        </tr>
+      `).join('');
+    }
   } catch (err) {
     document.getElementById('dash-stats').innerHTML = '<div class="card" style="grid-column:1/-1;text-align:center;color:var(--muted);padding:40px">Error al cargar dashboard</div>';
   }
