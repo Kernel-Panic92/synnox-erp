@@ -8,12 +8,9 @@ const _columnas = [
 async function cargarTablero() {
   const proyectoId = document.getElementById('tablero-proyecto')?.value;
   await cargarProyectosSelectKanban();
-  if (!proyectoId) {
-    document.getElementById('kanban-board').innerHTML = '<div class="empty-state" style="width:100%"><div class="icon">&#x1F5C2;</div><p>Selecciona un proyecto para ver el tablero Kanban</p></div>';
-    return;
-  }
   try {
-    const params = new URLSearchParams({ proyecto_id: proyectoId, limit: '200' });
+    const params = new URLSearchParams({ limit: '200' });
+    if (proyectoId) params.set('proyecto_id', proyectoId);
     const data = await api('/tareas?' + params.toString());
     const tareas = data.tareas || [];
     const ids = tareas.map(t => t.asignado_a).filter(Boolean);
@@ -36,6 +33,7 @@ async function cargarTablero() {
               <div class="card-title" onclick="abrirModalDetalleTarea(${t.id})" style="cursor:pointer">${esc(t.titulo)}</div>
               <div class="card-meta">
                 ${badgePrioridad(t.prioridad)}
+                ${!proyectoId && t.proyecto_nombre ? `<span>&#x1F4C1; ${esc(t.proyecto_nombre)}</span>` : ''}
                 ${t.asignado_a ? `<span>&#x1F464; ${esc(nombreUsuario(t.asignado_a))}</span>` : ''}
                 ${t.fecha_limite ? `<span>&#x1F4C5; ${formatDate(t.fecha_limite)}</span>` : ''}
               </div>
