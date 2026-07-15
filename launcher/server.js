@@ -248,6 +248,10 @@ try { db.prepare("UPDATE user_modulos SET modulo_id = 'logistica' WHERE modulo_i
 // Seed public_url from url if empty
 db.prepare("UPDATE modulos_plataforma SET public_url = url WHERE public_url = '' AND url != ''").run();
 
+// Seed proyectos module if not present
+db.prepare(`INSERT OR IGNORE INTO modulos_plataforma (id, nombre, descripcion, url, public_url, icon, mcp_enabled, activo, orden, proxy_prefix, tipo)
+    VALUES ('proyectos', 'Proyectos', 'Gestión de proyectos y tareas', 'http://localhost:3101', '', '📋', 1, 1, 4, '/proyectos/', 'interno')`).run();
+
 // ── Permisos granular tables ──
 db.exec(`
   CREATE TABLE IF NOT EXISTS modulos_permisos_config (
@@ -328,6 +332,18 @@ const defaultPermisosConfig = {
     ['asignar', 'Asignar vehículos/conductores'],
     ['configurar', 'Configurar módulo'],
     ['exportar', 'Exportar datos']
+  ],
+  proyectos: [
+    ['ver', 'Ver proyectos y tareas'],
+    ['crear', 'Crear proyectos'],
+    ['editar', 'Editar proyectos'],
+    ['eliminar', 'Eliminar proyectos'],
+    ['crear_tarea', 'Crear tareas'],
+    ['editar_tarea', 'Editar y asignar tareas'],
+    ['eliminar_tarea', 'Eliminar tareas'],
+    ['comentar', 'Añadir comentarios'],
+    ['configurar', 'Configurar módulo'],
+    ['ver_reportes', 'Ver reportes y métricas']
   ]
 };
 

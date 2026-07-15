@@ -26,3 +26,4 @@ modules/logistica/.env
 modules/logistica/backups/
 modules/proveedores/.env
 modules/proveedores/backups/
+*.xlsx
