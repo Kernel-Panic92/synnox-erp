@@ -141,6 +141,7 @@ const MODULOS_FIJOS = [
   { id: 'proveedores', nombre: 'Proveedores', icon: '📄', desc: 'Facturas y proveedores', ruta: '/proveedores/' },
   { id: 'logistica', nombre: 'Logística', icon: '🚚', desc: 'Planeación de rutas', ruta: '/logistica/' },
   { id: 'nomina', nombre: 'Nómina', icon: '💰', desc: 'Horas extra y novedades', ruta: '/nomina/' },
+  { id: 'proyectos', nombre: 'Proyectos', icon: '📋', desc: 'Gestión de proyectos y tareas', ruta: '/proyectos/' },
 ];
 
 const SUBMODULOS = [
@@ -153,6 +154,7 @@ const SUBMODULOS = [
   { id: 'registros', mod: 'nomina', nombre: 'Registros', icon: '📝', ruta: '/nomina/#registros' },
   { id: 'empleados', mod: 'nomina', nombre: 'Empleados', icon: '👤', ruta: '/nomina/#empleados' },
   { id: 'nominas', mod: 'nomina', nombre: 'Nóminas', icon: '💰', ruta: '/nomina/#nominas' },
+  { id: 'kanban', mod: 'proyectos', nombre: 'Tablero', icon: '📋', ruta: '/proyectos/' },
 ];
 
 async function showLauncher() {
@@ -284,10 +286,11 @@ async function cargarModuleSummary() {
   const w = document.getElementById('module-summary-widget');
   if (!w) return;
   try {
-    const [prov, logi, nomi] = await Promise.allSettled([
+    const [prov, logi, nomi, proy] = await Promise.allSettled([
       fetch('/proveedores/api/dashboard', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
       fetch('/logistica/api/dashboard/resumen', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
       fetch('/nomina/api/dashboard/resumen', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
+      fetch('/proyectos/api/dashboard', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
     ]);
     const cards = [];
     if (prov.status === 'fulfilled' && prov.value) {
@@ -312,6 +315,18 @@ async function cargarModuleSummary() {
         { label: 'Registros', value: n.totalRegistros || 0 },
         { label: 'Pendientes', value: n.pendientes || 0 },
         { label: 'Aprobados', value: n.aprobados || 0 },
+      ]});
+    }
+    if (proy.status === 'fulfilled' && proy.value) {
+      const pr = proy.value;
+      const estados = pr.estados || [];
+      const pendientes = estados.find(e => e.estado === 'pendiente')?.count || 0;
+      const enProgreso = estados.find(e => e.estado === 'en_progreso')?.count || 0;
+      const completadas = estados.find(e => e.estado === 'completada')?.count || 0;
+      cards.push({ icon: '📋', title: 'Proyectos', stats: [
+        { label: 'Pendientes', value: pendientes },
+        { label: 'En progreso', value: enProgreso },
+        { label: 'Completadas', value: completadas },
       ]});
     }
     if (!cards.length) { w.style.display = 'none'; return; }

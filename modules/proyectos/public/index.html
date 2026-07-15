@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Proyectos — SynnoxERP</title>
+<style>
+:root {
+  --bg: #0d0f14; --surface: #161a23; --surface2: #1e2330; --border: #2a3045;
+  --accent: #6C5CE7; --accent2: #a29bfe; --success: #00b894; --warning: #fdcb6e;
+  --danger: #d63031; --text: #e8ecf5; --muted: #7a85a0;
+  --font-head: 'Segoe UI', system-ui, sans-serif;
+  --font-body: 'Segoe UI', system-ui, sans-serif;
+  --sidebar-w: 230px;
+  --radius: 8px;
+}
+body.light {
+  --bg: #f5f6fa; --surface: #fff; --surface2: #f0f1f5; --border: #dcdde1;
+  --text: #2d3436; --muted: #636e72;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:var(--font-body);background:var(--bg);color:var(--text);font-size:14px;min-height:100vh}
+a{color:var(--accent);text-decoration:none}
+input,select,textarea{font-family:inherit;font-size:13px;padding:8px 12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);outline:none;transition:border .2s}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+textarea{resize:vertical;min-height:60px}
+button{cursor:pointer;font-family:inherit}
+
+.app-layout{display:flex;min-height:100vh}
+.sidebar{width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:100;transition:transform .25s}
+.sidebar-brand{padding:20px 16px;font-size:17px;font-weight:700;color:var(--accent);border-bottom:1px solid var(--border);letter-spacing:-.3px}
+.sidebar-nav{flex:1;padding:8px 0;overflow-y:auto}
+.nav-item{padding:10px 16px;display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--muted);transition:all .15s;border-left:3px solid transparent}
+.nav-item:hover{color:var(--text);background:var(--surface2)}
+.nav-item.active{color:var(--accent);background:var(--surface2);border-left-color:var(--accent);font-weight:600}
+.nav-item .icon{font-size:16px;width:20px;text-align:center}
+.sidebar-footer{padding:12px 16px;border-top:1px solid var(--border)}
+.sidebar-user{display:flex;align-items:center;gap:10px;cursor:pointer;padding:8px;border-radius:8px;transition:background .15s}
+.sidebar-user:hover{background:var(--surface2)}
+.avatar{width:32px;height:32px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px}
+.hamburger{display:none;background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;padding:4px;margin-right:12px}
+
+.main{margin-left:var(--sidebar-w);flex:1;display:flex;flex-direction:column}
+.main-header{display:flex;align-items:center;padding:14px 24px;background:var(--surface);border-bottom:1px solid var(--border);gap:12px;position:sticky;top:0;z-index:50}
+.main-header h3{font-size:16px;font-weight:600}
+.header-actions{margin-left:auto;display:flex;gap:8px;align-items:center}
+.main-body{padding:20px 24px;flex:1}
+.page{display:none}
+.page.active{display:block}
+
+.btn{padding:8px 16px;border-radius:6px;font-size:13px;font-weight:600;border:1px solid transparent;display:inline-flex;align-items:center;gap:6px;transition:all .15s}
+.btn-primary{background:var(--accent);color:#fff;border-color:var(--accent)}
+.btn-primary:hover{opacity:.9}
+.btn-success{background:var(--success);color:#fff}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-secondary{background:var(--surface2);color:var(--text);border-color:var(--border)}
+.btn-secondary:hover{background:var(--border)}
+.btn-sm{padding:5px 10px;font-size:12px}
+.btn-xs{padding:3px 8px;font-size:11px}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px}
+.card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{text-align:center;padding:16px}
+.stat-card .num{font-size:28px;font-weight:700;color:var(--accent)}
+.stat-card .lbl{font-size:12px;color:var(--muted);margin-top:4px}
+
+table{width:100%;border-collapse:collapse}
+thead th{padding:10px 12px;text-align:left;font-size:12px;font-weight:600;color:var(--muted);border-bottom:2px solid var(--border);white-space:nowrap}
+tbody td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:13px}
+tbody tr:hover{background:var(--surface2)}
+.badge{display:inline-block;padding:3px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-success{background:rgba(0,184,148,.15);color:var(--success)}
+.badge-warning{background:rgba(253,203,110,.15);color:var(--warning)}
+.badge-danger{background:rgba(214,48,49,.15);color:var(--danger)}
+.badge-info{background:rgba(108,92,231,.15);color:var(--accent)}
+.badge-muted{background:rgba(122,133,160,.15);color:var(--muted)}
+
+.priority-alta{color:#fdcb6e;font-weight:600}
+.priority-critica{color:#d63031;font-weight:700}
+.priority-media{color:var(--text)}
+.priority-baja{color:var(--muted)}
+
+.filters{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px;align-items:center}
+.filters select,.filters input{min-width:140px}
+.spacer{flex:1}
+
+.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center}
+.modal-overlay.show{display:flex}
+.modal{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:560px;width:90%;max-height:85vh;overflow-y:auto}
+.modal-title{font-size:16px;font-weight:700;margin-bottom:16px}
+.modal-actions{margin-top:20px;display:flex;gap:8px;justify-content:flex-end}
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:12px;font-weight:600;color:var(--muted);margin-bottom:4px}
+.form-group input,.form-group select,.form-group textarea{width:100%}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+.kanban{display:flex;gap:16px;overflow-x:auto;padding-bottom:12px;min-height:300px}
+.kanban-col{min-width:260px;flex:1;background:var(--surface2);border-radius:var(--radius);padding:12px}
+.kanban-col h4{padding:8px 12px;font-size:13px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+.kanban-col h4 .count{font-size:11px;color:var(--muted);font-weight:400}
+.kanban-card{background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;margin-bottom:8px;cursor:grab;transition:all .15s;user-select:none}
+.kanban-card:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.15)}
+.kanban-card.dragging{opacity:.5;border-color:var(--accent)}
+.kanban-card .card-title{font-weight:600;font-size:13px;margin-bottom:6px}
+.kanban-card .card-meta{font-size:11px;color:var(--muted);display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.kanban-card .card-meta span{display:inline-flex;align-items:center;gap:3px}
+
+.toast-container{position:fixed;top:16px;right:16px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{padding:12px 20px;border-radius:8px;font-size:13px;font-weight:600;color:#fff;animation:slideIn .3s ease;box-shadow:0 4px 16px rgba(0,0,0,.2)}
+.toast-success{background:var(--success)}
+.toast-error{background:var(--danger)}
+.toast-info{background:var(--accent)}
+@keyframes slideIn{from{transform:translateX(100%);opacity:0}to{transform:translateX(0);opacity:1}}
+
+.empty-state{text-align:center;padding:40px 20px;color:var(--muted)}
+.empty-state .icon{font-size:40px;margin-bottom:12px}
+.empty-state p{font-size:14px}
+
+.nombre-asignado{display:inline-flex;align-items:center;gap:4px}
+
+@media(max-width:768px){
+  .sidebar{transform:translateX(-100%)}
+  .sidebar.open{transform:translateX(0)}
+  .main{margin-left:0}
+  .hamburger{display:block}
+  .kanban{flex-direction:column}
+  .kanban-col{min-width:100%}
+  .form-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+<div class="app-layout">
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-brand">Proyectos</div>
+  <nav class="sidebar-nav" id="sidebar-nav">
+    <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">&#x1F4CA;</span> Dashboard</div>
+    <div class="nav-item" data-page="proyectos" onclick="navigate('proyectos')"><span class="icon">&#x1F4C1;</span> Proyectos</div>
+    <div class="nav-item" data-page="tareas" onclick="navigate('tareas')"><span class="icon">&#x2705;</span> Tareas</div>
+    <div class="nav-item" data-page="tablero" onclick="navigate('tablero')"><span class="icon">&#x1F5C2;</span> Tablero</div>
+    <div class="nav-item" data-page="reportes" onclick="navigate('reportes')"><span class="icon">&#x1F4C8;</span> Reportes</div>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="sidebar-user" onclick="logout()">
+      <div class="avatar" id="user-avatar">U</div>
+      <div>
+        <div id="user-name" style="font-size:13px;font-weight:600"></div>
+        <div id="user-role" style="font-size:11px;color:var(--muted)"></div>
+      </div>
+    </div>
+    <div style="margin-top:6px;font-size:10px;color:var(--muted);text-align:center">SynnoxERP Proyectos v1.0</div>
+  </div>
+</aside>
+
+<div class="main">
+  <div class="main-header">
+    <button class="hamburger" onclick="toggleSidebar()" title="Menu">&#9776;</button>
+    <h3 id="page-title">Dashboard</h3>
+    <div class="header-actions">
+      <button class="btn btn-sm btn-secondary" onclick="toggleTheme()" title="Tema">&#127763;</button>
+    </div>
+  </div>
+  <div class="main-body">
+
+    <div class="page active" id="page-dashboard">
+      <div class="card-grid" id="dash-stats"></div>
+      <div class="card" style="margin-bottom:16px"><canvas id="chart-estados" width="400" height="200"></canvas></div>
+      <div class="card"><h4 style="margin-bottom:12px">Tareas recientes</h4><table><thead><tr><th>Titulo</th><th>Proyecto</th><th>Estado</th><th>Prioridad</th></tr></thead><tbody id="dash-recientes"></tbody></table></div>
+    </div>
+
+    <div class="page" id="page-proyectos">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+        <div style="font-size:13px;color:var(--muted)" id="proyectos-count">0 proyectos</div>
+        <button class="btn btn-primary btn-sm" onclick="abrirModalProyecto()">+ Nuevo Proyecto</button>
+      </div>
+      <div class="card-grid" id="proyectos-grid"></div>
+    </div>
+
+    <div class="page" id="page-tareas">
+      <div class="filters" id="tareas-filters">
+        <select id="filtro-proyecto" onchange="cargarTareas()"><option value="">Todos los proyectos</option></select>
+        <select id="filtro-estado" onchange="cargarTareas()">
+          <option value="">Todos los estados</option>
+          <option value="pendiente">Pendiente</option>
+          <option value="en_progreso">En Progreso</option>
+          <option value="revision">Revision</option>
+          <option value="completada">Completada</option>
+        </select>
+        <select id="filtro-prioridad" onchange="cargarTareas()">
+          <option value="">Todas las prioridades</option>
+          <option value="baja">Baja</option>
+          <option value="media">Media</option>
+          <option value="alta">Alta</option>
+          <option value="critica">Critica</option>
+        </select>
+        <input id="filtro-busqueda" type="text" placeholder="Buscar tarea..." oninput="cargarTareas()">
+        <div class="spacer"></div>
+        <button class="btn btn-primary btn-sm" onclick="abrirModalTarea()">+ Nueva Tarea</button>
+      </div>
+      <div class="card" style="overflow-x:auto">
+        <table>
+          <thead><tr>
+            <th>Titulo</th><th>Proyecto</th><th>Estado</th><th>Prioridad</th>
+            <th>Asignado</th><th>Fecha Limite</th><th></th>
+          </tr></thead>
+          <tbody id="tareas-tbody"></tbody>
+        </table>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:12px;color:var(--muted)">
+        <span id="tareas-info"></span>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-secondary" onclick="tareasPagina(-1)">Anterior</button>
+          <button class="btn btn-sm btn-secondary" onclick="tareasPagina(1)">Siguiente</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="page" id="page-tablero">
+      <div class="filters">
+        <select id="tablero-proyecto" onchange="cargarTablero()"><option value="">Selecciona un proyecto</option></select>
+      </div>
+      <div class="kanban" id="kanban-board"></div>
+    </div>
+
+    <div class="page" id="page-reportes">
+      <div class="card-grid" id="rpt-estados"></div>
+      <div class="card" style="margin-bottom:16px"><h4 style="margin-bottom:12px">Tareas por asignado (pendientes)</h4><table><thead><tr><th>Asignado</th><th>Total</th></tr></thead><tbody id="rpt-asignado"></tbody></table></div>
+    </div>
+
+  </div>
+</div>
+
+</div>
+
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<div class="modal-overlay" id="modal-detalle">
+  <div class="modal" id="modal-detalle-content" style="max-width:640px"></div>
+</div>
+
+<div class="toast-container" id="toast-container"></div>
+
+<script src="js/utils/api.js"></script>
+<script src="js/utils/helpers.js"></script>
+<script src="js/modules/dashboard.js"></script>
+<script src="js/modules/proyectos.js"></script>
+<script src="js/modules/tareas.js"></script>
+<script src="js/modules/tablero.js"></script>
+<script src="js/modules/reportes.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>

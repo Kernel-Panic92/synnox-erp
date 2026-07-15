@@ -1,5 +1,23 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (15 Jul 2026 — sesión 11)
+
+### Cambios Sesión 11 — Módulo de Gestión de Proyectos y Tareas
+
+- **Nuevo módulo**: `modules/proyectos/` — gestión de proyectos y tareas tipo Jira con Kanban
+- **20 archivos creados**: backend (ESM), frontend modular (SPA con sidebar), 5 páginas
+- **DB**: PostgreSQL schema `projects.*` — tablas `proyectos`, `tareas`, `comentarios`
+- **Kanban**: Drag & drop HTML5 con 4 columnas fijas (Pendiente → En Progreso → Revisión → Completada)
+- **Vistas**: Dashboard (gráfico pie + stats), Proyectos (tarjetas con %), Tareas (tabla con filtros), Tablero Kanban, Reportes
+- **Auth**: `framework/auth.mjs` — `verifyToken`, `verifySession`, `requireModule('proyectos')` + 10 permisos granulares
+- **API REST**: CRUD proyectos, CRUD tareas con filtros/paginación, comentarios, reordenar Kanban, dashboard
+- **Integración**: Montado en root `server.js` como ESM, registrado en `pnpm-workspace.yaml`, `modulos_plataforma`, `MODULOS_FIJOS`, `SUBMODULOS`, widget en `cargarModuleSummary()`
+- **Usuarios compartidos**: FK lógico a `usuarios.id` de SQLite (launcher), nombres consultados vía `GET /api/usuarios`
+- **Instalación pendiente**: Ejecutar `pnpm install` en raíz + `node backend/migrations/run.js` en módulo para crear schema
+- **Pendiente**: Ejecutar migración DB proyectos en PostgreSQL
+
+### Arquitectura (sin cambios vs sesión 10)
+
 ## Estado (14 Jul 2026 — sesión 10)
 
 ### Arquitectura

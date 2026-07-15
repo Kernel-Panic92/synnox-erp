@@ -24,7 +24,7 @@ const config = {
   serverPort: 3002,
   installDir: '/opt/synnoxerp',
   repoUrl: 'https://github.com/synnoxerp/synnox-erp.git',
-  modules: ['proveedores', 'logistica'],
+  modules: ['proveedores', 'logistica', 'proyectos'],
   clean: false,
   runSeeds: true,
 };
@@ -237,6 +237,7 @@ function showComplete() {
     ${config.modules.includes('proveedores') ? `<div class="comp-item"><div class="comp-label">📄 Proveedores</div><div class="comp-val"><a href="${baseUrl}/proveedores/">${baseUrl}/proveedores/</a></div></div>` : ''}
     ${config.modules.includes('logistica') ? `<div class="comp-item"><div class="comp-label">🚚 Logística</div><div class="comp-val"><a href="${baseUrl}/logistica/">${baseUrl}/logistica/</a></div></div>` : ''}
     ${config.modules.includes('nomina') ? `<div class="comp-item"><div class="comp-label">💰 Nómina</div><div class="comp-val"><a href="${baseUrl}/nomina/">${baseUrl}/nomina/</a></div></div>` : ''}
+    ${config.modules.includes('proyectos') ? `<div class="comp-item"><div class="comp-label">📋 Proyectos</div><div class="comp-val"><a href="${baseUrl}/proyectos/">${baseUrl}/proyectos/</a></div></div>` : ''}
     <div class="comp-item"><div class="comp-label">👤 Admin email</div><div class="comp-val">${esc(config.adminEmail)}</div></div>
     <div class="comp-item"><div class="comp-label">🔑 Contraseña</div><div class="comp-val">${adminPass}</div></div>
     ${installDbPass ? `<div class="comp-item"><div class="comp-label">🗄️ DB Password</div><div class="comp-val" style="font-family:monospace;font-size:12px;">${installDbPass}</div></div>` : ''}

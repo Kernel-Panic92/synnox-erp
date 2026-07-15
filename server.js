@@ -49,6 +49,13 @@ async function start() {
   // Static files always served regardless of module load success
   app.use('/logistica', express.static(path.join(__dirname, 'modules', 'logistica', 'public')));
 
+  try {
+    const modProy = await import('./modules/proyectos/backend/server.js');
+    app.use('/proyectos', modProy.default);
+    console.log('   Proyectos: montado en /proyectos/');
+  } catch (e) { console.error('[proyectos] Error:', e.message); }
+  app.use('/proyectos', express.static(path.join(__dirname, 'modules', 'proyectos', 'public')));
+
   app.get('*', publicLimiter, (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
     const spaPath = path.join(__dirname, 'launcher', 'shell', 'index.html');
@@ -62,6 +69,7 @@ async function start() {
     console.log(`   Proveedores: http://localhost:${PORT}/proveedores/`);
     console.log(`   Logística: http://localhost:${PORT}/logistica/`);
     console.log(`   Nómina:    http://localhost:${PORT}/nomina/`);
+    console.log(`   Proyectos: http://localhost:${PORT}/proyectos/`);
   });
 }
 

@@ -239,6 +239,14 @@ async function runInstall(config) {
       log('Proveedores: migraciones ok', 'ok');
     } catch (e) { log('Proveedores migrate: ' + e.message, 'warn'); }
 
+    // Proyectos migrations
+    if (config.modules.includes('proyectos') && fs.existsSync(path.join(INSTALL_DIR, 'modules/proyectos/backend/migrations/run.js'))) {
+      try {
+        await runCmd('node', ['backend/migrations/run.js'], { cwd: path.join(INSTALL_DIR, 'modules/proyectos'), env: dbEnv });
+        log('Proyectos: schema creado', 'ok');
+      } catch (e) { log('Proyectos migrate: ' + e.message, 'warn'); }
+    }
+
     // Step 7: Demo seeds
     if (config.runSeeds !== false) {
       installState.step = 'Sembrando datos demo...';
