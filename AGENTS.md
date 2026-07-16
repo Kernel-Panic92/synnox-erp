@@ -33,6 +33,7 @@
 
 ---
 
+
 ## Estado (15 Jul 2026 — sesión 11)
 
 ### Cambios Sesión 11 — Módulo de Gestión de Proyectos y Tareas
