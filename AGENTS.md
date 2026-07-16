@@ -15,6 +15,12 @@
 - **CI fixes**: Node 20→22 (deprecado en runners), eliminado `pnpm audit` (endpoint retirado por npm), restaurado `--frozen-lockfile`
 - **Bug recurrente**: Branch protection bloquea push a main — cada fix requirió disable/push/enable manual. Solución definitiva: PR vía rama feature.
 
+### Arquitectura de desarrollo
+- **Entorno**: 2 VMs independientes (1 por dev) + servidor de producción
+- **Flujo**: dev local → push rama feature → PR a GitHub → CI pasa → merge a `main` → prod hace `git pull`
+- **Producción**: Solo maneja `main` vía `git pull && pm2 restart synnoxerp`
+- **Base de datos**: PostgreSQL centralizado (producción), SQLite local para Nómina
+
 ### Pendientes nuevos
 - [ ] **Branding**: Revisar que toda la UI muestre "SynnoxERP" (no restos de Horix/vitamar en frontend, emails, PDFs, etc.)
 - [ ] **Licencia**: Redactar y agregar licencia de software al repo (LICENSE.md)
