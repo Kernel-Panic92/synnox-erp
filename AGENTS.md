@@ -1,5 +1,38 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (15 Jul 2026 — sesión 12)
+
+### Cambios Sesión 12 — Configuración repo para trabajo en equipo
+
+- **Branch protection**: `main` protegido: require PR + 1 approval + CODEOWNER review + status check `ci` + enforce_admins
+- **CI workflow** (`.github/workflows/ci.yml`): `pnpm install --frozen-lockfile` + `node --check` syntax check (Node 22)
+- **PR template** (`.github/PULL_REQUEST_TEMPLATE.md`): Checklist para contributor
+- **CODEOWNERS**: `* @Kernel-Panic92` — todos los PR requieren tu approval
+- **CONTRIBUTING.md**: Guía de setup, flujo de trabajo, convenciones y OpenCode
+- **pnpm-lock.yaml**: Generado y pusheado al repo por Edgar desde servidor producción
+- **Git identity**: Configurado `user.email`/`user.name` local en servidor producción
+- **Git remote**: Corregido de `horix-erp` legacy a `synnox-erp`
+- **CI fixes**: Node 20→22 (deprecado en runners), eliminado `pnpm audit` (endpoint retirado por npm), restaurado `--frozen-lockfile`
+- **Bug recurrente**: Branch protection bloquea push a main — cada fix requirió disable/push/enable manual. Solución definitiva: PR vía rama feature.
+
+### Pendientes nuevos
+- [ ] **Branding**: Revisar que toda la UI muestre "SynnoxERP" (no restos de Horix/vitamar en frontend, emails, PDFs, etc.)
+- [ ] **Licencia**: Redactar y agregar licencia de software al repo (LICENSE.md)
+- [ ] Revisar que el path `/opt/horix-platform` esté renombrado a `/opt/synnoxerp`
+
+### Pendientes anteriores
+- [ ] Ejecutar migración Nómina (Fase 0)
+- [ ] Observabilidad centralizada (tabla `auditoria_central`)
+- [ ] APIs internas entre módulos
+- [ ] Probar HTTPS en producción
+- [ ] SSH `execSync` → `ssh2` (test-ssh)
+- [ ] CSP nonce en proveedores
+- [ ] Dividir `launcher/server.js` (~1950 líneas → routers separados)
+- [ ] ESLint + Prettier config
+- [ ] Limpiar `.env` legacy (`modules/docflow/`, `modules/logistics/`, `modules/horix/`)
+
+---
+
 ## Estado (15 Jul 2026 — sesión 11)
 
 ### Cambios Sesión 11 — Módulo de Gestión de Proyectos y Tareas
