@@ -4,7 +4,7 @@
 
 ### Cambios Sesión 12 — Configuración repo para trabajo en equipo
 
-- **Branch protection**: `main` protegido: require PR + 1 approval + CODEOWNER review + status check `ci` + enforce_admins
+- **Branch protection**: `main` protegido: require PR + status check `ci (22)` + enforce_admins (sin review requirement — equipo de 2 devs donde PM también desarrolla)
 - **CI workflow** (`.github/workflows/ci.yml`): `pnpm install --frozen-lockfile` + `node --check` syntax check (Node 22)
 - **PR template** (`.github/PULL_REQUEST_TEMPLATE.md`): Checklist para contributor
 - **CODEOWNERS**: `* @Kernel-Panic92` — todos los PR requieren tu approval
@@ -21,7 +21,6 @@
 - [ ] Revisar que el path `/opt/horix-platform` esté renombrado a `/opt/synnoxerp`
 
 ### Pendientes anteriores
-- [ ] Ejecutar migración Nómina (Fase 0)
 - [ ] Observabilidad centralizada (tabla `auditoria_central`)
 - [ ] APIs internas entre módulos
 - [ ] Probar HTTPS en producción
@@ -30,6 +29,9 @@
 - [ ] Dividir `launcher/server.js` (~1950 líneas → routers separados)
 - [ ] ESLint + Prettier config
 - [ ] Limpiar `.env` legacy (`modules/docflow/`, `modules/logistics/`, `modules/horix/`)
+
+### Depreciados
+- [ ] **Migración Nómina SQLite → PostgreSQL** — postponida. Cambio muy grande, no es prioridad actual. Nómina funciona estable en SQLite. Documentación de referencia en `MIGRATION_NOMINA.md` y `ARCHITECTURE.md §7`.
 
 ---
 
