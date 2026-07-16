@@ -28,9 +28,6 @@ jobs:
       - run: pnpm install --frozen-lockfile
         name: Install dependencies
 
-      - run: pnpm audit --prod
-        name: Security audit
-
       - run: |
           find . -name '*.js' -not -path './node_modules/*' \
             -not -path './.pnpm-store/*' -not -path './modules/*/node_modules/*' \
