@@ -646,7 +646,7 @@ async function editarRegistro(id) {
   }
 
   // Load existing attachments
-  fetch(`/api/registros/${id}/adjuntos`).then(r => r.json()).then(files => {
+  GET(`/api/registros/${id}/adjuntos`).then(r => r.json()).then(files => {
     const cont = document.getElementById('edit-adjuntos-existentes');
     if (!cont) return;
     if (!files.length) { cont.style.display = 'none'; return; }
@@ -816,7 +816,7 @@ async function verDetalleRegistro(id) {
     const footer = modal?.querySelector('.modal-footer');
     if (!modal || !content) return;
     
-    const res = await fetch(`/api/registros/${id}`);
+    const res = await GET(`/api/registros/${id}`);
     if (!res.ok) {
       content.innerHTML = '<p style="text-align:center;padding:20px;color:var(--muted);">Registro no encontrado</p>';
       modal.classList.add('open');
@@ -882,7 +882,7 @@ async function verDetalleRegistro(id) {
     modal.style.display = 'flex';
     modal.onclick = (e) => { if (e.target === modal) cerrarModal('modal-detalle'); };
     
-    fetch(`/api/registros/${reg.id}/adjuntos`).then(r => r.json()).then(files => {
+    GET(`/api/registros/${reg.id}/adjuntos`).then(r => r.json()).then(files => {
       const cont = document.getElementById('detalle-adj-list');
       if (!cont) return;
       if (!files.length) { cont.textContent = 'Sin archivos adjuntos'; return; }

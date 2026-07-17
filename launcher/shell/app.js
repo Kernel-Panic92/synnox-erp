@@ -663,10 +663,6 @@ async function saveUser() {
     showError(errEl, 'Completa los campos requeridos');
     return;
   }
-  if (!id && !password) {
-    showError(errEl, 'Contraseña requerida para nuevo usuario');
-    return;
-  }
 
   try {
     const method = id ? 'PUT' : 'POST';
@@ -696,6 +692,11 @@ async function saveUser() {
     }
 
     closeForm();
+    if (!id && !password && result.welcome_sent) {
+      toast('Usuario creado. Se envió correo de bienvenida.', 'success');
+    } else {
+      toast(id ? 'Usuario actualizado' : 'Usuario creado', 'success');
+    }
     loadUsers();
   } catch (e) {
     showError(errEl, e.message);

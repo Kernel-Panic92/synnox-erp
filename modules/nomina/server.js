@@ -17,7 +17,7 @@ const upload     = multer({ storage: multer.memoryStorage(), limits: { fileSize:
 const { db, uid } = require('./src/db');
 require('./src/db/migrations')(db);
 const { parseCookies, createAuth } = require('./src/middleware/auth');
-const { encryptSmtp } = require('./src/utils/crypto');
+const { encryptSmtp, hashPassword, validarPassword, generateToken } = require('./src/utils/crypto');
 const { getConfig, getAdminEmail } = require('./src/utils/config');
 const { permisosPorRol, rolTienePermiso } = require('./src/utils/permisos');
 const { restoreData } = require('./src/utils/restore')({ db, encryptSmtp });
@@ -131,6 +131,9 @@ const testLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeade
 // Seeds (tipos, permisos, roles, centros)
 const boot = (async () => {
   await require('./src/db/seeds')({ db, uid, encryptSmtp, BASE_URL, APP_NAME });
+  // Detectar hashes SHA-256 legacy (usuarios sin migrar a bcrypt)
+  const legacyUsers = db.prepare("SELECT id, email FROM usuarios WHERE password IS NOT NULL AND LENGTH(password) = 64 AND password NOT LIKE '$2%'").all();
+  if (legacyUsers.length) console.warn(`⚠ [NOMINA] ${legacyUsers.length} usuario(s) con hash SHA-256 legacy: ${legacyUsers.map(u => u.email).join(', ')}. Ejecuta la migración a bcrypt.`);
 })().catch(e => console.error('[nomina] Error en seeds:', e.message));
 
 const { soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles, soloAdminOBkp, autenticar, requierePermiso, requireModule } = createAuth({
@@ -148,7 +151,7 @@ app.use('/api/auth', require('./src/routes/auth')({
 }));
 
 app.use('/api', require('./src/routes/misc')({ db, fs, path, __dirname, permisosPorRol, middlewares: { todosRoles } }));
-app.use('/api/usuarios', require('./src/routes/usuarios')({ db, uid, middlewares: { todosRoles, soloAdmin }, enviarCorreo, BASE_URL, APP_NAME }));
+app.use('/api/usuarios', require('./src/routes/usuarios')({ db, uid, BASE_URL, hashPassword, generateToken, getConfig, validarPassword, rolTienePermiso, enviarCorreo, middlewares: { todosRoles, soloAdmin }, APP_NAME }));
 app.use('/api/admin', require('./src/routes/auditoria')({ db, middlewares: { soloAdmin } }));
 
 // ─────────────────────────────────────────────
@@ -217,6 +220,12 @@ app.use('/authorize', mcpLimiter, mcp.createAuthorizeFallback());
 app.use('/token', mcpLimiter, express.urlencoded({ extended: false }), mcp.createTokenFallback());
 // Test endpoint para verificar que el servidor recibe requests nuevas
 app.get('/mcp-test', testLimiter, (req, res) => res.send('MCP OK ' + Date.now()));
+
+// ─────────────────────────────────────────────
+// VERSION
+// ─────────────────────────────────────────────
+const pkg = require('./package.json');
+app.get('/api/version', (req, res) => res.json({ version: pkg.version, name: APP_NAME }));
 
 const logErrorTelemetry = db.prepare('INSERT INTO telemetria (evento, pagina, usuarioId, datos, creado) VALUES (?,?,?,?,?)');
 // Error handler global — siempre responde JSON y registra en telemetría

@@ -1,13 +1,6 @@
 const BASE = location.pathname.match(/^\/(\w+)\//) ? '/' + RegExp.$1 : '';
 const API = BASE + '/api';
 
-function getToken() {
-  const c = document.cookie.split('; ').find(r => r.startsWith('launcher_jwt='));
-  const token = c ? c.split('=')[1] : null;
-  console.log('[getToken] cookie encontrada:', !!c, 'token:', token ? token.slice(0,20)+'...' : 'null');
-  return token;
-}
-
 function logout() {
   document.cookie = 'launcher_jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
   window.location.href = '/';
@@ -15,8 +8,6 @@ function logout() {
 
 async function api(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...opts.headers };
-  const t = getToken();
-  if (t) headers['Authorization'] = 'Bearer ' + t;
   const res = await fetch(API + path, { ...opts, headers });
   if (res.status === 401) { logout(); throw new Error('Sesión expirada'); }
   const data = await res.json();
@@ -1159,9 +1150,8 @@ function cerrarRutaDetalle() {
 }
 
 function descargarRutaPDF(id) {
-  const token = getToken();
   const url = API + '/rutas-pdf/' + id + '/checklist.pdf';
-  fetch(url, { headers: { 'Authorization': 'Bearer ' + token } })
+  fetch(url)
     .then(res => {
       if (!res.ok) throw new Error('Error al generar PDF');
       return res.blob();
@@ -1284,7 +1274,7 @@ async function importarSiesa() {
   const fd = new FormData();
   fd.append('archivo', input.files[0]);
   try {
-    const res = await fetch(API + '/importadores/siesa', { method: 'POST', headers: { 'Authorization': 'Bearer ' + getToken() }, body: fd });
+    const res = await fetch(API + '/importadores/siesa', { method: 'POST', body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     let html = `<div style="padding:10px;background:rgba(79,190,150,.1);border-radius:8px;color:var(--success);font-size:13px;">
@@ -1323,7 +1313,7 @@ async function importarMaestroClientes() {
   const fd = new FormData();
   fd.append('archivo', input.files[0]);
   try {
-    const res = await fetch(API + '/importadores/maestro-clientes', { method: 'POST', headers: { 'Authorization': 'Bearer ' + getToken() }, body: fd });
+    const res = await fetch(API + '/importadores/maestro-clientes', { method: 'POST', body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     resEl.innerHTML = `<div style="padding:10px;background:rgba(79,190,150,.1);border-radius:8px;color:var(--success);font-size:13px;">
@@ -1347,7 +1337,7 @@ async function importarWidetech() {
   const fd = new FormData();
   fd.append('archivo', input.files[0]);
   try {
-    const res = await fetch(API + '/importadores/widetech', { method: 'POST', headers: { 'Authorization': 'Bearer ' + getToken() }, body: fd });
+    const res = await fetch(API + '/importadores/widetech', { method: 'POST', body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
     resEl.innerHTML = `<div style="padding:10px;background:rgba(79,190,150,.1);border-radius:8px;color:var(--success);font-size:13px;">
@@ -1491,7 +1481,7 @@ function renderBackup(el) {
 
 async function descargarBackup() {
   try {
-    const res = await fetch(API + '/backup', { headers: { 'Authorization': 'Bearer ' + getToken() } });
+    const res = await fetch(API + '/backup');
     const blob = await res.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -1530,7 +1520,7 @@ async function cargarListaBackups() {
 
 async function descargarBackupServidor(nombre) {
   try {
-    const res = await fetch(API + '/backup/descargar/' + encodeURIComponent(nombre), { headers: { 'Authorization': 'Bearer ' + getToken() } });
+    const res = await fetch(API + '/backup/descargar/' + encodeURIComponent(nombre));
     const blob = await res.blob();
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob); a.download = nombre;
@@ -2563,10 +2553,8 @@ async function subirXlsxWidetech() {
   const formData = new FormData();
   formData.append('file', file);
   try {
-    const t = getToken();
     const res = await fetch(API + '/widetech-sync/import-xlsx', {
       method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + t },
       body: formData
     });
     if (res.status === 401) { logout(); throw new Error('Sesión expirada'); }
@@ -2917,7 +2905,6 @@ function limpiarFiltrosReporte() {
 
 async function exportarReporte() {
   const { tipo } = _rptState;
-  const token = getToken();
   mostrarAlerta('Generando Excel...', 'info');
   try {
     const body = { tipo,
@@ -2929,7 +2916,6 @@ async function exportarReporte() {
       vehiculoId: document.getElementById('rpt-vehiculo').value,
     };
     const headers = { 'Content-Type': 'application/json' };
-    if (token) headers['Authorization'] = 'Bearer ' + token;
     const res = await fetch(API + '/reportes/exportar', {
       method: 'POST', headers, body: JSON.stringify(body),
     });

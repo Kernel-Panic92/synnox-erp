@@ -1,13 +1,6 @@
 const BASE = window.BASE || '';
 const API = BASE;
 
-function getLauncherToken() {
-  const c = document.cookie.split('; ').find(r => r.startsWith('launcher_jwt='));
-  const t = c ? c.split('=')[1] : null;
-  console.log('[nomina-getToken] found:', !!c, 'preview:', t ? t.slice(0,20)+'...' : 'null');
-  return t;
-}
-
 let sesion = null;
 let empleados = [], nominas = [], registros = [], usuarios = [], centros = [], tipos = [];
 let editEmpId = null, editUsrId = null;
@@ -18,12 +11,10 @@ function rebuildEmpMap() {
 }
 
 const api = async (method, path, body = undefined) => {
-  const token = getLauncherToken();
   const opts = {
     method,
     headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { 'Authorization': 'Bearer ' + token } : {})
+      'Content-Type': 'application/json'
     }
   };
   if (body) opts.body = JSON.stringify(body);

@@ -21,6 +21,12 @@
 - **Branding — DB defaults**: `docflow_db` → `synnox_proveedores` en .env.example.
 - **Branding — Docs**: AGENTS.md de logística actualizado.
 
+### Arquitectura de desarrollo
+- **Entorno**: 2 VMs independientes (1 por dev) + servidor de producción
+- **Flujo**: dev local → push rama feature → PR a GitHub → CI pasa → merge a `main` → prod hace `git pull`
+- **Producción**: Solo maneja `main` vía `git pull && pm2 restart synnoxerp`
+- **Base de datos**: PostgreSQL centralizado (producción), SQLite local para Nómina
+
 ### Pendientes nuevos
 - [ ] **Licencia**: Redactar y agregar licencia de software al repo (LICENSE.md)
 - [ ] Revisar que el path `/opt/horix-platform` esté renombrado a `/opt/synnoxerp`

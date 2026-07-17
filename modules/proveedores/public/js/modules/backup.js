@@ -106,11 +106,9 @@ async function descargarBackup(tipo='completo'){
   const label=tipo==='config'?'⚙️ Solo Config':'💾 Completo';
   btn.disabled=true;btn.textContent='Verificando...';
   
-  const token=getToken();
-  
   // Verificar conexión primero
   try{
-    await fetch(BASE+'/api/backup?action=generate&tipo=config',{headers:{Authorization:`Bearer ${token}`}});
+    await fetch(BASE+'/api/backup?action=generate&tipo=config');
   }catch(e){
     btn.disabled=false;btn.textContent=label;
     toast('Sin conexión al servidor','error');
@@ -266,8 +264,7 @@ async function cargarListaBackups(){
 
 async function descargarBackupLocal(n){
   try{
-    const token=getToken();
-    const resp=await fetch(BASE+'/api/backup/descargar/'+encodeURIComponent(n),{headers:{Authorization:`Bearer ${token}`}});
+    const resp=await fetch(BASE+'/api/backup/descargar/'+encodeURIComponent(n));
     if(!resp.ok)throw new Error('Error descargando');
     const blob=await resp.blob();
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=n;a.click();
@@ -281,9 +278,8 @@ async function restaurarBackupLocal(n){
   const err=document.getElementById('restore-err');
   ok.style.display='none';err.style.display='none';
   try{
-    const token=getToken();
     const resp=await fetch(BASE+'/api/backup/restore/local/'+encodeURIComponent(n),{
-      method:'POST',headers:{Authorization:`Bearer ${token}`,'Content-Type':'application/json'},body:JSON.stringify({})
+      method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({})
     });
     const j=await resp.json();
     if(!resp.ok)throw new Error(j.error||'Error');
@@ -304,10 +300,9 @@ async function restaurarBackup(){
   ok.style.display='none';err.style.display='none';
   if(!await confirmModal('¿Restaurar el backup "'+archivoARestaurar.name+'"? Los datos actuales serán reemplazados.'))return;
   try{
-    const token=getToken();
     const form=new FormData();
     form.append('backup',archivoARestaurar);
-    const resp=await fetch(BASE+'/api/backup/restore',{method:'POST',headers:{Authorization:`Bearer ${token}`},body:form});
+    const resp=await fetch(BASE+'/api/backup/restore',{method:'POST',body:form});
     const j=await resp.json();
     if(!resp.ok)throw new Error(j.error||'Error');
     ok.textContent='✓ Restauración completada correctamente';
