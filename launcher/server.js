@@ -250,7 +250,7 @@ db.prepare("UPDATE modulos_plataforma SET public_url = url WHERE public_url = ''
 
 // Seed proyectos module if not present
 db.prepare(`INSERT OR IGNORE INTO modulos_plataforma (id, nombre, descripcion, url, public_url, icon, mcp_enabled, activo, orden, proxy_prefix, tipo)
-    VALUES ('proyectos', 'Proyectos', 'Gestión de proyectos y tareas', 'http://localhost:3101', '', '📋', 1, 1, 4, '/proyectos/', 'interno')`).run();
+    VALUES ('proyectos', 'Proyectos', 'Gestión de proyectos y tareas', 'http://localhost:3002', '', '📋', 1, 1, 4, '/proyectos/', 'interno')`).run();
 
 // ── Permisos granular tables ──
 db.exec(`
