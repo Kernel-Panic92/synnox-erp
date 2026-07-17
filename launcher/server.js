@@ -6,9 +6,12 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const { execSync } = require('child_process');
+const { execSync, execFileSync } = require('child_process');
 const mail = require('./mail');
 const rateLimit = require('express-rate-limit');
+const { verificarToken, soloAdmin, parseCookies } = require('./middleware/auth');
+const { encryptEmail, decryptEmail } = require('./services/crypto');
+const { createLoginRateLimit, getLoginAttempts } = require('./services/rateLimit');
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 const mcpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 const publicLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
@@ -63,7 +66,7 @@ app.get('/api/track', (req, res) => {
 app.get('/api/admin/commits', verificarToken, soloAdmin, (req, res) => {
   try {
     const limit = String(Math.min(parseInt(req.query.limit) || 10, 50));
-    const log = spawnSync('git', ['log', `--oneline -${limit}`, '--format=%H|%s|%ai'], { cwd: LAUNCHER_DIR, stdio: 'pipe', encoding: 'utf8' }).stdout.trim();
+    const log = execFileSync('git', ['log', `--oneline -${limit}`, '--format=%H|%s|%ai'], { cwd: LAUNCHER_DIR, stdio: 'pipe', encoding: 'utf8' }).stdout.trim();
     const commits = log.split('\n').filter(Boolean).map(line => {
       const [hash, message, date] = line.split('|');
       return { hash, message, date };
@@ -109,7 +112,7 @@ const existing = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(admin
 if (!existing) {
   db.prepare('INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, ?)').run('Admin', adminEmail, adminHash, 'admin');
 } else {
-  db.prepare('UPDATE usuarios SET password_hash = ?, rol = ? WHERE id = ?').run(adminHash, 'admin', existing.id);
+  db.prepare("UPDATE usuarios SET rol = 'admin' WHERE id = ?").run(existing.id);
 }
 
 // ── User-module permissions (monorepo auth) ──
@@ -364,81 +367,14 @@ function getModulos(onlyMcp) {
 
 
 
-function verificarToken(req, res, next) {
-  let token = null;
-  const header = req.headers.authorization;
-  if (header?.startsWith('Bearer ')) token = header.split(' ')[1];
-  if (!token) {
-    const cookies = parseCookies(req);
-    token = cookies.launcher_jwt;
-  }
-  if (!token) return res.status(401).json({ error: 'Token requerido' });
-  try {
-    req.usuario = jwt.verify(token, JWT_SECRET);
-    next();
-  } catch {
-    res.status(401).json({ error: 'Token inválido o expirado' });
-  }
-}
-
-function soloAdmin(req, res, next) {
-  if (!req.usuario || req.usuario.rol !== 'admin') return res.status(403).json({ error: 'Se requiere rol admin' });
-  next();
-}
-
-// ── Login rate limiter ──
-var loginAttempts = {};
-function loginRateLimit(req, res, next) {
-  var ip = req.ip || req.connection.remoteAddress || 'unknown';
-  var now = Date.now();
-  var max = parseInt(db.prepare("SELECT value FROM config WHERE key = 'rate_limit_max'").get()?.value || '20', 10);
-  var windowMs = parseInt(db.prepare("SELECT value FROM config WHERE key = 'rate_limit_window'").get()?.value || '60', 10) * 1000;
-  if (!loginAttempts[ip]) loginAttempts[ip] = [];
-  loginAttempts[ip] = loginAttempts[ip].filter(function(t) { return now - t < windowMs; });
-  if (loginAttempts[ip].length >= max) {
-    return res.status(429).json({ error: 'Demasiados intentos. Intenta de nuevo en ' + (windowMs/1000) + ' segundos.' });
-  }
-  req._loginRateLimitKey = ip;
-  req._loginRateLimitNow = now;
-  next();
-}
-// Periodic cleanup: purge stale IP entries every 5 minutes
-setInterval(function() {
-  var cutoff = Date.now() - 360000;
-  for (var ip in loginAttempts) {
-    if (loginAttempts.hasOwnProperty(ip)) {
-      loginAttempts[ip] = loginAttempts[ip].filter(function(t) { return t > cutoff; });
-      if (loginAttempts[ip].length === 0) delete loginAttempts[ip];
-    }
-  }
-}, 300000);
-
-function encryptEmail(email) {
-  const key = crypto.scryptSync(process.env.JWT_SECRET || 'fallback', 'login-logs', 32);
-  const iv = crypto.randomBytes(16);
-  const cipher = crypto.createCipheriv('aes-256-cbc', key, iv);
-  let enc = cipher.update(email, 'utf8', 'hex');
-  enc += cipher.final('hex');
-  return iv.toString('hex') + ':' + enc;
-}
-
-function decryptEmail(data) {
-  const parts = data.split(':');
-  const iv = Buffer.from(parts.shift(), 'hex');
-  const encrypted = parts.join(':');
-  const key = crypto.scryptSync(process.env.JWT_SECRET || 'fallback', 'login-logs', 32);
-  const decipher = crypto.createDecipheriv('aes-256-cbc', key, iv);
-  let dec = decipher.update(encrypted, 'hex', 'utf8');
-  dec += decipher.final('utf8');
-  return dec;
-}
-
 function logLoginAttempt(ip, email, exitoso) {
   const encEmail = email ? encryptEmail((email || '').toLowerCase().trim()) : '';
   db.prepare("INSERT INTO login_logs (ip, email, exitoso) VALUES (?, ?, ?)").run(ip || '', encEmail, exitoso ? 1 : 0);
 }
 
-const { buildPayload, getUserWithPermissions, parseCookies } = require('./../framework/auth');
+const { buildPayload, getUserWithPermissions } = require('./../framework/auth');
+const loginRateLimit = createLoginRateLimit(db);
+const loginAttempts = getLoginAttempts();
 
 app.use('/api', apiLimiter);
 
@@ -456,14 +392,14 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
     const userWithPerms = getUserWithPermissions(db, user.id);
     if (!userWithPerms) return res.status(500).json({ error: 'Error al cargar permisos' });
     const payload = buildPayload(userWithPerms);
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
     db.prepare("UPDATE usuarios SET actualizado = datetime('now') WHERE id = ?").run(user.id);
     const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
     res.cookie('launcher_jwt', token, {
       httpOnly: true,
       secure: isSecure,
       sameSite: 'lax',
-      maxAge: 24 * 60 * 60 * 1000
+      maxAge: 60 * 60 * 1000
     });
     console.log(`[LOGIN] Cookie set for ${email} (secure: ${isSecure})`);
     res.json({ jwt: token, usuario: payload, modulos: payload.modulos });
@@ -560,7 +496,7 @@ app.post('/api/admin/config/test-ssh', verificarToken, soloAdmin, (req, res) => 
   // Validate user: only alphanumeric, hyphens, underscores
   if (user && !/^[a-zA-Z0-9_-]+$/.test(user)) return res.json({ ok: false, error: 'Usuario inválido' });
   try {
-    const out = spawnSync('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', (user || 'root') + '@' + host, 'pm2', '--version'], { stdio: 'pipe', timeout: 15000, encoding: 'utf8' }).stdout.trim();
+    const out = execFileSync('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', (user || 'root') + '@' + host, 'pm2', '--version'], { stdio: 'pipe', timeout: 15000, encoding: 'utf8' }).stdout.trim();
     res.json({ ok: true, version: out, message: 'Conexión SSH exitosa' });
   } catch (e) {
     res.json({ ok: false, error: 'No se pudo conectar vía SSH: ' + (e.message || 'error') });
@@ -629,7 +565,7 @@ app.post('/api/auth/forgot', loginRateLimit, (req, res) => {
   }
 });
 
-app.get('/api/auth/reset', (req, res) => {
+app.get('/api/auth/reset', loginRateLimit, (req, res) => {
   const { token } = req.query;
   if (!token) return res.status(400).json({ error: 'Token requerido' });
   const row = db.prepare('SELECT * FROM reset_tokens WHERE token = ? AND usado = 0 AND expires_at > datetime("now")').get(token);
@@ -637,7 +573,7 @@ app.get('/api/auth/reset', (req, res) => {
   res.json({ ok: true, email: row.email });
 });
 
-app.post('/api/auth/reset', async (req, res) => {
+app.post('/api/auth/reset', loginRateLimit, async (req, res) => {
   const { token, password } = req.body;
   if (!token || !password) return res.status(400).json({ error: 'Token y contraseña requeridos' });
   if (password.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
@@ -949,7 +885,8 @@ app.post('/api/admin/modulos/scaffold', verificarToken, soloAdmin, async (req, r
       dependencies: { express: '^4.21.0', cors: '^2.8.5', jsonwebtoken: '^9.0.0', dotenv: '^16.0.0' }
     };
     fs.writeFileSync(path.join(modDir, 'package.json'), JSON.stringify(pkg, null, 2));
-    fs.writeFileSync(path.join(modDir, '.env'), `PORT=${listenPort}\n# !!! IMPORTANTE: Cambia JWT_SECRET antes de usar en producción\nJWT_SECRET=change-me-${id}\nMODULE_ID=${id}\n`);
+    const moduleJwtSecret = crypto.randomBytes(32).toString('hex');
+    fs.writeFileSync(path.join(modDir, '.env'), `PORT=${listenPort}\nJWT_SECRET=${moduleJwtSecret}\nMODULE_ID=${id}\n`);
 
     const serverJs = isInternal ? (
 `import express from 'express';
@@ -1415,9 +1352,8 @@ app.post('/api/admin/nginx/generate', verificarToken, soloAdmin, (req, res) => {
     try {
       fs.unlinkSync('/etc/nginx/sites-enabled/default');
     } catch {}
-const { execSync, spawnSync, execFileSync } = require('child_process');
-    execSync('nginx -t', { timeout: 5000 });
-    execSync('systemctl reload nginx', { timeout: 5000 });
+    execFileSync('nginx', ['-t'], { timeout: 5000 });
+    execFileSync('systemctl', ['reload', 'nginx'], { timeout: 5000 });
     res.json({ ok: true });
   } catch (e) {
     res.json({ ok: false, error: e.message || 'Error al generar nginx' });
@@ -1790,7 +1726,7 @@ app.post('/api/admin/updater/update', verificarToken, soloAdmin, async (req, res
     res.json({ ok: true, message: 'Actualización aplicada. Reiniciando servicios...', newCommit, restarting: true });
     res.on('finish', () => {
       setTimeout(() => {
-        try { pm2Exec('restart horix-erp'); } catch { logUpdater('PM2 no disponible — reinicio manual requerido'); }
+        try { pm2Exec('restart synnoxerp'); } catch { logUpdater('PM2 no disponible — reinicio manual requerido'); }
       }, 1500);
     });
   } catch (err) { logUpdater('ERROR: ' + err.message); res.json({ ok: false, error: err.message }); }
@@ -1800,7 +1736,7 @@ app.post('/api/admin/updater/restart', verificarToken, soloAdmin, async (req, re
   try {
     logUpdater('Reiniciando servicio...');
     try {
-      pm2Exec('restart horix-erp');
+      pm2Exec('restart synnoxerp');
     } catch {
       logUpdater('PM2 no disponible — reinicio manual requerido');
       res.json({ ok: false, message: 'PM2 no disponible. Debes reiniciar el servidor manualmente.' });
@@ -1928,30 +1864,45 @@ app.post('/api/admin/import', verificarToken, soloAdmin, (req, res) => {
     const data = req.body;
     if (!data || !data.version) return res.status(400).json({ error: 'JSON inválido' });
     const stats = { modulos: 0, config: 0, usuarios: 0 };
-    if (data.modulos) {
-      db.prepare('DELETE FROM modulos_plataforma').run();
-      const ins = db.prepare('INSERT INTO modulos_plataforma (id, nombre, descripcion, url, public_url, icon, mcp_enabled, activo, orden, proxy_prefix, tipo) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
-      for (const m of data.modulos) {
-        ins.run(m.id, m.nombre, m.descripcion || '', m.url || '', m.public_url || '', m.icon || '📦', m.mcp_enabled != null ? m.mcp_enabled : 1, m.activo != null ? m.activo : 1, m.orden || 0, m.proxy_prefix || '', m.tipo === 'interno' ? 'interno' : 'externo');
-        stats.modulos++;
+
+    // Create backup before destructive import
+    const backupDir = path.join(LAUNCHER_DIR, 'backups');
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+    const backupFile = path.join(backupDir, `pre-import-${Date.now()}.json`);
+    const existingModulos = db.prepare('SELECT * FROM modulos_plataforma ORDER BY orden').all();
+    const existingConfigRows = db.prepare('SELECT key, value FROM config ORDER BY key').all();
+    const existingConfig = {};
+    for (const r of existingConfigRows) existingConfig[r.key] = r.value;
+    const existingUsuarios = db.prepare('SELECT id, nombre, email, rol, activo, creado, actualizado FROM usuarios ORDER BY id').all();
+    fs.writeFileSync(backupFile, JSON.stringify({ version: 1, exported_at: new Date().toISOString(), modulos: existingModulos, config: existingConfig, usuarios: existingUsuarios }, null, 2));
+
+    const importTransaction = db.transaction(() => {
+      if (data.modulos) {
+        db.prepare('DELETE FROM modulos_plataforma').run();
+        const ins = db.prepare('INSERT INTO modulos_plataforma (id, nombre, descripcion, url, public_url, icon, mcp_enabled, activo, orden, proxy_prefix, tipo) VALUES (?,?,?,?,?,?,?,?,?,?,?)');
+        for (const m of data.modulos) {
+          ins.run(m.id, m.nombre, m.descripcion || '', m.url || '', m.public_url || '', m.icon || '📦', m.mcp_enabled != null ? m.mcp_enabled : 1, m.activo != null ? m.activo : 1, m.orden || 0, m.proxy_prefix || '', m.tipo === 'interno' ? 'interno' : 'externo');
+          stats.modulos++;
+        }
       }
-    }
-    if (data.config) {
-      db.prepare('DELETE FROM config').run();
-      const ins = db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?,?)');
-      for (const [k, v] of Object.entries(data.config)) {
-        ins.run(k, String(v));
-        stats.config++;
+      if (data.config) {
+        db.prepare('DELETE FROM config').run();
+        const ins = db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?,?)');
+        for (const [k, v] of Object.entries(data.config)) {
+          ins.run(k, String(v));
+          stats.config++;
+        }
       }
-    }
-    if (data.usuarios) {
-      const ins = db.prepare('INSERT OR IGNORE INTO usuarios (nombre, email, password_hash, rol, activo, creado, actualizado) VALUES (?,?,?,?,?,?,?)');
-      for (const u of data.usuarios) {
-        ins.run(u.nombre, u.email, u.password_hash || '$2a$10$imported', u.rol || 'operador', u.activo != null ? u.activo : 1, u.creado || new Date().toISOString(), u.actualizado || new Date().toISOString());
-        stats.usuarios++;
+      if (data.usuarios) {
+        const ins = db.prepare('INSERT OR IGNORE INTO usuarios (nombre, email, password_hash, rol, activo, creado, actualizado) VALUES (?,?,?,?,?,?,?)');
+        for (const u of data.usuarios) {
+          ins.run(u.nombre, u.email, u.password_hash || '$2a$10$imported', u.rol || 'operador', u.activo != null ? u.activo : 1, u.creado || new Date().toISOString(), u.actualizado || new Date().toISOString());
+          stats.usuarios++;
+        }
       }
-    }
-    res.json({ ok: true, message: `Importados ${stats.modulos} módulos, ${stats.config} configuraciones, ${stats.usuarios} usuarios` });
+    });
+    importTransaction();
+    res.json({ ok: true, message: `Importados ${stats.modulos} módulos, ${stats.config} configuraciones, ${stats.usuarios} usuarios. Backup: ${path.basename(backupFile)}` });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

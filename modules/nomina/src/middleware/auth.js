@@ -3,7 +3,10 @@ const jwt = require('jsonwebtoken');
 const { verifySessionValid, parseCookies } = require('../../../../framework/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) console.error('WARN: JWT_SECRET no configurado en nómina');
+if (!JWT_SECRET) {
+  console.error('ERROR: JWT_SECRET no está configurado en nómina.');
+  process.exit(1);
+}
 
 function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
   function autenticar(rolesPermitidos = []) {

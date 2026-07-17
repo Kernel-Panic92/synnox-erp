@@ -438,15 +438,15 @@ router.get('/backups-auto', requireRol('admin'), async (req, res) => {
     if (cfg.backup_auto_type === 'smb') {
       nasMounted = true;
     } else {
-      nasMounted = fs.existsSync(cfg.backup_auto_path || path.join(HOME_DIR, 'backups', 'docflow'));
+      nasMounted = fs.existsSync(cfg.backup_auto_path || path.join(HOME_DIR, 'backups', 'proveedores'));
     }
     
     let lastBackup = null;
-    const backupsPath = cfg.backup_auto_path || path.join(HOME_DIR, 'backups', 'docflow');
+    const backupsPath = cfg.backup_auto_path || path.join(HOME_DIR, 'backups', 'proveedores');
     if (cfg.backup_auto_type === 'smb') {
       lastBackup = '(SMB - se actualiza tras el próximo backup)';
     } else if (fs.existsSync(backupsPath)) {
-      const files = execSync(`ls -t ${backupsPath}/docflow_backup_*.zip 2>/dev/null | head -1 || echo none`).toString().trim();
+      const files = execSync(`ls -t ${backupsPath}/proveedores_backup_*.zip 2>/dev/null | head -1 || echo none`).toString().trim();
       lastBackup = files !== 'none' ? files : null;
     }
     
@@ -470,7 +470,7 @@ router.put('/backups-auto', requireRol('admin'), async (req, res) => {
   }
   
   // Sanitizar rutas y credenciales
-  backup_auto_path = sanitizeShellArg(backup_auto_path || path.join(HOME_DIR, 'backups', 'docflow'));
+  backup_auto_path = sanitizeShellArg(backup_auto_path || path.join(HOME_DIR, 'backups', 'proveedores'));
   backup_auto_host = sanitizeShellArg(backup_auto_host || '');
   backup_auto_user = sanitizeShellArg(backup_auto_user || '');
   
@@ -551,12 +551,12 @@ router.post('/backups-auto/test', requireRol('admin'), async (req, res) => {
       }
       res.json({ ok: true, message: 'Conexión SMB exitosa' });
     } else {
-      const rawPath = backupPath || path.join(HOME_DIR, 'backups', 'docflow');
+      const rawPath = backupPath || path.join(HOME_DIR, 'backups', 'proveedores');
       const testDir = sanitizePath(rawPath, HOME_DIR);
       if (!fs.existsSync(testDir)) {
         return res.status(400).json({ ok: false, error: `Directorio no existe: ${testDir}` });
       }
-      const testFile = path.join(testDir, '.docflow-test');
+      const testFile = path.join(testDir, '.proveedores-test');
       fs.writeFileSync(testFile, 'test');
       fs.unlinkSync(testFile);
       res.json({ ok: true, message: 'Ruta accesible para escritura' });

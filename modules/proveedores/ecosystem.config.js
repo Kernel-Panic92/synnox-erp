@@ -2,7 +2,7 @@
 module.exports = {
   apps: [
     {
-      name:         'docflow',
+      name:         'synnoxerp-proveedores',
       script:       './src/server.js',
       exec_mode:    'fork',
       instances:    1,

@@ -370,7 +370,7 @@ function createRouter() {
   const router = express.Router();
   router.use(express.json());
 
-  router.get('/', (req, res) => res.json({ status: 'ok', server: 'docflow-mcp' }));
+  router.get('/', (req, res) => res.json({ status: 'ok', server: 'proveedores-mcp' }));
 
   router.post('/', (req, res) => {
     const msg = req.body;
@@ -388,7 +388,7 @@ function createRouter() {
         return res.json(rpcResult(id, {
           protocolVersion: '2025-03-26',
           capabilities: { tools: {} },
-          serverInfo: { name: 'docflow-mcp', version: '1.0.0' }
+          serverInfo: { name: 'proveedores-mcp', version: '1.0.0' }
         }));
       }
       case 'tools/list': {

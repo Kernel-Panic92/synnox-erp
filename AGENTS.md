@@ -1,22 +1,27 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (15 Jul 2026 — sesión 12)
+## Estado (17 Jul 2026 — sesión 13)
 
-### Cambios Sesión 12 — Configuración repo para trabajo en equipo
+### Cambios Sesión 13 — Code Review, Security Hardening & Branding
 
-- **Branch protection**: `main` protegido: require PR + status check `ci (22)` + enforce_admins (sin review requirement — equipo de 2 devs donde PM también desarrolla)
-- **CI workflow** (`.github/workflows/ci.yml`): `pnpm install --frozen-lockfile` + `node --check` syntax check (Node 22)
-- **PR template** (`.github/PULL_REQUEST_TEMPLATE.md`): Checklist para contributor
-- **CODEOWNERS**: `* @Kernel-Panic92` — todos los PR requieren tu approval
-- **CONTRIBUTING.md**: Guía de setup, flujo de trabajo, convenciones y OpenCode
-- **pnpm-lock.yaml**: Generado y pusheado al repo por Edgar desde servidor producción
-- **Git identity**: Configurado `user.email`/`user.name` local en servidor producción
-- **Git remote**: Corregido de `horix-erp` legacy a `synnox-erp`
-- **CI fixes**: Node 20→22 (deprecado en runners), eliminado `pnpm audit` (endpoint retirado por npm), restaurado `--frozen-lockfile`
-- **Bug recurrente**: Branch protection bloquea push a main — cada fix requirió disable/push/enable manual. Solución definitiva: PR vía rama feature.
+- **Bug fix — `spawnSync` no importado**: `launcher/server.js` importaba solo `execSync` pero usaba `spawnSync` en `/api/admin/commits` y `/api/admin/config/test-ssh`. Fix: importar `execFileSync` + migrar llamadas a `execFileSync` con array args (más seguro). Eliminado import duplicado dentro del handler de nginx.
+- **Bug fix — Admin password overwrite**: El admin se re-siembraba con `admin123` en cada restart, sobreescribiendo cambios del usuario. Fix: solo INSERT si no existe, UPDATE solo rol (no password).
+- **Bug fix — JWT 24h → 1h**: Token de sesión duraba 24h. Fix: vuelto a 1h (diseño original documentado). Cookie `maxAge` sincronizado a 1h.
+- **Security — Import con backup**: `POST /api/admin/import` ahora crea backup pre-import en `launcher/backups/pre-import-{timestamp}.json` antes de ejecutar DELETEs. Transacción atómica con `db.transaction()`.
+- **Security — Rate limit en reset**: `GET/POST /api/auth/reset` ahora tienen `loginRateLimit` (antes sin protección).
+- **Security — `encryptEmail` sin fallback**: Eliminado `|| 'fallback'` de la key de encriptación. JWT_SECRET ya es obligatorio (process.exit en startup).
+- **Security — JWT_SECRET enforcement**: Nómina y proveedores ahora hacen `process.exit(1)` si falta `JWT_SECRET` (antes solo log.warn).
+- **Security — JWT_SECRET random en scaffold**: Módulos generados ahora usan `crypto.randomBytes(32).toString('hex')` en vez de `change-me-${id}`.
+- **Security — CORS restricción**: Proyectos y logística ahora usan `cors({ origin: process.env.CORS_ORIGIN || true, credentials: true })`.
+- **Security — Error messages**: Logística y proyectos ahora ocultan `err.message` en producción.
+- **Branding — Package names**: `horix-erp` → `synnoxerp-launcher`, `horix-logistics` → `synnoxerp-logistica`, `horix` → `synnoxerp-nomina`, `docflow` → `synnoxerp-proveedores`.
+- **Branding — PM2 names**: `horix-erp` → `synnoxerp`, `docflow` → `synnoxerp-proveedores` en launcher, scripts, ecosystem.config.js.
+- **Branding — Backup filenames**: `docflow_backup_*` → `proveedores_backup_*` en scripts, routes, frontend.
+- **Branding — MCP servers**: `docflow-mcp` → `proveedores-mcp`.
+- **Branding — DB defaults**: `docflow_db` → `synnox_proveedores` en .env.example.
+- **Branding — Docs**: AGENTS.md de logística actualizado.
 
 ### Pendientes nuevos
-- [ ] **Branding**: Revisar que toda la UI muestre "SynnoxERP" (no restos de Horix/vitamar en frontend, emails, PDFs, etc.)
 - [ ] **Licencia**: Redactar y agregar licencia de software al repo (LICENSE.md)
 - [ ] Revisar que el path `/opt/horix-platform` esté renombrado a `/opt/synnoxerp`
 
@@ -26,12 +31,13 @@
 - [ ] Probar HTTPS en producción
 - [ ] SSH `execSync` → `ssh2` (test-ssh)
 - [ ] CSP nonce en proveedores
-- [ ] Dividir `launcher/server.js` (~1950 líneas → routers separados)
+- [x] ~~Dividir `launcher/server.js`~~ — En progreso (sesión 13+)
 - [ ] ESLint + Prettier config
-- [ ] Limpiar `.env` legacy (`modules/docflow/`, `modules/logistics/`, `modules/horix/`)
+- [ ] Limpiar `.env` legacy
+- [ ] Actualizar docs restantes (README, MIGRATION_NOMINA.md, ARCHITECTURE.md, etc.)
 
 ### Depreciados
-- [ ] **Migración Nómina SQLite → PostgreSQL** — postponida. Cambio muy grande, no es prioridad actual. Nómina funciona estable en SQLite. Documentación de referencia en `MIGRATION_NOMINA.md` y `ARCHITECTURE.md §7`.
+- [ ] **Migración Nómina SQLite → PostgreSQL** — postponida. Documentación en `MIGRATION_NOMINA.md` y `ARCHITECTURE.md §7`.
 
 ---
 
