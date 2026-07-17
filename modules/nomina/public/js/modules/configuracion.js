@@ -10,7 +10,6 @@ async function rConfig(){
     { id: 'backup', label: '💾 Backup' },
     { id: 'seguridad', label: '🛡️ Seguridad' },
     { id: 'auditoria', label: '📋 Auditoría' },
-    { id: 'permisos', label: '🔑 Permisos' },
     { id: 'telemetria', label: '📡 Telemetría' }
   ];
 
@@ -192,22 +191,6 @@ async function renderCfgTab(){
         <div class="table-wrap" style="padding:0;"><div class="table-head"><div class="table-title">📜 Historial de Inicios de Sesión</div></div><div id="aud-historial-body" style="padding:20px 24px;font-size:13px;color:var(--muted);text-align:center;overflow-y:auto;max-height:calc(100vh - 320px);min-height:200px;">Cargando...</div></div>
       </div>`;
     cargarAuditoria();
-  }
-  else if (cfgTab === 'permisos') {
-    c.innerHTML = `
-      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;padding:0;margin-bottom:0;">
-        <div><div class="page-title" style="font-size:16px;">🔑 Permisos por Rol</div><div class="page-sub" style="font-size:13px;">Configura los permisos de acceso y acciones para cada rol del sistema</div></div>
-        <button class="btn btn-primary" onclick="abrirModalNuevoRol()">+ Nuevo Rol</button>
-      </div>
-      <div class="filters" style="gap:8px;margin-top:16px;">
-        <label style="font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;width:100%;">Selecciona un rol para editar sus permisos</label>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;" id="perm-rol-tabs"></div>
-      </div>
-      <div style="margin-top:16px;">
-        <div id="perm-lista" style="min-height:100px;"><div style="text-align:center;padding:60px;color:var(--muted);">Selecciona un rol para ver y editar sus permisos.</div></div>
-        <div class="modal-footer" id="perm-footer" style="display:none;margin-top:16px;padding:0;"><button class="btn btn-primary" id="btn-guardar-permisos" onclick="guardarPermisos()">💾 Guardar Permisos</button></div>
-      </div>`;
-    cargarPermisos();
   }
   else if (cfgTab === 'telemetria') {
     c.innerHTML = '<div id="diag-content" style="padding:4px 0;"><div style="text-align:center;padding:40px;color:var(--muted);">Cargando telemetría...</div></div>';

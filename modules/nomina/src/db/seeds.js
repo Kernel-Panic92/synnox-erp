@@ -28,7 +28,7 @@ module.exports = async function runSeeds({ db, uid, encryptSmtp, BASE_URL, APP_N
     const existingPerms = db.prepare('SELECT COUNT(*) c FROM permisos_roles').get().c;
     if (existingPerms === 0) {
       const seedPerms = {
-        admin:    ['centros','usuarios','empleados','nominas','registros','configuracion','backup','reportes','siesa','tipos','aprobar','editar','revertir','eliminar_registros','eliminar_empleados','eliminar_centros','eliminar_nominas','ver_todos'],
+        admin:    ['centros','usuarios','empleados','nominas','registros','configuracion','backup','reportes','siesa','tipos','aprobar','editar','revertir','eliminar_registros','eliminar_empleados','eliminar_nominas','ver_todos'],
         rrhh:     ['centros','usuarios','empleados','nominas','registros','reportes','siesa','tipos','editar','revertir','ver_todos'],
         gerencia: ['registros','reportes','aprobar','editar','revertir','ver_todos'],
         operador: ['registros','reportes','editar','ver_sede'],
@@ -98,13 +98,5 @@ module.exports = async function runSeeds({ db, uid, encryptSmtp, BASE_URL, APP_N
       db.prepare("UPDATE configuracion SET valor=? WHERE clave='smtp_password'").run(encrypted);
     }
   }
-
-  // Seed centros
-  const totalCentros = db.prepare('SELECT COUNT(*) as n FROM centros').get().n;
-  if (totalCentros === 0) {
-    db.prepare('INSERT INTO centros (id,nombre,activo,creado) VALUES (?,?,1,?)').run(uid(), 'Principal', new Date().toISOString());
-    console.log('🏢 Centro de operación inicial creado: Principal');
-  }
-
 
 };

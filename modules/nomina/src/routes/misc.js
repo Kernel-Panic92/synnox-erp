@@ -1,4 +1,5 @@
 const express = require('express');
+const { getSedesActivas } = require('../utils/launcherDb');
 
 module.exports = function({ db, fs, path, __dirname, permisosPorRol, middlewares: { todosRoles } }) {
   const router = express.Router();
@@ -9,7 +10,7 @@ module.exports = function({ db, fs, path, __dirname, permisosPorRol, middlewares
   });
 
   router.get('/sedes', todosRoles, (req, res) => {
-    res.json(db.prepare("SELECT nombre FROM centros WHERE activo=1 ORDER BY nombre ASC").all().map(c => c.nombre));
+    res.json(getSedesActivas());
   });
 
   router.get('/version', todosRoles, (req, res) => {
