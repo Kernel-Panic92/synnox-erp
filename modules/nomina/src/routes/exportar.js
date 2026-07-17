@@ -66,7 +66,7 @@ module.exports = function({ db, ExcelJS, getConfig, enviarCorreo, rolTienePermis
         const aVal = r.A != null && r.A !== '' ? Number(r.A) : null;
         const gVal = r.G != null && r.G !== '' ? Number(r.G) : null;
         const hVal = r.H != null && r.H !== '' ? Number(r.H) : null;
-        ws.addRow([aVal, r.B||null, r.C||null, null,null,null, gVal, hVal, null,null,null, null,null,null, null,null,null, null,null, r.T||null]);
+        ws.addRow([Number.isFinite(aVal) ? aVal : null, r.B||null, r.C||null, null,null,null, Number.isFinite(gVal) ? gVal : null, Number.isFinite(hVal) ? hVal : null, null,null,null, null,null,null, null,null,null, null,null, r.T||null]);
       });
 
       const colWidths = [38,45,38,20,20,16,44,38,16,20,20,20,20,16,20,20,20,16,12,30];
@@ -75,7 +75,7 @@ module.exports = function({ db, ExcelJS, getConfig, enviarCorreo, rolTienePermis
       const buf=await wb.xlsx.writeBuffer();
       const filename=`novedades_siesa_${new Date().toISOString().slice(0,10)}.xlsx`;
       res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
       res.send(Buffer.from(buf));
     } catch(e) { console.error('Error exportando siesa:', e.message); res.status(500).json({error:'Error generando archivo'}); }
   });
@@ -156,7 +156,7 @@ module.exports = function({ db, ExcelJS, getConfig, enviarCorreo, rolTienePermis
       const buf=await wb.xlsx.writeBuffer();
       const filename=`reporte_horas_extra_${new Date().toISOString().slice(0,10)}.xlsx`;
       res.setHeader('Content-Type','application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition',`attachment; filename="${encodeURIComponent(filename)}"`);
+      res.setHeader('Content-Disposition',`attachment; filename="${filename}"`);
       res.send(Buffer.from(buf));
     } catch(e) { console.error('Error exportando reporte:', e.message); res.status(500).json({error:'Error generando archivo'}); }
   });
