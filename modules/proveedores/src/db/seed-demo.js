@@ -1,4 +1,4 @@
-// Seed sintético para docflow — facturas y proveedores con estados variados
+// Seed sintético para proveedores — facturas y proveedores con estados variados
 require('dotenv').config();
 const { pool } = require('./index.js');
 
@@ -32,7 +32,7 @@ function randomDate(diasAtras) {
 }
 
 async function seedDemo() {
-  console.log('Sembrando datos demo de docflow...');
+  console.log('Sembrando datos demo de proveedores...');
   try {
     const categorias = (await pool.query('SELECT id, nombre FROM categorias_compra')).rows;
     const areas = (await pool.query('SELECT id, nombre FROM areas')).rows;

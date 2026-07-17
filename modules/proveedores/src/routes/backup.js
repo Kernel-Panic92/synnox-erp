@@ -54,7 +54,7 @@ function ensureBackupDir() {
 function getBackupFiles() {
   ensureBackupDir();
   return fs.readdirSync(BACKUP_DIR)
-    .filter(f => f.startsWith('docflow_backup_') && f.endsWith('.zip'))
+    .filter(f => f.startsWith('proveedores_backup_') && f.endsWith('.zip'))
     .map(f => {
       const full = path.join(BACKUP_DIR, f);
       const stat = fs.statSync(full);
@@ -181,7 +181,7 @@ router.all('/', soloAdmin, async (req, res) => {
     // Paso 2: Descargar archivo existente
     if (action === 'download') {
       const filename = req.query.filename;
-      if (!filename || !/^docflow_backup_[\w\-]+\.zip$/.test(filename)) {
+      if (!filename || !/^proveedores_backup_[\w\-]+\.zip$/.test(filename)) {
         return res.status(400).json({ error: 'Nombre de archivo inválido' });
       }
       const filepath = sanitizePath(filename, BACKUP_DIR);
@@ -202,8 +202,8 @@ router.all('/', soloAdmin, async (req, res) => {
     
     const fecha = new Date().toISOString().slice(0, 10);
     const filename = tipo === 'config' 
-      ? `docflow_backup_config_${fecha}_${timestamp}.zip`
-      : `docflow_backup_${fecha}_${timestamp}.zip`;
+      ? `proveedores_backup_config_${fecha}_${timestamp}.zip`
+      : `proveedores_backup_${fecha}_${timestamp}.zip`;
 
     console.log('[Backup] Guardando:', filename);
     
@@ -217,7 +217,7 @@ router.all('/', soloAdmin, async (req, res) => {
     // Rotar: mantener solo los últimos 14 backups
     try {
       const backups = fs.readdirSync(BACKUP_DIR)
-        .filter(f => f.startsWith('docflow_backup_') && f.endsWith('.zip'))
+        .filter(f => f.startsWith('proveedores_backup_') && f.endsWith('.zip'))
         .sort().reverse();
       if (backups.length > 14) {
         for (const f of backups.slice(14)) {
@@ -297,7 +297,7 @@ router.get('/lista', soloAdmin, (req, res) => {
 // GET /api/backup/descargar/:filename — descarga backup específico
 router.get('/descargar/:filename', soloAdmin, (req, res) => {
   const { filename } = req.params;
-  if (!/^docflow_backup_[\w\-]+\.zip$/.test(filename)) {
+  if (!/^proveedores_backup_[\w\-]+\.zip$/.test(filename)) {
     return res.status(400).json({ error: 'Nombre de archivo inválido' });
   }
 
@@ -420,7 +420,7 @@ router.post('/restore', soloAdmin, upload.single('backup'), async (req, res) => 
 // POST /api/restore/local/:filename — restaura desde backup en servidor
 router.post('/restore/local/:filename', soloAdmin, (req, res) => {
   const { filename } = req.params;
-  if (!/^docflow_backup_[\w\-]+\.zip$/.test(filename)) {
+  if (!/^proveedores_backup_[\w\-]+\.zip$/.test(filename)) {
     return res.status(400).json({ error: 'Nombre de archivo inválido' });
   }
 
@@ -525,7 +525,7 @@ router.post('/restore/local/:filename', soloAdmin, (req, res) => {
 // DELETE /api/backup/:filename — elimina backup del servidor
 router.delete('/:filename', soloAdmin, (req, res) => {
   const { filename } = req.params;
-  if (!/^docflow_backup_[\w\-]+\.zip$/.test(filename)) {
+  if (!/^proveedores_backup_[\w\-]+\.zip$/.test(filename)) {
     return res.status(400).json({ error: 'Nombre de archivo inválido' });
   }
 

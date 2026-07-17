@@ -113,7 +113,7 @@ app.get('/api/version', (req, res) => {
     });
   } catch (e) {
     console.error('[version]', e.message);
-    res.json({ version: '1.0.0', name: 'docflow', author: '', year: new Date().getFullYear().toString(), branch: 'main', repo: '' });
+    res.json({ version: '1.0.0', name: 'synnoxerp-proveedores', author: '', year: new Date().getFullYear().toString(), branch: 'main', repo: '' });
   }
 });
 

@@ -217,7 +217,7 @@ async function renderCfgTab(cfg){
             </select>
           </div>
           <div class="field"><label>FRECUENCIA (cron)</label><input type="text" id="cfg-backup-auto-cron" value="${r.config?.backup_auto_cron||'0 2 * * *'}" placeholder="0 2 * * *"/><div style="font-size:11px;color:var(--muted);margin-top:4px">Formato: minuto hora día mes díaSemana. Ej: "0 2 * * *" = diario a las 2am</div></div>
-          <div class="field"><label>RETENCIÓN LOCAL (días)</label><input type="number" id="cfg-backup-auto-retention" value="${r.config?.backup_auto_retention||'7'}" placeholder="7"/><div style="font-size:11px;color:var(--success);margin-top:4px">✓ Backup local: ~/backups/docflow</div></div>
+          <div class="field"><label>RETENCIÓN LOCAL (días)</label><input type="number" id="cfg-backup-auto-retention" value="${r.config?.backup_auto_retention||'7'}" placeholder="7"/><div style="font-size:11px;color:var(--success);margin-top:4px">✓ Backup local: ~/backups/proveedores</div></div>
         </div>
         <div style="display:flex;gap:10px;margin-top:20px">
           <button class="btn btn-primary" onclick="guardarCfg('backups')">💾 Guardar</button>
@@ -313,7 +313,7 @@ async function guardarCfg(tab){
   }else if(tab==='backups'){
     data.backup_auto_enabled=$('cfg-backup-auto-enabled')?.value||'false';
     data.backup_auto_cron=$('cfg-backup-auto-cron')?.value?.trim()||'';
-    data.backup_auto_path=$('cfg-backup-auto-path')?.value?.trim()||'$HOME/backups/docflow';
+    data.backup_auto_path=$('cfg-backup-auto-path')?.value?.trim()||'$HOME/backups/proveedores';
     data.backup_auto_type=$('cfg-backup-auto-type')?.value||'local';
     data.backup_auto_host=$('cfg-backup-auto-host')?.value?.trim()||'';
     data.backup_auto_user=$('cfg-backup-auto-user')?.value?.trim()||'';

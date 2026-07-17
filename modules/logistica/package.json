@@ -1,5 +1,5 @@
 {
-  "name": "horix-logistics",
+  "name": "synnoxerp-logistica",
   "version": "1.0.0",
   "description": "Módulo de optimización de rutas logísticas",
   "main": "backend/server.js",

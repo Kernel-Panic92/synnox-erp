@@ -2,7 +2,10 @@ const jwt = require('jsonwebtoken');
 const { verifySessionValid, parseCookies } = require('../../../../framework/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET;
-if (!JWT_SECRET) console.error('WARN: JWT_SECRET no configurado en proveedores');
+if (!JWT_SECRET) {
+  console.error('ERROR: JWT_SECRET no está configurado en proveedores.');
+  process.exit(1);
+}
 
 async function authMiddleware(req, res, next) {
   const cookies = parseCookies(req);

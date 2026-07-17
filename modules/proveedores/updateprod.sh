@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ─────────────────────────────────────────────────────────────────────────────
-# updateprod.sh  —  Vitamar Docs deployment script
+# updateprod.sh  —  SynnoxERP Proveedores deployment script
 # Uso: bash updateprod.sh [canal]    canal default: stable
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
@@ -8,8 +8,8 @@ set -euo pipefail
 CANAL="${1:-stable}"
 APP_DIR="$(cd "$(dirname "$0")" && pwd)"
 LOG_FILE="$APP_DIR/deploy.log"
-APP_NAME="docflow"
-PM2_NAME="docflow"
+APP_NAME="synnoxerp-proveedores"
+PM2_NAME="synnoxerp-proveedores"
 
 log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" | tee -a "$LOG_FILE"; }
 err() { log "ERROR: $*"; exit 1; }

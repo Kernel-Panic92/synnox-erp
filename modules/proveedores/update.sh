@@ -20,7 +20,7 @@ err()  { echo -e "${ROJO}  ✗ $1${RESET}"; exit 1; }
 
 INSTALL_DIR="$(cd "$(dirname "$0")" && pwd)"
 REPO="synnox-erp/proveedores"
-PM2_NAME="docflow"
+PM2_NAME="synnoxerp-proveedores"
 
 echo ""
 echo -e "${AZUL}══════════════════════════════════════════════${RESET}"
@@ -86,7 +86,7 @@ CONFIRM=${CONFIRM:-S}
 
 # ── Backup preventivo ─────────────────────────────────────────
 info "Creando backup preventivo..."
-BACKUP_DIR="$HOME/backups/docflow"
+BACKUP_DIR="$HOME/backups/proveedores"
 mkdir -p "$BACKUP_DIR"
 BACKUP_FILE="$BACKUP_DIR/pre_update_$(date +%Y%m%d_%H%M%S).tar.gz"
 
