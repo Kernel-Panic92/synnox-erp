@@ -166,13 +166,22 @@ export PGPASSWORD="$DB_PASS"
 
 # Schema logistics (idempotente)
 psql -U "$DB_USER" -h localhost -d "$DB_NAME" -c "CREATE SCHEMA IF NOT EXISTS logistics;" 2>/dev/null || true
+psql -U "$DB_USER" -h localhost -d "$DB_NAME" -c "CREATE SCHEMA IF NOT EXISTS projects;" 2>/dev/null || true
 
 # Migraciones SQL de logística
 if [ -d "$INSTALL_DIR/modules/logistica/backend/migrations" ]; then
   for f in $(ls "$INSTALL_DIR/modules/logistica/backend/migrations/"*.sql 2>/dev/null | sort); do
     psql -U "$DB_USER" -h localhost -d "$DB_NAME" -f "$f" 2>/dev/null || warn "Migration: $(basename "$f")"
   done
-  ok "Migraciones SQL ejecutadas"
+  ok "Migraciones logística ejecutadas"
+fi
+
+# Migraciones SQL de proyectos
+if [ -d "$INSTALL_DIR/modules/proyectos/backend/migrations" ]; then
+  for f in $(ls "$INSTALL_DIR/modules/proyectos/backend/migrations/"*.sql 2>/dev/null | sort); do
+    psql -U "$DB_USER" -h localhost -d "$DB_NAME" -f "$f" 2>/dev/null || warn "Migration: $(basename "$f")"
+  done
+  ok "Migraciones proyectos ejecutadas"
 fi
 
 # El servidor crea tablas SQLite (launcher, nomina) automáticamente al iniciar
