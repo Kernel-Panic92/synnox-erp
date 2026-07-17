@@ -7,7 +7,7 @@ set -euo pipefail
 #   Branch: refactor/monorepo-auth
 # ─────────────────────────────────────────────────────────────
 
-BRANCH="${1:-refactor/monorepo-auth}"
+BRANCH="${1:-main}"
 INSTALL_DIR="/opt/synnoxerp"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFIG="$INSTALL_DIR/.env"
@@ -108,7 +108,7 @@ cd "$INSTALL_DIR"
 
 # ─── 4. Generar .env ───────────────────────────────────────
 JWT_SECRET="${JWT_SECRET:-$(openssl rand -hex 64)}"
-ADMIN_PASS="${ADMIN_PASS:-$(openssl rand -hex 8))}"
+ADMIN_PASS="${ADMIN_PASS:-$(openssl rand -hex 8)}"
 
 if [ ! -f "$CONFIG" ]; then
   cat > "$CONFIG" <<EOF
@@ -169,7 +169,7 @@ psql -U "$DB_USER" -h localhost -d "$DB_NAME" -c "CREATE SCHEMA IF NOT EXISTS lo
 
 # Migraciones SQL de logística
 if [ -d "$INSTALL_DIR/modules/logistica/backend/migrations" ]; then
-  for f in $(ls "$INSTALL_DIR/modules/logistics/backend/migrations/"*.sql 2>/dev/null | sort); do
+  for f in $(ls "$INSTALL_DIR/modules/logistica/backend/migrations/"*.sql 2>/dev/null | sort); do
     psql -U "$DB_USER" -h localhost -d "$DB_NAME" -f "$f" 2>/dev/null || warn "Migration: $(basename "$f")"
   done
   ok "Migraciones SQL ejecutadas"
