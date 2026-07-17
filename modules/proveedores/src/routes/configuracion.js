@@ -190,7 +190,7 @@ router.get('/smtp/test', requireRol('admin'), async (req, res) => {
   if (req.query.inherit === '1') {
     try {
       const launcherUrl = (req.query.launcher_url || 'http://localhost:3002').replace(/\/+$/, '');
-      if (!/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/.*)?$/.test(launcherUrl)) {
+      if (!/^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?(\/[^\s]*)?$/.test(launcherUrl)) {
         return res.status(400).json({ error: 'URL del Launcher inválida' });
       }
       const launcherRes = await fetch(launcherUrl + '/api/smtp/internal', { signal: AbortSignal.timeout(5000) });
@@ -446,8 +446,10 @@ router.get('/backups-auto', requireRol('admin'), async (req, res) => {
     if (cfg.backup_auto_type === 'smb') {
       lastBackup = '(SMB - se actualiza tras el próximo backup)';
     } else if (fs.existsSync(backupsPath)) {
-      const files = execSync(`ls -t ${backupsPath}/proveedores_backup_*.zip 2>/dev/null | head -1 || echo none`).toString().trim();
-      lastBackup = files !== 'none' ? files : null;
+      const files = fs.readdirSync(backupsPath)
+        .filter(f => f.startsWith('proveedores_backup_') && f.endsWith('.zip'))
+        .sort().reverse();
+      lastBackup = files.length > 0 ? files[0] : null;
     }
     
     res.json({ 

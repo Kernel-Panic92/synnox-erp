@@ -32,6 +32,8 @@ function sanitizePath(input, base) {
 // Used by client to detect server restarts (soft reload)
 const APP_VER = require('./package.json').version;
 
+app.use('/api', apiLimiter);
+
 app.get('/api/version', (req, res) => {
   res.json({ v: SERVER_START, version: APP_VER });
 });
@@ -375,8 +377,6 @@ function logLoginAttempt(ip, email, exitoso) {
 const { buildPayload, getUserWithPermissions } = require('./../framework/auth');
 const loginRateLimit = createLoginRateLimit(db);
 const loginAttempts = getLoginAttempts();
-
-app.use('/api', apiLimiter);
 
 app.post('/api/auth/login', loginRateLimit, async (req, res) => {
   const { email, password } = req.body;

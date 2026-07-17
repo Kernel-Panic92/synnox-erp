@@ -17,7 +17,7 @@ const MODULE_ID = process.env.MODULE_ID || 'proyectos';
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 
 app.set('trust proxy', 1);
-app.use(cors({ origin: process.env.CORS_ORIGIN || true, credentials: true }));
+app.use(cors({ origin: process.env.CORS_ORIGIN || false, credentials: true }));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use('/api', apiLimiter);

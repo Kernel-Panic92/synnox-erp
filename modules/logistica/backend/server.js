@@ -19,7 +19,7 @@ const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeade
 const publicLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 
 app.set('trust proxy', 1);
-app.use(cors({ origin: process.env.CORS_ORIGIN || true, credentials: true }));
+app.use(cors({ origin: process.env.CORS_ORIGIN || false, credentials: true }));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use('/api', apiLimiter);
