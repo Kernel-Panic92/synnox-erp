@@ -250,7 +250,7 @@ db.prepare("UPDATE modulos_plataforma SET public_url = url WHERE public_url = ''
 
 // Seed proyectos module if not present
 db.prepare(`INSERT OR IGNORE INTO modulos_plataforma (id, nombre, descripcion, url, public_url, icon, mcp_enabled, activo, orden, proxy_prefix, tipo)
-    VALUES ('proyectos', 'Proyectos', 'Gestión de proyectos y tareas', 'http://localhost:3101', '', '📋', 1, 1, 4, '/proyectos/', 'interno')`).run();
+    VALUES ('proyectos', 'Proyectos', 'Gestión de proyectos y tareas', 'http://localhost:3002', '', '📋', 1, 1, 4, '/proyectos/', 'interno')`).run();
 
 // ── Permisos granular tables ──
 db.exec(`
@@ -412,6 +412,9 @@ setInterval(function() {
     }
   }
 }, 300000);
+
+// ── Forgot-password cooldown (1 min per email) ──
+var forgotCooldowns = {};
 
 function encryptEmail(email) {
   const key = crypto.scryptSync(process.env.JWT_SECRET || 'fallback', 'login-logs', 32);
@@ -608,9 +611,13 @@ function getDominioYLauncherPort() {
 app.post('/api/auth/forgot', loginRateLimit, (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email requerido' });
-  const user = db.prepare('SELECT id, email, nombre FROM usuarios WHERE email = ? AND activo = 1').get(email.toLowerCase().trim());
+  const emailNorm = email.toLowerCase().trim();
+  const lastSent = forgotCooldowns[emailNorm];
+  if (lastSent && (Date.now() - lastSent) < 60000) return res.status(429).json({ error: 'Espera un minuto antes de solicitar otro restablecimiento' });
+  const user = db.prepare('SELECT id, email, nombre FROM usuarios WHERE email = ? AND activo = 1').get(emailNorm);
   // Always return same message to avoid email enumeration
   if (!user) return res.json({ ok: true, message: 'Si el email existe, recibirás un enlace de recuperación' });
+  db.prepare('DELETE FROM reset_tokens WHERE email = ?').run(user.email);
   const token = crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + 3600000).toISOString().replace('T', ' ').split('.')[0];
   db.prepare('INSERT INTO reset_tokens (email, token, expires_at) VALUES (?, ?, ?)').run(user.email, token, expiresAt);
@@ -622,6 +629,7 @@ app.post('/api/auth/forgot', loginRateLimit, (req, res) => {
   const resetUrl = `${protocol}://${dominio}:${launcherPort}/reset?token=${token}`;
   if (mail.isConfigured()) {
     mail.sendResetEmail(user.email, resetUrl, user.nombre).catch(e => console.error('[MAIL] sendResetEmail error:', e.message));
+    forgotCooldowns[emailNorm] = Date.now();
     res.json({ ok: true, message: 'Si el email existe, recibirás un enlace de recuperación' });
   } else {
     console.log('[FORGOT] SMTP no configurado — token para', user.email, ':', resetUrl);
@@ -646,6 +654,8 @@ app.post('/api/auth/reset', async (req, res) => {
   const hash = bcrypt.hashSync(password, 10);
   db.prepare("UPDATE usuarios SET password_hash = ?, actualizado = datetime('now') WHERE email = ?").run(hash, row.email);
   db.prepare('UPDATE reset_tokens SET usado = 1 WHERE id = ?').run(row.id);
+  const user = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(row.email);
+  if (user) invalidarSesionUsuario(user.id);
   res.json({ ok: true, message: 'Contraseña actualizada correctamente' });
 });
 
@@ -673,14 +683,40 @@ app.get('/api/admin/usuarios', verificarToken, soloAdmin, (req, res) => {
   `).all());
 });
 
-app.post('/api/admin/usuarios', verificarToken, soloAdmin, (req, res) => {
+app.post('/api/admin/usuarios', verificarToken, soloAdmin, async (req, res) => {
   const { nombre, email, password, rol, perfil_id } = req.body;
-  if (!nombre || !email || !password) return res.status(400).json({ error: 'Campos requeridos' });
+  if (!nombre || !email) return res.status(400).json({ error: 'Nombre y email son requeridos' });
   const userRol = (rol === 'admin' || rol === 'operador') ? rol : 'operador';
   try {
-    const hash = bcrypt.hashSync(password, 10);
+    let hash;
+    let welcomeSent = false;
+    if (password) {
+      hash = bcrypt.hashSync(password, 10);
+    } else {
+      const tempPass = Math.random().toString(36).slice(-10) + 'A1!';
+      hash = bcrypt.hashSync(tempPass, 10);
+    }
     const result = db.prepare('INSERT INTO usuarios (nombre, email, password_hash, rol, perfil_id) VALUES (?, ?, ?, ?, ?)').run(nombre, email.toLowerCase().trim(), hash, userRol, perfil_id || null);
-    res.json({ id: result.lastInsertRowid, nombre, email: email.toLowerCase().trim(), rol: userRol, activo: 1, perfil_id: perfil_id || null });
+    const userId = result.lastInsertRowid;
+
+    if (!password && mail.isConfigured()) {
+      try {
+        const token = crypto.randomBytes(32).toString('hex');
+        const expiresAt = new Date(Date.now() + 7 * 24 * 3600000).toISOString().replace('T', ' ').split('.')[0];
+        db.prepare('INSERT INTO reset_tokens (email, token, expires_at) VALUES (?, ?, ?)').run(email.toLowerCase().trim(), token, expiresAt);
+        const { dominio } = getDominioYLauncherPort();
+        const mode = (() => { try { const r = fs.readFileSync(path.join(INSTALL_DIR, 'config.env'), 'utf8'); const m = r.match(/^MODE=(.+)$/m); return m?.[1]?.trim() || 'test'; } catch { return 'test'; } })();
+        const launcherPort = mode === 'prod' ? '9443' : String(PORT);
+        const protocol = mode === 'prod' ? 'https' : 'http';
+        const setupUrl = `${protocol}://${dominio}:${launcherPort}/reset?token=${token}`;
+        await mail.sendWelcomeEmail(email.toLowerCase().trim(), setupUrl, nombre, userRol);
+        welcomeSent = true;
+      } catch (e) {
+        console.error('[MAIL] sendWelcomeEmail error:', e.message);
+      }
+    }
+
+    res.json({ id: userId, nombre, email: email.toLowerCase().trim(), rol: userRol, activo: 1, perfil_id: perfil_id || null, welcome_sent: welcomeSent });
   } catch (e) {
     if (e.message.includes('UNIQUE')) return res.status(409).json({ error: 'El email ya existe' });
     console.error('[Create user]', e); res.status(500).json({ error: 'Error interno' });
