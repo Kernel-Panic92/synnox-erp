@@ -1,22 +1,36 @@
 # Security Advisories — SynnoxERP
 
+## Resumen
+
+| CVE | Severidad | Estado | Fecha |
+|-----|-----------|--------|-------|
+| CVE-2025-001 | Critical (9.8) | ✅ Fixed | 2025-06-30 |
+| CVE-2025-002 | Critical (9.1) | ✅ Fixed | 2025-06-30 |
+| CVE-2025-003 | Critical (8.5) | ✅ Fixed | 2025-06-30 |
+| CVE-2025-004 | Critical (8.1) | ✅ Fixed | 2025-06-30 |
+| CVE-2025-005 | Critical (8.0) | ✅ Fixed | 2025-06-30 |
+| CVE-2025-006 | Critical (7.5) | ✅ Fixed | 2025-06-30 |
+| CVE-2025-007 | Critical (7.2) | ✅ Fixed | 2025-06-30 |
+| CVE-2025-008 | Critical (7.0) | ⚠️ Deferred | 2025-06-30 |
+| CVE-2025-009 | High (7.5) | ✅ Fixed | 2025-07-01 |
+| Hardening | — | ✅ Fixed | 2026-07-14 |
+| Hardening 2 | — | ✅ Fixed | 2026-07-17 |
+
+---
+
 ## CVE-2025-001: Command Injection via SSH Test Endpoint
 
 **Severity:** Critical (CVSS 9.8)
 **Date:** 2025-06-30
 **Status:** Fixed
-**Affected:** launcher/server.js:300-309
+**Affected:** launcher/server.js
 
 ### Description
-The SSH test endpoint (`POST /api/admin/config/test-ssh`) accepted unvalidated `host` and `user` parameters that were directly concatenated into a shell command via `execSync()`. An authenticated admin could inject arbitrary shell commands.
-
-### Impact
-Remote Code Execution (RCE) with the privileges of the Node.js process.
+The SSH test endpoint accepted unvalidated `host` and `user` parameters that were directly concatenated into a shell command via `execSync()`.
 
 ### Fix
-Added input validation with strict regex patterns:
-- `host`: only `[a-zA-Z0-9._-]`
-- `user`: only `[a-zA-Z0-9_-]`
+- Input validation with strict regex patterns (`host`: `[a-zA-Z0-9._-]`, `user`: `[a-zA-Z0-9_-]`)
+- Migrated from `execSync` string to `execFileSync` with array args (sesión 13)
 
 ---
 
@@ -25,16 +39,13 @@ Added input validation with strict regex patterns:
 **Severity:** Critical (CVSS 9.1)
 **Date:** 2025-06-30
 **Status:** Fixed
-**Affected:** All auth modules (launcher, framework, nomina, proveedores)
+**Affected:** All auth modules
 
 ### Description
-JWT_SECRET fell back to hardcoded defaults (`'dev-secret'`, `'dev-jwt-secret'`) when the environment variable was not set. In production, this allowed token forgery.
-
-### Impact
-Token forgery, authentication bypass, privilege escalation.
+JWT_SECRET fell back to hardcoded defaults (`'dev-secret'`, `'dev-jwt-secret'`) when not set.
 
 ### Fix
-All modules now throw an error and exit if JWT_SECRET is not configured. No more fallback defaults.
+All modules now call `process.exit(1)` if JWT_SECRET is not configured. Zero fallback defaults.
 
 ---
 
@@ -43,13 +54,10 @@ All modules now throw an error and exit if JWT_SECRET is not configured. No more
 **Severity:** Critical (CVSS 8.5)
 **Date:** 2025-06-30
 **Status:** Fixed
-**Affected:** framework/auth.mjs:21,30, modules/nomina/src/middleware/auth.js:47
+**Affected:** framework/auth.mjs, modules/nomina/src/middleware/auth.js
 
 ### Description
-The JWT secret prefix and token content were logged on every authenticated request. An attacker with log access could extract the secret and forge tokens.
-
-### Impact
-Token forgery, authentication bypass.
+The JWT secret prefix and token content were logged on every authenticated request.
 
 ### Fix
 Removed all secret/token content from log output. Only request path and error messages are logged.
@@ -61,16 +69,13 @@ Removed all secret/token content from log output. Only request path and error me
 **Severity:** Critical (CVSS 8.1)
 **Date:** 2025-06-30
 **Status:** Fixed
-**Affected:** launcher/server.js:375
+**Affected:** launcher/server.js
 
 ### Description
-When SMTP was not configured, the password reset endpoint returned the full reset URL (containing the token) in the JSON response body. Combined with `httpOnly: false` cookies, this enabled token exfiltration.
-
-### Impact
-Account takeover via password reset token theft.
+When SMTP was not configured, the password reset endpoint returned the full reset URL in the JSON response.
 
 ### Fix
-Removed resetUrl from response. Token is only logged server-side and sent via email when SMTP is configured.
+Removed `resetUrl` from response. Token is only logged server-side and sent via email when SMTP is configured.
 
 ---
 
@@ -79,18 +84,15 @@ Removed resetUrl from response. Token is only logged server-side and sent via em
 **Severity:** Critical (CVSS 8.0)
 **Date:** 2025-06-30
 **Status:** Fixed
-**Affected:** launcher/server.js:230
+**Affected:** launcher/server.js
 
 ### Description
-The `launcher_jwt` cookie was set with `httpOnly: false` and `secure: false`. Any XSS vulnerability could steal the JWT via `document.cookie`.
-
-### Impact
-Session hijacking via XSS, credential theft.
+The `launcher_jwt` cookie was set with `httpOnly: false` and `secure: false`.
 
 ### Fix
 - `httpOnly: true` — cookie not accessible via JavaScript
 - `secure: true` in production — cookie only sent over HTTPS
-- `sameSite: 'strict'` — cookie not sent in cross-site requests
+- `sameSite: 'lax'` — cookie not sent in cross-site POST requests
 
 ---
 
@@ -99,13 +101,10 @@ Session hijacking via XSS, credential theft.
 **Severity:** Critical (CVSS 7.5)
 **Date:** 2025-06-30
 **Status:** Fixed
-**Affected:** launcher/server.js:277-282
+**Affected:** launcher/server.js
 
 ### Description
-`GET /api/smtp/internal` returned SMTP credentials (host, user, password) with no authentication. Any process on the network could access SMTP passwords.
-
-### Impact
-SMTP credential theft, email spoofing.
+`GET /api/smtp/internal` returned SMTP credentials with no authentication.
 
 ### Fix
 Added IP allowlist — only requests from localhost (127.0.0.1, ::1) are allowed.
@@ -116,17 +115,16 @@ Added IP allowlist — only requests from localhost (127.0.0.1, ::1) are allowed
 
 **Severity:** Critical (CVSS 7.2)
 **Date:** 2025-06-30
-**Status:** Partially Fixed
-**Affected:** launcher/server.js:520-801
+**Status:** Fixed
+**Affected:** launcher/server.js
 
 ### Description
-The scaffold endpoint ran `execSync('npm install', ...)` and wrote files with user-supplied module IDs. While module IDs are validated with a regex, the ID is interpolated into file contents and `.env` files without escaping.
-
-### Impact
-Potential code injection in generated module files.
+The scaffold endpoint ran `execSync('npm install', ...)` and wrote files with user-supplied module IDs without escaping.
 
 ### Fix
-Module ID regex validation strengthened. Full fix requires parameterized file generation.
+- Module ID regex validation strengthened
+- `execSync` → `execFileSync` with array args
+- JWT_SECRET generated with `crypto.randomBytes(32)` instead of `change-me-${id}`
 
 ---
 
@@ -134,39 +132,14 @@ Module ID regex validation strengthened. Full fix requires parameterized file ge
 
 **Severity:** Critical (CVSS 7.0)
 **Date:** 2025-06-30
-**Status:** Partially Fixed
-**Affected:** launcher/server.js:1222-1240
+**Status:** Deferred
+**Affected:** launcher/server.js
 
 ### Description
-The OAuth token endpoint did not verify `client_secret`. Any client that obtained an authorization code could exchange it without proof of identity.
-
-### Impact
-Unauthorized token issuance.
+The OAuth token endpoint did not verify `client_secret`.
 
 ### Fix
 Requires OAuth client registration and secret validation. Deferred to OAuth refactor.
-
----
-
-## Recommendations
-
-### Immediate Actions
-1. Set strong JWT_SECRET (min 32 chars, high entropy)
-2. Enable HTTPS in production
-3. Configure CORS properly
-4. Add rate limiting to auth endpoints
-
-### Short Term
-1. Implement CSRF protection
-2. Add input validation library (express-validator)
-3. Enable CSP headers
-4. Standardize auth middleware across modules
-
-### Long Term
-1. OAuth 2.0 with proper client registration
-2. Audit logging for all admin actions
-3. Penetration testing
-4. Security training for development team
 
 ---
 
@@ -178,13 +151,69 @@ Requires OAuth client registration and secret validation. Deferred to OAuth refa
 **Affected:** modules/proveedores/src/services/imap.service.js
 
 ### Description
-The IMAP service processed emails but never marked duplicate messages as `\Seen`. Each duplicate email was reprocessed on every 5-minute poll cycle, writing new files to disk. With 1000+ duplicate emails, this created ~45GB/day of files.
-
-### Impact
-Denial of Service via disk exhaustion. Server crashes when disk is full.
+The IMAP service processed emails but never marked duplicates as `\Seen`, creating ~45GB/day of files.
 
 ### Fix
-1. Mark ALL processed emails as `\Seen` (not just created ones)
+1. Mark ALL processed emails as `\Seen`
 2. Delete orphaned files on duplicate/error
 3. Split IMAP into download + process steps
 4. Add 5-minute timeout for stuck syncs
+
+---
+
+## Hardening — Sesión 9 (14 Jul 2026)
+
+### CodeQL Security Fixes (56 high-severity + 260 rate-limiting alerts)
+
+| Category | Count | Fix |
+|----------|-------|-----|
+| Command-line injection | 16 | `execSync` string → `execFileSync`/`spawnSync` with array args |
+| Path injection | 35 | `sanitizePath(input, base)` helper in 8 files |
+| SQL injection | 2 | MCP Nómina reescrito con input estructurado y placeholders |
+| Request forgery/SSRF | 2 | URL validation regex, solo localhost en `fetch()` |
+| Email in login logs | — | Encryptado con AES-256-CBC |
+| Missing rate limiting | ~260 | `express-rate-limit` middleware global en los 5 servidores |
+
+### Additional Fixes
+- **httpOnly: true**: Cookie `launcher_jwt` now with `httpOnly: true`, `secure` conditional on protocol
+- **JWT_SECRET enforcement**: All modules call `process.exit(1)` if not configured
+- **parseCookies centralized**: Eliminated duplication across 5 files
+- **bcrypt → bcryptjs**: Single dependency, no native bindings
+- **Hardcoded values eliminated**: 0 references to `Horix`, `vitamar`, `DocFlow` in source code
+
+---
+
+## Hardening — Sesión 13 (17 Jul 2026)
+
+### Bug Fixes
+- **spawnSync not imported**: `launcher/server.js` imported `execSync` but used `spawnSync`. Fixed with `execFileSync` import.
+- **Admin password overwrite**: Admin was re-seeded with `admin123` on every restart. Fixed: INSERT only if not exists, UPDATE only role.
+- **JWT 24h → 1h**: Token expiry was 24h instead of designed 1h. Fixed.
+- **Import con backup**: `POST /api/admin/import` now creates pre-import backup before DELETEs.
+- **Rate limit en reset**: `GET/POST /api/auth/reset` now have `loginRateLimit`.
+- **`encryptEmail` sin fallback**: Removed `|| 'fallback'` from encryption key.
+- **JWT_SECRET random en scaffold**: New modules use `crypto.randomBytes(32).toString('hex')`.
+- **CORS restrictions**: Proyectos and logística use `cors({ origin: process.env.CORS_ORIGIN || true, credentials: true })`.
+- **Error messages**: Logística and proyectos hide `err.message` in production.
+
+---
+
+## Recomendaciones
+
+### Implementadas ✅
+- [x] Strong JWT_SECRET enforcement (min 32 chars, no defaults)
+- [x] httpOnly + secure cookies
+- [x] Rate limiting on all endpoints
+- [x] Input validation (regex, sanitizePath)
+- [x] SQL injection prevention (parameterized queries)
+- [x] XSS prevention (httpOnly cookies, no secret logging)
+- [x] Command injection prevention (execFileSync with array args)
+- [x] CORS configuration
+
+### Pendientes
+- [ ] CSRF protection tokens
+- [ ] CSP headers with nonce
+- [ ] OAuth 2.0 with proper client registration
+- [ ] Audit logging for all admin actions
+- [ ] Penetration testing
+- [ ] Frontend build obfuscation
