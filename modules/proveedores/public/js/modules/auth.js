@@ -25,7 +25,7 @@ function showApp(){
   const nameEl=$('user-name');if(nameEl)nameEl.textContent=S.usuario?.nombre||'—';
   const roleEl=$('user-role');if(roleEl)roleEl.textContent=S.usuario?.perfil_nombre||S.usuario?.rol||'—';
   const badge=$('user-badge');
-  if(badge){badge.textContent=S.usuario?.perfil_nombre||S.usuario?.rol||'';badge.className='badge role-'+(S.usuario?.rol||'').toLowerCase();}
+  if(badge){badge.textContent=S.usuario?.rol||'';}
   initFiltros();
   
   fetch(BASE+'/api/version').then(r=>r.json()).then(d=>{

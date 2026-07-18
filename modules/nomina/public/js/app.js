@@ -169,10 +169,7 @@ async function iniciarApp() {
     const roleEl = document.getElementById('user-role');
     if (roleEl) roleEl.textContent = sesion.usuario.perfil_nombre || rolLabel(sesion.usuario.rol);
     const badgeEl = document.getElementById('user-badge');
-    if (badgeEl) {
-      badgeEl.textContent = sesion.usuario.perfil_nombre || rolLabel(sesion.usuario.rol);
-      badgeEl.className = 'badge role-' + sesion.usuario.rol;
-    }
+    if (badgeEl) badgeEl.textContent = sesion.usuario.rol;
   }
   
   // Load all data
