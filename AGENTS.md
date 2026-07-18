@@ -60,7 +60,7 @@
 - **Base de datos**: PostgreSQL centralizado (producción), SQLite local para Nómina
 
 ### Pendientes nuevos
-- [ ] **PR pendiente**: Crear PR de `fix/install-sh` → `main` en GitHub (cambios sesión 14: centros unificación, 502 fix, permisos nomina, branding)
+- [x] ~~PR~~: `fix/install-sh` → `main` ([#7](https://github.com/Kernel-Panic92/synnox-erp/pull/7))
 - [ ] **Licencia**: Redactar y agregar licencia de software al repo (LICENSE.md)
 - [ ] Revisar que el path `/opt/horix-platform` esté renombrado a `/opt/synnoxerp`
 
