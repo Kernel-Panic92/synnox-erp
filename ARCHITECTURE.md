@@ -855,8 +855,8 @@ curl -X GET http://localhost:3005/api/backup -o backup_pre_migracion.zip
 #!/bin/bash
 echo "ROLLBACK: Restaurando Nomina a SQLite..."
 pm2 stop horix-nomina
-cp /opt/horix-platform/backups/horas_extra.db.pre-migration \
-   /opt/horix-platform/modules/nomina/horas_extra.db
+cp ~/.local/share/synnoxerp/backups/horas_extra.db.pre-migration \
+   ~/.local/share/synnoxerp/modules/nomina/horas_extra.db
 git checkout HEAD~1 -- modules/nomina/
 pm2 start horix-nomina
 echo "Rollback completado"
@@ -1253,7 +1253,7 @@ echo "   backup.json extraido"
 # 4. git pull (traer codigo nuevo ANTES de ejecutar)
 echo ""
 echo "[4/7] Actualizando codigo..."
-cd /opt/horix-platform
+cd ~/.local/share/synnoxerp
 git pull origin refactor/monorepo-auth
 echo "   Codigo actualizado"
 
@@ -1270,7 +1270,7 @@ node modules/nomina/src/scripts/reconcile-usuarios.js /tmp/backup.json --apply
 # 7. Iniciar nomina
 echo ""
 echo "[7/7] Iniciando modulo nomina..."
-cd /opt/horix-platform
+cd ~/.local/share/synnoxerp
 pm2 start horix-nomina
 
 # Verificar salud
@@ -1300,8 +1300,8 @@ echo "Si hay problemas, ejecutar: ./rollback-nomina.sh"
 
 echo "ROLLBACK: Restaurando Nomina a SQLite..."
 pm2 stop horix-nomina
-cp /opt/horix-platform/backups/horas_extra.db.pre-migration \
-   /opt/horix-platform/modules/nomina/horas_extra.db
+cp ~/.local/share/synnoxerp/backups/horas_extra.db.pre-migration \
+   ~/.local/share/synnoxerp/modules/nomina/horas_extra.db
 git checkout HEAD~1 -- modules/nomina/
 pm2 start horix-nomina
 echo "Rollback completado"

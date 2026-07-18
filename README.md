@@ -178,7 +178,7 @@ pm2 status
 pm2 restart synnoxerp
 
 # Actualizar
-cd /opt/synnoxerp
+cd ~/.local/share/synnoxerp
 git pull
 pnpm install --prod
 pm2 restart synnoxerp
