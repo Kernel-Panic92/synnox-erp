@@ -7,7 +7,7 @@ let _todosUsuarios = [];
 initFramework({
   basePath: BASE,
   apiPrefix: '/api',
-  themeKey: 'proyectos_theme',
+  themeKey: 'synnox_theme',
   tokenKey: 'proyectos_token',
   routes: {
     dashboard: () => cargarDashboard(),
