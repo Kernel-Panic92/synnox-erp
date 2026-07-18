@@ -1,5 +1,18 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (17 Jul 2026 — sesión 15)
+
+### Cambios Sesión 15 — Sidebar consistente + features
+
+- **Framework — sidebar colapsable**: Agregado a `base.css` (estilos `.sidebar.collapsed`, `.sidebar-toggle`, transiciones) y `framework.js` (`toggleSidebarCollapse()` + restauración desde `localStorage`).
+- **Proyectos — theme**: Cambiado `themeKey` de `'proyectos_theme'` a `'synnox_theme'` (ahora lee del launcher). Eliminado botón de toggle de tema.
+- **Proyectos — sidebar**: Agregado botón de colapsado, sincronizado `base.css` y `framework.js` con versión canónica.
+- **Logística — sidebar**: Sincronizado `base.css`/`framework.js` con framework. Eliminado CSS duplicado del sidebar en inline `<style>`. Agregado botón de colapsado.
+- **Nomina/Proveedores**: Ya tenían sidebar colapsable con misma key `sidebar_collapsed`. Refactor completo de CSS pendiente para sesión futura.
+- **AGENTS.md**: Agregadas convenciones del sidebar para módulos nuevos.
+
+---
+
 ## Estado (17 Jul 2026 — sesión 14)
 
 ### Cambios Sesión 14 — Unificación catálogo centros nómina→launcher + fix 404
@@ -28,6 +41,7 @@
 - **API**: Todas las rutas usan `verificarToken, soloAdmin`. Respuestas: `{ ok: true }` o `{ error: 'msg' }`.
 - **DB**: Migraciones con `try { db.exec("ALTER TABLE...") } catch {}` para columnas nuevas. Seeds con `INSERT OR IGNORE`.
 - **Auth**: Siempre via `verificarToken` middleware. JWT incluye `modulos_permisos` para permisos granulares.
+- **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`.
 
 ---
 

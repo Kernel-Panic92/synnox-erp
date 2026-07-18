@@ -40,6 +40,14 @@ function initFramework(opts = {}) {
     this.classList.remove('show');
   });
 
+  // Restore sidebar collapse state
+  const sidebar = document.getElementById('sidebar');
+  if (sidebar && localStorage.getItem('sidebar_collapsed') === 'true') {
+    sidebar.classList.add('collapsed');
+    const toggle = sidebar.querySelector('.sidebar-toggle');
+    if (toggle) toggle.textContent = '▶';
+  }
+
   // Load module version
   loadVersion();
 }
@@ -162,6 +170,14 @@ function toggleSidebar() {
 function closeSidebar() {
   document.getElementById('sidebar').classList.remove('open');
   document.querySelector('.sidebar-overlay').classList.remove('show');
+}
+function toggleSidebarCollapse() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+  sidebar.classList.toggle('collapsed');
+  localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
+  const toggle = sidebar.querySelector('.sidebar-toggle');
+  if (toggle) toggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
 }
 
 // ── Navigation ──
