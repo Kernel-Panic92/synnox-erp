@@ -1,5 +1,51 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (18 Jul 2026 — sesión 16)
+
+### Cambios Sesión 16 — Licencia, paths XDG & repo privado
+
+- **LICENSE.md**: Licencia propietaria/privada (Copyright © 2026 Edgar Velasquez). Prohíbe redistribución, venta y publicación del código fuente. Documento completo con 12 secciones.
+- **INSTALL_DIR XDG**: Default cambiado de `/opt/synnoxerp` a `~/.local/share/synnoxerp` (estándar XDG Base Directory). Actualizado en `config.env.example`, `install.sh`, `launcher/server.js`, `installer/server.js`, `installer/public/*`.
+- **Fix — INSTALL_DIR undefined**: `launcher/shell/app.js` usaba `INSTALL_DIR` sin definirlo. Agregado fallback a `~/.local/share/synnoxerp`.
+- **Docs paths**: Actualizados `ARCHITECTURE.md` (6 refs), `MIGRATION_NOMINA.md` (5 refs), `README.md`, `framework/README.md` con nuevos paths.
+- **Repo privado**: Cambiado visibilidad de GitHub de public → private para proteger código fuente.
+- **PR**: `feat/license-and-xdg-paths` → `main` ([#12](https://github.com/Kernel-Panic92/synnox-erp/pull/12))
+
+### Pendientes nuevos
+- [ ] **Ofuscar builds frontend** — Evaluar `javascript-obfuscator` o similar. Verificar que no rompa nada antes de implementar. **No hacer sin probar en staging primero.**
+
+### Pendientes anteriores (actualizados)
+- [ ] Observabilidad centralizada (tabla `auditoria_central`)
+- [ ] APIs internas entre módulos
+- [ ] Probar HTTPS en producción
+- [ ] SSH `execSync` → `ssh2` (test-ssh)
+- [ ] CSP nonce en proveedores
+- [ ] Dividir `launcher/server.js` (~1950 líneas → routers separados)
+- [ ] ESLint + Prettier config
+- [ ] Limpiar `.env` legacy
+- [ ] Actualizar docs restantes
+
+### Depreciados
+- [x] ~~Migración Nómina SQLite → PostgreSQL~~ — **DEPRECIADA** (sesión 16). Demasiado compleja, alto riesgo de romper funcionalidad existente. SQLite funciona correctamente para el caso de uso actual. Documentación histórica en `MIGRATION_NOMINA.md` y `ARCHITECTURE.md §7` se mantiene como referencia.
+
+### Convenciones del Framework (SEGUIR SIEMPRE)
+
+- **Modales**: Definir en HTML con `class="modal-overlay"`, mostrar/ocultar con `display: block/none`. NO crear modales dinámicamente con `document.createElement`.
+- **Confirmaciones**: Usar `confirmModal(msg, title)` del framework, NUNCA `confirm()` del navegador.
+- **Mensajes**: Usar `toast(msg, type)` del framework para feedback al usuario.
+- **CSS**: Usar variables del framework (`var(--surface)`, `var(--border)`, `var(--text)`, `var(--muted)`, `var(--accent)`, `var(--success)`, `var(--danger)`).
+- **Botones**: Seguir clases existentes: `btn`, `btn-sm`, `btn-secondary`, `btn-danger`.
+- **Tablas**: Usar estructura `<table id="xxx-table"><thead><tr>...</tr></thead><tbody></tbody></table>` con `overflow-x:auto`.
+- **API**: Todas las rutas usan `verificarToken, soloAdmin`. Respuestas: `{ ok: true }` o `{ error: 'msg' }`.
+- **DB**: Migraciones con `try { db.exec("ALTER TABLE...") } catch {}` para columnas nuevas. Seeds con `INSERT OR IGNORE`.
+- **Auth**: Siempre via `verificarToken` middleware. JWT incluye `modulos_permisos` para permisos granulares.
+- **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`.
+- **Versión**: Todos los módulos leen `/api/version` del root `package.json` (versión unificada `1.0.0`). NO usar `package.json` del módulo. NO mostrar rama git. Frontend: `el.textContent = 'v' + data.version`.
+- **Instalación**: Path default `~/.local/share/synnoxerp` (XDG). NO usar `/opt/`.
+- **Licencia**: Propietaria (LICENSE.md). NO redistribuir código fuente.
+
+---
+
 ## Estado (17 Jul 2026 — sesión 15)
 
 ### Cambios Sesión 15 — Sidebar consistente + features
@@ -83,9 +129,9 @@
 - [x] ~~PR~~: `feat/csv-user-import` → `main` ([#8](https://github.com/Kernel-Panic92/synnox-erp/pull/8)) — merged 17 Jul 2026
 - [x] ~~PR~~: `fix/csv-import-modules` → `main` ([#9](https://github.com/Kernel-Panic92/synnox-erp/pull/9))
 - [x] ~~PR~~: `fix/proyectos-theme` → `main` ([#10](https://github.com/Kernel-Panic92/synnox-erp/pull/10))
-- [ ] **PR**: `feat/sidebar-standardization` → `main` ([#11](https://github.com/Kernel-Panic92/synnox-erp/pull/11))
-- [ ] **Licencia**: Redactar y agregar licencia de software al repo (LICENSE.md)
-- [ ] Revisar que el path `/opt/horix-platform` esté renombrado a `/opt/synnoxerp`
+- [x] ~~PR~~: `feat/sidebar-standardization` → `main` ([#11](https://github.com/Kernel-Panic92/synnox-erp/pull/11))
+- [x] ~~Licencia~~: Redactar y agregar licencia de software al repo (LICENSE.md) — merged sesión 16
+- [x] ~~Paths~~: Revisar renombrado `/opt/horix-platform` → `~/.local/share/synnoxerp` — sesión 16
 
 ### Pendientes anteriores
 - [ ] Observabilidad centralizada (tabla `auditoria_central`)
@@ -101,20 +147,7 @@
 ### Depreciados
 - [ ] **Migración Nómina SQLite → PostgreSQL** — postponida. Documentación en `MIGRATION_NOMINA.md` y `ARCHITECTURE.md §7`.
 
-### Convenciones del Framework (SEGUIR SIEMPRE)
-
-- **Modales**: Definir en HTML con `class="modal-overlay"`, mostrar/ocultar con `display: block/none`. NO crear modales dinámicamente con `document.createElement`.
-- **Confirmaciones**: Usar `confirmModal(msg, title)` del framework, NUNCA `confirm()` del navegador.
-- **Mensajes**: Usar `toast(msg, type)` del framework para feedback al usuario.
-- **CSS**: Usar variables del framework (`var(--surface)`, `var(--border)`, `var(--text)`, `var(--muted)`, `var(--accent)`, `var(--success)`, `var(--danger)`).
-- **Botones**: Seguir clases existentes: `btn`, `btn-sm`, `btn-secondary`, `btn-danger`.
-- **Tablas**: Usar estructura `<table id="xxx-table"><thead><tr>...</tr></thead><tbody></tbody></table>` con `overflow-x:auto`.
-- **API**: Todas las rutas usan `verificarToken, soloAdmin`. Respuestas: `{ ok: true }` o `{ error: 'msg' }`.
-- **DB**: Migraciones con `try { db.exec("ALTER TABLE...") } catch {}` para columnas nuevas. Seeds con `INSERT OR IGNORE`.
-- **Auth**: Siempre via `verificarToken` middleware. JWT incluye `modulos_permisos` para permisos granulares.
-
 ---
-
 
 ## Estado (15 Jul 2026 — sesión 11)
 
