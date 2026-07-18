@@ -45,6 +45,18 @@ function getFromName() {
   return _config.smtp_from_name || process.env.SMTP_FROM_NAME || process.env.COMPANY_NAME || 'SynnoxERP';
 }
 
+function stripHtml(html) {
+  let out = '';
+  let inTag = false;
+  for (let i = 0; i < html.length; i++) {
+    const ch = html[i];
+    if (ch === '<') { inTag = true; continue; }
+    if (ch === '>') { inTag = false; continue; }
+    if (!inTag) out += ch;
+  }
+  return out;
+}
+
 async function sendMail({ to, subject, html, text }) {
   if (!_transport) throw new Error('SMTP no configurado');
   return _transport.sendMail({
@@ -52,7 +64,7 @@ async function sendMail({ to, subject, html, text }) {
     to,
     subject,
     html,
-    text: text || html.replace(/<[^>]*>/g, ''),
+    text: text || stripHtml(html),
   });
 }
 
