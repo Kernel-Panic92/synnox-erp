@@ -1079,11 +1079,10 @@
     <!-- CENTROS DE OPERACIÓN -->
     <div class="page" id="page-centros">
       <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div><div class="page-title">Centros de Operación</div><div class="page-sub">Gestiona las sedes o ubicaciones de tu organización</div></div>
-        <button class="btn btn-primary" onclick="abrirModalCentro()" id="btn-nuevo-centro">+ Nuevo Centro</button>
+        <div><div class="page-title">Centros de Operación</div><div class="page-sub">Los centros se gestionan desde el panel de administración del Launcher</div></div>
       </div>
       <div class="table-wrap">
-        <table><thead><tr><th>Nombre</th><th>Estado</th><th>Creado</th><th>Empleados</th><th>Acciones</th></tr></thead>
+        <table><thead><tr><th>Nombre</th><th>Estado</th><th>Creado</th><th>Empleados</th></tr></thead>
         <tbody id="centros-body"></tbody></table>
       </div>
     </div>
@@ -1144,27 +1143,6 @@
     <div class="modal-footer">
       <button class="btn btn-secondary" onclick="cerrarModal('modal-rol')">Cancelar</button>
       <button class="btn btn-primary" id="btn-guardar-rol" onclick="guardarNuevoRol()">Crear Rol</button>
-    </div>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL CENTRO -->
-<div class="modal-overlay" id="modal-centro">
-  <div class="modal" style="width:420px;">
-    <div class="modal-title" id="modal-centro-title">Nuevo Centro de Operación</div>
-    <input type="hidden" id="centro-id"/>
-    <div id="form-centro"><div class="form-group">
-      <label>Nombre del Centro *</label>
-      <input type="text" id="centro-nombre" placeholder="Ej: Sede Principal, Planta Norte..."/>
-    </div>
-    <div class="form-group" id="centro-activo-group" style="display:none;">
-      <label>Estado</label>
-      <select id="centro-activo"><option value="1">Activo</option><option value="0">Inactivo</option></select>
-    </div>
-    <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="cerrarModal('modal-centro')">Cancelar</button>
-      <button class="btn btn-primary" id="btn-guardar-centro" onclick="guardarCentro()">Guardar</button>
     </div>
     </div>
   </div>

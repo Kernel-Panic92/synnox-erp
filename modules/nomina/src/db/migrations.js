@@ -54,12 +54,6 @@ module.exports = function runMigrations(db) {
       empleadoId TEXT NOT NULL,
       PRIMARY KEY (usuarioId, empleadoId)
     );
-    CREATE TABLE IF NOT EXISTS centros (
-      id      TEXT PRIMARY KEY,
-      nombre  TEXT NOT NULL UNIQUE,
-      activo  INTEGER NOT NULL DEFAULT 1,
-      creado  TEXT NOT NULL
-    );
     CREATE TABLE IF NOT EXISTS telemetria (
       id        INTEGER PRIMARY KEY AUTOINCREMENT,
       evento    TEXT NOT NULL,
@@ -112,7 +106,6 @@ module.exports = function runMigrations(db) {
     'CREATE INDEX IF NOT EXISTS idx_registros_search      ON registros(estado, tipo, nominaId, empleadoId, fecha)',
     'CREATE INDEX IF NOT EXISTS idx_empleados_sede        ON empleados(sede)',
     'CREATE INDEX IF NOT EXISTS idx_empleados_cedula      ON empleados(cedula)',
-    'CREATE INDEX IF NOT EXISTS idx_centros_nombre        ON centros(nombre)',
   ];
   for (const sql of indexes) {
     try { db.exec(sql); } catch {}

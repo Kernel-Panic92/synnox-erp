@@ -290,6 +290,7 @@
     <div class="tabs">
       <div class="tab active" data-tab="usuarios" onclick="showAdminTab('usuarios')">Usuarios</div>
       <div class="tab" data-tab="perfiles" onclick="showAdminTab('perfiles')">Perfiles</div>
+      <div class="tab" data-tab="centros" onclick="showAdminTab('centros')">Centros de operación</div>
       <div class="tab" data-tab="modulos" onclick="showAdminTab('modulos')">Módulos</div>
       <div class="tab" data-tab="mcp" onclick="showAdminTab('mcp')">MCP</div>
       <div class="tab" data-tab="smtp" onclick="showAdminTab('smtp')">SMTP</div>
@@ -307,7 +308,7 @@
     </div>
     <div style="overflow-x:auto;">
       <table id="users-table">
-        <thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Perfil</th><th>Estado</th><th>Acción</th></tr></thead>
+        <thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Perfil</th><th>Centro</th><th>Estado</th><th>Acción</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -324,6 +325,33 @@
       </table>
     </div>
   </div>
+  <div class="tab-content" id="tab-centros">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
+      <div style="font-size:var(--fs);font-weight:600;">Centros de operación</div>
+      <button class="btn btn-sm" onclick="showCentroForm()">+ Nuevo</button>
+    </div>
+    <div style="overflow-x:auto;">
+      <table id="centros-table">
+        <thead><tr><th>ID</th><th>Nombre</th><th>Estado</th><th>Acción</th></tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal: Centro de operación -->
+  <div class="modal-overlay" id="centro-form-overlay">
+    <div class="modal" id="centro-form-screen" style="max-width:400px;">
+      <h3 id="centro-form-title">Nuevo centro de operación</h3>
+      <input type="hidden" id="centro-form-id">
+      <label>Nombre</label>
+      <input type="text" id="centro-form-nombre" placeholder="Ej: BOGOTA, MEDELLIN...">
+      <div style="display:flex;gap:10px;margin-top:16px;">
+        <button class="btn" onclick="saveCentro()">💾 Guardar</button>
+        <button class="btn btn-danger btn-sm" style="align-self:center;" onclick="closeCentroForm()">Cancelar</button>
+      </div>
+    </div>
+  </div>
+
   <div class="tab-content" id="tab-modulos">
     <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
       <div style="font-size:var(--fs);font-weight:600;">Módulos de la plataforma</div>
@@ -571,6 +599,8 @@
     <select id="form-rol" onchange="toggleModulosSection()"><option value="operador">Operador</option><option value="admin">Admin</option></select>
     <label style="margin-top:8px;">Perfil</label>
     <select id="form-perfil"><option value="">Sin perfil</option></select>
+    <label style="margin-top:8px;">Centro de operación <span style="font-weight:normal;color:var(--muted);font-size:12px;">(filtro de visibilidad en módulos)</span></label>
+    <select id="form-sede-select"><option value="Principal">Principal</option></select>
     <div id="form-modulos-section" style="margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
       <label style="font-weight:600;">Módulos permitidos</label>
       <div id="form-modulos-list" style="margin-top:6px;"></div>

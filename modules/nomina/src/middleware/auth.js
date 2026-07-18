@@ -34,6 +34,9 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
           return res.status(403).json({ error: 'Sin permisos para esta acción' });
         req.usuario = user;
         req.perfil_nombre = payload.perfil_nombre || null;
+        // Attach granular permissions from launcher JWT
+        const modPermisos = payload.modulos_permisos || {};
+        req.usuario.nominaPermisos = modPermisos.nomina || [];
         next();
       } catch (err) {
         return res.status(401).json({ error: 'Token inválido o expirado' });

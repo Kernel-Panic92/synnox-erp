@@ -17,13 +17,22 @@ launcher/package-lock.json
 wordpress-mcp/package-lock.json
 
 # DB
-launcher/launcher.db
+*.db
+*.db-shm
+*.db-wal
+backups/
 launcher/backups/
-modules/nomina/horas_extra.db
 modules/nomina/backups/
+modules/proveedores/backups/
+modules/logistica/backups/
 modules/proveedores/backups/
 modules/logistica/.env
 modules/logistica/backups/
 modules/proveedores/.env
 modules/proveedores/backups/
 *.xlsx
+
+# Uploads & logs
+logs/
+uploads/
+modules/proyectos/uploads/

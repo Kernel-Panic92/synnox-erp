@@ -1,4 +1,5 @@
 const express = require('express');
+const { validarSede } = require('../utils/launcherDb');
 
 module.exports = function createUsuariosRouter({
   db, uid, BASE_URL,
@@ -19,8 +20,7 @@ module.exports = function createUsuariosRouter({
     if (!nombre || !email || !rol || !sede) return res.status(400).json({ error: 'Todos los campos son requeridos' });
     const rolesValidos = db.prepare('SELECT nombre FROM roles').all().map(r => r.nombre);
     if (!rolesValidos.includes(rol)) return res.status(400).json({ error: 'Rol inválido' });
-    const centroValido = db.prepare('SELECT id FROM centros WHERE nombre=? AND activo=1').get(sede);
-    if (!centroValido) return res.status(400).json({ error: 'Centro de operación inválido' });
+    if (!validarSede(sede)) return res.status(400).json({ error: 'Centro de operación inválido' });
     const existe = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(email.toLowerCase().trim());
     if (existe) return res.status(400).json({ error: 'Ya existe un usuario con ese correo' });
 
@@ -88,8 +88,7 @@ module.exports = function createUsuariosRouter({
     const { nombre, email, rol, sede, activo, password } = req.body;
     const rolesValidos = db.prepare('SELECT nombre FROM roles').all().map(r => r.nombre);
     if (!rolesValidos.includes(rol)) return res.status(400).json({ error: 'Rol inválido' });
-    const centroValido = db.prepare('SELECT id FROM centros WHERE nombre=? AND activo=1').get(sede);
-    if (!centroValido) return res.status(400).json({ error: 'Centro de operación inválido' });
+    if (!validarSede(sede)) return res.status(400).json({ error: 'Centro de operación inválido' });
     if (req.params.id === req.usuario.id && activo === 0) return res.status(400).json({ error: 'No puedes desactivarte a ti mismo' });
     if (password && password.trim() !== '') {
       const errPassU = validarPassword(password);

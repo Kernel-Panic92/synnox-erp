@@ -106,6 +106,8 @@ db.exec(`
 `);
 // Migrate: all roles except admin → operador
 db.prepare("UPDATE usuarios SET rol = 'operador' WHERE rol != 'admin'").run();
+// Add sede column if not exists
+try { db.exec("ALTER TABLE usuarios ADD COLUMN sede TEXT NOT NULL DEFAULT 'Principal'"); } catch {}
 
 const adminEmail = process.env.ADMIN_EMAIL || `admin@${COMPANY_DOMAIN}`;
 const adminPass = process.env.ADMIN_PASS || 'admin123';
@@ -173,6 +175,25 @@ const defaultProfiles = [
 for (const p of defaultProfiles) {
   db.prepare("INSERT OR IGNORE INTO perfiles (nombre, descripcion) VALUES (?, ?)").run(p.nombre, p.descripcion);
 }
+
+// ── Centros de operación (catálogo global; JWT usuarios.sede = nombre del centro)
+db.exec(`
+  CREATE TABLE IF NOT EXISTS centros_operacion (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    nombre TEXT NOT NULL UNIQUE,
+    activo INTEGER NOT NULL DEFAULT 1,
+    creado TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+// Migrar tabla legacy sedes → centros_operacion (si existía)
+try {
+  const hasSedes = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='sedes'").get();
+  if (hasSedes) {
+    db.exec(`INSERT OR IGNORE INTO centros_operacion (id, nombre, activo, creado) SELECT id, nombre, activo, creado FROM sedes`);
+    db.exec('DROP TABLE sedes');
+  }
+} catch {}
+db.prepare("INSERT OR IGNORE INTO centros_operacion (nombre) VALUES ('Principal')").run();
 
 // ── Config table (key-value) ──
 db.exec(`CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')`);
@@ -253,9 +274,20 @@ try { db.prepare("UPDATE user_modulos SET modulo_id = 'logistica' WHERE modulo_i
 // Seed public_url from url if empty
 db.prepare("UPDATE modulos_plataforma SET public_url = url WHERE public_url = '' AND url != ''").run();
 
-// Seed proyectos module if not present
-db.prepare(`INSERT OR IGNORE INTO modulos_plataforma (id, nombre, descripcion, url, public_url, icon, mcp_enabled, activo, orden, proxy_prefix, tipo)
-    VALUES ('proyectos', 'Proyectos', 'Gestión de proyectos y tareas', 'http://localhost:3002', '', '📋', 1, 1, 4, '/proyectos/', 'interno')`).run();
+// Seed modules if not present
+const modules = [
+  { id: 'proveedores', nombre: 'Proveedores', descripcion: 'Gestión documental de facturas electrónicas', url: `http://localhost:${PORT}`, icon: '📄', orden: 1, proxy_prefix: '/proveedores/', tipo: 'interno' },
+  { id: 'nomina', nombre: 'Nómina', descripcion: 'Sistema de control de novedades y horas extra', url: `http://localhost:${PORT}`, icon: '👥', orden: 2, proxy_prefix: '/nomina/', tipo: 'interno' },
+  { id: 'logistica', nombre: 'Logística', descripcion: 'Optimización de rutas y pedidos', url: `http://localhost:${PORT}`, icon: '🚚', orden: 3, proxy_prefix: '/logistica/', tipo: 'interno' },
+  { id: 'proyectos', nombre: 'Proyectos', descripcion: 'Gestión de proyectos y tareas', url: `http://localhost:${PORT}`, icon: '📋', orden: 4, proxy_prefix: '/proyectos/', tipo: 'interno' },
+];
+const insModule = db.prepare(`INSERT OR IGNORE INTO modulos_plataforma (id, nombre, descripcion, url, public_url, icon, mcp_enabled, activo, orden, proxy_prefix, tipo)
+    VALUES (?, ?, ?, ?, '', ?, 1, 1, ?, ?, ?)`);
+for (const m of modules) {
+  insModule.run(m.id, m.nombre, m.descripcion, m.url, m.icon, m.orden, m.proxy_prefix, m.tipo);
+}
+// Update URLs to match current PORT
+db.prepare(`UPDATE modulos_plataforma SET url = ? WHERE tipo = 'interno'`).run(`http://localhost:${PORT}`);
 
 // ── Permisos granular tables ──
 db.exec(`
@@ -609,7 +641,7 @@ app.get('/api/auth/me', verificarToken, (req, res) => {
 
 app.get('/api/admin/usuarios', verificarToken, soloAdmin, (req, res) => {
   res.json(db.prepare(`
-    SELECT u.id, u.nombre, u.email, u.rol, u.activo, u.creado, u.actualizado, u.perfil_id,
+    SELECT u.id, u.nombre, u.email, u.rol, u.activo, u.creado, u.actualizado, u.perfil_id, u.sede,
            p.nombre as perfil_nombre
     FROM usuarios u
     LEFT JOIN perfiles p ON u.perfil_id = p.id
@@ -618,7 +650,7 @@ app.get('/api/admin/usuarios', verificarToken, soloAdmin, (req, res) => {
 });
 
 app.post('/api/admin/usuarios', verificarToken, soloAdmin, async (req, res) => {
-  const { nombre, email, password, rol, perfil_id } = req.body;
+  const { nombre, email, password, rol, perfil_id, sede } = req.body;
   if (!nombre || !email) return res.status(400).json({ error: 'Nombre y email son requeridos' });
   const userRol = (rol === 'admin' || rol === 'operador') ? rol : 'operador';
   try {
@@ -630,7 +662,7 @@ app.post('/api/admin/usuarios', verificarToken, soloAdmin, async (req, res) => {
       const tempPass = Math.random().toString(36).slice(-10) + 'A1!';
       hash = bcrypt.hashSync(tempPass, 10);
     }
-    const result = db.prepare('INSERT INTO usuarios (nombre, email, password_hash, rol, perfil_id) VALUES (?, ?, ?, ?, ?)').run(nombre, email.toLowerCase().trim(), hash, userRol, perfil_id || null);
+    const result = db.prepare('INSERT INTO usuarios (nombre, email, password_hash, rol, perfil_id, sede) VALUES (?, ?, ?, ?, ?, ?)').run(nombre, email.toLowerCase().trim(), hash, userRol, perfil_id || null, sede || 'Principal');
     const userId = result.lastInsertRowid;
 
     if (!password && mail.isConfigured()) {
@@ -658,7 +690,7 @@ app.post('/api/admin/usuarios', verificarToken, soloAdmin, async (req, res) => {
 });
 
 app.put('/api/admin/usuarios/:id', verificarToken, soloAdmin, (req, res) => {
-  const { nombre, email, password, activo, rol, perfil_id } = req.body;
+  const { nombre, email, password, activo, rol, perfil_id, sede } = req.body;
   const id = parseInt(req.params.id);
   if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
   const user = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(id);
@@ -670,6 +702,7 @@ app.put('/api/admin/usuarios/:id', verificarToken, soloAdmin, (req, res) => {
   if (activo !== undefined) { updates.push('activo = ?'); params.push(activo ? 1 : 0); }
   if (rol && (rol === 'admin' || rol === 'operador')) { updates.push('rol = ?'); params.push(rol); }
   if (perfil_id !== undefined) { updates.push('perfil_id = ?'); params.push(perfil_id || null); }
+  if (sede !== undefined) { updates.push('sede = ?'); params.push(sede || 'Principal'); }
   if (!updates.length) return res.status(400).json({ error: 'Sin cambios' });
   updates.push("actualizado = datetime('now')"); params.push(id);
   try {
@@ -795,6 +828,62 @@ app.delete('/api/admin/perfiles/:id', verificarToken, soloAdmin, (req, res) => {
 app.get('/api/admin/perfiles/:id/usuarios', verificarToken, soloAdmin, (req, res) => {
   const users = db.prepare('SELECT id, nombre, email, rol, activo FROM usuarios WHERE perfil_id = ?').all(req.params.id);
   res.json(users);
+});
+
+// ── API: Centros de operación ──
+app.get('/api/admin/centros', verificarToken, soloAdmin, (req, res) => {
+  res.json(db.prepare('SELECT * FROM centros_operacion ORDER BY nombre').all());
+});
+// Alias legacy
+app.get('/api/admin/sedes', verificarToken, soloAdmin, (req, res) => {
+  res.json(db.prepare('SELECT * FROM centros_operacion ORDER BY nombre').all());
+});
+
+app.post('/api/admin/centros', verificarToken, soloAdmin, (req, res) => {
+  const { nombre } = req.body;
+  if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'Nombre requerido' });
+  try {
+    const result = db.prepare('INSERT INTO centros_operacion (nombre) VALUES (?)').run(nombre.trim());
+    res.json({ id: result.lastInsertRowid, nombre: nombre.trim(), activo: 1 });
+  } catch (e) {
+    if (e.message.includes('UNIQUE')) return res.status(409).json({ error: 'El centro ya existe' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.put('/api/admin/centros/:id', verificarToken, soloAdmin, (req, res) => {
+  const { id } = req.params;
+  const { nombre, activo } = req.body;
+  const centro = db.prepare('SELECT * FROM centros_operacion WHERE id = ?').get(id);
+  if (!centro) return res.status(404).json({ error: 'Centro no encontrado' });
+  const oldNombre = centro.nombre;
+  const updates = []; const params = [];
+  if (nombre !== undefined) { updates.push('nombre = ?'); params.push(nombre.trim()); }
+  if (activo !== undefined) { updates.push('activo = ?'); params.push(activo ? 1 : 0); }
+  if (!updates.length) return res.status(400).json({ error: 'Sin cambios' });
+  params.push(id);
+  try {
+    db.prepare(`UPDATE centros_operacion SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+    // Si renombramos, actualizar usuarios.sede y propagar a módulos que usan el nombre
+    if (nombre !== undefined && nombre.trim() !== oldNombre) {
+      db.prepare('UPDATE usuarios SET sede = ? WHERE sede = ?').run(nombre.trim(), oldNombre);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    if (e.message.includes('UNIQUE')) return res.status(409).json({ error: 'El centro ya existe' });
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.delete('/api/admin/centros/:id', verificarToken, soloAdmin, (req, res) => {
+  const { id } = req.params;
+  const centro = db.prepare('SELECT * FROM centros_operacion WHERE id = ?').get(id);
+  if (!centro) return res.status(404).json({ error: 'Centro no encontrado' });
+  if (centro.nombre === 'Principal') return res.status(400).json({ error: 'No se puede eliminar el centro Principal' });
+  const usersWithCentro = db.prepare("SELECT COUNT(*) as c FROM usuarios WHERE sede = ?").get(centro.nombre).c;
+  if (usersWithCentro > 0) return res.status(400).json({ error: `${usersWithCentro} usuario(s) tienen este centro. Reasigna primero.` });
+  db.prepare('DELETE FROM centros_operacion WHERE id = ?').run(id);
+  res.json({ ok: true });
 });
 
 // ── Granular permissions: config ──
@@ -1190,8 +1279,14 @@ init();
 // ── API: Health check ──
 app.get('/api/admin/health', verificarToken, soloAdmin, async (req, res) => {
   const modulos = getModulos(false);
+  const launcherHost = `http://127.0.0.1:${PORT}`;
   const results = await Promise.all(modulos.map(async (m) => {
     try {
+      const moduleUrl = m.url.replace(/\/+$/, '');
+      // If module is on the same server, skip HTTP health check to avoid rate limiting
+      if (moduleUrl === launcherHost || moduleUrl === `http://localhost:${PORT}`) {
+        return { id: m.id, nombre: m.nombre, estado: 'online', status: 200, local: true };
+      }
       const sessionId = await ensureMcpSession(m);
       const headers = { 'Content-Type': 'application/json' };
       if (m.mcp_token) headers['Authorization'] = 'Bearer ' + m.mcp_token;

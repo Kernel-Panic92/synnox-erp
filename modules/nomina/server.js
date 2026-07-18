@@ -19,7 +19,7 @@ require('./src/db/migrations')(db);
 const { parseCookies, createAuth } = require('./src/middleware/auth');
 const { encryptSmtp, hashPassword, validarPassword, generateToken } = require('./src/utils/crypto');
 const { getConfig, getAdminEmail } = require('./src/utils/config');
-const { permisosPorRol, rolTienePermiso } = require('./src/utils/permisos');
+const { permisosPorRol, rolTienePermiso, tienePermiso } = require('./src/utils/permisos');
 const { restoreData } = require('./src/utils/restore')({ db, encryptSmtp });
 
 const APP_NAME     = process.env.APP_NAME || 'Nómina';
@@ -162,7 +162,7 @@ app.use('/api/configuracion', require('./src/routes/configuracion')({ db, getCon
 // ─────────────────────────────────────────────
 // CENTROS DE OPERACIÓN
 // ─────────────────────────────────────────────
-app.use('/api/centros', require('./src/routes/centros')({ db, uid, middlewares: { todosRoles, adminRrhh, soloAdmin } }));
+app.use('/api/centros', require('./src/routes/centros')({ middlewares: { todosRoles, adminRrhh, soloAdmin } }));
 
 app.use('/api/tipos', require('./src/routes/tipos')({ db, middlewares: { todosRoles, autenticar, requierePermiso } }));
 
@@ -172,7 +172,7 @@ app.use('/api/tipos', require('./src/routes/tipos')({ db, middlewares: { todosRo
 app.use('/api/roles', require('./src/routes/roles')({ db, middlewares: { adminRrhh, soloAdmin } }));
 app.use('/api/permisos', require('./src/routes/permisos')({ db, middlewares: { soloAdmin } }));
 
-app.use('/api/empleados', require('./src/routes/empleados')({ db, uid, upload, middlewares: { todosRoles, adminRrhh, soloAdmin } }));
+app.use('/api/empleados', require('./src/routes/empleados')({ db, uid, upload, middlewares: { todosRoles, adminRrhh, soloAdmin, tienePermiso } }));
 
 // ─────────────────────────────────────────────
 // NÓMINAS
@@ -183,7 +183,7 @@ app.use('/api/nominas', require('./src/routes/nominas')({ db, uid, middlewares: 
 // REGISTROS
 // ─────────────────────────────────────────────
 app.use('/api/registros', require('./src/routes/registros')({
-  db, uid, BASE_URL, APP_NAME, getConfig, enviarCorreo, rolTienePermiso,
+  db, uid, BASE_URL, APP_NAME, getConfig, enviarCorreo, rolTienePermiso, tienePermiso,
   middlewares: { todosRoles, adminRrhh, adminRrhhOp, podeEditar, podeAprobar, autenticar, requierePermiso }
 }));
 
@@ -193,7 +193,7 @@ app.use('/api', require('./src/routes/dashboard')({ db, middlewares: { todosRole
 app.use('/api/backup', require('./src/routes/backup')({ db, AdmZip, fs, path, __dirname, encryptSmtp, getConfig, getAdminEmail, enviarCorreo, restoreData, middlewares: { soloAdminOBkp, soloAdmin } }));
 app.use('/api/restore', require('./src/routes/backup').createRestoreRouter({ db, AdmZip, encryptSmtp, restoreData, middlewares: { soloAdmin } }));
 
-app.use('/api', require('./src/routes/adjuntos')({ db, uid, rolTienePermiso, middlewares: { todosRoles, adminRrhhOp, podeEditar, autenticar, requierePermiso } }));
+app.use('/api', require('./src/routes/adjuntos')({ db, uid, tienePermiso, middlewares: { todosRoles, adminRrhhOp, podeEditar, autenticar, requierePermiso } }));
 app.use('/api', require('./src/routes/exportar')({ db, ExcelJS, getConfig, enviarCorreo, rolTienePermiso, middlewares: { autenticar, requierePermiso, todosRoles } }));
 app.use('/api', require('./src/routes/telemetry')({ db, parseCookies, middlewares: { soloAdmin } }));
 

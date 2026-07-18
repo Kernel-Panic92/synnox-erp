@@ -1,5 +1,37 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (17 Jul 2026 — sesión 14)
+
+### Cambios Sesión 14 — Unificación catálogo centros nómina→launcher + fix 404
+
+- **Bug fix — 502 tras restart máquina**: Nginx proxy a puerto 3003, PM2 estaba vacío. Fix: `pm2 start server.js --name synnoxerp` con .env `PORT=3003`. Root process en `/opt/synnoxerp` (puerto 3002) es instalación vieja.
+- **Bug fix — 404 en `/api/admin/centros`**: El route existía correctamente en `launcher/server.js:834` pero el servidor PM2 tenía código stale. Fix: `pm2 restart synnoxerp`.
+- **Nuevo `launcherDb.js`**: Helper en `modules/nomina/src/utils/launcherDb.js` que abre `launcher.db` en modo read-only para consultar `centros_operacion`. Cache singleton con TTL de 30s.
+- **Refactor — centros.js (nómina)**: GET lee del launcher; POST/PUT/DELETE devuelven 400 con mensaje "Los centros se gestionan desde el panel de administración del Launcher".
+- **Refactor — misc.js `/sedes`**: Ahora lee de launcher en vez de tabla local `centros`.
+- **Refactor — empleados.js y usuarios.js**: Validación de `sede` ahora usa `validarSede()` del launcher en lugar de `SELECT id FROM centros`.
+- **Cleanup — migrations.js**: Eliminada creación de tabla `centros` (ya no se usa).
+- **Cleanup — seeds.js**: Eliminado seed de centros y permiso `eliminar_centros`.
+- **Cleanup — restore.js**: Eliminada restauración de centros.
+- **Frontend — centros page read-only**: Sin botón "Nuevo Centro", sin columna Acciones, sin modal CRUD. Mensaje: "Los centros se gestionan desde el panel de administración del Launcher".
+- **Frontend — employees.js**: Eliminadas funciones `abrirModalCentro`, `editarCentro`, `guardarCentro`, `eliminarCentro`.
+- **Chore — .gitignore**: Agregados patrones `*.db`, `*.db-shm`, `*.db-wal`, `logs/`, `uploads/`.
+
+### Convenciones del Framework (SEGUIR SIEMPRE)
+
+- **Modales**: Definir en HTML con `class="modal-overlay"`, mostrar/ocultar con `display: block/none`. NO crear modales dinámicamente con `document.createElement`.
+- **Confirmaciones**: Usar `confirmModal(msg, title)` del framework, NUNCA `confirm()` del navegador.
+- **Mensajes**: Usar `toast(msg, type)` del framework para feedback al usuario.
+- **CSS**: Usar variables del framework (`var(--surface)`, `var(--border)`, `var(--text)`, `var(--muted)`, `var(--accent)`, `var(--success)`, `var(--danger)`).
+- **Botones**: Seguir clases existentes: `btn`, `btn-sm`, `btn-secondary`, `btn-danger`.
+- **Tablas**: Usar estructura `<table id="xxx-table"><thead><tr>...</tr></thead><tbody></tbody></table>` con `overflow-x:auto`.
+- **API**: Todas las rutas usan `verificarToken, soloAdmin`. Respuestas: `{ ok: true }` o `{ error: 'msg' }`.
+- **DB**: Migraciones con `try { db.exec("ALTER TABLE...") } catch {}` para columnas nuevas. Seeds con `INSERT OR IGNORE`.
+- **Auth**: Siempre via `verificarToken` middleware. JWT incluye `modulos_permisos` para permisos granulares.
+
+---
+
+
 ## Estado (17 Jul 2026 — sesión 13)
 
 ### Cambios Sesión 13 — Code Review, Security Hardening & Branding
@@ -28,6 +60,7 @@
 - **Base de datos**: PostgreSQL centralizado (producción), SQLite local para Nómina
 
 ### Pendientes nuevos
+- [x] ~~PR~~: `fix/install-sh` → `main` ([#7](https://github.com/Kernel-Panic92/synnox-erp/pull/7))
 - [ ] **Licencia**: Redactar y agregar licencia de software al repo (LICENSE.md)
 - [ ] Revisar que el path `/opt/horix-platform` esté renombrado a `/opt/synnoxerp`
 
@@ -44,6 +77,18 @@
 
 ### Depreciados
 - [ ] **Migración Nómina SQLite → PostgreSQL** — postponida. Documentación en `MIGRATION_NOMINA.md` y `ARCHITECTURE.md §7`.
+
+### Convenciones del Framework (SEGUIR SIEMPRE)
+
+- **Modales**: Definir en HTML con `class="modal-overlay"`, mostrar/ocultar con `display: block/none`. NO crear modales dinámicamente con `document.createElement`.
+- **Confirmaciones**: Usar `confirmModal(msg, title)` del framework, NUNCA `confirm()` del navegador.
+- **Mensajes**: Usar `toast(msg, type)` del framework para feedback al usuario.
+- **CSS**: Usar variables del framework (`var(--surface)`, `var(--border)`, `var(--text)`, `var(--muted)`, `var(--accent)`, `var(--success)`, `var(--danger)`).
+- **Botones**: Seguir clases existentes: `btn`, `btn-sm`, `btn-secondary`, `btn-danger`.
+- **Tablas**: Usar estructura `<table id="xxx-table"><thead><tr>...</tr></thead><tbody></tbody></table>` con `overflow-x:auto`.
+- **API**: Todas las rutas usan `verificarToken, soloAdmin`. Respuestas: `{ ok: true }` o `{ error: 'msg' }`.
+- **DB**: Migraciones con `try { db.exec("ALTER TABLE...") } catch {}` para columnas nuevas. Seeds con `INSERT OR IGNORE`.
+- **Auth**: Siempre via `verificarToken` middleware. JWT incluye `modulos_permisos` para permisos granulares.
 
 ---
 

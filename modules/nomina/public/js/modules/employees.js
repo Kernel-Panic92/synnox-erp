@@ -253,7 +253,7 @@ function renderCentros() {
   const tbody = document.getElementById('centros-body');
   if (!tbody) return;
   if (!centros.length) {
-    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:32px;">No hay centros registrados</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;color:var(--muted);padding:32px;">No hay centros registrados</td></tr>';
     return;
   }
   const rows = [];
@@ -263,91 +263,16 @@ function renderCentros() {
       ? '<span style="background:rgba(79,190,150,0.15);color:#4fbe96;border-radius:6px;padding:2px 10px;font-size:11px;font-weight:700;">ACTIVO</span>'
       : '<span style="background:rgba(247,97,79,0.12);color:var(--danger);border-radius:6px;padding:2px 10px;font-size:11px;font-weight:700;">INACTIVO</span>';
     const fecha = c.creado ? new Date(c.creado).toLocaleDateString('es-CO') : '-';
-    const puedeEliminar = empsCount === 0 && hasPerm('eliminar_centros');
-    let acciones = '';
-    if (puedoEditar()) {
-      acciones += '<button class="btn btn-secondary btn-sm centro-btn-editar" data-id="' + esc(c.id) + '">✏️ Editar</button> ';
-    }
-    if (puedeEliminar) {
-      acciones += '<button class="btn btn-sm centro-btn-eliminar" data-id="' + esc(c.id) + '" data-nombre="' + esc(c.nombre) + '" style="background:rgba(247,97,79,0.1);color:var(--danger);border:1px solid rgba(247,97,79,0.3);">🗑️ Eliminar</button>';
-    }
     rows.push(
        '<tr>' +
        '<td data-label="Nombre" style="font-weight:600;">' + esc(c.nombre) + '</td>' +
        '<td data-label="Estado">' + estadoBadge + '</td>' +
        '<td data-label="Creado" style="color:var(--muted);font-size:13px;">' + esc(fecha) + '</td>' +
        '<td data-label="Empleados" style="color:var(--muted);">' + esc(empsCount) + ' empleado' + (empsCount !== 1 ? 's' : '') + '</td>' +
-       '<td data-label="Acciones"><div style="display:flex;gap:8px;">' + acciones + '</div></td>' +
        '</tr>'
      );
   });
   tbody.innerHTML = rows.join('');
-
-  tbody.querySelectorAll('.centro-btn-editar').forEach(function(btn) {
-    btn.addEventListener('click', function() { editarCentro(this.dataset.id); });
-  });
-  tbody.querySelectorAll('.centro-btn-eliminar').forEach(function(btn) {
-    btn.addEventListener('click', function() {
-      eliminarCentro(this.dataset.id, this.dataset.nombre);
-    });
-  });
 }
 
-function abrirModalCentro() {
-  document.getElementById('centro-id').value = '';
-  document.getElementById('centro-nombre').value = '';
-  document.getElementById('centro-activo-group').style.display = 'none';
-  document.getElementById('modal-centro-title').textContent = 'Nuevo Centro de Operación';
-  document.getElementById('modal-centro').classList.add('open');
-  document.getElementById('modal-centro').style.display = 'flex';
-}
 
-function editarCentro(id) {
-  const c = centros.find(x => x.id === id);
-  if (!c) return;
-  document.getElementById('centro-id').value = id;
-  document.getElementById('centro-nombre').value = c.nombre;
-  document.getElementById('centro-activo').value = c.activo ? '1' : '0';
-  document.getElementById('centro-activo-group').style.display = '';
-  document.getElementById('modal-centro-title').textContent = 'Editar Centro de Operación';
-  document.getElementById('modal-centro').classList.add('open');
-  document.getElementById('modal-centro').style.display = 'flex';
-}
-
-async function guardarCentro() {
-  const id     = document.getElementById('centro-id').value;
-  const nombre = document.getElementById('centro-nombre').value.trim();
-  const activo = document.getElementById('centro-activo').value;
-  if (!nombre) { showToast('El nombre es requerido', 'error'); return; }
-  const body = { nombre, activo: activo === '1' };
-  setLoading('btn-guardar-centro', true);
-  try {
-    const res = id
-      ? await PUT('/api/centros/' + id, body)
-      : await POST('/api/centros', body);
-    if (!res.ok) { const d = await res.json(); showToast(d.error || 'Error al guardar', 'error'); return; }
-    cerrarModal('modal-centro');
-    showToast(id ? 'Centro actualizado' : 'Centro creado', 'success');
-    await loadAll();
-    renderCentros();
-    poblarSelectsCentros();
-  } catch(e) { showToast(e.message, 'error'); }
-  setLoading('btn-guardar-centro', false);
-}
-
-async function eliminarCentro(id, nombre) {
-  confirmar({
-    titulo: 'Eliminar Centro',
-    mensaje: '¿Estás seguro de eliminar el centro <strong>' + esc(nombre) + '</strong>?',
-    icono: '🏢',
-    btnTxt: 'Eliminar',
-    onConfirm: async () => {
-      const res = await DEL('/api/centros/' + id);
-      if (!res.ok) { const d = await res.json(); showToast(d.error || 'Error al eliminar', 'error'); return; }
-      showToast('Centro eliminado', 'success');
-      await loadAll();
-      renderCentros();
-      poblarSelectsCentros();
-    }
-  });
-}

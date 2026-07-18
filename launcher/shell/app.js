@@ -581,6 +581,7 @@ async function loadUsers() {
         <td>${esc(u.email)}</td>
         <td><span class="badge badge-${u.rol}">${u.rol}</span></td>
         <td>${u.perfil_nombre ? `<span style="color:var(--accent);">${esc(u.perfil_nombre)}</span>` : '—'}</td>
+        <td style="font-size:12px;color:var(--muted);">${esc(u.sede || 'Principal')}</td>
         <td>${u.activo ? '<span style="color:var(--success);">Activo</span>' : '<span class="badge badge-inactivo">Inactivo</span>'}</td>
         <td class="actions">
           <button class="btn btn-sm btn-secondary" onclick="editUser(${u.id})">✏️ Editar</button>
@@ -631,6 +632,8 @@ function showUserForm(data) {
   document.getElementById('form-submit-btn').textContent = data?.id ? 'Guardar cambios' : 'Crear usuario';
   document.getElementById('form-error').classList.remove('show');
   document.getElementById('admin-form-overlay').style.display = 'block';
+  // Load centros de operación for dropdown
+  loadCentrosForUserForm(data?.sede || 'Principal');
   // Load profiles for dropdown
   fetch('/api/admin/perfiles', { headers: { 'Authorization': 'Bearer ' + jwtToken } })
     .then(r => r.json()).then(perfiles => {
@@ -668,7 +671,8 @@ async function saveUser() {
     const method = id ? 'PUT' : 'POST';
     const url = id ? `/api/admin/usuarios/${id}` : '/api/admin/usuarios';
     const perfilId = document.getElementById('form-perfil').value || null;
-    const body = { nombre, email, rol, perfil_id: perfilId ? parseInt(perfilId) : null };
+    const sede = document.getElementById('form-sede-select').value || 'Principal';
+    const body = { nombre, email, rol, perfil_id: perfilId ? parseInt(perfilId) : null, sede };
     if (password) body.password = password;
 
     const res = await fetch(url, {
@@ -1176,6 +1180,7 @@ function showAdminTab(tab) {
   document.querySelectorAll('#admin-screen .tab-content').forEach(t => t.classList.toggle('active', t.id === 'tab-' + tab));
   if (tab === 'usuarios') loadUsers();
   else if (tab === 'perfiles') loadPerfiles();
+  else if (tab === 'centros') loadCentros();
   else if (tab === 'modulos') loadModulos();
    else if (tab === 'mcp') { loadMcpConfig(); loadMcpUrl(); }
    else if (tab === 'smtp') loadSmtpConfig();
@@ -1906,5 +1911,91 @@ function updatePermCount(moduloId) {
     const nextEl = countEl.nextElementSibling;
     if (nextEl) nextEl.textContent = `${totalChecked}/${totalAll}`;
   }
+}
+
+// ── Centros de operación ──
+async function loadCentros() {
+  try {
+    const res = await fetch('/api/admin/centros', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) throw new Error('Error');
+    const centros = await res.json();
+    const tbody = document.querySelector('#centros-table tbody');
+    tbody.innerHTML = centros.map(s => `
+      <tr>
+        <td>${s.id}</td>
+        <td>${esc(s.nombre)}</td>
+        <td>${s.activo ? '<span style="color:var(--success);">Activo</span>' : '<span class="badge badge-inactivo">Inactivo</span>'}</td>
+        <td class="actions">
+          <button class="btn btn-sm btn-secondary" onclick="editCentro(${s.id})">✏️ Editar</button>
+          ${s.nombre !== 'Principal' ? `<button class="btn btn-sm btn-danger" onclick="deleteCentro(${s.id},'${esc(s.nombre)}')">🗑️ Eliminar</button>` : ''}
+        </td>
+      </tr>
+    `).join('');
+  } catch (e) { toast('Error cargando centros de operación', 'error'); }
+}
+
+function showCentroForm(data) {
+  document.getElementById('centro-form-id').value = data?.id || '';
+  document.getElementById('centro-form-nombre').value = data?.nombre || '';
+  document.getElementById('centro-form-title').textContent = data?.id ? 'Editar centro de operación' : 'Nuevo centro de operación';
+  document.getElementById('centro-form-overlay').style.display = 'block';
+  document.getElementById('centro-form-nombre').focus();
+}
+
+function closeCentroForm() {
+  document.getElementById('centro-form-overlay').style.display = 'none';
+}
+
+async function editCentro(id) {
+  try {
+    const res = await fetch('/api/admin/centros', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const centros = await res.json();
+    const centro = centros.find(s => s.id === id);
+    if (centro) showCentroForm(centro);
+  } catch (e) { toast('Error cargando centro', 'error'); }
+}
+
+async function saveCentro() {
+  const id = document.getElementById('centro-form-id').value;
+  const nombre = document.getElementById('centro-form-nombre').value.trim();
+  if (!nombre) { toast('Nombre requerido', 'error'); return; }
+  try {
+    const method = id ? 'PUT' : 'POST';
+    const url = id ? `/api/admin/centros/${id}` : '/api/admin/centros';
+    const res = await fetch(url, {
+      method, headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
+      body: JSON.stringify({ nombre })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    closeCentroForm();
+    loadCentros();
+    toast(id ? 'Centro actualizado' : 'Centro creado', 'success');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function deleteCentro(id, nombre) {
+  if (!await confirmModal(`¿Eliminar el centro de operación "${nombre}"?`)) return;
+  try {
+    const res = await fetch(`/api/admin/centros/${id}`, {
+      method: 'DELETE', headers: { 'Authorization': 'Bearer ' + jwtToken }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    loadCentros();
+    toast('Centro eliminado', 'success');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+// Load centros for user form dropdown
+async function loadCentrosForUserForm(selectedCentro) {
+  try {
+    const res = await fetch('/api/admin/centros', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const centros = await res.json();
+    const sel = document.getElementById('form-sede-select');
+    if (sel) {
+      sel.innerHTML = centros.filter(s => s.activo).map(s => `<option value="${esc(s.nombre)}" ${s.nombre === selectedCentro ? 'selected' : ''}>${esc(s.nombre)}</option>`).join('');
+    }
+  } catch (e) {}
 }
 

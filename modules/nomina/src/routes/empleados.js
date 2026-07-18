@@ -1,4 +1,5 @@
 const express = require('express');
+const { validarSede } = require('../utils/launcherDb');
 
 function parseCsvLine(line, separador) {
   const cols = []; let cur = '', inQ = false;
@@ -13,7 +14,7 @@ function parseCsvLine(line, separador) {
 
 module.exports = function createEmpleadosRouter({ db, uid, upload, middlewares }) {
   const router = express.Router();
-  const { todosRoles, adminRrhh, soloAdmin } = middlewares;
+  const { todosRoles, adminRrhh, soloAdmin, tienePermiso } = middlewares;
 
   router.get('/', todosRoles, (req, res) => {
     const u = req.usuario;
@@ -25,13 +26,17 @@ module.exports = function createEmpleadosRouter({ db, uid, upload, middlewares }
       return res.json(db.prepare(`SELECT * FROM empleados WHERE id IN (${placeholders})`).all(...asignados));
     }
 
-    if (u.rol === 'operador') {
+    // Check granular permissions from JWT (launcher profile)
+    if (tienePermiso(u, 'ver_todos')) {
+      return res.json(db.prepare('SELECT * FROM empleados').all());
+    }
+    if (tienePermiso(u, 'ver_sede')) {
       return res.json(db.prepare('SELECT * FROM empleados WHERE sede = ?').all(u.sede));
     }
     if (u.rol === 'rrhh' && req.query.sede) {
       return res.json(db.prepare('SELECT * FROM empleados WHERE sede = ?').all(req.query.sede));
     }
-    res.json(db.prepare('SELECT * FROM empleados').all());
+    res.json(db.prepare('SELECT * FROM empleados WHERE sede = ?').all(u.sede));
   });
 
   function validarCedula(cedula) {
@@ -41,8 +46,7 @@ module.exports = function createEmpleadosRouter({ db, uid, upload, middlewares }
   router.post('/', adminRrhh, (req, res) => {
     const { nombre, cedula, cargo, departamento, sede, email, telefono, tipo_vinculacion } = req.body;
     if (!validarCedula(cedula)) return res.status(400).json({ error: 'Cédula inválida' });
-    const centroValido = db.prepare('SELECT id FROM centros WHERE nombre=? AND activo=1').get(sede);
-    if (!centroValido) return res.status(400).json({ error: 'Centro de operación inválido' });
+    if (!validarSede(sede)) return res.status(400).json({ error: 'Centro de operación inválido' });
     const id = uid();
     db.prepare('INSERT INTO empleados (id,nombre,cedula,cargo,departamento,sede,email,telefono,tipo_vinculacion) VALUES (?,?,?,?,?,?,?,?,?)').run(
       id, nombre, cedula, cargo, departamento, sede, email||'', telefono||'', tipo_vinculacion || 'vinculado'
@@ -53,8 +57,7 @@ module.exports = function createEmpleadosRouter({ db, uid, upload, middlewares }
   router.put('/:id', adminRrhh, (req, res) => {
     const { nombre, cedula, cargo, departamento, sede, email, telefono, tipo_vinculacion, activo } = req.body;
     if (!validarCedula(cedula)) return res.status(400).json({ error: 'Cédula inválida' });
-    const centroValido = db.prepare('SELECT id FROM centros WHERE nombre=? AND activo=1').get(sede);
-    if (!centroValido) return res.status(400).json({ error: 'Centro de operación inválido' });
+    if (!validarSede(sede)) return res.status(400).json({ error: 'Centro de operación inválido' });
     const val = activo !== undefined ? (activo ? 1 : 0) : 1;
     db.prepare('UPDATE empleados SET nombre=?,cedula=?,cargo=?,departamento=?,sede=?,email=?,telefono=?,tipo_vinculacion=?,activo=? WHERE id=?')
       .run(nombre, cedula, cargo, departamento, sede, email||'', telefono||'', tipo_vinculacion || 'vinculado', val, req.params.id);
@@ -113,8 +116,7 @@ module.exports = function createEmpleadosRouter({ db, uid, upload, middlewares }
           detalleErrores.push(`Fila ${i + 1}: datos incompletos`);
           errores++; continue;
         }
-        const centroValido = db.prepare('SELECT id FROM centros WHERE nombre = ? AND activo = 1').get(sede);
-        if (!centroValido) {
+        if (!validarSede(sede)) {
           detalleErrores.push(`Fila ${i + 1}: sede "${sede}" no existe`);
           errores++; continue;
         }

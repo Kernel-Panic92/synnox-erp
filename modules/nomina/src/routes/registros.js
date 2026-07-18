@@ -2,17 +2,17 @@ const express = require('express');
 
 module.exports = function createRegistrosRouter({
   db, uid, BASE_URL, APP_NAME,
-  getConfig, enviarCorreo, rolTienePermiso,
+  getConfig, enviarCorreo, rolTienePermiso, tienePermiso,
   middlewares
 }) {
   const router = express.Router();
   const { todosRoles, adminRrhh, adminRrhhOp, podeEditar, podeAprobar, autenticar, requierePermiso } = middlewares;
 
-  function permEfectivo(rol) {
-    const vt = rolTienePermiso(rol, 'ver_todos');
-    const vs = rolTienePermiso(rol, 'ver_sede');
-    const vp = rolTienePermiso(rol, 'ver_propios');
-    return vt ? 'todos' : vs ? 'sede' : 'propios';
+  function permEfectivo(usuario) {
+    if (tienePermiso(usuario, 'ver_todos')) return 'todos';
+    if (tienePermiso(usuario, 'ver_sede')) return 'sede';
+    if (tienePermiso(usuario, 'ver_propios')) return 'propios';
+    return 'propios';
   }
 
   // ── GET / ──
@@ -24,7 +24,7 @@ module.exports = function createRegistrosRouter({
       LEFT JOIN usuarios u ON r.creadoPor = u.id
       LEFT JOIN usuarios ua ON r.aprobadoPor = ua.id
     `;
-    const efectivo = permEfectivo(u.rol);
+    const efectivo = permEfectivo(u);
     if (efectivo === 'todos') {
       if (req.query.sede) {
         return res.json(db.prepare(base + ` JOIN empleados e ON r.empleadoId = e.id WHERE e.sede = ? ORDER BY r.fecha DESC`).all(req.query.sede));
@@ -44,7 +44,7 @@ module.exports = function createRegistrosRouter({
       const { buscar, tipo, sede, empleadoId, nominaId, estado, sort, order, page, limit } = req.query;
       const conditions = []; const params = [];
 
-      const efectivo = permEfectivo(u.rol);
+      const efectivo = permEfectivo(u);
       if (efectivo === 'sede') { conditions.push("e.sede = ?"); params.push(u.sede); }
       else if (efectivo === 'propios') { conditions.push("r.creadoPor = ?"); params.push(u.id); }
 
@@ -84,7 +84,7 @@ module.exports = function createRegistrosRouter({
       const { empleadoId, nominaId, sede, tipo, estado, vinculo, fechaDesde, fechaHasta, sort, order, page, limit } = req.query;
       const conditions = []; const params = [];
 
-      const efectivo = permEfectivo(u.rol);
+      const efectivo = permEfectivo(u);
       if (efectivo === 'sede') { conditions.push("e.sede = ?"); params.push(u.sede); }
       else if (efectivo === 'propios') { conditions.push("r.creadoPor = ?"); params.push(u.id); }
 
@@ -141,7 +141,7 @@ module.exports = function createRegistrosRouter({
       `).get(req.params.id);
       if (!reg) return res.status(404).json({ error: 'Registro no encontrado' });
       const u = req.usuario;
-      const efectivo = permEfectivo(u.rol);
+      const efectivo = permEfectivo(u);
       if (efectivo === 'sede' && reg.sede !== u.sede) return res.status(403).json({ error: 'No tienes acceso' });
       if (efectivo === 'propios' && reg.creadoPor !== u.id) return res.status(403).json({ error: 'No tienes acceso' });
       res.json(reg);
@@ -174,10 +174,8 @@ module.exports = function createRegistrosRouter({
       const emp = db.prepare('SELECT sede, activo FROM empleados WHERE id = ?').get(empleadoId);
       if (!emp) return res.status(400).json({ error: 'Empleado no encontrado' });
       if (emp.activo !== 1) return res.status(400).json({ error: 'No se pueden registrar novedades a un empleado inactivo' });
-      const verTodos = rolTienePermiso(u.rol, 'ver_todos');
-      const verSede = rolTienePermiso(u.rol, 'ver_sede');
-      if (!verTodos) {
-        if (verSede) { if (emp.sede !== u.sede) return res.status(403).json({ error: 'No puedes registrar horas para empleados de otra sede.' }); }
+      if (!tienePermiso(u, 'ver_todos')) {
+        if (tienePermiso(u, 'ver_sede')) { if (emp.sede !== u.sede) return res.status(403).json({ error: 'No puedes registrar horas para empleados de otra sede.' }); }
         else { const asignados = db.prepare('SELECT empleadoId FROM usuario_empleados WHERE usuarioId = ?').all(u.id).map(r => r.empleadoId); if (!asignados.includes(empleadoId)) return res.status(403).json({ error: 'No tienes permiso para registrar horas a este empleado.' }); }
       }
       const sede = emp.sede;
@@ -221,10 +219,7 @@ module.exports = function createRegistrosRouter({
       if (!reg) return res.status(404).json({ error: 'Registro no encontrado' });
       if (reg.estado !== 'pendiente') return res.status(400).json({ error: 'Solo se pueden editar registros pendientes' });
       const u = req.usuario;
-      const verTodos = rolTienePermiso(u.rol, 'ver_todos');
-      const verSede = rolTienePermiso(u.rol, 'ver_sede');
-      const verPropios = rolTienePermiso(u.rol, 'ver_propios');
-      if (!verTodos && !(verSede && reg.sede === u.sede) && !(verPropios && reg.creadoPor === u.id)) {
+      if (!tienePermiso(u, 'ver_todos') && !(tienePermiso(u, 'ver_sede') && reg.sede === u.sede) && !(tienePermiso(u, 'ver_propios') && reg.creadoPor === u.id)) {
         return res.status(403).json({ error: 'No tienes permiso para editar este registro' });
       }
       const { empleadoId, nominaId, fecha, horas, tipo, aprobador = '', motivo, observaciones, transporte } = req.body;
@@ -279,10 +274,7 @@ module.exports = function createRegistrosRouter({
       if (!reg) return res.status(404).json({ error: 'Registro no encontrado' });
       if (reg.estado !== 'pendiente') return res.status(400).json({ error: 'Solo se pueden aprobar/rechazar registros pendientes' });
       const u = req.usuario;
-      const verTodos = rolTienePermiso(u.rol, 'ver_todos');
-      const verSede = rolTienePermiso(u.rol, 'ver_sede');
-      const verPropios = rolTienePermiso(u.rol, 'ver_propios');
-      if (!verTodos && !(verSede && reg.sede === u.sede) && !(verPropios && reg.creadoPor === u.id)) return res.status(403).json({ error: 'No tienes acceso a este registro' });
+      if (!tienePermiso(u, 'ver_todos') && !(tienePermiso(u, 'ver_sede') && reg.sede === u.sede) && !(tienePermiso(u, 'ver_propios') && reg.creadoPor === u.id)) return res.status(403).json({ error: 'No tienes acceso a este registro' });
       db.prepare('UPDATE registros SET estado = ?, aprobadoPor = ?, fechaAprobado = ?, observaciones = COALESCE(?, observaciones) WHERE id = ?')
         .run(estado, req.usuario.id, new Date().toISOString(), observaciones || '', req.params.id);
     } catch (dbErr) { return res.status(500).json({ error: 'Error actualizando DB' }); }
@@ -302,18 +294,15 @@ module.exports = function createRegistrosRouter({
     const { ids, aprobar, observaciones } = req.body;
     if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'Selecciona al menos un registro' });
     const u = req.usuario;
-    const verTodos = rolTienePermiso(u.rol, 'ver_todos');
-    const verSede = rolTienePermiso(u.rol, 'ver_sede');
-    const verPropios = rolTienePermiso(u.rol, 'ver_propios');
     const estado = aprobar ? 'aprobado' : 'rechazado';
     const ahora = new Date().toISOString();
     const updateStmt = db.prepare("UPDATE registros SET estado = ?, aprobadoPor = ?, fechaAprobado = ? WHERE id = ? AND estado = 'pendiente'");
     let actualizados = 0;
     const tx = db.transaction(() => {
       for (const id of ids) {
-        if (verTodos) { actualizados += updateStmt.run(estado, req.usuario.id, ahora, id).changes; }
-        else if (verSede) { const r = db.prepare('SELECT e.sede FROM registros r JOIN empleados e ON r.empleadoId = e.id WHERE r.id = ?').get(id); if (r && r.sede === u.sede) actualizados += updateStmt.run(estado, req.usuario.id, ahora, id).changes; }
-        else if (verPropios) { const r = db.prepare('SELECT creadoPor FROM registros WHERE id = ?').get(id); if (r && r.creadoPor === u.id) actualizados += updateStmt.run(estado, req.usuario.id, ahora, id).changes; }
+        if (tienePermiso(u, 'ver_todos')) { actualizados += updateStmt.run(estado, req.usuario.id, ahora, id).changes; }
+        else if (tienePermiso(u, 'ver_sede')) { const r = db.prepare('SELECT e.sede FROM registros r JOIN empleados e ON r.empleadoId = e.id WHERE r.id = ?').get(id); if (r && r.sede === u.sede) actualizados += updateStmt.run(estado, req.usuario.id, ahora, id).changes; }
+        else if (tienePermiso(u, 'ver_propios')) { const r = db.prepare('SELECT creadoPor FROM registros WHERE id = ?').get(id); if (r && r.creadoPor === u.id) actualizados += updateStmt.run(estado, req.usuario.id, ahora, id).changes; }
       }
     });
     try { tx(); } catch (e) { return res.status(500).json({ error: 'Error actualizando DB' }); }

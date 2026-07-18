@@ -38,11 +38,6 @@ module.exports = function createRestoreUtils({ db, encryptSmtp }) {
         const ins = db.prepare('INSERT OR REPLACE INTO usuarios (id,nombre,email,password,rol,sede,activo,cambio_password,creado) VALUES (?,?,?,?,?,?,?,?,?)');
         data.usuarios.forEach(u => { if (u.id !== currentUserId && u.password) { ins.run(u.id, u.nombre, u.email, u.password, u.rol, u.sede||'Principal', u.activo??1, u.cambio_password??0, u.creado); usuarios++; } });
       }
-      if (data.centros?.length) {
-        db.prepare('DELETE FROM centros').run();
-        const ins = db.prepare('INSERT OR REPLACE INTO centros (id, nombre, activo, creado) VALUES (?,?,?,?)');
-        data.centros.forEach(c => { ins.run(c.id, c.nombre, c.activo??1, c.creado); });
-      }
       if (data.dashboard_layout?.length) {
         db.prepare('DELETE FROM dashboard_layout').run();
         const VALID_COLS = new Set(['usuarioId', 'orden', 'tamanos']);

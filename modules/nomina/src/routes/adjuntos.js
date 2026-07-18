@@ -21,18 +21,14 @@ const uploadAdjunto = multer({
   }
 });
 
-module.exports = function({ db, uid, rolTienePermiso, middlewares: { todosRoles, adminRrhhOp, podeEditar, autenticar, requierePermiso } }) {
+module.exports = function({ db, uid, tienePermiso, middlewares: { todosRoles, adminRrhhOp, podeEditar, autenticar, requierePermiso } }) {
   const router = express.Router();
 
   router.get('/registros/:id/adjuntos', todosRoles, (req, res) => {
     const u = req.usuario;
     const reg = db.prepare('SELECT r.*, e.sede FROM registros r JOIN empleados e ON r.empleadoId = e.id WHERE r.id = ?').get(req.params.id);
     if (!reg) return res.status(404).json({ error: 'Registro no encontrado' });
-    const verTodos = rolTienePermiso(u.rol, 'ver_todos');
-    const verSede = rolTienePermiso(u.rol, 'ver_sede');
-    const verPropios = rolTienePermiso(u.rol, 'ver_propios');
-    if (!verTodos && !verSede && !verPropios) return res.status(403).json({ error: 'Sin permisos de visibilidad' });
-    if (!verTodos && !(verSede && reg.sede === u.sede) && !(verPropios && reg.creadoPor === u.id)) {
+    if (!tienePermiso(u, 'ver_todos') && !(tienePermiso(u, 'ver_sede') && reg.sede === u.sede) && !(tienePermiso(u, 'ver_propios') && reg.creadoPor === u.id)) {
       return res.status(403).json({ error: 'No tienes acceso a este registro' });
     }
     const rows = db.prepare(
@@ -47,11 +43,13 @@ module.exports = function({ db, uid, rolTienePermiso, middlewares: { todosRoles,
       if (!req.file) return res.status(400).json({ error: 'No se recibió ningún archivo' });
       const registro = db.prepare('SELECT id FROM registros WHERE id = ?').get(req.params.id);
       if (!registro) return res.status(404).json({ error: 'Registro no encontrado' });
-      if (req.usuario.rol === 'operador') {
-        const reg = db.prepare('SELECT empleadoId FROM registros WHERE id = ?').get(req.params.id);
-        const asignados = db.prepare('SELECT empleadoId FROM usuario_empleados WHERE usuarioId = ?').all(req.usuario.id).map(r => r.empleadoId);
-        if (asignados.length > 0 && !asignados.includes(reg.empleadoId)) {
-          return res.status(403).json({ error: 'No tienes permiso sobre este registro.' });
+      if (!tienePermiso(req.usuario, 'ver_todos')) {
+        const reg = db.prepare('SELECT empleadoId, creadoPor FROM registros WHERE id = ?').get(req.params.id);
+        if (tienePermiso(req.usuario, 'ver_sede')) {
+          const emp = db.prepare('SELECT sede FROM empleados WHERE id = ?').get(reg.empleadoId);
+          if (emp && emp.sede !== req.usuario.sede) return res.status(403).json({ error: 'No tienes permiso sobre este registro.' });
+        } else if (tienePermiso(req.usuario, 'ver_propios')) {
+          if (reg.creadoPor !== req.usuario.id) return res.status(403).json({ error: 'No tienes permiso sobre este registro.' });
         }
       }
       const id = uid();
@@ -68,11 +66,7 @@ module.exports = function({ db, uid, rolTienePermiso, middlewares: { todosRoles,
     const u = req.usuario;
     const reg = db.prepare('SELECT r.*, e.sede FROM registros r JOIN empleados e ON r.empleadoId = e.id WHERE r.id = ?').get(adj.registroId);
     if (!reg) return res.status(404).json({ error: 'Registro no encontrado' });
-    const verTodos = rolTienePermiso(u.rol, 'ver_todos');
-    const verSede = rolTienePermiso(u.rol, 'ver_sede');
-    const verPropios = rolTienePermiso(u.rol, 'ver_propios');
-    if (!verTodos && !verSede && !verPropios) return res.status(403).json({ error: 'Sin permisos de visibilidad' });
-    if (!verTodos && !(verSede && reg.sede === u.sede) && !(verPropios && reg.creadoPor === u.id)) {
+    if (!tienePermiso(u, 'ver_todos') && !(tienePermiso(u, 'ver_sede') && reg.sede === u.sede) && !(tienePermiso(u, 'ver_propios') && reg.creadoPor === u.id)) {
       return res.status(403).json({ error: 'No tienes acceso a este adjunto' });
     }
     res.setHeader('Content-Type', adj.mime);

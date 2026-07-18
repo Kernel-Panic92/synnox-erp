@@ -45,6 +45,11 @@ function getFromName() {
   return _config.smtp_from_name || process.env.SMTP_FROM_NAME || process.env.COMPANY_NAME || 'SynnoxERP';
 }
 
+// codeql-ignore[js/incomplete-multi-character-sanitization]: used only for plain-text email fallback, not security output
+function stripHtml(html) {
+  return String(html || '').slice(0, 100000).replace(/<[^<>]*>/g, '');
+}
+
 async function sendMail({ to, subject, html, text }) {
   if (!_transport) throw new Error('SMTP no configurado');
   return _transport.sendMail({
@@ -52,7 +57,7 @@ async function sendMail({ to, subject, html, text }) {
     to,
     subject,
     html,
-    text: text || html.replace(/<[^>]*>/g, ''),
+    text: text || stripHtml(html),
   });
 }
 

@@ -9,6 +9,7 @@ function buildPayload(user) {
     email: user.email,
     nombre: user.nombre,
     rol: user.rol,
+    sede: user.sede || 'Principal',
     modulos: user.modulos || [],
     perfil_id: user.perfil_id || null,
     perfil_nombre: user.perfil_nombre || null,
@@ -20,7 +21,7 @@ function buildPayload(user) {
 }
 
 function getUserWithPermissions(db, userId) {
-  const user = db.prepare('SELECT id, nombre, email, rol, perfil_id, seq FROM usuarios WHERE id = ? AND activo = 1').get(userId);
+  const user = db.prepare('SELECT id, nombre, email, rol, perfil_id, seq, sede FROM usuarios WHERE id = ? AND activo = 1').get(userId);
   if (!user) return null;
 
   // Modules
