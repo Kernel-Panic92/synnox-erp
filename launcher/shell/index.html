@@ -304,8 +304,12 @@
   <div class="tab-content active" id="tab-usuarios">
     <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
       <div style="font-size:var(--fs);font-weight:600;">Usuarios</div>
-      <button class="btn btn-sm" onclick="showUserForm()">+ Nuevo</button>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm btn-secondary" onclick="document.getElementById('csv-upload-input').click()">📥 Importar CSV</button>
+        <button class="btn btn-sm" onclick="showUserForm()">+ Nuevo</button>
+      </div>
     </div>
+    <input type="file" id="csv-upload-input" accept=".csv" style="display:none;" onchange="importCsvUsuarios(this)"/>
     <div style="overflow-x:auto;">
       <table id="users-table">
         <thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Perfil</th><th>Centro</th><th>Estado</th><th>Acción</th></tr></thead>
