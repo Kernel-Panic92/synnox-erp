@@ -78,6 +78,7 @@
 - [x] ~~PR~~: `feat/csv-user-import` → `main` ([#8](https://github.com/Kernel-Panic92/synnox-erp/pull/8)) — merged 17 Jul 2026
 - [x] ~~PR~~: `fix/csv-import-modules` → `main` ([#9](https://github.com/Kernel-Panic92/synnox-erp/pull/9))
 - [x] ~~PR~~: `fix/proyectos-theme` → `main` ([#10](https://github.com/Kernel-Panic92/synnox-erp/pull/10))
+- [ ] **PR**: `feat/sidebar-standardization` → `main` ([#11](https://github.com/Kernel-Panic92/synnox-erp/pull/11))
 - [ ] **Licencia**: Redactar y agregar licencia de software al repo (LICENSE.md)
 - [ ] Revisar que el path `/opt/horix-platform` esté renombrado a `/opt/synnoxerp`
 
