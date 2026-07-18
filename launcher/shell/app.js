@@ -751,6 +751,32 @@ async function deleteUserPermanent(id) {
   }
 }
 
+// ── Import CSV ──
+async function importCsvUsuarios(input) {
+  const file = input.files?.[0];
+  if (!file) return;
+  input.value = '';
+  if (!file.name.endsWith('.csv')) { toast('Selecciona un archivo .csv', 'error'); return; }
+
+  toast('Importando usuarios...', 'info');
+  try {
+    const csv = await file.text();
+    const res = await fetch('/api/admin/usuarios/import-csv', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
+      body: JSON.stringify({ csv })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al importar');
+    const msg = `Importados: ${data.created} | Omítidos (duplicados): ${data.skipped} | Errores: ${data.errors}`;
+    toast(msg, data.errors > 0 ? 'warning' : 'success');
+    if (data.details?.length) console.warn('[CSV Import]', data.details);
+    loadUsers();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
 // ── Módulos ──
 async function loadModulos() {
   try {

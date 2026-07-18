@@ -732,6 +732,71 @@ app.delete('/api/admin/usuarios/:id/permanent', verificarToken, soloAdmin, (req,
   res.json({ ok: true });
 });
 
+// ── Import users from CSV (nómina backup format) ──
+app.post('/api/admin/usuarios/import-csv', verificarToken, soloAdmin, (req, res) => {
+  const { csv } = req.body;
+  if (!csv || typeof csv !== 'string') return res.status(400).json({ error: 'CSV requerido' });
+
+  const lines = csv.split(/\r?\n/).filter(l => l.trim());
+  if (lines.length < 2) return res.status(400).json({ error: 'CSV vacío o sin datos' });
+
+  function parseCsvLine(line) {
+    const cols = []; let cur = '', inQ = false;
+    for (const ch of line) {
+      if (ch === '"') { inQ = !inQ; }
+      else if (ch === ',' && !inQ) { cols.push(cur); cur = ''; }
+      else cur += ch;
+    }
+    cols.push(cur);
+    return cols.map(c => c.replace(/^"|"$/g, '').replace(/""/g, '"').trim());
+  }
+
+  const headers = parseCsvLine(lines[0]).map(h => h.toLowerCase());
+  const idx = h => headers.indexOf(h);
+
+  const required = ['email', 'nombre'];
+  const missing = required.filter(r => idx(r) === -1);
+  if (missing.length) return res.status(400).json({ error: `Columnas faltantes: ${missing.join(', ')}` });
+
+  const roleMap = { admin: 'admin', rrhh: 'operador', gerencia: 'operador', operador: 'operador', consulta: 'operador' };
+  let created = 0, skipped = 0, errors = 0;
+  const details = [];
+
+  const importTransaction = db.transaction(() => {
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCsvLine(lines[i]);
+      const email = (cols[idx('email')] || '').toLowerCase().trim();
+      const nombre = (cols[idx('nombre')] || '').trim();
+      if (!email || !nombre) { errors++; details.push(`Fila ${i + 1}: email o nombre vacío`); continue; }
+
+      const exists = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(email);
+      if (exists) { skipped++; continue; }
+
+      const rawRol = (cols[idx('rol')] || 'operador').toLowerCase().trim();
+      const rol = roleMap[rawRol] || 'operador';
+      const sede = (cols[idx('sede')] || '').trim() || 'Principal';
+      const activoRaw = cols[idx('activo')];
+      const activo = activoRaw != null ? (parseInt(activoRaw) || 0) : 1;
+      const hash = (cols[idx('password')] || '').trim() || bcrypt.hashSync(Math.random().toString(36).slice(-10) + 'A1!', 10);
+
+      const centroValido = db.prepare('SELECT id FROM centros_operacion WHERE nombre = ? AND activo = 1').get(sede);
+      const finalSede = centroValido ? sede : 'Principal';
+
+      try {
+        db.prepare('INSERT INTO usuarios (nombre, email, password_hash, rol, sede, activo) VALUES (?, ?, ?, ?, ?, ?)')
+          .run(nombre, email, hash, rol, finalSede, activo ? 1 : 0);
+        created++;
+      } catch (e) {
+        if (e.message.includes('UNIQUE')) { skipped++; }
+        else { errors++; details.push(`Fila ${i + 1}: ${e.message}`); }
+      }
+    }
+  });
+
+  importTransaction();
+  res.json({ ok: true, created, skipped, errors, details: details.slice(0, 20) });
+});
+
 // ── User-Module assignments ──
 app.get('/api/admin/usuarios/:id/modulos', verificarToken, soloAdmin, (req, res) => {
   const rows = db.prepare('SELECT modulo_id FROM user_modulos WHERE user_id = ?').all(parseInt(req.params.id));
