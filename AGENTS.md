@@ -60,7 +60,8 @@
 - **Base de datos**: PostgreSQL centralizado (producción), SQLite local para Nómina
 
 ### Pendientes nuevos
-- [x] ~~PR~~: `fix/install-sh` → `main` ([#7](https://github.com/Kernel-Panic92/synnox-erp/pull/7))
+- [x] ~~PR~~: `fix/install-sh` → `main` ([#7](https://github.com/Kernel-Panic92/synnox-erp/pull/7)) — merged 17 Jul 2026
+- [x] ~~PR~~: `feat/csv-user-import` → `main` ([#8](https://github.com/Kernel-Panic92/synnox-erp/pull/8))
 - [ ] **Licencia**: Redactar y agregar licencia de software al repo (LICENSE.md)
 - [ ] Revisar que el path `/opt/horix-platform` esté renombrado a `/opt/synnoxerp`
 
