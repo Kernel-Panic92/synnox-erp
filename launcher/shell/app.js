@@ -752,29 +752,48 @@ async function deleteUserPermanent(id) {
 }
 
 // ── Import CSV ──
-async function importCsvUsuarios(input) {
-  const file = input.files?.[0];
-  if (!file) return;
-  input.value = '';
-  if (!file.name.endsWith('.csv')) { toast('Selecciona un archivo .csv', 'error'); return; }
+async function showImportCsvModal() {
+  document.getElementById('csv-file-input').value = '';
+  const container = document.getElementById('csv-modulos-list');
+  try {
+    const res = await fetch('/api/admin/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const mods = await res.json();
+    container.innerHTML = mods.filter(m => m.activo).map(m =>
+      `<label style="display:flex;align-items:center;gap:6px;padding:4px 0;cursor:pointer;">
+        <input type="checkbox" value="${esc(m.id)}" checked /> ${esc(m.nombre)}
+      </label>`
+    ).join('');
+  } catch { container.innerHTML = '<span style="color:var(--danger);">Error cargando módulos</span>'; }
+  document.getElementById('modal-import-csv').classList.add('show');
+}
 
-  toast('Importando usuarios...', 'info');
+async function doImportCsv() {
+  const file = document.getElementById('csv-file-input').files?.[0];
+  if (!file) { toast('Selecciona un archivo CSV', 'error'); return; }
+  if (!file.name.endsWith('.csv')) { toast('El archivo debe ser .csv', 'error'); return; }
+
+  const modulos = [...document.querySelectorAll('#csv-modulos-list input[type=checkbox]:checked')].map(cb => cb.value);
+  const btn = document.getElementById('btn-import-csv');
+  btn.disabled = true; btn.textContent = 'Importando...';
+
   try {
     const csv = await file.text();
     const res = await fetch('/api/admin/usuarios/import-csv', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
-      body: JSON.stringify({ csv })
+      body: JSON.stringify({ csv, modulos })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error al importar');
-    const msg = `Importados: ${data.created} | Omítidos (duplicados): ${data.skipped} | Errores: ${data.errors}`;
+    const msg = `Importados: ${data.created} | Omítidos: ${data.skipped} | Errores: ${data.errors}`;
     toast(msg, data.errors > 0 ? 'warning' : 'success');
     if (data.details?.length) console.warn('[CSV Import]', data.details);
+    cerrarModal('modal-import-csv');
     loadUsers();
   } catch (e) {
     toast(e.message, 'error');
   }
+  btn.disabled = false; btn.textContent = 'Importar';
 }
 
 // ── Módulos ──
