@@ -46,15 +46,7 @@ function getFromName() {
 }
 
 function stripHtml(html) {
-  let out = '';
-  let inTag = false;
-  for (let i = 0; i < html.length; i++) {
-    const ch = html[i];
-    if (ch === '<') { inTag = true; continue; }
-    if (ch === '>') { inTag = false; continue; }
-    if (!inTag) out += ch;
-  }
-  return out;
+  return String(html || '').slice(0, 100000).replace(/<[^<>]*>/g, '');
 }
 
 async function sendMail({ to, subject, html, text }) {
