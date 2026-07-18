@@ -4,6 +4,7 @@
 
 ### Cambios Sesión 14 — Unificación catálogo centros nómina→launcher + fix 404
 
+- **Bug fix — 502 tras restart máquina**: Nginx proxy a puerto 3003, PM2 estaba vacío. Fix: `pm2 start server.js --name synnoxerp` con .env `PORT=3003`. Root process en `/opt/synnoxerp` (puerto 3002) es instalación vieja.
 - **Bug fix — 404 en `/api/admin/centros`**: El route existía correctamente en `launcher/server.js:834` pero el servidor PM2 tenía código stale. Fix: `pm2 restart synnoxerp`.
 - **Nuevo `launcherDb.js`**: Helper en `modules/nomina/src/utils/launcherDb.js` que abre `launcher.db` en modo read-only para consultar `centros_operacion`. Cache singleton con TTL de 30s.
 - **Refactor — centros.js (nómina)**: GET lee del launcher; POST/PUT/DELETE devuelven 400 con mensaje "Los centros se gestionan desde el panel de administración del Launcher".
@@ -59,6 +60,7 @@
 - **Base de datos**: PostgreSQL centralizado (producción), SQLite local para Nómina
 
 ### Pendientes nuevos
+- [ ] **PR pendiente**: Crear PR de `fix/install-sh` → `main` en GitHub (cambios sesión 14: centros unificación, 502 fix, permisos nomina, branding)
 - [ ] **Licencia**: Redactar y agregar licencia de software al repo (LICENSE.md)
 - [ ] Revisar que el path `/opt/horix-platform` esté renombrado a `/opt/synnoxerp`
 
