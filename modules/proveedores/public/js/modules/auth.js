@@ -22,11 +22,10 @@ function showApp(){
   $('app-screen').classList.add('show');
   document.body.className=S.theme;
   const tb=$('theme-btn');if(tb)tb.textContent=S.theme==='dark'?'🌙':'☀️';
-  $('u-name').textContent=S.usuario?.nombre||'—';
-  $('u-role').textContent=S.usuario?.perfil_nombre||S.usuario?.rol||'—';
-  if ($('u-email')) $('u-email').textContent=S.usuario?.email||'';
-  const badge=$('u-badge');
-  if(badge){badge.textContent=S.usuario?.perfil_nombre||S.usuario?.rol||'';badge.className='role-badge role-'+(S.usuario?.rol||'').toLowerCase();}
+  const nameEl=$('user-name');if(nameEl)nameEl.textContent=S.usuario?.nombre||'—';
+  const roleEl=$('user-role');if(roleEl)roleEl.textContent=S.usuario?.perfil_nombre||S.usuario?.rol||'—';
+  const badge=$('user-badge');
+  if(badge){badge.textContent=S.usuario?.perfil_nombre||S.usuario?.rol||'';badge.className='badge role-'+(S.usuario?.rol||'').toLowerCase();}
   initFiltros();
   
   fetch(BASE+'/api/version').then(r=>r.json()).then(d=>{
@@ -48,7 +47,8 @@ function showApp(){
   
   if(localStorage.getItem('sidebar_collapsed')==='true'){
     $('sidebar').classList.add('collapsed');
-    $('sidebar-toggle').textContent='▶';
+    const t=$('sidebar').querySelector('.sidebar-toggle');
+    if(t)t.textContent='▶';
   }
   
   const v=getPageFromHash();
@@ -63,5 +63,5 @@ function buildNav(){
     h+=`<div style="font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;padding:10px 24px 4px;margin-top:4px">${sec.l}</div>`;
     for(const n of items)h+=`<div class="nav-item" id="nv-${n.id}" onclick="goNav('${n.id}')">${n.i}<span style="flex:1">${n.l}</span>${n.badge?`<span class="badge" style="font-size:10px;padding:2px 6px;background:${n.w?'rgba(251,191,36,.15)':'rgba(79,142,247,.15)'};color:${n.w?'var(--warning)':'var(--accent)'}" id="nb-${n.badge}">0</span>`:''}</div>`;
   }
-  $('nav').innerHTML=h;
+  $('sidebar-nav').innerHTML=h;
 }

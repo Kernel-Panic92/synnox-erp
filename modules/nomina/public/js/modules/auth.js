@@ -1,4 +1,4 @@
-async function doLogout() {
+async function mostrarLogoutConfirm() {
   confirmar({
     titulo: 'Cerrar sesión',
     mensaje: '¿Seguro que deseas cerrar sesión?',

@@ -27,14 +27,14 @@ function toggleTheme(){
   const tb=$('theme-btn');if(tb)tb.textContent=S.theme==='dark'?'🌙':'☀️';
 }
 
-function toggleSidebar(){$('sidebar').classList.add('open');$('mob-overlay').classList.add('visible')}
-function closeSidebar(){$('sidebar').classList.remove('open');$('mob-overlay').classList.remove('visible')}
+function toggleSidebar(){$('sidebar').classList.toggle('open');document.querySelector('.sidebar-overlay')?.classList.toggle('show')}
+function closeSidebar(){$('sidebar').classList.remove('open');document.querySelector('.sidebar-overlay')?.classList.remove('show')}
 
 function toggleSidebarCollapse(){
   const s=$('sidebar');
   s.classList.toggle('collapsed');
   localStorage.setItem('sidebar_collapsed', s.classList.contains('collapsed'));
-  const btn = $('sidebar-toggle');
+  const btn = s.querySelector('.sidebar-toggle');
   if(btn) btn.textContent = s.classList.contains('collapsed') ? '▶' : '◀';
 }
 
