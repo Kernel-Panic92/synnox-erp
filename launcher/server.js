@@ -734,11 +734,13 @@ app.delete('/api/admin/usuarios/:id/permanent', verificarToken, soloAdmin, (req,
 
 // ── Import users from CSV (nómina backup format) ──
 app.post('/api/admin/usuarios/import-csv', verificarToken, soloAdmin, (req, res) => {
-  const { csv } = req.body;
+  const { csv, modulos } = req.body;
   if (!csv || typeof csv !== 'string') return res.status(400).json({ error: 'CSV requerido' });
 
   const lines = csv.split(/\r?\n/).filter(l => l.trim());
   if (lines.length < 2) return res.status(400).json({ error: 'CSV vacío o sin datos' });
+
+  const modulosAsignar = Array.isArray(modulos) ? modulos : [];
 
   function parseCsvLine(line) {
     const cols = []; let cur = '', inQ = false;
@@ -761,6 +763,7 @@ app.post('/api/admin/usuarios/import-csv', verificarToken, soloAdmin, (req, res)
   const roleMap = { admin: 'admin', rrhh: 'operador', gerencia: 'operador', operador: 'operador', consulta: 'operador' };
   let created = 0, skipped = 0, errors = 0;
   const details = [];
+  const insModulo = db.prepare('INSERT OR IGNORE INTO user_modulos (user_id, modulo_id) VALUES (?, ?)');
 
   const importTransaction = db.transaction(() => {
     for (let i = 1; i < lines.length; i++) {
@@ -783,8 +786,10 @@ app.post('/api/admin/usuarios/import-csv', verificarToken, soloAdmin, (req, res)
       const finalSede = centroValido ? sede : 'Principal';
 
       try {
-        db.prepare('INSERT INTO usuarios (nombre, email, password_hash, rol, sede, activo) VALUES (?, ?, ?, ?, ?, ?)')
+        const result = db.prepare('INSERT INTO usuarios (nombre, email, password_hash, rol, sede, activo) VALUES (?, ?, ?, ?, ?, ?)')
           .run(nombre, email, hash, rol, finalSede, activo ? 1 : 0);
+        const userId = result.lastInsertRowid;
+        for (const m of modulosAsignar) insModulo.run(userId, m);
         created++;
       } catch (e) {
         if (e.message.includes('UNIQUE')) { skipped++; }
