@@ -143,7 +143,7 @@ const { soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles, 
 });
 
 // ─── Auth global: verify JWT + check module access for all /api routes ──────
-app.use('/api', autenticar([]));
+app.use('/api', (req, res, next) => { if (req.path === '/version') return next(); autenticar([])(req, res, next); });
 app.use('/api', requireModule('nomina'));
 
 app.use('/api/auth', require('./src/routes/auth')({
@@ -224,8 +224,12 @@ app.get('/mcp-test', testLimiter, (req, res) => res.send('MCP OK ' + Date.now())
 // ─────────────────────────────────────────────
 // VERSION
 // ─────────────────────────────────────────────
-const pkg = require('./package.json');
-app.get('/api/version', (req, res) => res.json({ version: pkg.version, name: APP_NAME }));
+app.get('/api/version', (req, res) => {
+  try {
+    const rootPkg = JSON.parse(require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'package.json'), 'utf8'));
+    res.json({ version: rootPkg.version || '1.0.0', name: APP_NAME });
+  } catch { res.json({ version: '1.0.0', name: APP_NAME }); }
+});
 
 const logErrorTelemetry = db.prepare('INSERT INTO telemetria (evento, pagina, usuarioId, datos, creado) VALUES (?,?,?,?,?)');
 // Error handler global — siempre responde JSON y registra en telemetría

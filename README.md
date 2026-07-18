@@ -1,20 +1,18 @@
 # SynnoxERP
 
-Plataforma ERP modular con arquitectura monorepo unificado. Un solo servidor, tres módulos, auth centralizada.
+Plataforma ERP modular con arquitectura monorepo unificado. Un servidor, cinco módulos, auth centralizada.
 
 ## Arquitectura
 
 ```
-                    Nginx (443/HTTPS)
-                         │
-                    ┌────┴────┐
-                    │         │
-              Express :3002  SSL
-                    │
-        ┌───────────┼───────────┐
-        │           │           │
-   /proveedores  /logistica  /nomina
-   (PostgreSQL)  (PostgreSQL)  (SQLite)
+                     Nginx (443/HTTPS)
+                          │
+                     Express :3002
+                          │
+        ┌─────────┬───────┼───────┬─────────┐
+        │         │       │       │         │
+   /proveedores /logistica /nomina /proyectos  /
+   (PostgreSQL) (PostgreSQL) (SQLite) (PostgreSQL) (SQLite)
 ```
 
 | Módulo | Función | DB | Ruta |
@@ -23,6 +21,7 @@ Plataforma ERP modular con arquitectura monorepo unificado. Un solo servidor, tr
 | **Proveedores** | Facturas, compras | PostgreSQL | `/proveedores/` |
 | **Logística** | Rutas, pedidos, vehículos | PostgreSQL | `/logistica/` |
 | **Nómina** | Horas extra, novedades | SQLite | `/nomina/` |
+| **Proyectos** | Gestión de proyectos y tareas | PostgreSQL | `/proyectos/` |
 
 ## Instalación rápida
 
@@ -35,7 +34,7 @@ sudo bash install.sh
 El instalador:
 1. Instala dependencias (Node.js, PostgreSQL, nginx, PM2)
 2. Genera `.env` con JWT_SECRET fuerte
-3. Ejecuta `npm install`
+3. Ejecuta `pnpm install --prod`
 4. Corre migraciones automáticamente
 5. Configura nginx con SSL
 6. Arranca el servidor con PM2
@@ -79,7 +78,7 @@ SMTP_FROM=erp@tudominio.com
 ### 2. Instalar dependencias
 
 ```bash
-npm install
+pnpm install --prod
 ```
 
 ### 3. PostgreSQL
@@ -154,7 +153,7 @@ node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
 
 ### Cookie
 
-- `httpOnly: false` — necesario para que los módulos lean el token via JavaScript
+- `httpOnly: true` — previene robo de token via XSS
 - `sameSite: lax` — permite navegación desde el launcher a módulos
 - `secure: true` solo en HTTPS (producción)
 
@@ -179,23 +178,28 @@ pm2 status
 pm2 restart synnoxerp
 
 # Actualizar
-cd /opt/horix-platform
+cd /opt/synnoxerp
 git pull
-npm install
+pnpm install --prod
 pm2 restart synnoxerp
 ```
 
 ## Estructura del proyecto
 
 ```
-horix-erp/
+synnox-erp/
 ├── server.js              # Entry point unificado
 ├── .env                   # Variables de entorno (no subir a git)
 ├── package.json           # Dependencias raíz
 ├── install.sh             # Instalador automático
 ├── SECURITY.md            # Documentación CVEs
+├── ARCHITECTURE.md        # Arquitectura del sistema
+├── AGENTS.md              # Contexto para AI agents
 ├── framework/
-│   └── auth.mjs           # Auth compartida (ESM)
+│   ├── base.css           # CSS compartido (sidebar, layout, variables)
+│   ├── framework.js       # JS compartido (sidebar, auth, navigation)
+│   ├── auth.mjs           # Auth compartida (ESM)
+│   └── README.md          # Guía para crear módulos
 ├── launcher/
 │   ├── server.js          # Launcher backend
 │   └── shell/             # Frontend launcher
@@ -204,7 +208,33 @@ horix-erp/
 └── modules/
     ├── proveedores/       # Facturas y proveedores
     ├── logistica/         # Rutas y pedidos
-    └── nomina/            # Horas extra
+    ├── nomina/            # Horas extra
+    └── proyectos/         # Gestión de proyectos
+```
+
+## Framework — Sidebar
+
+Todos los módulos usan el mismo sidebar del framework. Al crear un módulo nuevo:
+
+1. Copiar `framework/base.css` y `framework/framework.js` al `public/` del módulo
+2. Usar `<aside class="sidebar">` (NO `<nav>` ni `<div>`)
+3. Incluir toggle de colapsado: `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`
+4. Nav items: `<div class="nav-item" data-page="xxx" onclick="navigate('xxx')"><span class="icon">emoji</span> Texto</div>`
+5. Overlay: `<div class="sidebar-overlay" onclick="closeSidebar()"></div>`
+6. User info IDs: `#user-name`, `#user-role`, `#user-badge`
+7. Footer: `<div class="sidebar-footer">` con `.btn-logout` y `.version`
+8. Theme: `initFramework({ themeKey: 'synnox_theme' })` — lee del launcher
+
+## Framework — Versión
+
+Todos los módulos muestran la misma versión (del root `package.json`):
+
+```js
+// Backend: leer de root package.json
+const rootPkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf8'));
+res.json({ version: rootPkg.version });
+
+// Frontend: framework.js loadVersion() ya hace esto automáticamente
 ```
 
 ## Troubleshooting

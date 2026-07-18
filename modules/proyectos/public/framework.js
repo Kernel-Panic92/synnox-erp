@@ -58,10 +58,8 @@ async function loadVersion() {
   if (!el) return;
   try {
     const data = await api('/version');
-    const ver = data.version || '1.0.0';
-    const branch = data.branch ? ' [' + data.branch + ']' : '';
-    el.textContent = 'v' + ver + branch;
-    window._appVer = 'v' + ver + branch;
+    el.textContent = 'v' + (data.version || '1.0.0');
+    window._appVer = 'v' + (data.version || '1.0.0');
   } catch { el.textContent = 'v—'; window._appVer = 'v—'; }
 }
 

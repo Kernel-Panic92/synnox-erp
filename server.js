@@ -56,6 +56,7 @@ async function start() {
   } catch (e) { console.error('[proyectos] Error:', e.message); }
   app.use('/proyectos', express.static(path.join(__dirname, 'modules', 'proyectos', 'public')));
 
+  // SPA catch-all — MUST be after all module mounts
   app.get('*', publicLimiter, (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
     const spaPath = path.join(__dirname, 'launcher', 'shell', 'index.html');

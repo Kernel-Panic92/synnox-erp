@@ -10,7 +10,10 @@
 - **Logística — sidebar**: Sincronizado `base.css`/`framework.js` con framework. Eliminado CSS duplicado del sidebar en inline `<style>`. Agregado botón de colapsado.
 - **Nomina — sidebar**: `<nav>` → `<aside>`, `.mob-overlay` → `.sidebar-overlay`, IDs estandarizados (`user-name`, `user-role`, `user-badge`), `.nav-icon` → `.icon`, `.role-badge` → `.badge`, nav container → `<nav id="sidebar-nav">`.
 - **Proveedores — sidebar**: `<div>` → `<aside>`, `.mob-overlay` → `.sidebar-overlay`, IDs estandarizados, `.role-badge` → `.badge`, nav → `<nav id="sidebar-nav">`, funciones sidebar actualizadas.
-- **AGENTS.md**: Agregadas convenciones del sidebar para módulos nuevos.
+- **Versión unificada**: Todos los módulos ahora leen `/api/version` del root `package.json` (versión `1.0.0`). Eliminados `readBranch()`, `readRepoUrl()`, display de rama git.
+- **Auth exemption**: `/api/version` exento de auth global en nomina y proveedores.
+- **Root catch-all**: SPA catch-all movido después de todos los mounts de módulos (fix para que sub-apps funcionen correctamente).
+- **Documentación**: Actualizado README.md root (paths, arquitectura, proyectos), framework/README.md (sidebar conventions, version), AGENTS.md (version convention).
 
 ---
 
@@ -43,6 +46,7 @@
 - **DB**: Migraciones con `try { db.exec("ALTER TABLE...") } catch {}` para columnas nuevas. Seeds con `INSERT OR IGNORE`.
 - **Auth**: Siempre via `verificarToken` middleware. JWT incluye `modulos_permisos` para permisos granulares.
 - **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`.
+- **Versión**: Todos los módulos leen `/api/version` del root `package.json` (versión unificada `1.0.0`). NO usar `package.json` del módulo. NO mostrar rama git. Frontend: `el.textContent = 'v' + data.version`.
 
 ---
 

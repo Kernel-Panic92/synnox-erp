@@ -211,7 +211,7 @@ async function iniciarApp() {
     if (res.ok) {
       const data = await res.json();
       const versionEl = document.getElementById('app-version');
-      if (versionEl) versionEl.textContent = 'v' + data.version + (data.rama ? ' [' + data.rama + ']' : '');
+      if (versionEl) versionEl.textContent = 'v' + data.version;
     }
   } catch (e) {
     console.error('Error fetching version:', e);

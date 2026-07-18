@@ -90,8 +90,8 @@ app.get('/health', (req, res) => res.json({ status: 'ok', module: MODULE_ID }));
 
 app.get('/api/version', (req, res) => {
   try {
-    const pkg = JSON.parse(fs.readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
-    res.json({ version: pkg.version || '1.0.0', nombre: pkg.name });
+    const rootPkg = JSON.parse(fs.readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'));
+    res.json({ version: rootPkg.version || '1.0.0', nombre: 'SynnoxERP Proyectos' });
   } catch {
     res.json({ version: '1.0.0', nombre: 'SynnoxERP Proyectos' });
   }
