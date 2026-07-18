@@ -121,7 +121,7 @@ async function init() {
 async function cargarVersion() {
   try {
     const data = await api('/version');
-    window._appVer = 'v' + data.version + (data.branch ? ' [' + data.branch + ']' : '');
+    window._appVer = 'v' + data.version;
     const el = document.getElementById('app-version');
     if (el) el.textContent = window._appVer;
     const verInput = document.getElementById('cfg-version');

@@ -14,23 +14,92 @@ modulo/
 │       └── index.js       ← MCP server (JSON-RPC 2.0)
 ├── public/
 │   ├── index.html         ← Frontend SPA
+│   ├── base.css           ← Copiado de framework/base.css
+│   ├── framework.js       ← Copiado de framework/framework.js
 │   └── js/
-│       ├── framework.js   ← Copiado de framework/
 │       └── app.js         ← Lógica del frontend
 └── AGENTS.md              ← Contexto del proyecto
 ```
 
-## 1. Frontend
+## 1. Frontend — Sidebar (obligatorio)
 
-Usa `init.sh` para copiar la base:
+Todos los módulos usan el mismo sidebar. Copiar `base.css` y `framework.js` del directorio `framework/` al `public/` del módulo.
 
-```bash
-bash framework/init.sh /ruta/del/modulo/public
+### HTML mínimo del sidebar
+
+```html
+<link rel="stylesheet" href="base.css">
+<!-- ... -->
+<div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>
+  <div class="logo">📦 <span>Mi Módulo</span></div>
+  <div class="user-info">
+    <div class="name" id="user-name"></div>
+    <div class="role" id="user-role"></div>
+    <span class="badge" id="user-badge"></span>
+  </div>
+  <nav id="sidebar-nav">
+    <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
+      <span class="icon">📊</span> Dashboard
+    </div>
+    <div class="nav-item" data-page="items" onclick="navigate('items')">
+      <span class="icon">📋</span> Items
+    </div>
+  </nav>
+  <div class="sidebar-footer">
+    <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesion">
+      <span style="font-size:18px">&#x23FB;</span> Cerrar sesion
+    </button>
+    <div class="version">
+      <div id="app-version">v—</div>
+    </div>
+  </div>
+</aside>
 ```
 
-Esto copia `base.css`, `components.css`, `framework.js`, `theme.js` y genera `index.html`.
+### Convenciones del sidebar
 
-## 2. Backend mínimo
+| Elemento | Clase/ID | Notas |
+|----------|----------|-------|
+| Sidebar | `<aside class="sidebar" id="sidebar">` | NO usar `<nav>` ni `<div>` |
+| Overlay | `<div class="sidebar-overlay">` | Se muestra con `.show` |
+| Toggle | `<div class="sidebar-toggle">` | Primer hijo del sidebar |
+| Logo | `<div class="logo">` | `emoji <span>Nombre</span>` |
+| User info | `<div class="user-info">` | `.name#user-name`, `.role#user-role`, `.badge#user-badge` |
+| Nav container | `<nav id="sidebar-nav">` | Puede tener ítems estáticos o dinámicos |
+| Nav items | `<div class="nav-item" data-page="xxx">` | `<span class="icon">emoji</span>` + texto |
+| Footer | `<div class="sidebar-footer">` | `.btn-logout` + `.version` con `#app-version` |
+| Colapsado | `localStorage('sidebar_collapsed')` | Framework restaura en init |
+| Theme | `themeKey: 'synnox_theme'` | Lee del launcher |
+
+## 2. Frontend — JavaScript
+
+```html
+<script src="framework.js"></script>
+<script src="js/app.js"></script>
+```
+
+En `app.js`:
+
+```javascript
+initFramework({
+  basePath: '/mi-modulo',     // prefix si está detrás de proxy
+  apiPrefix: '/api',
+  themeKey: 'synnox_theme',   // SIEMPRE este valor
+  tokenKey: 'mi-modulo_token',
+  routes: {
+    dashboard: () => cargarDashboard(),
+    items: () => cargarItems(),
+  }
+});
+
+// Cargar versión (framework.js loadVersion() lo hace automático)
+// Solo implementar lógica específica del módulo
+```
+
+## 3. Backend mínimo
 
 `backend/server.js`:
 
@@ -38,6 +107,7 @@ Esto copia `base.css`, `components.css`, `framework.js`, `theme.js` y genera `in
 import express from 'express';
 import cors from 'cors';
 import path from 'path';
+import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import jwt from 'jsonwebtoken';
@@ -57,6 +127,14 @@ function verificarToken(req, res, next) {
   try { req.usuario = jwt.verify(auth.split(' ')[1], process.env.JWT_SECRET); next(); }
   catch { return res.status(401).json({ error: 'Token inválido' }); }
 }
+
+// Version — SIEMPRE leer de root package.json
+app.get('/api/version', (req, res) => {
+  try {
+    const rootPkg = JSON.parse(fs.readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'));
+    res.json({ version: rootPkg.version || '1.0.0', name: 'Mi Módulo' });
+  } catch { res.json({ version: '1.0.0', name: 'Mi Módulo' }); }
+});
 
 // Health
 app.get('/api/health', (req, res) => res.json({ status: 'ok' }));
@@ -79,7 +157,20 @@ app.listen(PORT, () => console.log(`Módulo escuchando en puerto ${PORT}`));
 export default app;
 ```
 
-## 3. MCP server
+## 4. Versión unificada
+
+Todos los módulos leen `/api/version` del root `package.json`. **NUNCA** usar el `package.json` del módulo.
+
+```javascript
+// Backend
+const rootPkg = JSON.parse(fs.readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'));
+res.json({ version: rootPkg.version });
+
+// Frontend — framework.js loadVersion() lo hace automáticamente
+// El resultado se muestra en #app-version como "v1.0.0"
+```
+
+## 5. MCP server
 
 `backend/mcp/index.js` — copia el patrón de logistics:
 
@@ -138,7 +229,7 @@ async function ejecutarTool(name, args) {
 - Tool names en snake_case, español
 - El gateway de la plataforma prefija las tools con `{module_id}_`
 
-## 4. Registrar en la plataforma
+## 6. Registrar en la plataforma
 
 Ejecuta este script (adaptando valores):
 
@@ -157,7 +248,7 @@ console.log('Registrado');
 
 O desde Admin UI: `https://dominio:9443` → Módulos → Agregar.
 
-## 5. Nginx
+## 7. Nginx
 
 Agrega el location block en el server del puerto que corresponda:
 
@@ -177,19 +268,18 @@ location /mi-modulo/ {
 sudo nginx -t && sudo systemctl reload nginx
 ```
 
-## 6. initFramework options
+## 8. initFramework options
 
 | Opción | Default | Descripción |
 |--------|---------|-------------|
 | `apiPrefix` | `/api` | Prefijo para llamadas API |
 | `basePath` | `''` | Base path cuando el módulo está detrás de proxy prefix |
 | `tokenKey` | `'hf_token'` | Clave en localStorage para el token |
-| `themeKey` | `'hf_theme'` | Clave en localStorage para el tema |
+| `themeKey` | `'synnox_theme'` | **SIEMPRE usar este valor** — lee tema del launcher |
 | `routes` | `{}` | Mapa de páginas `{ dashboard: fn, items: fn }` |
+| `themePages` | `['dashboard']` | Páginas que muestran toggle de tema |
 
-Si el módulo se sirve desde un proxy prefix (ej: `:9443/mi-modulo/`), pasar `basePath: '/mi-modulo'` para que las API calls apunten a `/mi-modulo/api/...`.
-
-## 7. PM2
+## 9. PM2
 
 ```bash
 pm2 start /opt/synnoxerp/mi-modulo/backend/server.js --name mi-modulo
@@ -204,3 +294,6 @@ pm2 save
 - DB: PostgreSQL con schema propio o SQLite local
 - Tool names en snake_case, español
 - AGENTS.md en la raíz del proyecto con contexto
+- Versión: SIEMPRE de root `package.json`, NO del módulo
+- Sidebar: SIEMPRE `base.css` + `framework.js`, NO CSS inline
+- Theme: SIEMPRE `synnox_theme`, NO key propia del módulo

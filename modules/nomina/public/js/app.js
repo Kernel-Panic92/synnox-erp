@@ -66,7 +66,7 @@ function applyPermControls() {
   });
   
   // Config page admin-only
-  const navCfg = document.getElementById('nav-configuracion');
+  const navCfg = document.querySelector('.nav-item[data-page="configuracion"]');
   if (navCfg) navCfg.style.display = hasPerm('configuracion') ? '' : 'none';
 }
 
@@ -140,38 +140,36 @@ async function navigate(page) {
   
   // Close sidebar on mobile
   if (window.innerWidth <= 768) {
-    cerrarSidebar();
+    closeSidebar();
   }
 }
 
+// ── Sidebar (framework-compatible) ──
 function toggleSidebar() {
-  const sidebar = document.getElementById('sidebar');
-  if (sidebar) sidebar.classList.toggle('open');
+  document.getElementById('sidebar')?.classList.toggle('open');
+  document.querySelector('.sidebar-overlay')?.classList.toggle('show');
 }
-
+function closeSidebar() {
+  document.getElementById('sidebar')?.classList.remove('open');
+  document.querySelector('.sidebar-overlay')?.classList.remove('show');
+}
 function toggleSidebarCollapse() {
-  const sidebar = document.getElementById('sidebar');
-  if (sidebar) {
-    sidebar.classList.toggle('collapsed');
-    localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
-  }
-}
-
-function cerrarSidebar() {
-  const sidebar = document.getElementById('sidebar');
-  if (sidebar) sidebar.classList.remove('open');
+  const s = document.getElementById('sidebar');
+  if (!s) return;
+  s.classList.toggle('collapsed');
+  localStorage.setItem('sidebar_collapsed', s.classList.contains('collapsed'));
 }
 
 // App Initialization
 async function iniciarApp() {
-  // Update user info in UI
+  // Update user info in UI (framework standard IDs)
   if (sesion?.usuario) {
-    document.getElementById('ui-nombre').textContent = sesion.usuario.nombre;
-    document.getElementById('ui-email').textContent = sesion.usuario.email;
-    document.getElementById('ui-rol-badge').textContent = sesion.usuario.perfil_nombre || rolLabel(sesion.usuario.rol);
-    document.getElementById('ui-rol-badge').className = 'role-badge role-' + sesion.usuario.rol;
-    const sedeEl = document.getElementById('ui-sede');
-    if (sedeEl) sedeEl.textContent = sesion.usuario.sede;
+    const nameEl = document.getElementById('user-name');
+    if (nameEl) nameEl.textContent = sesion.usuario.nombre;
+    const roleEl = document.getElementById('user-role');
+    if (roleEl) roleEl.textContent = sesion.usuario.perfil_nombre || rolLabel(sesion.usuario.rol);
+    const badgeEl = document.getElementById('user-badge');
+    if (badgeEl) badgeEl.textContent = sesion.usuario.rol;
   }
   
   // Load all data
@@ -213,7 +211,7 @@ async function iniciarApp() {
     if (res.ok) {
       const data = await res.json();
       const versionEl = document.getElementById('app-version');
-      if (versionEl) versionEl.textContent = 'v' + data.version + (data.rama ? ' [' + data.rama + ']' : '');
+      if (versionEl) versionEl.textContent = 'v' + data.version;
     }
   } catch (e) {
     console.error('Error fetching version:', e);

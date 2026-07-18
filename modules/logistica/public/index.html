@@ -7,6 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="base.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
 :root {
@@ -40,22 +41,6 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
 
 /* ── App Layout ── */
 #app-screen{display:block}
-.sidebar{position:fixed;left:0;top:0;bottom:0;width:var(--sidebar-w);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;z-index:100;transition:transform .25s}
-.sidebar .logo{padding:20px;font-family:var(--font-head);font-size:18px;font-weight:700;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)}
-.sidebar .logo span{color:var(--accent)}
-.sidebar .user-info{padding:16px 20px;border-bottom:1px solid var(--border)}
-.sidebar .user-info .name{font-weight:600;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sidebar .user-info .role{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.sidebar .user-info .badge{display:inline-block;background:var(--accent);color:#fff;font-size:10px;padding:2px 8px;border-radius:10px;margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
-.sidebar nav{flex:1;padding:12px 0;overflow-y:auto}
-.sidebar nav .nav-item{display:flex;align-items:center;gap:12px;padding:10px 20px;color:var(--muted);font-size:14px;cursor:pointer;transition:all .12s;border-left:3px solid transparent}
-.sidebar nav .nav-item:hover{color:var(--text);background:rgba(255,255,255,.03)}
-.sidebar nav .nav-item.active{color:var(--accent);background:rgba(0,168,107,.08);border-left-color:var(--accent)}
-.sidebar nav .nav-item .icon{font-size:18px;width:24px;text-align:center}
-.sidebar .sidebar-footer{padding:12px 20px;border-top:1px solid var(--border)}
-.sidebar .sidebar-footer .nav-item{font-size:13px;padding:8px 0}
-
-.main{margin-left:var(--sidebar-w);min-height:100vh;display:flex;flex-direction:column}
 .main-header{display:flex;align-items:center;justify-content:space-between;padding:16px 28px;border-bottom:1px solid var(--border);background:var(--surface);flex-wrap:wrap;gap:10px}
 .main-header h2{font-family:var(--font-head);font-size:18px;font-weight:600}
 .main-header .header-actions{display:flex;gap:8px;align-items:center}
@@ -230,22 +215,20 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
 <div id="app-screen">
   <div class="sidebar-overlay" onclick="closeSidebar()"></div>
   <aside class="sidebar" id="sidebar">
+    <div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>
     <div class="logo">🚚 <span>Logística</span></div>
     <div class="user-info">
       <div class="name" id="user-name"></div>
       <div class="role" id="user-role"></div>
-      <div class="role" id="user-email" style="font-size:11px;color:var(--muted);"></div>
-      <div class="badge" id="user-badge"></div>
+      <span class="badge" id="user-badge"></span>
     </div>
     <nav id="sidebar-nav"></nav>
     <div class="sidebar-footer">
-      <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesión">
-        <span class="nav-icon" style="font-size:18px;">⏻</span> Cerrar sesión
+      <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesion">
+        <span style="font-size:18px">&#x23FB;</span> Cerrar sesion
       </button>
       <div class="version">
         <div id="app-version">v—</div>
-        <div>© 2026 Edgar Velasquez</div>
-        <div>Todos los derechos reservados</div>
       </div>
     </div>
   </aside>

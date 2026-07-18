@@ -31,7 +31,7 @@ const { authMiddleware, verificarSesionValida, requireModule } = require('./midd
 // ─── Rutas API ────────────────────────────────────────────────────────────────
 app.use('/api/auth', authLimiter);
 // Auth global: verify JWT + check module access for all /api routes
-app.use('/api', authMiddleware);
+app.use('/api', (req, res, next) => { if (req.path === '/version') return next(); authMiddleware(req, res, next); });
 app.use('/api', apiLimiter);
 app.use('/api', requireModule('proveedores'));
 app.use('/api', verificarSesionValida);
@@ -75,45 +75,12 @@ app.get('/app.js', (req, res) => {
 });
 
 // ─── Endpoint de versión ───────────────────────────────────────────────────────
-const GIT_DIR = path.join(__dirname, '..', '.git');
-
-function readBranch() {
-  try {
-    const head = fs.readFileSync(path.join(GIT_DIR, 'HEAD'), 'utf8').trim();
-    const m = head.match(/^ref:\s*refs\/heads\/(.+)$/);
-    return m ? m[1] : head;
-  } catch { return ''; }
-}
-
-function readRepoUrl() {
-  try {
-    const cfg = fs.readFileSync(path.join(GIT_DIR, 'config'), 'utf8');
-    const m = cfg.match(/\[remote\s+"origin"\].*?\n\s*url\s*=\s*(.+?)\s*[\r\n]/s);
-    if (!m) return '';
-    return m[1].replace(/\.git$/, '').replace(/^git@/, 'https://').replace(/:(\w)/, '/$1');
-  } catch { return ''; }
-}
-
 app.get('/api/version', (req, res) => {
   try {
-    const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', 'package.json'), 'utf8'));
-    const year = new Date().getFullYear().toString();
-    const author = pkg.author || '';
-    const displayAuthor = author.includes(year) ? author : `© ${year} - ${author}`;
-    const branch = readBranch();
-    const repo = readRepoUrl();
-
-    res.json({
-      version: pkg.version || '1.0.0',
-      name: pkg.name,
-      author: displayAuthor,
-      year,
-      branch: branch || 'main',
-      repo
-    });
+    const rootPkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', '..', 'package.json'), 'utf8'));
+    res.json({ version: rootPkg.version || '1.0.0', name: 'SynnoxERP Proveedores' });
   } catch (e) {
-    console.error('[version]', e.message);
-    res.json({ version: '1.0.0', name: 'synnoxerp-proveedores', author: '', year: new Date().getFullYear().toString(), branch: 'main', repo: '' });
+    res.json({ version: '1.0.0', name: 'SynnoxERP Proveedores' });
   }
 });
 
