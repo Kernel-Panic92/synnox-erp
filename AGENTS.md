@@ -8,7 +8,8 @@
 - **Proyectos — theme**: Cambiado `themeKey` de `'proyectos_theme'` a `'synnox_theme'` (ahora lee del launcher). Eliminado botón de toggle de tema.
 - **Proyectos — sidebar**: Agregado botón de colapsado, sincronizado `base.css` y `framework.js` con versión canónica.
 - **Logística — sidebar**: Sincronizado `base.css`/`framework.js` con framework. Eliminado CSS duplicado del sidebar en inline `<style>`. Agregado botón de colapsado.
-- **Nomina/Proveedores**: Ya tenían sidebar colapsable con misma key `sidebar_collapsed`. Refactor completo de CSS pendiente para sesión futura.
+- **Nomina — sidebar**: `<nav>` → `<aside>`, `.mob-overlay` → `.sidebar-overlay`, IDs estandarizados (`user-name`, `user-role`, `user-badge`), `.nav-icon` → `.icon`, `.role-badge` → `.badge`, nav container → `<nav id="sidebar-nav">`.
+- **Proveedores — sidebar**: `<div>` → `<aside>`, `.mob-overlay` → `.sidebar-overlay`, IDs estandarizados, `.role-badge` → `.badge`, nav → `<nav id="sidebar-nav">`, funciones sidebar actualizadas.
 - **AGENTS.md**: Agregadas convenciones del sidebar para módulos nuevos.
 
 ---
