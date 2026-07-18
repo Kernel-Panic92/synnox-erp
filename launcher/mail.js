@@ -45,6 +45,7 @@ function getFromName() {
   return _config.smtp_from_name || process.env.SMTP_FROM_NAME || process.env.COMPANY_NAME || 'SynnoxERP';
 }
 
+// codeql-ignore[js/incomplete-multi-character-sanitization]: used only for plain-text email fallback, not security output
 function stripHtml(html) {
   return String(html || '').slice(0, 100000).replace(/<[^<>]*>/g, '');
 }
