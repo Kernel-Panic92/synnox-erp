@@ -8,7 +8,7 @@ set -euo pipefail
 # ─────────────────────────────────────────────────────────────
 
 BRANCH="${1:-main}"
-INSTALL_DIR="/opt/synnoxerp"
+INSTALL_DIR="${HOME}/.local/share/synnoxerp"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 CONFIG="$INSTALL_DIR/.env"
 VERDE="\033[0;32m"; ROJO="\033[0;31m"; AMARILLO="\033[1;33m"; RESET="\033[0m"

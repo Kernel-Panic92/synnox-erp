@@ -234,7 +234,7 @@ async function ejecutarTool(name, args) {
 Ejecuta este script (adaptando valores):
 
 ```bash
-cd /opt/synnoxerp/launcher
+cd ~/.local/share/synnoxerp/launcher
 node -e "
 const Database = require('better-sqlite3');
 const db = new Database('launcher.db');
@@ -282,7 +282,7 @@ sudo nginx -t && sudo systemctl reload nginx
 ## 9. PM2
 
 ```bash
-pm2 start /opt/synnoxerp/mi-modulo/backend/server.js --name mi-modulo
+pm2 start ~/.local/share/synnoxerp/mi-modulo/backend/server.js --name mi-modulo
 pm2 save
 ```
 

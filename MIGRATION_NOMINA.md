@@ -45,8 +45,8 @@ Debe contener `backup.json` con las tablas:
 ### 3. Guardar backup seguro
 
 ```bash
-cp backup_pre_migracion.zip /opt/horix-platform/backups/
-cp modules/nomina/horas_extra.db /opt/horix-platform/backups/horas_extra.db.pre-migration
+cp backup_pre_migracion.zip ~/.local/share/synnoxerp/backups/
+cp modules/nomina/horas_extra.db ~/.local/share/synnoxerp/backups/horas_extra.db.pre-migration
 ```
 
 ### 4. Probar rollback
@@ -57,7 +57,7 @@ cat > /tmp/test-rollback.sh << 'EOF'
 #!/bin/bash
 echo "Test de rollback - no ejecutar en produccion"
 echo "Verificando que backup existe..."
-ls -la /opt/horix-platform/backups/horas_extra.db.pre-migration
+ls -la ~/.local/share/synnoxerp/backups/horas_extra.db.pre-migration
 echo "OK - Backup encontrado"
 EOF
 chmod +x /tmp/test-rollback.sh
@@ -222,7 +222,7 @@ cd /tmp && unzip -o nomina_backup.zip backup.json
 ### 2. Ejecutar migracion
 
 ```bash
-cd /opt/horix-platform
+cd ~/.local/share/synnoxerp
 node modules/nomina/src/scripts/migrate-nomina.js /tmp/backup.json
 ```
 
@@ -372,7 +372,7 @@ No cargar horas entre 6:00pm y 6:30pm.
 ### 2. Ejecutar cutover
 
 ```bash
-cd /opt/horix-platform
+cd ~/.local/share/synnoxerp
 ./migrate-cutover.sh
 ```
 
@@ -399,7 +399,7 @@ MIGRACION COMPLETADA. Pueden continuar con sus actividades.
 Si algo falla durante el cutover:
 
 ```bash
-cd /opt/horix-platform
+cd ~/.local/share/synnoxerp
 ./rollback-nomina.sh
 ```
 

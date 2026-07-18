@@ -79,7 +79,7 @@ app.get('/api/admin/commits', verificarToken, soloAdmin, (req, res) => {
 
 const COMPANY_NAME = process.env.SMTP_FROM_NAME || process.env.COMPANY_NAME || 'SynnoxERP';
 const COMPANY_DOMAIN = process.env.COMPANY_DOMAIN || 'localhost';
-const INSTALL_DIR = process.env.INSTALL_DIR || '/opt/synnoxerp';
+const INSTALL_DIR = process.env.INSTALL_DIR || `${require('os').homedir()}/.local/share/synnoxerp`;
 
 const PORT = parseInt(process.env.PORT || '3002', 10);
 const JWT_SECRET = process.env.JWT_SECRET;
