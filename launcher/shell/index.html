@@ -305,11 +305,10 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
       <div style="font-size:var(--fs);font-weight:600;">Usuarios</div>
       <div style="display:flex;gap:8px;">
-        <button class="btn btn-sm btn-secondary" onclick="document.getElementById('csv-upload-input').click()">📥 Importar CSV</button>
+        <button class="btn btn-sm btn-secondary" onclick="showImportCsvModal()">📥 Importar CSV</button>
         <button class="btn btn-sm" onclick="showUserForm()">+ Nuevo</button>
       </div>
     </div>
-    <input type="file" id="csv-upload-input" accept=".csv" style="display:none;" onchange="importCsvUsuarios(this)"/>
     <div style="overflow-x:auto;">
       <table id="users-table">
         <thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Perfil</th><th>Centro</th><th>Estado</th><th>Acción</th></tr></thead>
@@ -648,6 +647,27 @@
     <div style="display:flex;gap:10px;margin-top:12px;">
       <button class="btn" id="modulo-form-submit-btn" onclick="saveModulo()">Guardar</button>
       <button class="btn btn-danger btn-sm" style="align-self:center;" onclick="closeModuloForm()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="modal-import-csv">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-title">📥 Importar usuarios desde CSV</div>
+    <p style="font-size:13px;color:var(--muted);margin-bottom:12px;">
+      Formato compatible con el backup de Nómina (<code>usuarios.csv</code>).
+    </p>
+    <div class="form-group">
+      <label>Archivo CSV *</label>
+      <input type="file" id="csv-file-input" accept=".csv" style="font-size:13px;"/>
+    </div>
+    <div class="form-group">
+      <label>Asignar módulos a usuarios importados</label>
+      <div id="csv-modulos-list" style="font-size:13px;"></div>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:16px;">
+      <button class="btn" id="btn-import-csv" onclick="doImportCsv()">Importar</button>
+      <button class="btn btn-secondary btn-sm" onclick="cerrarModal('modal-import-csv')">Cancelar</button>
     </div>
   </div>
 </div>
