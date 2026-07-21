@@ -9,7 +9,7 @@ const crypto = require('crypto');
 const { execSync, execFileSync } = require('child_process');
 const mail = require('./mail');
 const rateLimit = require('express-rate-limit');
-const { verificarToken, soloAdmin, parseCookies } = require('./middleware/auth');
+const { verificarToken, soloAdmin, parseCookies, firmarToken } = require('./middleware/auth');
 const { encryptEmail, decryptEmail } = require('./services/crypto');
 const { createLoginRateLimit, getLoginAttempts } = require('./services/rateLimit');
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
@@ -437,6 +437,15 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
     console.log(`[LOGIN] Cookie set for ${email} (secure: ${isSecure})`);
     res.json({ jwt: token, usuario: payload, modulos: payload.modulos });
   } catch (e) { console.error('[LOGIN]', e.stack || e.message); res.status(500).json({ error: 'Error interno' }); }
+});
+
+// ── Refresh token (sliding session) ──
+app.post('/api/auth/refresh', verificarToken, (req, res) => {
+  const userWithPerms = getUserWithPermissions(db, req.usuario.id);
+  if (!userWithPerms) return res.status(401).json({ error: 'Usuario no encontrado' });
+  const payload = buildPayload(userWithPerms);
+  const token = firmarToken(payload, res, req);
+  res.json({ jwt: token });
 });
 
 // ── Cookie test endpoint ──

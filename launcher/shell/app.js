@@ -1611,12 +1611,18 @@ function resetGradConfig() {
   document.getElementById('grad-result').innerHTML = '<span style="color:var(--muted);">\u21ba Colores restaurados (sin guardar)</span>';
 }
 
-// ── Session check ──
+// ── Session check + refresh ──
 (async () => {
   try { const r = await fetch('/api/version'); const d = await r.json(); launcherVersion = d.version || ''; } catch {}
   await loadGradConfig();
   if (jwtToken) {
     try {
+      // Refresh token silently to extend session
+      const refreshRes = await fetch('/api/auth/refresh', { method: 'POST', headers: { 'Authorization': 'Bearer ' + jwtToken } });
+      if (refreshRes.ok) {
+        const refreshData = await refreshRes.json();
+        if (refreshData.jwt) { jwtToken = refreshData.jwt; localStorage.setItem('platform_jwt', jwtToken); }
+      }
       const res = await fetch('/api/auth/me', {
         headers: { 'Authorization': 'Bearer ' + jwtToken }
       });
@@ -1640,6 +1646,26 @@ function resetGradConfig() {
     document.getElementById('reset-modal').style.display = 'block';
   }
 })();
+
+// ── Auto-refresh token (sliding session) ──
+setInterval(async () => {
+  if (!jwtToken) return;
+  try {
+    const res = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + jwtToken }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.jwt) { jwtToken = data.jwt; localStorage.setItem('platform_jwt', jwtToken); }
+    } else if (res.status === 401) {
+      localStorage.removeItem('platform_jwt');
+      jwtToken = null;
+      user = null;
+      show('login-screen');
+    }
+  } catch {}
+}, 30 * 60 * 1000); // every 30 minutes
 
 // ── Auto-reload on server restart ──
 (function() {

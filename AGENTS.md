@@ -129,9 +129,10 @@
 - [x] ~~PR~~: `feat/csv-user-import` → `main` ([#8](https://github.com/Kernel-Panic92/synnox-erp/pull/8)) — merged 17 Jul 2026
 - [x] ~~PR~~: `fix/csv-import-modules` → `main` ([#9](https://github.com/Kernel-Panic92/synnox-erp/pull/9))
 - [x] ~~PR~~: `fix/proyectos-theme` → `main` ([#10](https://github.com/Kernel-Panic92/synnox-erp/pull/10))
-- [x] ~~PR~~: `feat/sidebar-standardization` → `main` ([#11](https://github.com/Kernel-Panic92/synnox-erp/pull/11))
+- [x] ~~PR~~: `feat/sidebar-standardization` → `main` ([#11](https://github.com/Kernel-Panic92/synnox-erp/pull/11)) — merged 18 Jul 2026
 - [x] ~~Licencia~~: Redactar y agregar licencia de software al repo (LICENSE.md) — merged sesión 16
 - [x] ~~Paths~~: Revisar renombrado `/opt/horix-platform` → `~/.local/share/synnoxerp` — sesión 16
+- [ ] **PR**: `fix/bugs-session-attachments-kanban` → `main` ([#15](https://github.com/Kernel-Panic92/synnox-erp/pull/15))
 
 ### Pendientes anteriores
 - [ ] Observabilidad centralizada (tabla `auditoria_central`)

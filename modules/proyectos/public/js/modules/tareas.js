@@ -289,8 +289,8 @@ async function abrirModalDetalleTarea(id) {
                 </div>
                 ${e.descripcion ? `<p style="font-size:12px;margin-bottom:6px">${esc(e.descripcion)}</p>` : ''}
                 ${e.archivo_path ? (esImagen
-                  ? `<img src="/uploads/evidencias/${e.archivo_path}" style="max-width:100%;max-height:200px;border-radius:6px;cursor:pointer" onclick="window.open('/uploads/evidencias/${e.archivo_path}')" alt="${esc(e.archivo_nombre)}">`
-                  : `<div style="font-size:11px"><a href="/uploads/evidencias/${e.archivo_path}" target="_blank" style="color:var(--accent)">&#x1F4CE; ${esc(e.archivo_nombre)} (${e.archivo_tamanio ? Math.round(e.archivo_tamanio/1024) + 'KB' : '?'})</a></div>`
+                  ? `<img src="${BASE}/uploads/evidencias/${e.archivo_path}" style="max-width:100%;max-height:200px;border-radius:6px;cursor:pointer" onclick="window.open('${BASE}/uploads/evidencias/${e.archivo_path}')" alt="${esc(e.archivo_nombre)}">`
+                  : `<div style="font-size:11px"><a href="${BASE}/uploads/evidencias/${e.archivo_path}" target="_blank" style="color:var(--accent)">&#x1F4CE; ${esc(e.archivo_nombre)} (${e.archivo_tamanio ? Math.round(e.archivo_tamanio/1024) + 'KB' : '?'})</a></div>`
                 ) : ''}
               </div>
             `;

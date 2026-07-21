@@ -82,6 +82,24 @@ router.post('/', async (req, res) => {
   }
 });
 
+router.put('/reordenar', async (req, res) => {
+  try {
+    const { tarea_id, columna, orden } = req.body;
+    if (!tarea_id || !columna) return res.status(400).json({ error: 'tarea_id y columna requeridos' });
+    const est = COLUMNA_A_ESTADO[columna] || 'pendiente';
+    const resetAprobacion = columna !== 'completada' ? `, estado_aprobacion = 'pendiente', aprobado_por = NULL, aprobado_en = NULL, motivo_rechazo = NULL` : '';
+    const result = await pool.query(
+      `UPDATE projects.tareas SET columna = $1, estado = $2, orden = COALESCE($3, orden)${resetAprobacion}, updated_at = NOW()
+       WHERE id = $4 RETURNING *`,
+      [columna, est, orden || 0, tarea_id]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Tarea no encontrada' });
+    res.json({ exitosa: true, tarea: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.put('/:id', async (req, res) => {
   try {
     const { titulo, descripcion, tipo, prioridad, estado, columna, asignado_a, fecha_limite, estimacion_horas, horas_invertidas } = req.body;
@@ -125,24 +143,6 @@ router.put('/:id', async (req, res) => {
     const result = await pool.query(
       `UPDATE projects.tareas SET ${updates.join(', ')} WHERE id = $${idx++} RETURNING *`,
       params
-    );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Tarea no encontrada' });
-    res.json({ exitosa: true, tarea: result.rows[0] });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-router.put('/reordenar', async (req, res) => {
-  try {
-    const { tarea_id, columna, orden } = req.body;
-    if (!tarea_id || !columna) return res.status(400).json({ error: 'tarea_id y columna requeridos' });
-    const est = COLUMNA_A_ESTADO[columna] || 'pendiente';
-    const resetAprobacion = columna !== 'completada' ? `, estado_aprobacion = 'pendiente', aprobado_por = NULL, aprobado_en = NULL, motivo_rechazo = NULL` : '';
-    const result = await pool.query(
-      `UPDATE projects.tareas SET columna = $1, estado = $2, orden = COALESCE($3, orden)${resetAprobacion}, updated_at = NOW()
-       WHERE id = $4 RETURNING *`,
-      [columna, est, orden || 0, tarea_id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Tarea no encontrada' });
     res.json({ exitosa: true, tarea: result.rows[0] });
