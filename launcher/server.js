@@ -42,9 +42,10 @@ app.get('/api/version', (req, res) => {
 app.post('/api/track', (req, res) => {
   const { submodule } = req.body;
   if (!submodule) return res.status(400).json({ error: 'submodule required' });
-  // Store in a simple file-based counter
-  const trackFile = path.join(LAUNCHER_DIR, 'logs', 'track.json');
+  const trackDir = path.join(LAUNCHER_DIR, 'logs');
+  const trackFile = path.join(trackDir, 'track.json');
   try {
+    if (!fs.existsSync(trackDir)) fs.mkdirSync(trackDir, { recursive: true });
     let track = {};
     if (fs.existsSync(trackFile)) track = JSON.parse(fs.readFileSync(trackFile, 'utf8'));
     track[submodule] = (track[submodule] || 0) + 1;
@@ -56,7 +57,8 @@ app.post('/api/track', (req, res) => {
 });
 
 app.get('/api/track', (req, res) => {
-  const trackFile = path.join(LAUNCHER_DIR, 'logs', 'track.json');
+  const trackDir = path.join(LAUNCHER_DIR, 'logs');
+  const trackFile = path.join(trackDir, 'track.json');
   try {
     if (!fs.existsSync(trackFile)) return res.json({});
     res.json(JSON.parse(fs.readFileSync(trackFile, 'utf8')));
