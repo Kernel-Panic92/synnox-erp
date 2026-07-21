@@ -1456,7 +1456,6 @@ function generarNginx() {
     const prefixMatch = prefixClean.replace(/\//g, '\\/');
     locations += `
     location ${prefix} {
-        rewrite ^${prefixMatch}(/.*)$ $1 break;
         proxy_pass ${m.url};
         proxy_http_version 1.1;
         proxy_set_header Host $host;
