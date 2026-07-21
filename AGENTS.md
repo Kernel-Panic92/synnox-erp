@@ -1,5 +1,37 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (21 Jul 2026 — sesión 17)
+
+### Cambios Sesión 17 — Bugs, sidebar, versión, CSV import, sesión
+
+- **Fix — Sesión expira sin inactividad**: JWT hardcoded a 1h sin refresh. Fix: `POST /api/auth/refresh` endpoint + auto-refresh cada 30min en frontend + refresh en page load + framework.js auto-refresh en 401. Sliding session completa.
+- **Fix — Proyectos adjuntos no se ven**: URLs hardcodeadas `/uploads/evidencias/...` en `tareas.js` — cambiado a `${BASE}/uploads/evidencias/...` (resuelve a `/proyectos/uploads/...`).
+- **Fix — Kanban drag-drop roto**: `PUT /reordenar` definido DESPUÉS de `PUT /:id` en `tareas.js` — Express matcheaba el genérico primero. Movido `/reordenar` antes de `/:id`.
+- **Fix — Proyectos theme**: Cambiado `themeKey` de `'proyectos_theme'` a `'synnox_theme'` (ahora lee del launcher). Eliminado botón de toggle de tema.
+- **Fix — 404 `/api/admin/centros`**: PM2 tenía código stale. Fix: restart.
+- **Fix — 502 tras restart máquina**: PM2 vacío. Fix: `pm2 start server.js --name synnoxerp` con `.env PORT=3003`.
+- **CSV import usuarios**: `POST /api/admin/usuarios/import-csv` acepta CSV del backup de nómina. Mapea roles, valida sede, asigna módulos. Frontend: modal con selector de archivos + checkboxes.
+- **Unificación catálogo centros**: LauncherDB helper read-only en `modules/nomina/src/utils/launcherDb.js`. Nómina lee centros del launcher. Eliminada tabla local `centros`.
+- **Sidebar estándar**: Framework `base.css` con sidebar colapsable + `framework.js` con `toggleSidebarCollapse()`. Todos los módulos estandarizados (HTML, CSS, IDs, clases). Eliminado CSS inline duplicado.
+- **Versión unificada**: Todos los módulos leen de root `package.json` → `v1.0.0`. Sin rama git. `/api/version` exento de auth en nomina/proveedores.
+- **Documentación**: Actualizado README.md (paths, arquitectura, proyectos), framework/README.md (sidebar conventions, version), AGENTS.md.
+
+### Pendientes nuevos
+- [ ] **Ofuscar builds frontend** — Evaluar `javascript-obfuscator` o similar. Verificar que no rompa nada antes de implementar. **No hacer sin probar en staging primero.**
+
+### Pendientes anteriores (actualizados)
+- [ ] Observabilidad centralizada (tabla `auditoria_central`)
+- [ ] APIs internas entre módulos
+- [ ] Probar HTTPS en producción
+- [ ] SSH `execSync` → `ssh2` (test-ssh)
+- [ ] CSP nonce en proveedores
+- [ ] Dividir `launcher/server.js` (~1950 líneas → routers separados)
+- [ ] ESLint + Prettier config
+- [ ] Limpiar `.env` legacy
+- [ ] Actualizar docs restantes
+
+---
+
 ## Estado (18 Jul 2026 — sesión 16)
 
 ### Cambios Sesión 16 — Licencia, paths XDG & repo privado
