@@ -59,6 +59,10 @@ async function start() {
   // SPA catch-all — MUST be after all module mounts
   app.get('*', publicLimiter, (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
+    // Don't catch module paths — let their static middleware serve files
+    if (req.path.startsWith('/nomina') || req.path.startsWith('/proveedores') || req.path.startsWith('/logistica') || req.path.startsWith('/proyectos')) {
+      return res.status(404).json({ error: 'Not found' });
+    }
     const spaPath = path.join(__dirname, 'launcher', 'shell', 'index.html');
     if (fs.existsSync(spaPath)) return res.sendFile(spaPath);
     res.status(404).json({ error: 'Not found' });
