@@ -67,7 +67,22 @@ async function loadVersion() {
 async function api(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...opts.headers };
   if (HF.TOKEN) headers['Authorization'] = 'Bearer ' + HF.TOKEN;
-  const res = await fetch(HF.API + path, { ...opts, headers });
+  let res = await fetch(HF.API + path, { ...opts, headers });
+  // Auto-refresh token on 401 (sliding session)
+  if (res.status === 401 && !path.includes('/auth/login') && !path.includes('/auth/verificar') && !path.includes('/auth/refresh')) {
+    try {
+      const refreshRes = await fetch('/api/auth/refresh', { method: 'POST', headers: { 'Authorization': 'Bearer ' + HF.TOKEN } });
+      if (refreshRes.ok) {
+        const refreshData = await refreshRes.json();
+        if (refreshData.jwt) {
+          HF.TOKEN = refreshData.jwt;
+          localStorage.setItem(HF.TOKEN_KEY, HF.TOKEN);
+          headers['Authorization'] = 'Bearer ' + HF.TOKEN;
+          res = await fetch(HF.API + path, { ...opts, headers });
+        }
+      }
+    } catch {}
+  }
   if (res.status === 401 && !path.includes('/auth/login') && !path.includes('/auth/verificar')) {
     logout(); throw new Error('Sesión expirada');
   }

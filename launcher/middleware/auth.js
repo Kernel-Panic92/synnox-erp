@@ -25,4 +25,11 @@ function soloAdmin(req, res, next) {
   next();
 }
 
-module.exports = { verificarToken, soloAdmin, parseCookies };
+function firmarToken(payload, res, req) {
+  const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+  const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
+  res.cookie('launcher_jwt', token, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: 60 * 60 * 1000 });
+  return token;
+}
+
+module.exports = { verificarToken, soloAdmin, parseCookies, firmarToken };
