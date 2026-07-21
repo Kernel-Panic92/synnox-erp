@@ -48,8 +48,8 @@ app.get('/api/dashboard/resumen', verifyToken, async (req, res) => {
   try {
     const pool = (await import('./config/db.js')).default;
     const [pedidosHoy, enRuta, entregados] = await Promise.all([
-      pool.query(`SELECT COUNT(*) as count FROM logistics.pedidos_logistica WHERE DATE(creado) = CURRENT_DATE`),
-      pool.query(`SELECT COUNT(*) as count FROM logistics.rutas WHERE estado = 'en_ruta'`),
+      pool.query(`SELECT COUNT(*) as count FROM logistics.pedidos_logistica WHERE DATE(created_at) = CURRENT_DATE`),
+      pool.query(`SELECT COUNT(*) as count FROM logistics.rutas WHERE estado = 'en_ejecucion'`),
       pool.query(`SELECT COUNT(*) as count FROM logistics.pedidos_logistica WHERE estado = 'entregado'`)
     ]);
     res.json({
