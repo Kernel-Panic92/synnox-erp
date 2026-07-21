@@ -144,7 +144,7 @@ const { soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles, 
 
 // ─── Auth global: verify JWT + check module access for all /api routes ──────
 app.use('/api', (req, res, next) => { if (req.path === '/version') return next(); autenticar([])(req, res, next); });
-app.use('/api', requireModule('nomina'));
+app.use('/api', (req, res, next) => { if (req.path === '/version') return next(); requireModule('nomina')(req, res, next); });
 
 app.use('/api/auth', require('./src/routes/auth')({
   db, crypto, middlewares: { todosRoles, soloAdmin }
