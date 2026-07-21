@@ -44,6 +44,22 @@ import reportesRoutes from './routes/reportes.js';
 import widetechRoutes from './routes/widetech.js';
 import widetechSyncRoutes from './routes/widetech-sync.js';
 
+app.get('/api/dashboard/resumen', verifyToken, async (req, res) => {
+  try {
+    const pool = (await import('./config/db.js')).default;
+    const [pedidosHoy, enRuta, entregados] = await Promise.all([
+      pool.query(`SELECT COUNT(*) as count FROM logistics.pedidos_logistica WHERE DATE(creado) = CURRENT_DATE`),
+      pool.query(`SELECT COUNT(*) as count FROM logistics.rutas WHERE estado = 'en_ruta'`),
+      pool.query(`SELECT COUNT(*) as count FROM logistics.pedidos_logistica WHERE estado = 'entregado'`)
+    ]);
+    res.json({
+      pedidosHoy: parseInt(pedidosHoy.rows[0]?.count || 0),
+      enRuta: parseInt(enRuta.rows[0]?.count || 0),
+      entregados: parseInt(entregados.rows[0]?.count || 0)
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 app.use('/api/health', healthRoutes);
 app.get('/api/rutas/diagnostico', verifyToken, async (req, res) => {
   try {
