@@ -186,8 +186,17 @@ async function abrirModalTarea(id) {
     <div class="form-row">
       <div class="form-group"><label>Tipo</label><select id="tarea-tipo">
         <option value="tarea" ${t?.tipo === 'tarea' ? 'selected' : ''}>Tarea</option>
-        <option value="bug" ${t?.tipo === 'bug' ? 'selected' : ''}>Bug</option>
-        <option value="mejora" ${t?.tipo === 'mejora' ? 'selected' : ''}>Mejora</option>
+        <option value="incidente" ${t?.tipo === 'incidente' ? 'selected' : ''}>Incidente</option>
+        <option value="feature" ${t?.tipo === 'feature' ? 'selected' : ''}>Feature / Mejora</option>
+        <option value="reunion" ${t?.tipo === 'reunion' ? 'selected' : ''}>Reunión</option>
+        <option value="investigacion" ${t?.tipo === 'investigacion' ? 'selected' : ''}>Investigación</option>
+        <option value="documentacion" ${t?.tipo === 'documentacion' ? 'selected' : ''}>Documentación</option>
+        <option value="revision" ${t?.tipo === 'revision' ? 'selected' : ''}>Revisión / QA</option>
+        <option value="configuracion" ${t?.tipo === 'configuracion' ? 'selected' : ''}>Configuración</option>
+        <option value="capacitacion" ${t?.tipo === 'capacitacion' ? 'selected' : ''}>Capacitación</option>
+        <option value="diseno" ${t?.tipo === 'diseno' ? 'selected' : ''}>Diseño</option>
+        <option value="cumplimiento" ${t?.tipo === 'cumplimiento' ? 'selected' : ''}>Cumplimiento normativo</option>
+        <option value="implementacion" ${t?.tipo === 'implementacion' ? 'selected' : ''}>Implementación</option>
       </select></div>
       <div class="form-group"><label>Prioridad</label><select id="tarea-prioridad">
         <option value="baja" ${t?.prioridad === 'baja' ? 'selected' : ''}>Baja</option>
