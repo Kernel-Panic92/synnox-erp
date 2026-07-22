@@ -85,7 +85,7 @@ async function sendResetEmail(email, resetUrl, nombre) {
 }
 
 async function sendWelcomeEmail(email, setupUrl, nombre, rol) {
-  const rolLabel = { admin: 'Administrador', operador: 'Operador' }[rol] || rol;
+  const rolLabel = { admin: 'Administrador', gerente: 'Gerente', operador: 'Operador' }[rol] || rol;
   const html = `<!DOCTYPE html>
 <html><head><meta charset="utf-8"><style>
   body{font-family:'Inter',sans-serif;background:#0d0f14;color:#e8ecf5;margin:0;padding:32px;}

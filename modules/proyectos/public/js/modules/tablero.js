@@ -40,11 +40,11 @@ async function cargarTablero() {
               ${t.columna === 'en_progreso' && t.asignado_a ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;gap:4px">
                 <button class="btn btn-xs btn-info" onclick="event.stopPropagation();abrirModalSolicitarRevision(${t.id})" title="Solicitar revision">&#x1F504; Revisión</button>
               </div>` : ''}
-              ${t.columna === 'revision' && usuario?.rol === 'admin' ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;gap:4px">
+              ${t.columna === 'revision' && (usuario?.rol === 'admin' || usuario?.rol === 'gerente') ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);display:flex;gap:4px">
                 <button class="btn btn-xs btn-success" onclick="event.stopPropagation();aprobarTarea(${t.id})" title="Aprobar">&#10003; Aprobar</button>
                 <button class="btn btn-xs btn-danger" onclick="event.stopPropagation();rechazarTarea(${t.id})" title="Rechazar">&#10007;</button>
               </div>` : ''}
-              ${t.columna === 'revision' && usuario?.rol !== 'admin' ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--warning)">&#x23F3; Pend. aprobación</div>` : ''}
+              ${t.columna === 'revision' && usuario?.rol !== 'admin' && usuario?.rol !== 'gerente' ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--warning)">&#x23F3; Pend. aprobación</div>` : ''}
               ${t.estado_aprobacion === 'rechazada' ? `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--danger)" title="${esc(t.motivo_rechazo || '')}">&#x26A0; Rechazada</div>` : ''}
             </div>
           `).join('')}

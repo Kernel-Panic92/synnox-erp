@@ -707,7 +707,7 @@ app.get('/api/admin/usuarios', verificarToken, soloAdmin, (req, res) => {
 app.post('/api/admin/usuarios', verificarToken, soloAdmin, async (req, res) => {
   const { nombre, email, password, rol, perfil_id, sede } = req.body;
   if (!nombre || !email) return res.status(400).json({ error: 'Nombre y email son requeridos' });
-  const userRol = (rol === 'admin' || rol === 'operador') ? rol : 'operador';
+  const userRol = (rol === 'admin' || rol === 'operador' || rol === 'gerente') ? rol : 'operador';
   try {
     let hash;
     let welcomeSent = false;
@@ -755,7 +755,7 @@ app.put('/api/admin/usuarios/:id', verificarToken, soloAdmin, (req, res) => {
   if (email !== undefined) { updates.push('email = ?'); params.push(email.toLowerCase().trim()); }
   if (password) { updates.push('password_hash = ?'); params.push(bcrypt.hashSync(password, 10)); }
   if (activo !== undefined) { updates.push('activo = ?'); params.push(activo ? 1 : 0); }
-  if (rol && (rol === 'admin' || rol === 'operador')) { updates.push('rol = ?'); params.push(rol); }
+  if (rol && (rol === 'admin' || rol === 'operador' || rol === 'gerente')) { updates.push('rol = ?'); params.push(rol); }
   if (perfil_id !== undefined) { updates.push('perfil_id = ?'); params.push(perfil_id || null); }
   if (sede !== undefined) { updates.push('sede = ?'); params.push(sede || 'Principal'); }
   if (!updates.length) return res.status(400).json({ error: 'Sin cambios' });
@@ -815,7 +815,7 @@ app.post('/api/admin/usuarios/import-csv', verificarToken, soloAdmin, (req, res)
   const missing = required.filter(r => idx(r) === -1);
   if (missing.length) return res.status(400).json({ error: `Columnas faltantes: ${missing.join(', ')}` });
 
-  const roleMap = { admin: 'admin', rrhh: 'operador', gerencia: 'operador', operador: 'operador', consulta: 'operador' };
+  const roleMap = { admin: 'admin', rrhh: 'operador', gerente: 'gerente', gerencia: 'gerente', operador: 'operador', consulta: 'operador' };
   let created = 0, skipped = 0, errors = 0;
   const details = [];
   const insModulo = db.prepare('INSERT OR IGNORE INTO user_modulos (user_id, modulo_id) VALUES (?, ?)');
