@@ -1233,6 +1233,7 @@ function showAdminTab(tab) {
   else if (tab === 'modulos') loadModulos();
    else if (tab === 'mcp') { loadMcpConfig(); loadMcpUrl(); }
    else if (tab === 'smtp') loadSmtpConfig();
+   else if (tab === 'mapas') loadGmapsKeyStatus();
    else if (tab === 'apariencia') loadGradConfig();
    else if (tab === 'seguridad') { loadRateLimitConfig(); loadSshConfig(); loadLoginLogs(); }
    else if (tab === 'nginx') loadNginx();
@@ -2023,9 +2024,15 @@ function showCentroForm(data) {
   document.getElementById('centro-form-direccion').value = data?.direccion || '';
   document.getElementById('centro-form-telefono').value = data?.telefono || '';
   document.getElementById('centro-form-email').value = data?.email || '';
+  document.getElementById('centro-form-lat').value = data?.latitud || '';
+  document.getElementById('centro-form-lng').value = data?.longitud || '';
   document.getElementById('centro-form-title').textContent = data?.id ? 'Editar centro de operación' : 'Nuevo centro de operación';
   document.getElementById('centro-form-overlay').style.display = 'block';
   document.getElementById('centro-form-nombre').focus();
+  setTimeout(() => {
+    initMapaPinCentro();
+    configurarAutocompleteCentro();
+  }, 150);
 }
 
 function closeCentroForm() {
@@ -2052,7 +2059,9 @@ async function saveCentro() {
     descripcion: document.getElementById('centro-form-descripcion').value.trim(),
     direccion: document.getElementById('centro-form-direccion').value.trim(),
     telefono: document.getElementById('centro-form-telefono').value.trim(),
-    email: document.getElementById('centro-form-email').value.trim()
+    email: document.getElementById('centro-form-email').value.trim(),
+    latitud: parseFloat(document.getElementById('centro-form-lat').value) || null,
+    longitud: parseFloat(document.getElementById('centro-form-lng').value) || null
   };
   try {
     const method = id ? 'PUT' : 'POST';
@@ -2082,7 +2091,6 @@ async function deleteCentro(id, nombre) {
   } catch (e) { toast(e.message, 'error'); }
 }
 
-// Load centros for user form dropdown
 async function loadCentrosForUserForm(selectedCentro) {
   try {
     const res = await fetch('/api/centros', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
@@ -2092,5 +2100,133 @@ async function loadCentrosForUserForm(selectedCentro) {
       sel.innerHTML = centros.map(s => `<option value="${esc(s.nombre)}" ${s.nombre === selectedCentro ? 'selected' : ''}>${esc(s.nombre)}</option>`).join('');
     }
   } catch (e) {}
+}
+
+// ── Google Maps Autocomplete for Centro ──
+function configurarAutocompleteCentro() {
+  if (typeof google === 'undefined' || !window.googleMapsListo) {
+    const input = document.getElementById('centro-form-direccion');
+    if (input && !input._aviso) {
+      input._aviso = true;
+      input.placeholder = '🔑 Configura API Key en Ajustes → Mapas';
+      input.title = 'Ve a Configuración → Mapas para ingresar tu API key de Google Maps';
+    }
+    return;
+  }
+  const input = document.getElementById('centro-form-direccion');
+  if (!input || input._autocomplete) return;
+  const ac = new google.maps.places.Autocomplete(input, {
+    componentRestrictions: { country: 'co' },
+    fields: ['address_components', 'formatted_address', 'geometry', 'name']
+  });
+  input._autocomplete = true;
+  ac.addListener('place_changed', () => {
+    const place = ac.getPlace();
+    if (!place.geometry) return;
+    const lat = place.geometry.location.lat();
+    const lng = place.geometry.location.lng();
+    document.getElementById('centro-form-lat').value = lat;
+    document.getElementById('centro-form-lng').value = lng;
+    for (const comp of place.address_components || []) {
+      if (comp.types.includes('locality') || comp.types.includes('administrative_area_level_2')) {
+        document.getElementById('centro-form-ciudad').value = comp.long_name;
+        break;
+      } else if (comp.types.includes('administrative_area_level_1')) {
+        document.getElementById('centro-form-ciudad').value = comp.long_name;
+      }
+    }
+    if (place.formatted_address) input.value = place.formatted_address;
+    actualizarMapaPinCentro(lat, lng);
+  });
+}
+
+// ── Leaflet Map for Centro ──
+function initMapaPinCentro() {
+  const container = document.getElementById('mapa-pin-centro');
+  if (!container || container._leafletMap) return;
+  const latVal = parseFloat(document.getElementById('centro-form-lat')?.value);
+  const lngVal = parseFloat(document.getElementById('centro-form-lng')?.value);
+  const hasCoords = !isNaN(latVal) && !isNaN(lngVal);
+  const center = hasCoords ? [latVal, lngVal] : [4.6097, -74.0817];
+  const map = L.map(container).setView(center, hasCoords ? 16 : 5);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19, attribution: '© OpenStreetMap'
+  }).addTo(map);
+  container._leafletMap = map;
+  requestAnimationFrame(() => requestAnimationFrame(() => map.invalidateSize()));
+  if (hasCoords) {
+    L.marker(center, { draggable: true }).addTo(map).on('dragend', (e) => {
+      const pos = e.target.getLatLng();
+      document.getElementById('centro-form-lat').value = pos.lat.toFixed(8);
+      document.getElementById('centro-form-lng').value = pos.lng.toFixed(8);
+    });
+  }
+  map.on('click', (e) => {
+    map.eachLayer((l) => { if (l instanceof L.Marker) map.removeLayer(l); });
+    const m = L.marker(e.latlng, { draggable: true }).addTo(map);
+    document.getElementById('centro-form-lat').value = e.latlng.lat.toFixed(8);
+    document.getElementById('centro-form-lng').value = e.latlng.lng.toFixed(8);
+    m.on('dragend', () => {
+      const pos = m.getLatLng();
+      document.getElementById('centro-form-lat').value = pos.lat.toFixed(8);
+      document.getElementById('centro-form-lng').value = pos.lng.toFixed(8);
+    });
+  });
+}
+
+function actualizarMapaPinCentro(lat, lng) {
+  const container = document.getElementById('mapa-pin-centro');
+  if (!container || !container._leafletMap) return;
+  const map = container._leafletMap;
+  map.eachLayer((layer) => { if (layer instanceof L.Marker) map.removeLayer(layer); });
+  const marker = L.marker([lat, lng], { draggable: true }).addTo(map);
+  map.setView([lat, lng], 16);
+  marker.on('dragend', () => {
+    const pos = marker.getLatLng();
+    document.getElementById('centro-form-lat').value = pos.lat.toFixed(8);
+    document.getElementById('centro-form-lng').value = pos.lng.toFixed(8);
+  });
+}
+
+// ── Google Maps API Key Config ──
+async function guardarGmapsKey() {
+  const key = document.getElementById('gmaps-key-input')?.value?.trim();
+  if (!key) { toast('Ingresa una API key', 'error'); return; }
+  try {
+    const res = await fetch('/api/admin/config/gmaps/key', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
+      body: JSON.stringify({ key })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error);
+    toast('API key guardada', 'success');
+    document.getElementById('gmaps-key-status').innerHTML = '<span style="color:var(--success)">● Configurada</span>';
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function eliminarGmapsKey() {
+  if (!await confirmModal('¿Eliminar la API key de Google Maps?')) return;
+  try {
+    await fetch('/api/admin/config/gmaps/key', {
+      method: 'DELETE', headers: { 'Authorization': 'Bearer ' + jwtToken }
+    });
+    toast('API key eliminada', 'success');
+    document.getElementById('gmaps-key-status').innerHTML = '<span style="color:var(--muted)">● No configurada</span>';
+    document.getElementById('gmaps-key-input').value = '';
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function loadGmapsKeyStatus() {
+  try {
+    const res = await fetch('/api/config/gmaps/js-url', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const data = await res.json();
+    const el = document.getElementById('gmaps-key-status');
+    if (el) {
+      el.innerHTML = data.url
+        ? '<span style="color:var(--success)">● Configurada</span>'
+        : '<span style="color:var(--muted)">● No configurada</span>';
+    }
+  } catch {}
 }
 
