@@ -11,7 +11,7 @@
   body.light .table-wrap { background:#ffffff; border-color:#d0d4e4; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
   body.light .modal { background:#ffffff; }
   body.light .emp-card { background:#ffffff; border-color:#d0d4e4; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
-  body.light .widget { background:#ffffff; border-color:#d0d4e4; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+  body.light .chart-card { background:#ffffff; border-color:#d0d4e4; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
   body.light .periodo-winner { background:linear-gradient(135deg,rgba(79,142,247,0.10),rgba(79,142,247,0.03)); }
   body.light input, body.light select, body.light textarea { background:#f0f2f7; border-color:#d0d4e4; }
   body.light tr:hover td { background:rgba(0,0,0,0.03); }
@@ -453,125 +453,56 @@
 
 
   /* ═══════════════════════════════════════════
-     DASHBOARD WIDGETS — Drag & Drop + Resize
-  ═══════════════════════════════════════════ */
+     DASHBOARD WIDGETS — Charts grid
+   ═══════════════════════════════════════════ */
   .dash-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(360px, 1fr));
     gap: 14px;
     margin-bottom: 16px;
   }
-  .widget {
+  .chart-card {
     background: var(--surface);
     border: 1px solid var(--border);
     border-radius: 12px;
     padding: 16px 20px;
-    position: relative;
-    transition: box-shadow 0.2s, transform 0.15s, opacity 0.2s;
     height: 260px;
     display: flex;
     flex-direction: column;
     overflow: visible;
   }
-  .widget.w-small  { height: 200px; }
-  .widget.w-medium { height: 260px; }
-  .widget.w-large  { height: 320px; }
-  .widget-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: 10px;
-    cursor: grab;
-    user-select: none;
-    gap: 8px;
-  }
-  .widget-header:active { cursor: grabbing; }
-  .widget-title {
+  .chart-title {
+    flex-shrink: 0;
     font-size: 13px;
     font-weight: 700;
-    color: var(--text);
+    margin-bottom: 10px;
     display: flex;
     align-items: center;
     gap: 6px;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
+  }
+  .chart-canvas {
     flex: 1;
-    min-width: 0;
+    min-height: 0;
+    display: block;
   }
-  .widget-controls {
+  #dash-periodo-content {
+    flex: 1;
     display: flex;
-    align-items: center;
-    gap: 4px;
-    opacity: 0;
-    transition: opacity 0.15s;
-    flex-shrink: 0;
+    flex-direction: column;
+    justify-content: center;
+    gap: 12px;
   }
-  .widget:hover .widget-controls { opacity: 1; }
-  .widget-controls {
-    display: flex;
-    align-items: center;
-    background: var(--surface2);
-    border: 1px solid var(--border);
-    border-radius: 6px;
-    padding: 2px;
-    gap: 1px;
-    opacity: 0;
-    transition: opacity 0.15s;
-    flex-shrink: 0;
-  }
-  .widget-btn {
-    background: transparent;
-    border: none;
-    border-radius: 6px;
-    padding: 3px 8px;
-    font-size: 10px;
-    font-weight: 600;
-    cursor: pointer;
-    color: var(--muted);
-    transition: all 0.15s;
-    line-height: 1.4;
-    display: flex;
-    align-items: center;
-    gap: 3px;
-    white-space: nowrap;
-  }
-  .widget-btn:hover { color: var(--text); background: var(--border); }
-  .widget-btn.active {
-    background: var(--accent);
-    color: #fff;
-    box-shadow: 0 1px 4px rgba(79,142,247,0.4);
-  }
-  .widget canvas { flex: 1; min-height: 0; }
   #widget-ultimos { padding-bottom: 0; overflow: hidden; }
   #widget-ultimos table { margin: 0; border-radius: 0 0 14px 14px; }
 
-  /* Drag states */
-  .widget.dragging {
-    opacity: 0.4;
-    transform: scale(0.97);
-    box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-  }
-  .widget.drag-over {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 2px rgba(79,142,247,0.3);
-  }
-  .drag-hint {
-    font-size: 10px;
-    color: var(--muted);
-    text-align: right;
-    margin-bottom: 4px;
-    opacity: 0.5;
-  }
-
   @media (max-width: 768px) {
     .dash-grid { grid-template-columns: 1fr 1fr; gap: 12px; }
-    .widget.w-small, .widget.w-medium, .widget.w-large { height: 220px; }
+    .chart-card { height: 220px; }
     .report-summary { grid-template-columns: repeat(2, 1fr) !important; }
   }
   @media (max-width: 480px) {
     .dash-grid { grid-template-columns: 1fr; gap: 10px; }
-    .widget.w-small, .widget.w-medium, .widget.w-large { height: 200px; }
+    .chart-card { height: 200px; }
     .report-summary { grid-template-columns: 1fr !important; }
   }
   .spinner {
@@ -651,83 +582,39 @@
         <div class="stat-card"><div class="stat-label">Valor COP Este Año</div>     <div class="stat-value green" id="dash-valor-anio" style="font-size:14px;">—</div></div>
       </div>
 
-      <!-- GRÁFICAS WIDGETS -->
-      <div class="drag-hint">✥ Arrastra para reordenar · Usa S/M/G para cambiar tamaño</div>
+      <!-- GRÁFICAS -->
       <div class="dash-grid" id="dash-grid">
-        <div class="widget w-medium" id="widget-mes" draggable="true">
-          <div class="widget-header">
-            <div class="widget-title">📈 Horas por Mes — <span id="dash-chart-anio"></span></div>
-            <div class="widget-controls">
-              <button class="widget-btn" onclick="setWidgetSize('widget-mes','w-small','chart-mes')"  title="Pequeño"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/></svg> Pequeño</button>
-              <button class="widget-btn active" onclick="setWidgetSize('widget-mes','w-medium','chart-mes')" title="Mediano"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="1" width="5" height="8" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="1" width="5" height="8" rx="1" fill="currentColor"/></svg> Mediano</button>
-              <button class="widget-btn" onclick="setWidgetSize('widget-mes','w-large','chart-mes')"  title="Grande"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="0" width="12" height="10" rx="1" fill="currentColor"/></svg> Grande</button>
-            </div>
-          </div>
-          <canvas id="chart-mes"></canvas>
+        <div class="chart-card">
+          <div class="chart-title">📈 Horas por Mes — <span id="dash-chart-anio"></span></div>
+          <canvas id="chart-mes" class="chart-canvas"></canvas>
         </div>
-        <div class="widget w-medium" id="widget-tipo" draggable="true">
-          <div class="widget-header">
-            <div class="widget-title">🕐 Distribución por Estado — <span id="dash-tipo-anio"></span></div>
-            <div class="widget-controls">
-              <button class="widget-btn" onclick="setWidgetSize('widget-tipo','w-small','chart-tipo')"  title="Pequeño"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/></svg> Pequeño</button>
-              <button class="widget-btn active" onclick="setWidgetSize('widget-tipo','w-medium','chart-tipo')" title="Mediano"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="1" width="5" height="8" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="1" width="5" height="8" rx="1" fill="currentColor"/></svg> Mediano</button>
-              <button class="widget-btn" onclick="setWidgetSize('widget-tipo','w-large','chart-tipo')"  title="Grande"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="0" width="12" height="10" rx="1" fill="currentColor"/></svg> Grande</button>
-            </div>
-          </div>
-          <canvas id="chart-tipo"></canvas>
+        <div class="chart-card">
+          <div class="chart-title">🕐 Distribución por Estado — <span id="dash-tipo-anio"></span></div>
+          <canvas id="chart-tipo" class="chart-canvas"></canvas>
         </div>
-        <div class="widget w-medium" id="widget-sede" draggable="true">
-          <div class="widget-header">
-            <div class="widget-title">📍 Horas por Sede — <span id="dash-sede-anio"></span></div>
-            <div class="widget-controls">
-              <button class="widget-btn" onclick="setWidgetSize('widget-sede','w-small','chart-sede')"  title="Pequeño"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/></svg> Pequeño</button>
-              <button class="widget-btn active" onclick="setWidgetSize('widget-sede','w-medium','chart-sede')" title="Mediano"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="1" width="5" height="8" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="1" width="5" height="8" rx="1" fill="currentColor"/></svg> Mediano</button>
-              <button class="widget-btn" onclick="setWidgetSize('widget-sede','w-large','chart-sede')"  title="Grande"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="0" width="12" height="10" rx="1" fill="currentColor"/></svg> Grande</button>
-            </div>
-          </div>
-          <canvas id="chart-sede"></canvas>
+        <div class="chart-card">
+          <div class="chart-title">📍 Horas por Sede — <span id="dash-sede-anio"></span></div>
+          <canvas id="chart-sede" class="chart-canvas"></canvas>
         </div>
-        <div class="widget w-medium" id="widget-top" draggable="true">
-          <div class="widget-header">
-            <div class="widget-title">🏆 Top 5 Empleados — <span id="dash-top-anio"></span></div>
-            <div class="widget-controls">
-              <button class="widget-btn" onclick="setWidgetSize('widget-top','w-small','chart-top')"  title="Pequeño"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/></svg> Pequeño</button>
-              <button class="widget-btn active" onclick="setWidgetSize('widget-top','w-medium','chart-top')" title="Mediano"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="1" width="5" height="8" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="1" width="5" height="8" rx="1" fill="currentColor"/></svg> Mediano</button>
-              <button class="widget-btn" onclick="setWidgetSize('widget-top','w-large','chart-top')"  title="Grande"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="0" width="12" height="10" rx="1" fill="currentColor"/></svg> Grande</button>
-            </div>
-          </div>
-          <canvas id="chart-top"></canvas>
+        <div class="chart-card">
+          <div class="chart-title">🏆 Top 5 Empleados — <span id="dash-top-anio"></span></div>
+          <canvas id="chart-top" class="chart-canvas"></canvas>
         </div>
-        <div class="widget w-medium" id="widget-periodo" draggable="true">
-          <div class="widget-header">
-            <div class="widget-title">📅 Período con más Horas — <span id="dash-periodo-anio"></span></div>
-            <div class="widget-controls">
-              <button class="widget-btn" onclick="setWidgetSize('widget-periodo','w-small',null)"  title="Pequeño"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/></svg> Pequeño</button>
-              <button class="widget-btn active" onclick="setWidgetSize('widget-periodo','w-medium',null)" title="Mediano"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="1" width="5" height="8" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="1" width="5" height="8" rx="1" fill="currentColor"/></svg> Mediano</button>
-              <button class="widget-btn" onclick="setWidgetSize('widget-periodo','w-large',null)"  title="Grande"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="0" width="12" height="10" rx="1" fill="currentColor"/></svg> Grande</button>
-            </div>
-          </div>
-          <div id="dash-periodo-content" style="flex:1;display:flex;flex-direction:column;justify-content:center;gap:12px;"></div>
+        <div class="chart-card">
+          <div class="chart-title">📅 Período con más Horas — <span id="dash-periodo-anio"></span></div>
+          <div id="dash-periodo-content"></div>
         </div>
-        <div class="widget w-medium" id="widget-valorcop" draggable="true">
-          <div class="widget-header">
-            <div class="widget-title">💰 Valor COP por Mes — <span id="dash-valorcop-anio"></span></div>
-            <div class="widget-controls">
-              <button class="widget-btn" onclick="setWidgetSize('widget-valorcop','w-small','chart-valorcop')"  title="Pequeño"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="2" width="5" height="6" rx="1" fill="currentColor" opacity=".5"/></svg> Pequeño</button>
-              <button class="widget-btn active" onclick="setWidgetSize('widget-valorcop','w-medium','chart-valorcop')" title="Mediano"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="1" width="5" height="8" rx="1" fill="currentColor" opacity=".5"/><rect x="6" y="1" width="5" height="8" rx="1" fill="currentColor"/></svg> Mediano</button>
-              <button class="widget-btn" onclick="setWidgetSize('widget-valorcop','w-large','chart-valorcop')"  title="Grande"><svg width="12" height="10" viewBox="0 0 12 10"><rect x="0" y="0" width="12" height="10" rx="1" fill="currentColor"/></svg> Grande</button>
-            </div>
-          </div>
-          <canvas id="chart-valorcop"></canvas>
+        <div class="chart-card">
+          <div class="chart-title">💰 Valor COP por Mes — <span id="dash-valorcop-anio"></span></div>
+          <canvas id="chart-valorcop" class="chart-canvas"></canvas>
         </div>
       </div>
-
-      <div class="widget w-large" id="widget-ultimos" draggable="true" style="height:auto;min-height:unset;">
-        <div class="widget-header">
-          <div class="widget-title">📋 Últimos Registros</div>
+      <div class="chart-card" id="widget-ultimos" style="height:auto;padding:0;border-radius:12px;overflow:hidden;">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid var(--border);">
+          <div style="font-size:14px;font-weight:700;">📋 Últimos Registros</div>
           <button class="btn btn-primary btn-sm" onclick="navigate('registro')" id="dash-btn-nuevo">+ Nuevo Registro</button>
         </div>
-        <table><thead><tr><th>Empleado</th><th>Fecha</th><th>Creado</th><th>Horas</th><th>Tipo</th><th>Motivo</th><th>Estado</th></tr></thead>
+        <table style="width:100%;border-collapse:collapse;margin:0;"><thead><tr><th style="padding:12px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;">Empleado</th><th style="padding:12px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;">Fecha</th><th style="padding:12px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;">Creado</th><th style="padding:12px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;">Horas</th><th style="padding:12px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;">Tipo</th><th style="padding:12px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;">Motivo</th><th style="padding:12px 16px;text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);font-weight:600;">Estado</th></tr></thead>
         <tbody id="dash-table-body"><tr><td colspan="7"><div class="loading">Cargando...</div></td></tr></tbody></table>
       </div>
     </div>
