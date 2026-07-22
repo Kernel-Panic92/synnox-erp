@@ -129,23 +129,26 @@ function buscarEmpleados() {
     const activo = e.activo !== 0;
     const acciones = puedoEditar()
       ? '<button class="btn btn-secondary btn-sm" onclick="editarEmpleado(\'' + esc(e.id) + '\')">✏ Editar</button>'
-        + (activo ? ' <button class="btn btn-danger btn-sm" onclick="toggleActivoEmpleado(\'' + esc(e.id) + '\', false)">🚫 Inactivar</button>' : '')
-        + (!activo ? ' <button class="btn btn-sm" style="background:rgba(79,190,150,.15);color:var(--success);border:1px solid rgba(79,190,150,.2)" onclick="toggleActivoEmpleado(\'' + esc(e.id) + '\', true)">✓ Activar</button>' : '')
-      : '<span style="font-size:12px;color:var(--muted)">Solo lectura</span>';
+        + (activo ? ' <button class="btn btn-danger btn-sm" onclick="toggleActivoEmpleado(\'' + esc(e.id) + '\', false)">🚫</button>' : '')
+        + (!activo ? ' <button class="btn btn-sm" style="background:rgba(79,190,150,.15);color:var(--success);border:1px solid rgba(79,190,150,.2)" onclick="toggleActivoEmpleado(\'' + esc(e.id) + '\', true)">✓</button>' : '')
+      : '<span style="font-size:11px;color:var(--muted)">Solo lectura</span>';
 
-    const badgeInactivo = !activo ? '<span style="display:inline-block;background:rgba(247,97,79,0.12);color:var(--danger);border-radius:6px;padding:1px 8px;font-size:10px;font-weight:700;margin-left:6px;vertical-align:middle;">INACTIVO</span>' : '';
+    const badgeInactivo = !activo ? ' <span style="background:rgba(247,97,79,0.12);color:var(--danger);border-radius:4px;padding:1px 6px;font-size:9px;font-weight:700;">INACTIVO</span>' : '';
 
     return '<div class="emp-card">'
+      + '<div class="emp-card-top">'
       + '<div class="emp-avatar" style="background:' + esc(empColor(e.nombre)) + '">' + esc(initials) + '</div>'
-      + '<div class="emp-name">' + esc(e.nombre) + badgeInactivo + (_empCorruptosIds.has(e.id) ? ' <span style="color:var(--danger);font-size:11px;" title="Nombre con caracteres corruptos">⚠️</span>' : '') + '</div>'
-      + '<div class="emp-dept">' + esc(e.cargo || '') + ' · ' + esc(e.departamento || '') + '</div>'
-      + '<div style="font-size:11px;color:var(--accent);margin-top:2px;">📍 ' + esc(e.sede || '—') + '</div>'
-      + '<div style="font-size:11px;color:var(--muted);margin-top:2px;">🔗 ' + esc(e.tipo_vinculacion || 'vinculado') + '</div>'
-      + '<div class="emp-stats">'
-      + '<div class="emp-stat"><strong>' + esc(stats.horas.toFixed(1)) + '</strong>Total Horas</div>'
-      + '<div class="emp-stat"><strong>' + esc(stats.count) + '</strong>Registros</div>'
+      + '<div class="emp-name">' + esc(e.nombre) + badgeInactivo + (_empCorruptosIds.has(e.id) ? ' <span style="color:var(--danger);font-size:10px;" title="Nombre con caracteres corruptos">⚠️</span>' : '') + '</div>'
       + '</div>'
-      + (e.email ? '<div style="font-size:12px;color:var(--muted);margin-top:8px;">✉ ' + esc(e.email) + '</div>' : '')
+      + '<div class="emp-dept">' + esc(e.cargo || '') + ' · ' + esc(e.departamento || '') + '</div>'
+      + '<div class="emp-meta">'
+      + (e.sede ? '<span class="loc">📍 ' + esc(e.sede) + '</span>' : '')
+      + '<span>🔗 ' + esc(e.tipo_vinculacion || 'vinculado') + '</span>'
+      + '</div>'
+      + '<div class="emp-stats">'
+      + '<div class="emp-stat"><strong>' + esc(stats.horas.toFixed(1)) + 'h</strong>horas</div>'
+      + '<div class="emp-stat"><strong>' + esc(stats.count) + '</strong>regs</div>'
+      + '</div>'
       + '<div class="emp-actions">' + acciones + '</div>'
       + '</div>';
   }).join('');
