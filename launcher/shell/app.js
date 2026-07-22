@@ -1,6 +1,7 @@
 let jwtToken = localStorage.getItem('platform_jwt');
 let user = null;
 const INSTALL_DIR = window.INSTALL_DIR || '~/.local/share/synnoxerp';
+let _serverStatsTimer = null;
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s||'')); return d.innerHTML; }
 
@@ -340,7 +341,7 @@ async function cargarModuleSummary() {
           ${c.stats.map(s => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;"><span style="color:var(--muted);">${s.label}</span><strong>${s.value}</strong></div>`).join('')}
         </div>`).join('')}
       </div>`;
-  } catch { w.style.display = 'none'; }
+  } catch { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
 }
 
 async function cargarPendingTasks() {
@@ -370,7 +371,7 @@ async function cargarPendingTasks() {
           <span style="font-size:16px;">${t.icon}</span> ${t.text}
         </a>`).join('')}
       </div>`;
-  } catch { w.style.display = 'none'; }
+  } catch { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
 }
 
 async function cargarAlerts() {
@@ -399,7 +400,7 @@ async function cargarAlerts() {
           <span>${a.icon}</span> ${a.text}
         </div>`).join('')}
       </div>`;
-  } catch { w.style.display = 'none'; }
+  } catch { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
 }
 
 async function cargarUpcoming() {
@@ -420,7 +421,7 @@ async function cargarUpcoming() {
           <span style="color:var(--muted);">${f.fechaVencimiento || f.fecha_vencimiento || '—'}</span>
         </div>`).join('')}
       </div>`;
-  } catch { w.style.display = 'none'; }
+  } catch { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
 }
 
 function cargarWeather() {
@@ -476,7 +477,7 @@ async function cargarActivity() {
           </div>`;
         }).join('')}
       </div>`;
-  } catch { w.style.display = 'none'; }
+  } catch { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
 }
 
 async function cargarCommits() {
@@ -502,15 +503,16 @@ async function cargarCommits() {
           </div>`;
         }).join('')}
       </div>`;
-  } catch { w.style.display = 'none'; }
+  } catch { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
 }
 
 async function cargarServerStats() {
   const w = document.getElementById('server-stats-widget');
   if (!w) return;
+  clearTimeout(_serverStatsTimer);
   try {
     const res = await fetch('/api/admin/server/stats', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
-    if (!res.ok) { w.style.display = 'none'; return; }
+    if (!res.ok) { w.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar stats</div>'; _serverStatsTimer = setTimeout(() => { if (document.getElementById('launcher-screen').style.display !== 'none') cargarServerStats(); }, 30000); return; }
     const s = await res.json();
     const memPct = s.memory ? ((s.memory.used / s.memory.total) * 100).toFixed(1) : '—';
     const memUsed = s.memory ? (s.memory.used / 1073741824).toFixed(1) : '—';
@@ -546,8 +548,8 @@ async function cargarServerStats() {
           <div style="font-size:12px;color:var(--muted);">Uptime: ${uptime}</div>
         </div>
       </div>`;
-    setTimeout(() => { if (document.getElementById('launcher-screen').style.display !== 'none') cargarServerStats(); }, 30000);
-  } catch { setTimeout(() => { if (document.getElementById('launcher-screen').style.display !== 'none') cargarServerStats(); }, 30000); }
+    _serverStatsTimer = setTimeout(() => { if (document.getElementById('launcher-screen').style.display !== 'none') cargarServerStats(); }, 30000);
+  } catch { w.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar stats</div>'; _serverStatsTimer = setTimeout(() => { if (document.getElementById('launcher-screen').style.display !== 'none') cargarServerStats(); }, 30000); }
 }
 
 function logout() {
