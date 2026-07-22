@@ -16,6 +16,16 @@ function setGridSize(size) {
   Object.values(_charts).forEach(c => { try { c.resize(); } catch {} });
 }
 
+function initGridSize() {
+  const grid = document.getElementById('dash-grid');
+  if (!grid) return;
+  grid.classList.remove('sz-s', 'sz-m', 'sz-l');
+  grid.classList.add('sz-m');
+  document.querySelectorAll('.sz-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.querySelector(`.sz-btn[onclick*="'m'"]`);
+  if (btn) btn.classList.add('active');
+}
+
 async function cargarChartJs() {
   if (_chartJsLoaded) return;
   if (typeof Chart !== 'undefined') { _chartJsLoaded = true; return; }

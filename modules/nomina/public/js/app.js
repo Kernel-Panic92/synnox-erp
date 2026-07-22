@@ -102,6 +102,7 @@ async function navigate(page) {
   // Load page-specific data
   switch (page) {
     case 'dashboard':
+      if (typeof initGridSize === 'function') initGridSize();
       if (typeof reloadDashboardData === 'function') await reloadDashboardData();
       if (typeof initDashDnd === 'function') initDashDnd();
       if (typeof initWidgetResizeObservers === 'function') initWidgetResizeObservers();
