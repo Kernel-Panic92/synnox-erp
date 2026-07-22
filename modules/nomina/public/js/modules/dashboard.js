@@ -6,12 +6,12 @@ const _nomCollapsed = {};
 let _chartJsLoaded = false;
 
 function setChartSize(chartId, size) {
-  const heights = { s: 220, m: 330, l: 440 };
   const card = document.querySelector(`.chart-card[data-chart-id="${chartId}"]`);
   if (!card) return;
-  card.style.height = heights[size] + 'px';
+  card.classList.remove('sz-s', 'sz-m', 'sz-l');
+  card.classList.add('sz-' + size);
   card.querySelectorAll('.sz-btn').forEach(b => b.classList.remove('active'));
-  const btn = card.querySelector('.sz-btn[onclick*="' + size + '"]');
+  const btn = card.querySelector(`.sz-btn[onclick*="'${size}'"]`);
   if (btn) btn.classList.add('active');
   const canvas = card.querySelector('canvas');
   if (canvas) {
