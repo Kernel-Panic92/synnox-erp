@@ -76,7 +76,7 @@ async function renderCfgTab(){
   }
   else if (cfgTab === 'backup') {
     c.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:20px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;">
         <div class="table-wrap" style="padding:28px 32px;">
           <div style="font-family:var(--font-head);font-weight:700;font-size:16px;margin-bottom:6px;">📦 Exportar Backup</div>
           <p style="color:var(--muted);font-size:13px;margin-bottom:24px;line-height:1.6;">
@@ -146,11 +146,11 @@ async function renderCfgTab(){
   }
   else if (cfgTab === 'seguridad') {
     c.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:20px;margin-bottom:20px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:20px;margin-bottom:20px;">
         <div class="stat-card"><div class="stat-label">IPs Bloqueadas</div><div class="stat-value" id="sec-bloqueadas" style="color:var(--danger);">—</div></div>
         <div class="stat-card"><div class="stat-label">IPs en Seguimiento</div><div class="stat-value" id="sec-seguimiento" style="color:var(--warning);">—</div></div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:20px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:20px;">
         <div class="table-wrap" style="padding:24px 28px;">
           <div style="font-family:var(--font-head);font-weight:700;font-size:15px;margin-bottom:16px;">⚙️ Configuración del Rate Limiter</div>
           <div style="display:flex;flex-direction:column;gap:10px;font-size:13px;">
@@ -181,12 +181,12 @@ async function renderCfgTab(){
         <button class="btn btn-secondary btn-sm" onclick="cargarAuditoria()">🔄 Actualizar</button>
         <button class="btn btn-outline btn-sm" onclick="limpiarFiltrosAuditoria()">🧹 Limpiar</button>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:24px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:24px;">
         <div class="stat-card"><div class="stat-label">Sesiones Activas</div><div class="stat-value" id="aud-sesiones" style="color:var(--accent);">—</div></div>
         <div class="stat-card"><div class="stat-label">Inicios Exitosos Hoy</div><div class="stat-value" id="aud-exitos-hoy" style="color:var(--success);">—</div></div>
         <div class="stat-card"><div class="stat-label">Intentos Fallidos Hoy</div><div class="stat-value" id="aud-fallidos-hoy" style="color:var(--danger);">—</div></div>
       </div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(350px,1fr));gap:20px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:20px;">
         <div class="table-wrap" style="padding:0;"><div class="table-head"><div class="table-title">👥 Usuarios y Estado de Sesión</div></div><div id="aud-sesiones-body" style="padding:20px 24px;font-size:13px;color:var(--muted);text-align:center;overflow-y:auto;max-height:calc(100vh - 320px);min-height:200px;">Cargando...</div></div>
         <div class="table-wrap" style="padding:0;"><div class="table-head"><div class="table-title">📜 Historial de Inicios de Sesión</div></div><div id="aud-historial-body" style="padding:20px 24px;font-size:13px;color:var(--muted);text-align:center;overflow-y:auto;max-height:calc(100vh - 320px);min-height:200px;">Cargando...</div></div>
       </div>`;
