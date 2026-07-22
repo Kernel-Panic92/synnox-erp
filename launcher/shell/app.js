@@ -80,7 +80,7 @@ function toggleTheme() {
 }
 
 function show(id) {
-  ['login-screen', 'launcher-screen', 'admin-screen', 'admin-form-overlay', 'modulo-form-overlay'].forEach(s => {
+  ['loading-screen', 'login-screen', 'launcher-screen', 'admin-screen', 'admin-form-overlay', 'modulo-form-overlay'].forEach(s => {
     const el = document.getElementById(s);
     if (s === id) {
       el.style.display = (s === 'login-screen') ? 'flex' : 'block';
