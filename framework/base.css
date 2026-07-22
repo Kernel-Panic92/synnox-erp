@@ -139,3 +139,33 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
 @media (max-width: 480px) {
   .login-card { padding: 24px; margin: 16px; border-radius: 12px; }
 }
+
+/*
+ * ══════════════════════════════════════════════════════════════
+ * LAYOUT CONVENTIONS — Leer antes de crear grids o layouts
+ * ══════════════════════════════════════════════════════════════
+ *
+ * 1. .main con sidebar fixed
+ *    Cuando .sidebar usa position:fixed, sale del flujo flex.
+ *    .main DEBE tener flex:1 + min-width:0 para estirarse:
+ *      .main { flex: 1; min-width: 0; width: calc(100% - var(--sidebar-w)); }
+ *    Sin esto, .main se encoge al tamaño del contenido.
+ *
+ * 2. auto-fit vs auto-fill
+ *    - auto-fit: colapsa columnas vacías, estira items para llenar ancho.
+ *                 Usar cuando hay pocos items (1-5) y se quiere llenar el espacio.
+ *    - auto-fill: crea columnas vacías reservadas. Usar solo cuando se necesitan
+ *                  columnas vacías (ej: grid de cards donde el usuario puede agregar más).
+ *
+ * 3. Grids responsive
+ *    Siempre: repeat(auto-fit, minmax(ANCHO_MIN, 1fr))
+ *    NUNCA:   repeat(N, 1fr)  — no se adapta al ancho disponible.
+ *
+ * 4. Tablas overflow
+ *    .table-wrap { overflow-x: auto; }  — permite scroll horizontal.
+ *    NUNCA: overflow:hidden en .table-wrap — recorta contenido sin scroll.
+ *
+ * 5. Skeleton loaders
+ *    Widgets que hacen fetch deben mostrar skeleton mientras cargan.
+ *    NO usar display:none — el widget aparece de golpe cuando llegan datos.
+ */

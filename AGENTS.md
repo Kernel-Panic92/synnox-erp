@@ -1,5 +1,63 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (22 Jul 2026 — sesión 19)
+
+### Cambios Sesión 19 — Layout responsive & root cause fixes
+
+- **Root cause — `.main` sin `flex:1`**: Cuando `.sidebar` tiene `position:fixed`, sale del flujo flex. `.main` como único hijo flex se encoge al tamaño del contenido sin `flex:1;min-width:0`. Fix: agregar `flex:1;min-width:0;width:calc(100% - var(--sidebar-w))` a `.main` en nómina y proveedores.
+- **Login flash (#21)**: Agregado `#loading-screen` con branding visible mientras se valida sesión. `#app-screen` ahora inicia con `display:none`. PR [#23](https://github.com/Kernel-Panic92/synnox-erp/pull/23).
+- **Widgets launcher (#20)**: Skeleton loaders con animación `skel-pulse`, fix race condition en `cargarServerStats()` con `_serverStatsTimer` guard, error states visibles en 6 widgets. PR [#24](https://github.com/Kernel-Panic92/synnox-erp/pull/24).
+- **Dashboard 21:9/4K (#22)**: Eliminado `overflow-x:hidden` de `.main`, limpiadas ~154 líneas de dead code del sistema de widgets viejo. PR [#26](https://github.com/Kernel-Panic92/synnox-erp/pull/26).
+- **Layout consistency nómina**: `.table-wrap` overflow:hidden → auto, `.form-grid` 2cols → auto-fill, `.report-summary` 3cols → auto-fill.
+- **Empleados redesign**: Grid `minmax(260px)` → `minmax(220px)`, card compacta (avatar+nombre en fila, badges, stats inline).
+- **Configuración responsive**: Todos los grids fijos (`1fr 1fr`, `1fr 1fr 1fr`) → `auto-fit, minmax()`. SMTP cards sin `max-width:600px`, envueltas en grid responsive.
+- **`auto-fill` vs `auto-fit`**: `auto-fill` crea columnas vacías que dejan espacio en blanco. `auto-fit` colapsa columnas vacías y estira los items. Usar `auto-fit` cuando hay pocos items por grid.
+
+### Convenciones de Layout (AGREGADAS SESIÓN 19)
+
+- **`.main` en módulos con sidebar fijo**: Siempre `flex:1;min-width:0;width:calc(100% - var(--sidebar-w))`. El sidebar `position:fixed` sale del flujo flex, y sin `flex:1` el contenido se encoge.
+- **`auto-fit` vs `auto-fill`**: Usar `auto-fit` para grids con pocos items (1-5). `auto-fill` solo cuando se necesitan columnas vacías reservadas.
+- **`overflow-x:auto` en tablas**: Nunca `overflow:hidden` en `.table-wrap` — recorta contenido. Usar `overflow-x:auto` para scroll horizontal.
+- **Grids responsive**: Siempre `repeat(auto-fit, minmax(Xpx, 1fr))` nunca `repeat(N, 1fr)` fijo. El `minmax` define el ancho mínimo de cada item.
+- **Skeleton loaders**: Widgets que hacen fetch deben mostrar skeleton mientras cargan, no `display:none`.
+
+### Pendientes nuevos
+- [ ] **Ofuscar builds frontend** — Evaluar `javascript-obfuscator` o similar. Verificar que no rompa nada antes de implementar. **No hacer sin probar en staging primero.**
+
+### Pendientes anteriores (actualizados)
+- [x] ~~Dashboard responsive 21:9/4K~~ — Resuelto sesión 19 (root cause: `.main` sin `flex:1`)
+- [ ] Observabilidad centralizada (tabla `auditoria_central`)
+- [ ] APIs internas entre módulos
+- [ ] Probar HTTPS en producción
+- [ ] SSH `execSync` → `ssh2` (test-ssh)
+- [ ] CSP nonce en proveedores
+- [ ] Dividir `launcher/server.js` (~1950 líneas → routers separados)
+- [ ] ESLint + Prettier config
+- [ ] Limpiar `.env` legacy
+- [ ] Actualizar docs restantes
+
+### Convenciones del Framework (SEGUIR SIEMPRE)
+
+- **Modales**: Definir en HTML con `class="modal-overlay"`, mostrar/ocultar con `display: block/none`. NO crear modales dinámicamente con `document.createElement`.
+- **Confirmaciones**: Usar `confirmModal(msg, title)` del framework, NUNCA `confirm()` del navegador.
+- **Mensajes**: Usar `toast(msg, type)` del framework para feedback al usuario.
+- **CSS**: Usar variables del framework (`var(--surface)`, `var(--border)`, `var(--text)`, `var(--muted)`, `var(--accent)`, `var(--success)`, `var(--danger)`).
+- **Botones**: Seguir clases existentes: `btn`, `btn-sm`, `btn-secondary`, `btn-danger`.
+- **Tablas**: Usar estructura `<table id="xxx-table"><thead><tr>...</tr></thead><tbody></tbody></table>` con `overflow-x:auto`.
+- **Layout `.main`**: Siempre `flex:1;min-width:0;width:calc(100% - var(--sidebar-w))` cuando el sidebar es `position:fixed`.
+- **Grids**: Siempre `repeat(auto-fit, minmax(Xpx, 1fr))`. NUNCA `repeat(N, 1fr)` fijo. Usar `auto-fit` para pocos items, `auto-fill` para muchos.
+- **Tablas overflow**: `.table-wrap` siempre `overflow-x:auto`, NUNCA `overflow:hidden`.
+- **Skeletons**: Widgets con fetch deben mostrar skeleton loader mientras cargan.
+- **API**: Todas las rutas usan `verificarToken, soloAdmin`. Respuestas: `{ ok: true }` o `{ error: 'msg' }`.
+- **DB**: Migraciones con `try { db.exec("ALTER TABLE...") } catch {}` para columnas nuevas. Seeds con `INSERT OR IGNORE`.
+- **Auth**: Siempre via `verificarToken` middleware. JWT incluye `modulos_permisos` para permisos granulares.
+- **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`.
+- **Versión**: Todos los módulos leen `/api/version` del root `package.json` (versión unificada `1.0.0`). NO usar `package.json` del módulo. NO mostrar rama git. Frontend: `el.textContent = 'v' + data.version`.
+- **Instalación**: Path default `~/.local/share/synnoxerp` (XDG). NO usar `/opt/`.
+- **Licencia**: Propietaria (LICENSE.md). NO redistribuir código fuente.
+
+---
+
 ## Estado (21 Jul 2026 — sesión 18)
 
 ### Cambios Sesión 18 — SIESA export, dashboard layout

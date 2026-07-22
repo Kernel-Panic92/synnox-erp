@@ -74,6 +74,81 @@ Todos los módulos usan el mismo sidebar. Copiar `base.css` y `framework.js` del
 | Colapsado | `localStorage('sidebar_collapsed')` | Framework restaura en init |
 | Theme | `themeKey: 'synnox_theme'` | Lee del launcher |
 
+## 1.1 Layout y Grids — Convenciones obligatorias
+
+### `.main` con sidebar fixed
+
+Cuando `.sidebar` usa `position:fixed`, sale del flujo flex. `.main` como único hijo flex **se encoge al tamaño del contenido** sin las propiedades correctas.
+
+**Siempre** agregar en el `<style>` del módulo:
+```css
+.main {
+  padding: 24px 28px;
+  flex: 1;
+  min-width: 0;
+  width: calc(100% - var(--sidebar-w));
+}
+```
+
+En móvil (≤768px), sobreescribir:
+```css
+@media (max-width: 768px) {
+  .main { margin-left: 0; width: 100%; }
+}
+```
+
+### Grids responsive
+
+Siempre usar `auto-fit` con `minmax()`:
+```css
+/* CORRECTO — se adapta al ancho disponible */
+grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+
+/* INCORRECTO — fijo, no se adapta */
+grid-template-columns: 1fr 1fr;
+grid-template-columns: repeat(3, 1fr);
+```
+
+**`auto-fit` vs `auto-fill`**:
+- `auto-fit`: colapsa columnas vacías y estira items. Usar para pocos items (1-5).
+- `auto-fill`: reserva columnas vacías. Usar solo cuando se necesitan slots vacíos.
+
+### Tablas overflow
+
+```css
+/* CORRECTO — permite scroll horizontal */
+.table-wrap { overflow-x: auto; }
+
+/* INCORRECTO — recorta contenido sin scroll */
+.table-wrap { overflow: hidden; }
+```
+
+### Skeleton loaders
+
+Widgets que hacen fetch deben mostrar skeleton mientras cargan:
+```css
+.widget-skeleton {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.skel-line {
+  height: 14px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--border) 25%, transparent 50%, var(--border) 75%);
+  background-size: 200% 100%;
+  animation: skel-pulse 1.5s infinite;
+}
+@keyframes skel-pulse {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+```
+
+NO usar `display:none` en widgets — aparecen de golpe cuando llegan datos.
+
 ## 2. Frontend — JavaScript
 
 ```html
