@@ -196,7 +196,7 @@ async function runInstall(config) {
       SMTP_PASS: config.smtpPass || '',
       SMTP_FROM: config.smtpFrom || adminEmail,
       SMTP_FROM_NAME: config.smtpFromName || companyName,
-      INSTALL_DIR: config.installDir || `${require('os').homedir()}/.local/share/synnoxerp`,
+      INSTALL_DIR: config.installDir || INSTALL_DIR,
       LAUNCHER_URL: `http://localhost:${config.serverPort || 3002}`,
       OSRM_URL: 'https://router.project-osrm.org',
     };

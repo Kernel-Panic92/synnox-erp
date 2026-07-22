@@ -22,7 +22,7 @@ const config = {
   smtpSecure: 'false',
   smtpFromName: '',
   serverPort: 3002,
-  installDir: '~/.local/share/synnoxerp',
+  installDir: '/opt/synnoxerp',
   repoUrl: 'https://github.com/synnoxerp/synnox-erp.git',
   modules: ['proveedores', 'logistica', 'proyectos'],
   clean: false,
