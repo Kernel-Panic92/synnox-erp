@@ -1,22 +1,20 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (21 Jul 2026 — sesión 17)
+## Estado (21 Jul 2026 — sesión 18)
 
-### Cambios Sesión 17 — Bugs, sidebar, versión, CSV import, sesión
+### Cambios Sesión 18 — SIESA export, dashboard layout
 
-- **Fix — Sesión expira sin inactividad**: JWT hardcoded a 1h sin refresh. Fix: `POST /api/auth/refresh` endpoint + auto-refresh cada 30min en frontend + refresh en page load + framework.js auto-refresh en 401. Sliding session completa.
-- **Fix — Proyectos adjuntos no se ven**: URLs hardcodeadas `/uploads/evidencias/...` en `tareas.js` — cambiado a `${BASE}/uploads/evidencias/...` (resuelve a `/proyectos/uploads/...`).
-- **Fix — Kanban drag-drop roto**: `PUT /reordenar` definido DESPUÉS de `PUT /:id` en `tareas.js` — Express matcheaba el genérico primero. Movido `/reordenar` antes de `/:id`.
-- **Fix — Proyectos theme**: Cambiado `themeKey` de `'proyectos_theme'` a `'synnox_theme'` (ahora lee del launcher). Eliminado botón de toggle de tema.
-- **Fix — 404 `/api/admin/centros`**: PM2 tenía código stale. Fix: restart.
-- **Fix — 502 tras restart máquina**: PM2 vacío. Fix: `pm2 start server.js --name synnoxerp` con `.env PORT=3003`.
-- **CSV import usuarios**: `POST /api/admin/usuarios/import-csv` acepta CSV del backup de nómina. Mapea roles, valida sede, asigna módulos. Frontend: modal con selector de archivos + checkboxes.
-- **Unificación catálogo centros**: LauncherDB helper read-only en `modules/nomina/src/utils/launcherDb.js`. Nómina lee centros del launcher. Eliminada tabla local `centros`.
-- **Sidebar estándar**: Framework `base.css` con sidebar colapsable + `framework.js` con `toggleSidebarCollapse()`. Todos los módulos estandarizados (HTML, CSS, IDs, clases). Eliminado CSS inline duplicado.
-- **Versión unificada**: Todos los módulos leen de root `package.json` → `v1.0.0`. Sin rama git. `/api/version` exento de auth en nomina/proveedores.
-- **Documentación**: Actualizado README.md (paths, arquitectura, proyectos), framework/README.md (sidebar conventions, version), AGENTS.md.
+- **SIESA export**: Columna B cambiada de `r.sede` a `r.empleadoNombre` para coincidir con Horix.
+- **Dashboard simplificado**: Eliminado sistema de widgets complejo (S/M/G per-card, drag-and-drop, ResizeObservers). Reemplazado por `chart-card` simple (título + canvas), como proveedores.
+- **Grid responsive**: Cambiado de `repeat(12, 1fr)` a `auto-fit, minmax(360px, 1fr)` para adaptarse al ancho de pantalla.
+- **S/M/G global**: Botones S/M/G ahora controlan el `minmax` del grid completo (no per-card). S: 260px, M: 360px, L: 520px.
+- **`initGridSize()`**: Resetea el grid a `sz-m` al cargar el dashboard para limpiar clases stale.
+- **`crearOActualizar()`**: Agregado `requestAnimationFrame + setTimeout(300)` para resize post-creación de charts.
+- **CSS cleanup**: Eliminadas ~150 líneas de CSS de widgets (.widget, .widget-header, .widget-controls, drag states, etc.)
+- **HTML cleanup**: Eliminados S/M/G per-card buttons, drag-hint, widget structure. Simplificado a chart-card inline.
 
 ### Pendientes nuevos
+- [ ] **Dashboard responsive 21:9/4K** — Issue #XX abierto. El grid `auto-fit` no adapta correctamente en pantallas ultra-anchas. Revisar en nómina, logística y proyectos. Verificar CSS specificity, viewport meta, y `auto-fit` behavior.
 - [ ] **Ofuscar builds frontend** — Evaluar `javascript-obfuscator` o similar. Verificar que no rompa nada antes de implementar. **No hacer sin probar en staging primero.**
 
 ### Pendientes anteriores (actualizados)
