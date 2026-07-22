@@ -27,10 +27,10 @@
   /* ── LAYOUT ── */
   .layout{display:flex;min-height:100vh;}
   #app-screen{display:none;width:100%;}
-  #app-screen.show{display:flex;}
+  #app-screen.show{display:flex;width:100%;}
 
   /* ── MAIN (module-specific overrides) ── */
-   .main{padding:36px 40px;flex:1;min-width:0;}
+   .main{padding:36px 40px;flex:1;min-width:0;width:calc(100% - var(--sidebar-w));}
   .main-topbar{position:fixed;top:14px;right:40px;z-index:50;display:flex;align-items:center;gap:6px;}
   .main-icon-btn{background:var(--surface);border:1px solid var(--border);border-radius:9px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;font-size:17px;cursor:pointer;color:var(--muted);transition:all 0.15s;box-shadow:0 2px 8px rgba(0,0,0,0.12);}
   .main-icon-btn:hover{color:var(--text);border-color:var(--accent);}
@@ -371,7 +371,7 @@
 
   /* ── Móvil (≤480px) ── */
   @media (max-width: 480px) {
-    .main { padding: 60px 12px 20px 12px; }
+    .main { padding: 60px 12px 20px 12px; margin-left: 0; width: 100%; }
 
     .stats-row { grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
     .stat-card { padding: 14px; }
