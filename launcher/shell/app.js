@@ -1,6 +1,6 @@
 let jwtToken = localStorage.getItem('platform_jwt');
 let user = null;
-const INSTALL_DIR = window.INSTALL_DIR || '~/.local/share/synnoxerp';
+const INSTALL_DIR = window.INSTALL_DIR || '';
 let _serverStatsTimer = null;
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s||'')); return d.innerHTML; }

@@ -94,7 +94,7 @@ app.get('/api/admin/commits', verificarToken, soloAdmin, (req, res) => {
 
 const COMPANY_NAME = process.env.SMTP_FROM_NAME || process.env.COMPANY_NAME || 'SynnoxERP';
 const COMPANY_DOMAIN = process.env.COMPANY_DOMAIN || 'localhost';
-const INSTALL_DIR = process.env.INSTALL_DIR || `${require('os').homedir()}/.local/share/synnoxerp`;
+const INSTALL_DIR = process.env.INSTALL_DIR || path.resolve(__dirname, '..');
 
 const PORT = parseInt(process.env.PORT || '3002', 10);
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -2268,6 +2268,7 @@ app.post('/api/admin/import', verificarToken, soloAdmin, (req, res) => {
 });
 
 if (require.main === module) {
+  app.use('/media', express.static(path.join(__dirname, '..', 'media')));
   app.use(express.static(path.join(__dirname, 'shell')));
   app.get('*', (req, res) => {
     const htmlPath = path.join(__dirname, 'shell', 'index.html');

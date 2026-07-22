@@ -3,13 +3,12 @@ set -euo pipefail
 
 # ─────────────────────────────────────────────────────────────
 # SynnoxERP — Instalación automática (monorepo unificado)
-#   Uso: sudo bash install.sh
-#   Branch: refactor/monorepo-auth
+#   Uso: cd synnox-erp && sudo bash install.sh
+#   Instala desde el directorio actual del repo (sin copiar)
 # ─────────────────────────────────────────────────────────────
 
 BRANCH="${1:-main}"
-INSTALL_DIR="${HOME}/.local/share/synnoxerp"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+INSTALL_DIR="$(pwd)"
 CONFIG="$INSTALL_DIR/.env"
 VERDE="\033[0;32m"; ROJO="\033[0;31m"; AMARILLO="\033[1;33m"; RESET="\033[0m"
 ok()  { echo -e " ${VERDE}✓${RESET} $1"; }
@@ -19,15 +18,24 @@ warn(){ echo -e " ${AMARILLO}⚠${RESET} $1"; }
 echo -e "${VERDE}"
 echo "╔══════════════════════════════════════════════════════╗"
 echo "║         SynnoxERP — Instalación automática          ║"
-echo "║         Monorepo unificado (1 servidor, 3 módulos)  ║"
+echo "║         Monorepo unificado (1 servidor, N módulos)  ║"
 echo "╚══════════════════════════════════════════════════════╝"
 echo -e "${RESET}"
 echo ""
 
 # ─── Verificar root ────────────────────────────────────────
-if [[ $EUID -ne 0 ]]; then warn "Ejecuta con sudo: sudo bash install.sh"; exit 1; fi
+if [[ $EUID -ne 0 ]]; then warn "Ejecuta con sudo: cd synnox-erp && sudo bash install.sh"; exit 1; fi
+
+# ─── Verificar que estamos en el repo ──────────────────────
+if [ ! -f "$INSTALL_DIR/server.js" ] || [ ! -d "$INSTALL_DIR/launcher" ]; then
+  err "No se detectó el repo de SynnoxERP en $(pwd)"
+  err "Ejecuta: cd synnox-erp && sudo bash install.sh"
+  exit 1
+fi
+ok "Directorio de instalación: $INSTALL_DIR"
 
 # ─── 1. Dependencias del sistema ───────────────────────────
+echo ""
 echo ">>> Instalando dependencias del sistema..."
 apt-get update -qq
 apt-get install -y -qq curl git nginx openssl postgresql postgresql-client >/dev/null 2>&1 || true
@@ -76,35 +84,20 @@ su - postgres -c "psql -tc \"SELECT 1 FROM pg_roles WHERE rolname='$DB_USER'\" |
 su - postgres -c "psql -tc \"SELECT 1 FROM pg_database WHERE datname='$DB_NAME'\" | grep -q 1 || createdb -O $DB_USER $DB_NAME" 2>/dev/null || true
 ok "PostgreSQL listo — database: $DB_NAME"
 
-# ─── 3. Clonar / copiar repositorio ────────────────────────
+# ─── 3. Actualizar repo (si es repositorio git) ────────────
 echo ""
-echo ">>> Instalando plataforma en $INSTALL_DIR..."
+echo ">>> Verificando repositorio..."
 
-if [ "$SCRIPT_DIR" = "$INSTALL_DIR" ]; then
-  ok "Ya estamos en $INSTALL_DIR"
-elif [ -d "$INSTALL_DIR/.git" ]; then
-  warn "$INSTALL_DIR ya existe — actualizando..."
+if [ -d "$INSTALL_DIR/.git" ]; then
   cd "$INSTALL_DIR"
-  git fetch origin
-  git checkout "$BRANCH"
-  git pull origin "$BRANCH"
-else
-  if [ -d "$SCRIPT_DIR/.git" ]; then
-    mkdir -p "$INSTALL_DIR"
-    rsync -a --exclude='.git' --exclude='node_modules' "$SCRIPT_DIR/" "$INSTALL_DIR/"
-    cd "$INSTALL_DIR"
-    ok "Archivos copiados desde $SCRIPT_DIR"
-  else
-    git clone -b "$BRANCH" https://github.com/synnoxerp/synnox-erp.git "$INSTALL_DIR" 2>/dev/null || {
-      err "No se pudo clonar el repo"
-      exit 1
-    }
-    cd "$INSTALL_DIR"
-    ok "Repositorio clonado (branch $BRANCH)"
+  if [ "$(git branch --show-current)" != "$BRANCH" ]; then
+    git checkout "$BRANCH" 2>/dev/null || warn "No se pudo cambiar a branch $BRANCH"
   fi
+  git fetch origin 2>/dev/null || warn "git fetch falló — continuando con código local"
+  ok "Repositorio git detectado en $INSTALL_DIR"
+else
+  warn "No es un repositorio git — usando archivos locales"
 fi
-
-cd "$INSTALL_DIR"
 
 # ─── 4. Generar .env ───────────────────────────────────────
 JWT_SECRET="${JWT_SECRET:-$(openssl rand -hex 64)}"
@@ -195,7 +188,7 @@ pm2 delete logistics 2>/dev/null || true
 pm2 delete docflow 2>/dev/null || true
 
 cd "$INSTALL_DIR"
-pm2 start server.js --name synnoxerp
+pm2 start server.js --name synnoxerp --cwd "$INSTALL_DIR"
 pm2 save
 pm2 startup 2>/dev/null || true
 ok "Servidor arrancado en puerto ${PORT:-3002}"
@@ -296,11 +289,13 @@ echo ""
 echo "  URL:        https://$DOMAIN"
 echo "  Admin:      admin@synnoxerp.com"
 echo "  Password:   $ADMIN_PASS"
+echo "  Directorio: $INSTALL_DIR"
 echo ""
 echo "  Módulos (montados en el mismo servidor):"
 echo "    /proveedores/  → Proveedores (facturas)"
 echo "    /logistica/    → Logística (rutas)"
 echo "    /nomina/       → Nómina (horas extra)"
+echo "    /proyectos/    → Proyectos y tareas"
 echo ""
 echo "  Comandos útiles:"
 echo "    pm2 logs synnoxerp     # Ver logs"
