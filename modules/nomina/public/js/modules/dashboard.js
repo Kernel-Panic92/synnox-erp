@@ -202,8 +202,18 @@ function crearOActualizar(id, config) {
   } else {
     const ctx = document.getElementById(id);
     if (!ctx) return;
+    const parent = ctx.parentElement;
+    if (parent) {
+      const rect = parent.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        ctx.style.width = rect.width + 'px';
+        ctx.style.height = rect.height + 'px';
+      }
+    }
     _charts[id] = new Chart(ctx, config);
-    setTimeout(() => { try { _charts[id]?.resize(); } catch {} }, 150);
+    requestAnimationFrame(() => {
+      setTimeout(() => { try { _charts[id]?.resize(); } catch {} }, 300);
+    });
   }
 }
 
