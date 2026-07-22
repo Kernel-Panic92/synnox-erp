@@ -5,19 +5,15 @@ let _dragSrc = null;
 const _nomCollapsed = {};
 let _chartJsLoaded = false;
 
-function setChartSize(chartId, size) {
-  const card = document.querySelector(`.chart-card[data-chart-id="${chartId}"]`);
-  if (!card) return;
-  card.classList.remove('sz-s', 'sz-m', 'sz-l');
-  card.classList.add('sz-' + size);
-  card.querySelectorAll('.sz-btn').forEach(b => b.classList.remove('active'));
-  const btn = card.querySelector(`.sz-btn[onclick*="'${size}'"]`);
+function setGridSize(size) {
+  const grid = document.getElementById('dash-grid');
+  if (!grid) return;
+  grid.classList.remove('sz-s', 'sz-m', 'sz-l');
+  grid.classList.add('sz-' + size);
+  document.querySelectorAll('.sz-btn').forEach(b => b.classList.remove('active'));
+  const btn = document.querySelector(`.sz-btn[onclick*="'${size}'"]`);
   if (btn) btn.classList.add('active');
-  const canvas = card.querySelector('canvas');
-  if (canvas) {
-    const chart = Chart.getChart(canvas);
-    if (chart) setTimeout(() => chart.resize(), 50);
-  }
+  Object.values(_charts).forEach(c => { try { c.resize(); } catch {} });
 }
 
 async function cargarChartJs() {
