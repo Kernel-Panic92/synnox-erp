@@ -601,8 +601,9 @@ async function loadUsers() {
 let cachedModulos = [];
 
 function toggleModulosSection() {
-  const isAdmin = document.getElementById('form-rol').value === 'admin';
-  document.getElementById('form-modulos-section').style.display = isAdmin ? 'none' : 'block';
+  const rol = document.getElementById('form-rol').value;
+  const hideModules = rol === 'admin' || rol === 'gerente';
+  document.getElementById('form-modulos-section').style.display = hideModules ? 'none' : 'block';
 }
 
 async function renderModulosCheckboxes(selectedModulos = []) {

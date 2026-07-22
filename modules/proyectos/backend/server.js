@@ -33,11 +33,13 @@ import comentariosRoutes from './routes/comentarios.js';
 import usuariosRoutes from './routes/usuarios.js';
 import evidenciasRoutes from './routes/evidencias.js';
 import aprobacionRoutes from './routes/aprobacion.js';
+import alertasRoutes from './routes/alertas.js';
 
 const protect = [verifyToken, verifySession, requireModule(MODULE_ID)];
 
 app.use('/api/tareas', protect, evidenciasRoutes);
 app.use('/api', protect, aprobacionRoutes);
+app.use('/api', protect, alertasRoutes);
 app.use('/api/proyectos', protect, proyectosRoutes);
 app.use('/api/tareas', protect, tareasRoutes);
 app.use('/api/tareas', protect, comentariosRoutes);
