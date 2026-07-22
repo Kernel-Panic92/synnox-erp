@@ -4,6 +4,8 @@ const { authMiddleware, requireRol } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
+const LAUNCHER_URL = process.env.LAUNCHER_URL || 'http://localhost:3002';
+
 // ─── GET /api/centros ──────────────────────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
@@ -30,108 +32,67 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// ─── POST /api/centros ────────────────────────────────────────────────────
-router.post('/', requireRol('admin'), async (req, res) => {
-  const { nombre, codigo, descripcion, direccion, telefono, email, activo } = req.body;
-  
-  if (!nombre?.trim()) {
-    return res.status(400).json({ error: 'El nombre es requerido' });
-  }
-
+// ─── POST /api/centros/sync ──────────────────────────────────────────────
+// Sincroniza centros desde el launcher (fuente única de verdad)
+router.post('/sync', requireRol('admin'), async (req, res) => {
   try {
-    const existente = await db.query(
-      'SELECT id FROM centros_operacion WHERE nombre = $1',
-      [nombre.trim()]
-    );
-    if (existente.rows.length > 0) {
-      return res.status(400).json({ error: 'Ya existe un centro con ese nombre' });
+    const token = req.headers.authorization?.replace('Bearer ', '');
+    const response = await fetch(`${LAUNCHER_URL}/api/centros`, {
+      headers: { 'Authorization': `Bearer ${token}` }
+    });
+    if (!response.ok) {
+      return res.status(502).json({ error: 'No se pudo conectar con el launcher' });
+    }
+    const launcherCentros = await response.json();
+
+    let created = 0, updated = 0, unchanged = 0;
+    for (const lc of launcherCentros) {
+      const { rows: existing } = await db.query(
+        'SELECT id, nombre, activo FROM centros_operacion WHERE nombre = $1',
+        [lc.nombre]
+      );
+      if (existing.length === 0) {
+        await db.query(
+          `INSERT INTO centros_operacion (nombre, codigo, descripcion, direccion, telefono, email, activo)
+           VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+          [lc.nombre, lc.codigo || null, lc.descripcion || null, lc.direccion || null, lc.telefono || null, lc.email || null, lc.activo !== false]
+        );
+        created++;
+      } else {
+        const needsUpdate =
+          existing[0].activo !== (lc.activo !== false);
+        if (needsUpdate) {
+          await db.query(
+            'UPDATE centros_operacion SET activo = $1 WHERE id = $2',
+            [lc.activo !== false, existing[0].id]
+          );
+          updated++;
+        } else {
+          unchanged++;
+        }
+      }
     }
 
-    const { rows } = await db.query(
-      `INSERT INTO centros_operacion (nombre, codigo, descripcion, direccion, telefono, email, activo)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING *`,
-      [
-        nombre.trim(),
-        codigo?.trim() || null,
-        descripcion?.trim() || null,
-        direccion?.trim() || null,
-        telefono?.trim() || null,
-        email?.trim() || null,
-        activo !== false
-      ]
-    );
-
-    res.status(201).json(rows[0]);
+    res.json({ ok: true, created, updated, unchanged, total: launcherCentros.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ─── POST /api/centros ────────────────────────────────────────────────────
+// CRUD deshabilitado — los centros se gestionan desde el Launcher
+router.post('/', requireRol('admin'), async (req, res) => {
+  res.status(400).json({ error: 'Los centros se gestionan desde el panel de administración del Launcher' });
 });
 
 // ─── PUT /api/centros/:id ─────────────────────────────────────────────────
 router.put('/:id', requireRol('admin'), async (req, res) => {
-  const { nombre, codigo, descripcion, direccion, telefono, email, activo } = req.body;
-  
-  if (!nombre?.trim()) {
-    return res.status(400).json({ error: 'El nombre es requerido' });
-  }
-
-  try {
-    const existente = await db.query(
-      'SELECT id FROM centros_operacion WHERE nombre = $1 AND id != $2',
-      [nombre.trim(), req.params.id]
-    );
-    if (existente.rows.length > 0) {
-      return res.status(400).json({ error: 'Ya existe un centro con ese nombre' });
-    }
-
-    const { rows } = await db.query(
-      `UPDATE centros_operacion 
-       SET nombre=$1, codigo=$2, descripcion=$3, direccion=$4, telefono=$5, email=$6, activo=$7
-       WHERE id=$8
-       RETURNING *`,
-      [
-        nombre.trim(),
-        codigo?.trim() || null,
-        descripcion?.trim() || null,
-        direccion?.trim() || null,
-        telefono?.trim() || null,
-        email?.trim() || null,
-        activo !== false,
-        req.params.id
-      ]
-    );
-
-    if (!rows[0]) return res.status(404).json({ error: 'Centro no encontrado' });
-    res.json(rows[0]);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.status(400).json({ error: 'Los centros se gestionan desde el panel de administración del Launcher' });
 });
 
 // ─── DELETE /api/centros/:id ───────────────────────────────────────────────
 router.delete('/:id', requireRol('admin'), async (req, res) => {
-  try {
-    const enUso = await db.query(
-      'SELECT COUNT(*)::int AS n FROM facturas WHERE centro_operacion_id = $1',
-      [req.params.id]
-    );
-    if (enUso.rows[0].n > 0) {
-      return res.status(400).json({ 
-        error: `No se puede eliminar: hay ${enUso.rows[0].n} factura(s) asignadas a este centro` 
-      });
-    }
-
-    const { rows } = await db.query(
-      'DELETE FROM centros_operacion WHERE id = $1 RETURNING id',
-      [req.params.id]
-    );
-    if (!rows[0]) return res.status(404).json({ error: 'Centro no encontrado' });
-    
-    res.json({ ok: true });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
+  res.status(400).json({ error: 'Los centros se gestionan desde el panel de administración del Launcher' });
 });
 
 module.exports = router;

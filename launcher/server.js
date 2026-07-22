@@ -34,6 +34,19 @@ const APP_VER = require('./package.json').version;
 
 app.use('/api', apiLimiter);
 
+// ── Cache for centros (in-memory, 30s TTL) ──
+let _centrosCache = null;
+let _centrosCacheTs = 0;
+const CENTROS_CACHE_TTL = 30000;
+function getCentrosCache() {
+  const now = Date.now();
+  if (_centrosCache && (now - _centrosCacheTs) < CENTROS_CACHE_TTL) return _centrosCache;
+  _centrosCache = db.prepare('SELECT id, nombre, codigo, descripcion, direccion, ciudad, telefono, email, responsable_id, activo FROM centros_operacion WHERE activo = 1 ORDER BY nombre').all();
+  _centrosCacheTs = now;
+  return _centrosCache;
+}
+function invalidateCentrosCache() { _centrosCache = null; _centrosCacheTs = 0; }
+
 app.get('/api/version', (req, res) => {
   res.json({ v: SERVER_START, version: APP_VER });
 });
@@ -183,8 +196,16 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS centros_operacion (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL UNIQUE,
+    codigo TEXT DEFAULT '',
+    descripcion TEXT DEFAULT '',
+    direccion TEXT DEFAULT '',
+    ciudad TEXT DEFAULT '',
+    telefono TEXT DEFAULT '',
+    email TEXT DEFAULT '',
+    responsable_id INTEGER,
     activo INTEGER NOT NULL DEFAULT 1,
-    creado TEXT NOT NULL DEFAULT (datetime('now'))
+    creado TEXT NOT NULL DEFAULT (datetime('now')),
+    actualizado TEXT NOT NULL DEFAULT (datetime('now'))
   )
 `);
 // Migrar tabla legacy sedes → centros_operacion (si existía)
@@ -195,7 +216,30 @@ try {
     db.exec('DROP TABLE sedes');
   }
 } catch {}
+// Migraciones incrementales para columnas nuevas
+try { db.exec("ALTER TABLE centros_operacion ADD COLUMN codigo TEXT DEFAULT ''"); } catch {}
+try { db.exec("ALTER TABLE centros_operacion ADD COLUMN descripcion TEXT DEFAULT ''"); } catch {}
+try { db.exec("ALTER TABLE centros_operacion ADD COLUMN direccion TEXT DEFAULT ''"); } catch {}
+try { db.exec("ALTER TABLE centros_operacion ADD COLUMN ciudad TEXT DEFAULT ''"); } catch {}
+try { db.exec("ALTER TABLE centros_operacion ADD COLUMN telefono TEXT DEFAULT ''"); } catch {}
+try { db.exec("ALTER TABLE centros_operacion ADD COLUMN email TEXT DEFAULT ''"); } catch {}
+try { db.exec("ALTER TABLE centros_operacion ADD COLUMN responsable_id INTEGER"); } catch {}
+try { db.exec("ALTER TABLE centros_operacion ADD COLUMN actualizado TEXT NOT NULL DEFAULT (datetime('now'))"); } catch {}
 db.prepare("INSERT OR IGNORE INTO centros_operacion (nombre) VALUES ('Principal')").run();
+
+// ── Auditoría de centros de operación ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS centros_historial (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    centro_id INTEGER NOT NULL,
+    accion TEXT NOT NULL,
+    usuario_id INTEGER,
+    usuario_nombre TEXT DEFAULT '',
+    antes TEXT DEFAULT '',
+    despues TEXT DEFAULT '',
+    creado TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
 
 // ── Config table (key-value) ──
 db.exec(`CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')`);
@@ -912,6 +956,13 @@ app.get('/api/admin/perfiles/:id/usuarios', verificarToken, soloAdmin, (req, res
 });
 
 // ── API: Centros de operación ──
+
+// Pública: módulos remotos consumen centros activos (con caché)
+app.get('/api/centros', publicLimiter, (req, res) => {
+  res.json(getCentrosCache());
+});
+
+// Admin: todos los centros (incluye inactivos y campos completos)
 app.get('/api/admin/centros', verificarToken, soloAdmin, (req, res) => {
   res.json(db.prepare('SELECT * FROM centros_operacion ORDER BY nombre').all());
 });
@@ -920,12 +971,37 @@ app.get('/api/admin/sedes', verificarToken, soloAdmin, (req, res) => {
   res.json(db.prepare('SELECT * FROM centros_operacion ORDER BY nombre').all());
 });
 
+app.get('/api/admin/centros/:id', verificarToken, soloAdmin, (req, res) => {
+  const centro = db.prepare('SELECT * FROM centros_operacion WHERE id = ?').get(req.params.id);
+  if (!centro) return res.status(404).json({ error: 'Centro no encontrado' });
+  res.json(centro);
+});
+
 app.post('/api/admin/centros', verificarToken, soloAdmin, (req, res) => {
-  const { nombre } = req.body;
+  const { nombre, codigo, descripcion, direccion, ciudad, telefono, email, responsable_id } = req.body;
   if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'Nombre requerido' });
   try {
-    const result = db.prepare('INSERT INTO centros_operacion (nombre) VALUES (?)').run(nombre.trim());
-    res.json({ id: result.lastInsertRowid, nombre: nombre.trim(), activo: 1 });
+    const result = db.prepare(
+      `INSERT INTO centros_operacion (nombre, codigo, descripcion, direccion, ciudad, telefono, email, responsable_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      nombre.trim(),
+      codigo?.trim() || '',
+      descripcion?.trim() || '',
+      direccion?.trim() || '',
+      ciudad?.trim() || '',
+      telefono?.trim() || '',
+      email?.trim() || '',
+      responsable_id || null
+    );
+    const centro = db.prepare('SELECT * FROM centros_operacion WHERE id = ?').get(result.lastInsertRowid);
+    // Audit
+    db.prepare(
+      `INSERT INTO centros_historial (centro_id, accion, usuario_id, usuario_nombre, despues)
+       VALUES (?, 'crear', ?, ?, ?)`
+    ).run(centro.id, req.user?.id || null, req.user?.nombre || '', JSON.stringify(centro));
+    invalidateCentrosCache();
+    res.json(centro);
   } catch (e) {
     if (e.message.includes('UNIQUE')) return res.status(409).json({ error: 'El centro ya existe' });
     res.status(500).json({ error: e.message });
@@ -934,14 +1010,23 @@ app.post('/api/admin/centros', verificarToken, soloAdmin, (req, res) => {
 
 app.put('/api/admin/centros/:id', verificarToken, soloAdmin, (req, res) => {
   const { id } = req.params;
-  const { nombre, activo } = req.body;
+  const { nombre, codigo, descripcion, direccion, ciudad, telefono, email, responsable_id, activo } = req.body;
   const centro = db.prepare('SELECT * FROM centros_operacion WHERE id = ?').get(id);
   if (!centro) return res.status(404).json({ error: 'Centro no encontrado' });
   const oldNombre = centro.nombre;
+  const antes = JSON.stringify(centro);
   const updates = []; const params = [];
   if (nombre !== undefined) { updates.push('nombre = ?'); params.push(nombre.trim()); }
+  if (codigo !== undefined) { updates.push('codigo = ?'); params.push(codigo.trim()); }
+  if (descripcion !== undefined) { updates.push('descripcion = ?'); params.push(descripcion.trim()); }
+  if (direccion !== undefined) { updates.push('direccion = ?'); params.push(direccion.trim()); }
+  if (ciudad !== undefined) { updates.push('ciudad = ?'); params.push(ciudad.trim()); }
+  if (telefono !== undefined) { updates.push('telefono = ?'); params.push(telefono.trim()); }
+  if (email !== undefined) { updates.push('email = ?'); params.push(email.trim()); }
+  if (responsable_id !== undefined) { updates.push('responsable_id = ?'); params.push(responsable_id || null); }
   if (activo !== undefined) { updates.push('activo = ?'); params.push(activo ? 1 : 0); }
   if (!updates.length) return res.status(400).json({ error: 'Sin cambios' });
+  updates.push("actualizado = datetime('now')");
   params.push(id);
   try {
     db.prepare(`UPDATE centros_operacion SET ${updates.join(', ')} WHERE id = ?`).run(...params);
@@ -949,7 +1034,14 @@ app.put('/api/admin/centros/:id', verificarToken, soloAdmin, (req, res) => {
     if (nombre !== undefined && nombre.trim() !== oldNombre) {
       db.prepare('UPDATE usuarios SET sede = ? WHERE sede = ?').run(nombre.trim(), oldNombre);
     }
-    res.json({ ok: true });
+    const updated = db.prepare('SELECT * FROM centros_operacion WHERE id = ?').get(id);
+    // Audit
+    db.prepare(
+      `INSERT INTO centros_historial (centro_id, accion, usuario_id, usuario_nombre, antes, despues)
+       VALUES (?, 'editar', ?, ?, ?, ?)`
+    ).run(id, req.user?.id || null, req.user?.nombre || '', antes, JSON.stringify(updated));
+    invalidateCentrosCache();
+    res.json({ ok: true, centro: updated });
   } catch (e) {
     if (e.message.includes('UNIQUE')) return res.status(409).json({ error: 'El centro ya existe' });
     res.status(500).json({ error: e.message });
@@ -963,8 +1055,20 @@ app.delete('/api/admin/centros/:id', verificarToken, soloAdmin, (req, res) => {
   if (centro.nombre === 'Principal') return res.status(400).json({ error: 'No se puede eliminar el centro Principal' });
   const usersWithCentro = db.prepare("SELECT COUNT(*) as c FROM usuarios WHERE sede = ?").get(centro.nombre).c;
   if (usersWithCentro > 0) return res.status(400).json({ error: `${usersWithCentro} usuario(s) tienen este centro. Reasigna primero.` });
+  const antes = JSON.stringify(centro);
   db.prepare('DELETE FROM centros_operacion WHERE id = ?').run(id);
+  // Audit
+  db.prepare(
+    `INSERT INTO centros_historial (centro_id, accion, usuario_id, usuario_nombre, antes)
+     VALUES (?, 'eliminar', ?, ?, ?)`
+  ).run(id, req.user?.id || null, req.user?.nombre || '', antes);
+  invalidateCentrosCache();
   res.json({ ok: true });
+});
+
+app.get('/api/admin/centros/:id/historial', verificarToken, soloAdmin, (req, res) => {
+  const rows = db.prepare('SELECT * FROM centros_historial WHERE centro_id = ? ORDER BY id DESC LIMIT 100').all(req.params.id);
+  res.json(rows);
 });
 
 // ── Granular permissions: config ──

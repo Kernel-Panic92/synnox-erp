@@ -697,29 +697,56 @@ async function cargarSedes() {
 
 function abrirModalSede(data) {
   const d = data || {};
-  abrirModal(
-    data ? 'Editar sede' : 'Nueva sede',
-    data ? 'Actualiza los datos de la sede' : 'Registra una nueva ubicación o punto de partida',
-    `<div class="form-grid">
-        <div class="form-group"><label>Nombre *</label><input id="s-nombre" value="${d.nombre||''}" placeholder="Medellín Centro"></div>
-        <div class="form-group"><label>Centro de Operación</label><input id="s-centro" value="${d.centro_operacion||''}" placeholder="Norte, Sur, Este, Oeste..."></div>
-        <div class="form-group"><label>Ciudad</label><input id="s-ciudad" value="${d.ciudad||''}" placeholder="Medellín"></div>
-        <div class="form-group"><label>Dirección</label><input id="s-direccion" value="${d.direccion||''}" placeholder="Carrera 50 #45-12"></div>
-        <div class="form-group"><label>Teléfono</label><input id="s-telefono" value="${d.telefono||''}" placeholder="3001234567"></div>
-        <div class="form-group"><label>Latitud</label><input type="number" step="any" id="s-lat" value="${d.latitud||''}" placeholder="6.2476"></div>
-        <div class="form-group"><label>Longitud</label><input type="number" step="any" id="s-lng" value="${d.longitud||''}" placeholder="-75.5658"></div>
-        ${data ? `<div class="form-group"><label>Activo</label><select id="s-activo">
-          <option value="true" ${d.activo!==false?'selected':''}>Activo</option>
-          <option value="false" ${d.activo===false?'selected':''}>Inactivo</option>
-        </select></div>` : ''}
-      </div>
-      <div class="mapa-pin" id="mapa-pin-sede"></div>
-      <p style="font-size:11px;color:var(--muted);margin-top:6px;">💡 Haz clic en el mapa para posicionar o arrastra el marcador</p>
-    `,
-    `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
-     <button class="btn btn-primary" onclick="${data ? 'guardarSede('+d.id+')' : 'guardarSede()'}">${data ? 'Guardar cambios' : 'Crear sede'}</button>`
-  );
-  setTimeout(() => { configurarAutocompleteSede(); initMapaPin('mapa-pin-sede', 's-lat', 's-lng'); }, 100);
+  api('/sedes/centros').then(centros => {
+    const opts = centros.map(c => `<option value="${esc(c.nombre)}" ${d.centro_operacion === c.nombre ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('');
+    abrirModal(
+      data ? 'Editar sede' : 'Nueva sede',
+      data ? 'Actualiza los datos de la sede' : 'Registra una nueva ubicación o punto de partida',
+      `<div class="form-grid">
+          <div class="form-group"><label>Nombre *</label><input id="s-nombre" value="${d.nombre||''}" placeholder="Medellín Centro"></div>
+          <div class="form-group"><label>Centro de Operación</label><select id="s-centro"><option value="">— Sin centro —</option>${opts}</select></div>
+          <div class="form-group"><label>Ciudad</label><input id="s-ciudad" value="${d.ciudad||''}" placeholder="Medellín"></div>
+          <div class="form-group"><label>Dirección</label><input id="s-direccion" value="${d.direccion||''}" placeholder="Carrera 50 #45-12"></div>
+          <div class="form-group"><label>Teléfono</label><input id="s-telefono" value="${d.telefono||''}" placeholder="3001234567"></div>
+          <div class="form-group"><label>Latitud</label><input type="number" step="any" id="s-lat" value="${d.latitud||''}" placeholder="6.2476"></div>
+          <div class="form-group"><label>Longitud</label><input type="number" step="any" id="s-lng" value="${d.longitud||''}" placeholder="-75.5658"></div>
+          ${data ? `<div class="form-group"><label>Activo</label><select id="s-activo">
+            <option value="true" ${d.activo!==false?'selected':''}>Activo</option>
+            <option value="false" ${d.activo===false?'selected':''}>Inactivo</option>
+          </select></div>` : ''}
+        </div>
+        <div class="mapa-pin" id="mapa-pin-sede"></div>
+        <p style="font-size:11px;color:var(--muted);margin-top:6px;">💡 Haz clic en el mapa para posicionar o arrastra el marcador</p>
+      `,
+      `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+       <button class="btn btn-primary" onclick="${data ? 'guardarSede('+d.id+')' : 'guardarSede()'}">${data ? 'Guardar cambios' : 'Crear sede'}</button>`
+    );
+    setTimeout(() => { configurarAutocompleteSede(); initMapaPin('mapa-pin-sede', 's-lat', 's-lng'); }, 100);
+  }).catch(() => {
+    abrirModal(
+      data ? 'Editar sede' : 'Nueva sede',
+      data ? 'Actualiza los datos de la sede' : 'Registra una nueva ubicación o punto de partida',
+      `<div class="form-grid">
+          <div class="form-group"><label>Nombre *</label><input id="s-nombre" value="${d.nombre||''}" placeholder="Medellín Centro"></div>
+          <div class="form-group"><label>Centro de Operación</label><input id="s-centro" value="${d.centro_operacion||''}" placeholder="Norte, Sur, Este, Oeste..."></div>
+          <div class="form-group"><label>Ciudad</label><input id="s-ciudad" value="${d.ciudad||''}" placeholder="Medellín"></div>
+          <div class="form-group"><label>Dirección</label><input id="s-direccion" value="${d.direccion||''}" placeholder="Carrera 50 #45-12"></div>
+          <div class="form-group"><label>Teléfono</label><input id="s-telefono" value="${d.telefono||''}" placeholder="3001234567"></div>
+          <div class="form-group"><label>Latitud</label><input type="number" step="any" id="s-lat" value="${d.latitud||''}" placeholder="6.2476"></div>
+          <div class="form-group"><label>Longitud</label><input type="number" step="any" id="s-lng" value="${d.longitud||''}" placeholder="-75.5658"></div>
+          ${data ? `<div class="form-group"><label>Activo</label><select id="s-activo">
+            <option value="true" ${d.activo!==false?'selected':''}>Activo</option>
+            <option value="false" ${d.activo===false?'selected':''}>Inactivo</option>
+          </select></div>` : ''}
+        </div>
+        <div class="mapa-pin" id="mapa-pin-sede"></div>
+        <p style="font-size:11px;color:var(--muted);margin-top:6px;">💡 Haz clic en el mapa para posicionar o arrastra el marcador</p>
+      `,
+      `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+       <button class="btn btn-primary" onclick="${data ? 'guardarSede('+d.id+')' : 'guardarSede()'}">${data ? 'Guardar cambios' : 'Crear sede'}</button>`
+    );
+    setTimeout(() => { configurarAutocompleteSede(); initMapaPin('mapa-pin-sede', 's-lat', 's-lng'); }, 100);
+  });
 }
 
 function editarSede(id) {
@@ -727,9 +754,10 @@ function editarSede(id) {
 }
 
 async function guardarSede(id) {
+  const centroEl = document.getElementById('s-centro');
   const body = {
     nombre: document.getElementById('s-nombre').value.trim(),
-    centro_operacion: document.getElementById('s-centro').value.trim(),
+    centro_operacion: centroEl ? (centroEl.tagName === 'SELECT' ? centroEl.value : centroEl.value.trim()) : null,
     ciudad: document.getElementById('s-ciudad').value.trim(),
     direccion: document.getElementById('s-direccion').value.trim(),
     telefono: document.getElementById('s-telefono').value.trim(),
