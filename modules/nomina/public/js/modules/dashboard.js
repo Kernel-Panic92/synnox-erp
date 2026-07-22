@@ -62,8 +62,7 @@ function setWidgetSize(widgetId, sizeClass, chartId) {
 // ResizeObserver for charts
 function initWidgetResizeObservers() {
   if (!window.ResizeObserver) return;
-  
-  document.querySelectorAll('.widget canvas').forEach(canvas => {
+  document.querySelectorAll('.chart-card canvas').forEach(canvas => {
     const ro = new ResizeObserver(() => {
       const chartId = canvas.id;
       if (_charts[chartId]) {
@@ -196,7 +195,6 @@ function loadDashLayoutLocal() {
 // Create or update Chart.js instance
 function crearOActualizar(id, config) {
   if (!config.options) config.options = {};
-  // config.options.animation = false; // Animaciones activas: se destruyen al salir del dashboard
   if (_charts[id]) {
     _charts[id].data = config.data;
     _charts[id].options = config.options;
@@ -205,6 +203,7 @@ function crearOActualizar(id, config) {
     const ctx = document.getElementById(id);
     if (!ctx) return;
     _charts[id] = new Chart(ctx, config);
+    setTimeout(() => { try { _charts[id]?.resize(); } catch {} }, 150);
   }
 }
 
