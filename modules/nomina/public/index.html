@@ -485,6 +485,14 @@
     min-height: 0;
     display: block;
   }
+  .sz { display:flex; gap:2px; flex-shrink:0; margin-left:auto; }
+  .sz-btn {
+    background:transparent; border:none; border-radius:4px;
+    padding:1px 6px; font-size:9px; font-weight:700; cursor:pointer;
+    color:var(--muted); line-height:1.4;
+  }
+  .sz-btn:hover { color:var(--text); background:var(--border); }
+  .sz-btn.active { background:var(--accent); color:#fff; }
   #dash-periodo-content {
     flex: 1;
     display: flex;
@@ -584,28 +592,70 @@
 
       <!-- GRÁFICAS -->
       <div class="dash-grid" id="dash-grid">
-        <div class="chart-card">
-          <div class="chart-title">📈 Horas por Mes — <span id="dash-chart-anio"></span></div>
+        <div class="chart-card" data-chart-id="chart-mes">
+          <div class="chart-title" style="display:flex;align-items:center;gap:5px;">
+            <span>📈 Horas por Mes — <span id="dash-chart-anio"></span></span>
+            <span class="sz" style="margin-left:auto;display:flex;gap:2px;flex-shrink:0">
+              <button class="sz-btn" onclick="setChartSize('chart-mes','s')">S</button>
+              <button class="sz-btn active" onclick="setChartSize('chart-mes','m')">M</button>
+              <button class="sz-btn" onclick="setChartSize('chart-mes','l')">G</button>
+            </span>
+          </div>
           <canvas id="chart-mes" class="chart-canvas"></canvas>
         </div>
-        <div class="chart-card">
-          <div class="chart-title">🕐 Distribución por Estado — <span id="dash-tipo-anio"></span></div>
+        <div class="chart-card" data-chart-id="chart-tipo">
+          <div class="chart-title" style="display:flex;align-items:center;gap:5px;">
+            <span>🕐 Distribución por Estado — <span id="dash-tipo-anio"></span></span>
+            <span class="sz" style="margin-left:auto;display:flex;gap:2px;flex-shrink:0">
+              <button class="sz-btn" onclick="setChartSize('chart-tipo','s')">S</button>
+              <button class="sz-btn active" onclick="setChartSize('chart-tipo','m')">M</button>
+              <button class="sz-btn" onclick="setChartSize('chart-tipo','l')">G</button>
+            </span>
+          </div>
           <canvas id="chart-tipo" class="chart-canvas"></canvas>
         </div>
-        <div class="chart-card">
-          <div class="chart-title">📍 Horas por Sede — <span id="dash-sede-anio"></span></div>
+        <div class="chart-card" data-chart-id="chart-sede">
+          <div class="chart-title" style="display:flex;align-items:center;gap:5px;">
+            <span>📍 Horas por Sede — <span id="dash-sede-anio"></span></span>
+            <span class="sz" style="margin-left:auto;display:flex;gap:2px;flex-shrink:0">
+              <button class="sz-btn" onclick="setChartSize('chart-sede','s')">S</button>
+              <button class="sz-btn active" onclick="setChartSize('chart-sede','m')">M</button>
+              <button class="sz-btn" onclick="setChartSize('chart-sede','l')">G</button>
+            </span>
+          </div>
           <canvas id="chart-sede" class="chart-canvas"></canvas>
         </div>
-        <div class="chart-card">
-          <div class="chart-title">🏆 Top 5 Empleados — <span id="dash-top-anio"></span></div>
+        <div class="chart-card" data-chart-id="chart-top">
+          <div class="chart-title" style="display:flex;align-items:center;gap:5px;">
+            <span>🏆 Top 5 Empleados — <span id="dash-top-anio"></span></span>
+            <span class="sz" style="margin-left:auto;display:flex;gap:2px;flex-shrink:0">
+              <button class="sz-btn" onclick="setChartSize('chart-top','s')">S</button>
+              <button class="sz-btn active" onclick="setChartSize('chart-top','m')">M</button>
+              <button class="sz-btn" onclick="setChartSize('chart-top','l')">G</button>
+            </span>
+          </div>
           <canvas id="chart-top" class="chart-canvas"></canvas>
         </div>
-        <div class="chart-card">
-          <div class="chart-title">📅 Período con más Horas — <span id="dash-periodo-anio"></span></div>
+        <div class="chart-card" data-chart-id="chart-periodo">
+          <div class="chart-title" style="display:flex;align-items:center;gap:5px;">
+            <span>📅 Período con más Horas — <span id="dash-periodo-anio"></span></span>
+            <span class="sz" style="margin-left:auto;display:flex;gap:2px;flex-shrink:0">
+              <button class="sz-btn" onclick="setChartSize('chart-periodo','s')">S</button>
+              <button class="sz-btn active" onclick="setChartSize('chart-periodo','m')">M</button>
+              <button class="sz-btn" onclick="setChartSize('chart-periodo','l')">G</button>
+            </span>
+          </div>
           <div id="dash-periodo-content"></div>
         </div>
-        <div class="chart-card">
-          <div class="chart-title">💰 Valor COP por Mes — <span id="dash-valorcop-anio"></span></div>
+        <div class="chart-card" data-chart-id="chart-valorcop">
+          <div class="chart-title" style="display:flex;align-items:center;gap:5px;">
+            <span>💰 Valor COP por Mes — <span id="dash-valorcop-anio"></span></span>
+            <span class="sz" style="margin-left:auto;display:flex;gap:2px;flex-shrink:0">
+              <button class="sz-btn" onclick="setChartSize('chart-valorcop','s')">S</button>
+              <button class="sz-btn active" onclick="setChartSize('chart-valorcop','m')">M</button>
+              <button class="sz-btn" onclick="setChartSize('chart-valorcop','l')">G</button>
+            </span>
+          </div>
           <canvas id="chart-valorcop" class="chart-canvas"></canvas>
         </div>
       </div>

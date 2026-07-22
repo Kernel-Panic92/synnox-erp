@@ -5,6 +5,21 @@ let _dragSrc = null;
 const _nomCollapsed = {};
 let _chartJsLoaded = false;
 
+function setChartSize(chartId, size) {
+  const heights = { s: 220, m: 330, l: 440 };
+  const card = document.querySelector(`.chart-card[data-chart-id="${chartId}"]`);
+  if (!card) return;
+  card.style.height = heights[size] + 'px';
+  card.querySelectorAll('.sz-btn').forEach(b => b.classList.remove('active'));
+  const btn = card.querySelector('.sz-btn[onclick*="' + size + '"]');
+  if (btn) btn.classList.add('active');
+  const canvas = card.querySelector('canvas');
+  if (canvas) {
+    const chart = Chart.getChart(canvas);
+    if (chart) setTimeout(() => chart.resize(), 50);
+  }
+}
+
 async function cargarChartJs() {
   if (_chartJsLoaded) return;
   if (typeof Chart !== 'undefined') { _chartJsLoaded = true; return; }
