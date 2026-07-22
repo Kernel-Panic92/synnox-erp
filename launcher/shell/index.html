@@ -345,7 +345,7 @@
     </div>
     <div style="overflow-x:auto;">
       <table id="centros-table">
-        <thead><tr><th>ID</th><th>Nombre</th><th>Estado</th><th>Acción</th></tr></thead>
+        <thead><tr><th>ID</th><th>Nombre</th><th>Código</th><th>Ciudad</th><th>Dirección</th><th>Teléfono</th><th>Email</th><th>Estado</th><th>Acción</th></tr></thead>
         <tbody></tbody>
       </table>
     </div>
@@ -353,11 +353,39 @@
 
   <!-- Modal: Centro de operación -->
   <div class="modal-overlay" id="centro-form-overlay">
-    <div class="modal" id="centro-form-screen" style="max-width:400px;">
+    <div class="modal" id="centro-form-screen" style="max-width:520px;">
       <h3 id="centro-form-title">Nuevo centro de operación</h3>
       <input type="hidden" id="centro-form-id">
-      <label>Nombre</label>
-      <input type="text" id="centro-form-nombre" placeholder="Ej: BOGOTA, MEDELLIN...">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="grid-column:1/-1">
+          <label>Nombre *</label>
+          <input type="text" id="centro-form-nombre" placeholder="Ej: BOGOTA, MEDELLIN...">
+        </div>
+        <div>
+          <label>Código</label>
+          <input type="text" id="centro-form-codigo" placeholder="Ej: BOG-01">
+        </div>
+        <div>
+          <label>Ciudad</label>
+          <input type="text" id="centro-form-ciudad" placeholder="Ej: Bogotá">
+        </div>
+        <div style="grid-column:1/-1">
+          <label>Descripción</label>
+          <input type="text" id="centro-form-descripcion" placeholder="Descripción del centro">
+        </div>
+        <div style="grid-column:1/-1">
+          <label>Dirección</label>
+          <input type="text" id="centro-form-direccion" placeholder="Dirección completa">
+        </div>
+        <div>
+          <label>Teléfono</label>
+          <input type="text" id="centro-form-telefono" placeholder="+57 601 1234567">
+        </div>
+        <div>
+          <label>Email</label>
+          <input type="email" id="centro-form-email" placeholder="centro@empresa.com">
+        </div>
+      </div>
       <div style="display:flex;gap:10px;margin-top:16px;">
         <button class="btn" onclick="saveCentro()">💾 Guardar</button>
         <button class="btn btn-danger btn-sm" style="align-self:center;" onclick="closeCentroForm()">Cancelar</button>

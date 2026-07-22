@@ -1998,10 +1998,15 @@ async function loadCentros() {
       <tr>
         <td>${s.id}</td>
         <td>${esc(s.nombre)}</td>
+        <td>${esc(s.codigo || '—')}</td>
+        <td>${esc(s.ciudad || '—')}</td>
+        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(s.direccion || '')}">${esc(s.direccion || '—')}</td>
+        <td>${esc(s.telefono || '—')}</td>
+        <td>${esc(s.email || '—')}</td>
         <td>${s.activo ? '<span style="color:var(--success);">Activo</span>' : '<span class="badge badge-inactivo">Inactivo</span>'}</td>
         <td class="actions">
-          <button class="btn btn-sm btn-secondary" onclick="editCentro(${s.id})">✏️ Editar</button>
-          ${s.nombre !== 'Principal' ? `<button class="btn btn-sm btn-danger" onclick="deleteCentro(${s.id},'${esc(s.nombre)}')">🗑️ Eliminar</button>` : ''}
+          <button class="btn btn-sm btn-secondary" onclick="editCentro(${s.id})">✏️</button>
+          ${s.nombre !== 'Principal' ? `<button class="btn btn-sm btn-danger" onclick="deleteCentro(${s.id},'${esc(s.nombre)}')">🗑️</button>` : ''}
         </td>
       </tr>
     `).join('');
@@ -2011,6 +2016,12 @@ async function loadCentros() {
 function showCentroForm(data) {
   document.getElementById('centro-form-id').value = data?.id || '';
   document.getElementById('centro-form-nombre').value = data?.nombre || '';
+  document.getElementById('centro-form-codigo').value = data?.codigo || '';
+  document.getElementById('centro-form-ciudad').value = data?.ciudad || '';
+  document.getElementById('centro-form-descripcion').value = data?.descripcion || '';
+  document.getElementById('centro-form-direccion').value = data?.direccion || '';
+  document.getElementById('centro-form-telefono').value = data?.telefono || '';
+  document.getElementById('centro-form-email').value = data?.email || '';
   document.getElementById('centro-form-title').textContent = data?.id ? 'Editar centro de operación' : 'Nuevo centro de operación';
   document.getElementById('centro-form-overlay').style.display = 'block';
   document.getElementById('centro-form-nombre').focus();
@@ -2022,10 +2033,10 @@ function closeCentroForm() {
 
 async function editCentro(id) {
   try {
-    const res = await fetch('/api/admin/centros', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
-    const centros = await res.json();
-    const centro = centros.find(s => s.id === id);
-    if (centro) showCentroForm(centro);
+    const res = await fetch(`/api/admin/centros/${id}`, { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) throw new Error('Error');
+    const centro = await res.json();
+    showCentroForm(centro);
   } catch (e) { toast('Error cargando centro', 'error'); }
 }
 
@@ -2033,12 +2044,21 @@ async function saveCentro() {
   const id = document.getElementById('centro-form-id').value;
   const nombre = document.getElementById('centro-form-nombre').value.trim();
   if (!nombre) { toast('Nombre requerido', 'error'); return; }
+  const body = {
+    nombre,
+    codigo: document.getElementById('centro-form-codigo').value.trim(),
+    ciudad: document.getElementById('centro-form-ciudad').value.trim(),
+    descripcion: document.getElementById('centro-form-descripcion').value.trim(),
+    direccion: document.getElementById('centro-form-direccion').value.trim(),
+    telefono: document.getElementById('centro-form-telefono').value.trim(),
+    email: document.getElementById('centro-form-email').value.trim()
+  };
   try {
     const method = id ? 'PUT' : 'POST';
     const url = id ? `/api/admin/centros/${id}` : '/api/admin/centros';
     const res = await fetch(url, {
       method, headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
-      body: JSON.stringify({ nombre })
+      body: JSON.stringify(body)
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error);
@@ -2064,11 +2084,11 @@ async function deleteCentro(id, nombre) {
 // Load centros for user form dropdown
 async function loadCentrosForUserForm(selectedCentro) {
   try {
-    const res = await fetch('/api/admin/centros', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const res = await fetch('/api/centros', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
     const centros = await res.json();
     const sel = document.getElementById('form-sede-select');
     if (sel) {
-      sel.innerHTML = centros.filter(s => s.activo).map(s => `<option value="${esc(s.nombre)}" ${s.nombre === selectedCentro ? 'selected' : ''}>${esc(s.nombre)}</option>`).join('');
+      sel.innerHTML = centros.map(s => `<option value="${esc(s.nombre)}" ${s.nombre === selectedCentro ? 'selected' : ''}>${esc(s.nombre)}</option>`).join('');
     }
   } catch (e) {}
 }

@@ -13,7 +13,7 @@ const NAV=[
   {id:'porpagar',l:'Por Pagar',i:'💳',s:'f',roles:['admin','tesorero']},
   {id:'causacion',l:'Causación',i:'📥',s:'f',roles:['admin','contador','tesorero']},
   {id:'categorias',l:'Categorías',i:'🏷️',s:'c',roles:['admin','contador']},
-  {id:'centros',l:'Centros',i:'🗺️',s:'c',roles:['admin','contador']},
+  {id:'centros',l:'Centros',i:'🗺️',s:'c',roles:['admin','contador','tesorero']},
   {id:'configuracion',l:'Configuración',i:'⚙️',s:'c',roles:['admin']},
   {id:'backup',l:'Backup',i:'💾',s:'c',roles:['admin']},
   {id:'audit',l:'Auditoría',i:'🔒',s:'c',roles:['admin','auditor']}
@@ -61,11 +61,11 @@ window.addEventListener('popstate',()=>{
   if(v!==S.view)goTo(v);
 });
 
-// ─── CENTROS DE OPERACIÓN ─────────────────────────────────────────────────
+// ─── CENTROS DE OPERACIÓN (sincronizados desde Launcher) ───────────────────
 async function rCentros(){
   const centros=await api('GET','/centros');
   $('content').innerHTML=`
-    <div class="page-header"><div><div class="page-title">Centros de Operación</div><div class="page-sub">Territorios y sedes de la compañía</div></div><button class="btn btn-primary" onclick="mCentro()">+ Nuevo centro</button></div>
+    <div class="page-header"><div><div class="page-title">Centros de Operación</div><div class="page-sub">Sincronizados desde el Launcher — CRUD gestionado allí</div></div><button class="btn btn-primary" onclick="syncCentros()">🔄 Sincronizar desde Launcher</button></div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px" id="centros-grid">
       ${centros.length?centros.map(c=>`<div class="tbl" style="padding:20px">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
@@ -77,58 +77,17 @@ async function rCentros(){
         ${c.telefono?`<div style="font-size:12px;color:var(--muted);margin-bottom:8px">📞 ${esc(c.telefono)}</div>`:''}
         ${c.email?`<div style="font-size:12px;color:var(--muted);margin-bottom:8px">✉️ ${esc(c.email)}</div>`:''}
         ${c.descripcion?`<div style="font-size:12px;color:var(--text);margin-top:8px;border-top:1px solid var(--border);padding-top:8px">${esc(c.descripcion)}</div>`:''}
-        <div style="margin-top:16px;padding-top:12px;border-top:1px solid var(--border);display:flex;gap:8px">
-          <button class="btn btn-secondary btn-sm" onclick="mCentro('${c.id}')">✏️ Editar</button>
-          <button class="btn btn-danger btn-sm" onclick="delCentro('${c.id}','${esc(c.nombre)}')">🗑️</button>
-        </div>
-      </div>`).join(''):'<div class="empty" style="grid-column:1/-1">No hay centros registrados</div>'}
+      </div>`).join(''):'<div class="empty" style="grid-column:1/-1">No hay centros registrados. Sincroniza desde el Launcher.</div>'}
     </div>
   `;
 }
 
-async function mCentro(id){
-  let centro=null;
-  if(id)centro=await api('GET',`/centros/${id}`);
-  const esNuevo=!id;
-  window.saveCentro=async()=>{
-    const n=$('cn-nombre')?.value?.trim();
-    if(!n){toast('El nombre es requerido','error');return}
-    const data={
-      nombre:n,
-      codigo:$('cn-codigo')?.value?.trim()||null,
-      descripcion:$('cn-desc')?.value?.trim()||null,
-      direccion:$('cn-dir')?.value?.trim()||null,
-      telefono:$('cn-tel')?.value?.trim()||null,
-      email:$('cn-email')?.value?.trim()||null,
-      activo:$('cn-activo')?.checked??true
-    };
-    try{
-      if(esNuevo)await api('POST','/centros',data);
-      else await api('PUT',`/centros/${id}`,data);
-      closeM();
-      toast('Centro guardado','success');
-      rCentros();
-    }catch(e){toast(e.message,'error')}
-  };
-  showM(esNuevo?'Nuevo centro':'Editar centro',`
-    <div class="field"><label>NOMBRE *</label><input id="cn-nombre" value="${esc(centro?.nombre||'')}" placeholder="Ej: Bogotá Centro"/></div>
-    <div class="form-grid">
-      <div class="field"><label>CÓDIGO</label><input id="cn-codigo" value="${esc(centro?.codigo||'')}" placeholder="Ej: BOG-01"/></div>
-      <div class="field"><label>EMAIL</label><input id="cn-email" type="email" value="${esc(centro?.email||'')}" placeholder="sede@tu-dominio.com"/></div>
-    </div>
-    <div class="field"><label>DIRECCIÓN</label><input id="cn-dir" value="${esc(centro?.direccion||'')}" placeholder="Dirección completa"/></div>
-    <div class="form-grid">
-      <div class="field"><label>TELÉFONO</label><input id="cn-tel" value="${esc(centro?.telefono||'')}" placeholder="+57 1 234 5678"/></div>
-      <div class="field"><label>ESTADO</label><label style="display:flex;align-items:center;gap:8px;margin-top:8px"><input type="checkbox" id="cn-activo" ${centro?.activo!==false?'checked':''}/> Activo</label></div>
-    </div>
-    <div class="field"><label>DESCRIPCIÓN</label><textarea id="cn-desc" rows="2" placeholder="Descripción u observaciones...">${esc(centro?.descripcion||'')}</textarea></div>
-    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeM()">Cancelar</button><button class="btn btn-primary" onclick="saveCentro()">Guardar</button></div>
-  `,500);
-}
-
-async function delCentro(id,nombre){
-  if(!await confirmModal(`¿Eliminar el centro "${nombre}"?`))return;
-  try{await api('DELETE',`/centros/${id}`);toast('Centro eliminado','success');rCentros()}catch(e){toast(e.message,'error')}
+async function syncCentros(){
+  try{
+    const r=await api('POST','/centros/sync');
+    toast(`Sincronizados: ${r.created} nuevos, ${r.updated} actualizados, ${r.unchanged} sin cambios`,'success');
+    rCentros();
+  }catch(e){toast(e.message,'error')}
 }
 
 async function cambiarCat(facturaId,catId){
