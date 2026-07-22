@@ -32,7 +32,8 @@ async function renderCfgTab(){
       const cfg = await res.json();
       const heredar = cfg.smtp_heredar === '1' || cfg.smtp_heredar === 'true';
       c.innerHTML = `
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:20px;max-width:600px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:20px;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;">
           <h4 style="margin-bottom:16px;font-family:var(--font-head);">📧 Configuración SMTP</h4>
           <div style="margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:8px;">
             <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;text-transform:none;letter-spacing:normal;font-weight:400;">
@@ -61,7 +62,7 @@ async function renderCfgTab(){
           </div>
           <div id="smtp-msg" style="margin-top:10px;"></div>
         </div>
-        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:20px;max-width:600px;margin-top:16px;">
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;">
           <h4 style="margin-bottom:16px;font-family:var(--font-head);">📝 Plantilla de Correo</h4>
           <div class="form-group" style="margin-bottom:16px;"><label>Asunto</label><input id="cfg-asunto" value="${esc(cfg.reset_asunto||'')}" placeholder="Recuperación de contraseña"></div>
           <div class="form-group"><label>Cuerpo del Mensaje</label><textarea id="cfg-cuerpo" style="min-height:180px;" placeholder="Usa {nombre} y {enlace} como variables...">${esc(cfg.reset_cuerpo||'')}</textarea></div>
@@ -71,6 +72,7 @@ async function renderCfgTab(){
           <div class="flex" style="margin-top:16px;">
             <button class="btn btn-primary" onclick="guardarSmtp()">✓ Guardar Plantilla</button>
           </div>
+        </div>
         </div>`;
     } catch(e) { c.innerHTML = `<div style="text-align:center;padding:40px;color:var(--danger)">Error: ${esc(e.message)}</div>`; }
   }
