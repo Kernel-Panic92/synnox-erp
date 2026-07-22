@@ -34,6 +34,19 @@ const APP_VER = require('./package.json').version;
 
 app.use('/api', apiLimiter);
 
+// ── Cache for centros (in-memory, 30s TTL) ──
+let _centrosCache = null;
+let _centrosCacheTs = 0;
+const CENTROS_CACHE_TTL = 30000;
+function getCentrosCache() {
+  const now = Date.now();
+  if (_centrosCache && (now - _centrosCacheTs) < CENTROS_CACHE_TTL) return _centrosCache;
+  _centrosCache = db.prepare('SELECT id, nombre, codigo, descripcion, direccion, ciudad, telefono, email, responsable_id, activo FROM centros_operacion WHERE activo = 1 ORDER BY nombre').all();
+  _centrosCacheTs = now;
+  return _centrosCache;
+}
+function invalidateCentrosCache() { _centrosCache = null; _centrosCacheTs = 0; }
+
 app.get('/api/version', (req, res) => {
   res.json({ v: SERVER_START, version: APP_VER });
 });
@@ -217,6 +230,20 @@ try { db.exec("ALTER TABLE centros_operacion ADD COLUMN latitud REAL"); } catch 
 try { db.exec("ALTER TABLE centros_operacion ADD COLUMN longitud REAL"); } catch {}
 try { db.exec("ALTER TABLE centros_operacion ADD COLUMN actualizado TEXT NOT NULL DEFAULT (datetime('now'))"); } catch {}
 db.prepare("INSERT OR IGNORE INTO centros_operacion (nombre) VALUES ('Principal')").run();
+
+// ── Auditoría de centros de operación ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS centros_historial (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    centro_id INTEGER NOT NULL,
+    accion TEXT NOT NULL,
+    usuario_id INTEGER,
+    usuario_nombre TEXT DEFAULT '',
+    antes TEXT DEFAULT '',
+    despues TEXT DEFAULT '',
+    creado TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
 
 // ── Config table (key-value) ──
 db.exec(`CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')`);
@@ -684,7 +711,7 @@ app.get('/api/admin/usuarios', verificarToken, soloAdmin, (req, res) => {
 app.post('/api/admin/usuarios', verificarToken, soloAdmin, async (req, res) => {
   const { nombre, email, password, rol, perfil_id, sede } = req.body;
   if (!nombre || !email) return res.status(400).json({ error: 'Nombre y email son requeridos' });
-  const userRol = (rol === 'admin' || rol === 'operador') ? rol : 'operador';
+  const userRol = (rol === 'admin' || rol === 'operador' || rol === 'gerente') ? rol : 'operador';
   try {
     let hash;
     let welcomeSent = false;
@@ -732,7 +759,7 @@ app.put('/api/admin/usuarios/:id', verificarToken, soloAdmin, (req, res) => {
   if (email !== undefined) { updates.push('email = ?'); params.push(email.toLowerCase().trim()); }
   if (password) { updates.push('password_hash = ?'); params.push(bcrypt.hashSync(password, 10)); }
   if (activo !== undefined) { updates.push('activo = ?'); params.push(activo ? 1 : 0); }
-  if (rol && (rol === 'admin' || rol === 'operador')) { updates.push('rol = ?'); params.push(rol); }
+  if (rol && (rol === 'admin' || rol === 'operador' || rol === 'gerente')) { updates.push('rol = ?'); params.push(rol); }
   if (perfil_id !== undefined) { updates.push('perfil_id = ?'); params.push(perfil_id || null); }
   if (sede !== undefined) { updates.push('sede = ?'); params.push(sede || 'Principal'); }
   if (!updates.length) return res.status(400).json({ error: 'Sin cambios' });
@@ -792,7 +819,7 @@ app.post('/api/admin/usuarios/import-csv', verificarToken, soloAdmin, (req, res)
   const missing = required.filter(r => idx(r) === -1);
   if (missing.length) return res.status(400).json({ error: `Columnas faltantes: ${missing.join(', ')}` });
 
-  const roleMap = { admin: 'admin', rrhh: 'operador', gerencia: 'operador', operador: 'operador', consulta: 'operador' };
+  const roleMap = { admin: 'admin', rrhh: 'operador', gerente: 'gerente', gerencia: 'gerente', operador: 'operador', consulta: 'operador' };
   let created = 0, skipped = 0, errors = 0;
   const details = [];
   const insModulo = db.prepare('INSERT OR IGNORE INTO user_modulos (user_id, modulo_id) VALUES (?, ?)');
@@ -987,6 +1014,11 @@ app.post('/api/admin/centros', verificarToken, soloAdmin, (req, res) => {
       longitud || null
     );
     const centro = db.prepare('SELECT * FROM centros_operacion WHERE id = ?').get(result.lastInsertRowid);
+    // Audit
+    db.prepare(
+      `INSERT INTO centros_historial (centro_id, accion, usuario_id, usuario_nombre, despues)
+       VALUES (?, 'crear', ?, ?, ?)`
+    ).run(centro.id, req.user?.id || null, req.user?.nombre || '', JSON.stringify(centro));
     invalidateCentrosCache();
     res.json(centro);
   } catch (e) {
@@ -1001,6 +1033,7 @@ app.put('/api/admin/centros/:id', verificarToken, soloAdmin, (req, res) => {
   const centro = db.prepare('SELECT * FROM centros_operacion WHERE id = ?').get(id);
   if (!centro) return res.status(404).json({ error: 'Centro no encontrado' });
   const oldNombre = centro.nombre;
+  const antes = JSON.stringify(centro);
   const updates = []; const params = [];
   if (nombre !== undefined) { updates.push('nombre = ?'); params.push(nombre.trim()); }
   if (codigo !== undefined) { updates.push('codigo = ?'); params.push(codigo.trim()); }
@@ -1022,6 +1055,11 @@ app.put('/api/admin/centros/:id', verificarToken, soloAdmin, (req, res) => {
       db.prepare('UPDATE usuarios SET sede = ? WHERE sede = ?').run(nombre.trim(), oldNombre);
     }
     const updated = db.prepare('SELECT * FROM centros_operacion WHERE id = ?').get(id);
+    // Audit
+    db.prepare(
+      `INSERT INTO centros_historial (centro_id, accion, usuario_id, usuario_nombre, antes, despues)
+       VALUES (?, 'editar', ?, ?, ?, ?)`
+    ).run(id, req.user?.id || null, req.user?.nombre || '', antes, JSON.stringify(updated));
     invalidateCentrosCache();
     res.json({ ok: true, centro: updated });
   } catch (e) {
@@ -1037,7 +1075,13 @@ app.delete('/api/admin/centros/:id', verificarToken, soloAdmin, (req, res) => {
   if (centro.nombre === 'Principal') return res.status(400).json({ error: 'No se puede eliminar el centro Principal' });
   const usersWithCentro = db.prepare("SELECT COUNT(*) as c FROM usuarios WHERE sede = ?").get(centro.nombre).c;
   if (usersWithCentro > 0) return res.status(400).json({ error: `${usersWithCentro} usuario(s) tienen este centro. Reasigna primero.` });
+  const antes = JSON.stringify(centro);
   db.prepare('DELETE FROM centros_operacion WHERE id = ?').run(id);
+  // Audit
+  db.prepare(
+    `INSERT INTO centros_historial (centro_id, accion, usuario_id, usuario_nombre, antes)
+     VALUES (?, 'eliminar', ?, ?, ?)`
+  ).run(id, req.user?.id || null, req.user?.nombre || '', antes);
   invalidateCentrosCache();
   res.json({ ok: true });
 });
@@ -1059,7 +1103,20 @@ app.put('/api/admin/config/gmaps/key', verificarToken, soloAdmin, (req, res) => 
 
 app.delete('/api/admin/config/gmaps/key', verificarToken, soloAdmin, (req, res) => {
   db.prepare("DELETE FROM config WHERE key = 'google_maps_key'").run();
+=======
+  // Audit
+  db.prepare(
+    `INSERT INTO centros_historial (centro_id, accion, usuario_id, usuario_nombre, antes)
+     VALUES (?, 'eliminar', ?, ?, ?)`
+  ).run(id, req.user?.id || null, req.user?.nombre || '', antes);
+  invalidateCentrosCache();
+>>>>>>> origin/main
   res.json({ ok: true });
+});
+
+app.get('/api/admin/centros/:id/historial', verificarToken, soloAdmin, (req, res) => {
+  const rows = db.prepare('SELECT * FROM centros_historial WHERE centro_id = ? ORDER BY id DESC LIMIT 100').all(req.params.id);
+  res.json(rows);
 });
 
 // ── Granular permissions: config ──

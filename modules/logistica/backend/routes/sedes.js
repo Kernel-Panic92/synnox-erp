@@ -2,8 +2,30 @@ import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
 const MODULE = 'logistica';
+const LAUNCHER_URL = process.env.LAUNCHER_URL || 'http://localhost:3002';
 
 const router = express.Router();
+
+// Cache de centros del launcher (30s TTL)
+let _centrosCache = null;
+let _centrosCacheTs = 0;
+async function getCentrosLauncher() {
+  const now = Date.now();
+  if (_centrosCache && (now - _centrosCacheTs) < 30000) return _centrosCache;
+  try {
+    const res = await fetch(`${LAUNCHER_URL}/api/centros`);
+    if (!res.ok) return _centrosCache || [];
+    _centrosCache = await res.json();
+    _centrosCacheTs = now;
+    return _centrosCache;
+  } catch { return _centrosCache || []; }
+}
+
+async function validarCentroOperacion(nombre) {
+  if (!nombre || !nombre.trim()) return true;
+  const centros = await getCentrosLauncher();
+  return centros.some(c => c.nombre === nombre.trim());
+}
 
 router.get('/', async (req, res) => {
   try {
@@ -24,6 +46,15 @@ router.get('/', async (req, res) => {
   }
 });
 
+router.get('/centros', async (req, res) => {
+  try {
+    const centros = await getCentrosLauncher();
+    res.json(centros);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 router.get('/:id', async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM logistics.sedes WHERE id = $1', [req.params.id]);
@@ -38,6 +69,9 @@ router.post('/', requirePermiso('crear', MODULE), async (req, res) => {
   try {
     const { nombre, direccion, ciudad, latitud, longitud, telefono, centro_operacion } = req.body;
     if (!nombre) return res.status(400).json({ error: 'Nombre requerido' });
+    if (centro_operacion && !await validarCentroOperacion(centro_operacion)) {
+      return res.status(400).json({ error: `El centro de operación "${centro_operacion}" no existe en el Launcher` });
+    }
     const result = await pool.query(
       `INSERT INTO logistics.sedes (nombre, direccion, ciudad, latitud, longitud, telefono, centro_operacion)
        VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING *`,
@@ -53,6 +87,9 @@ router.post('/', requirePermiso('crear', MODULE), async (req, res) => {
 router.put('/:id', requirePermiso('editar', MODULE), async (req, res) => {
   try {
     const { nombre, direccion, ciudad, latitud, longitud, telefono, activo, centro_operacion } = req.body;
+    if (centro_operacion && !await validarCentroOperacion(centro_operacion)) {
+      return res.status(400).json({ error: `El centro de operación "${centro_operacion}" no existe en el Launcher` });
+    }
     const result = await pool.query(
       `UPDATE logistics.sedes SET nombre=COALESCE($1,nombre), direccion=$2, ciudad=$3,
        latitud=$4, longitud=$5, telefono=$6, activo=COALESCE($7,activo),

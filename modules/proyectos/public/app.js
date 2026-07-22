@@ -74,7 +74,7 @@ async function init() {
     usuario = data;
     HF.USER = data;
     if (data.nombre) document.getElementById('user-name').textContent = data.nombre;
-    if (data.rol) document.getElementById('user-role').textContent = data.rol === 'admin' ? 'Administrador' : (data.perfil_nombre || data.rol);
+    if (data.rol) document.getElementById('user-role').textContent = data.rol === 'admin' ? 'Administrador' : data.rol === 'gerente' ? 'Gerente' : (data.perfil_nombre || data.rol);
     if (data.rol) document.getElementById('user-badge').textContent = data.rol;
     await cargarTodosLosUsuarios();
     mostrarAppInterno();

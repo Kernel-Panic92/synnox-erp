@@ -1,14 +1,38 @@
 import express from 'express';
 import pool from '../config/db.js';
+import { enviarCorreo, templateAprobacionTarea, templateAprobacionProyecto, templateTareaEnRevision } from '../utils/email.js';
 
 const router = express.Router();
 
-function isAdmin(req) {
-  return req.user.rol === 'admin';
+function canApprove(req) {
+  return req.user.rol === 'admin' || req.user.rol === 'gerente';
+}
+
+async function getUserById(id) {
+  try {
+    const res = await fetch(`http://localhost:3002/api/admin/usuarios`, {
+      headers: { 'Authorization': `Bearer ${req?.headers?.authorization?.split(' ')[1] || ''}` }
+    });
+    if (!res.ok) return null;
+    const users = await res.json();
+    return users.find(u => u.id === id) || null;
+  } catch { return null; }
+}
+
+async function resolveUserEmail(userId) {
+  try {
+    const result = await pool.query(
+      `SELECT u.id, u.email, u.nombre FROM launcher.usuarios u WHERE u.id = $1`,
+      [userId]
+    );
+    return result.rows[0] || null;
+  } catch {
+    return null;
+  }
 }
 
 router.put('/tareas/:id/aprobar', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Solo administradores pueden aprobar tareas' });
+  if (!canApprove(req)) return res.status(403).json({ error: 'Solo administradores o gerentes pueden aprobar tareas' });
   try {
     const result = await pool.query(
       `UPDATE projects.tareas
@@ -23,14 +47,38 @@ router.put('/tareas/:id/aprobar', async (req, res) => {
       [req.user.id, req.params.id]
     );
     if (result.rows.length === 0) return res.status(400).json({ error: 'La tarea debe estar en revisión para ser aprobada' });
-    res.json({ exitosa: true, tarea: result.rows[0] });
+    const tarea = result.rows[0];
+
+    // Fetch task with project name and assignee email
+    const { rows: full } = await pool.query(
+      `SELECT t.*, p.nombre AS proyecto_nombre, u.email AS asignado_email, u.nombre AS asignado_nombre
+       FROM projects.tareas t
+       LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id
+       LEFT JOIN launcher.usuarios u ON u.id = t.asignado_a
+       WHERE t.id = $1`,
+      [req.params.id]
+    );
+    const tareaFull = full[0] || tarea;
+
+    // Send email notification
+    if (tareaFull.asignado_email) {
+      try {
+        await enviarCorreo(
+          tareaFull.asignado_email,
+          `✅ Tarea aprobada: ${tareaFull.titulo}`,
+          templateAprobacionTarea({ tarea: tareaFull, accion: 'aprobada', aprobador: req.user.nombre })
+        );
+      } catch (e) { console.warn('[email] Error enviando notificación de aprobación:', e.message); }
+    }
+
+    res.json({ exitosa: true, tarea });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 router.put('/tareas/:id/rechazar', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Solo administradores pueden rechazar tareas' });
+  if (!canApprove(req)) return res.status(403).json({ error: 'Solo administradores o gerentes pueden rechazar tareas' });
   const { motivo } = req.body;
   if (!motivo) return res.status(400).json({ error: 'Debes indicar un motivo de rechazo' });
   try {
@@ -48,14 +96,36 @@ router.put('/tareas/:id/rechazar', async (req, res) => {
       [req.user.id, motivo, req.params.id]
     );
     if (result.rows.length === 0) return res.status(400).json({ error: 'La tarea debe estar en revisión para ser rechazada' });
-    res.json({ exitosa: true, tarea: result.rows[0] });
+    const tarea = result.rows[0];
+
+    const { rows: full } = await pool.query(
+      `SELECT t.*, p.nombre AS proyecto_nombre, u.email AS asignado_email, u.nombre AS asignado_nombre
+       FROM projects.tareas t
+       LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id
+       LEFT JOIN launcher.usuarios u ON u.id = t.asignado_a
+       WHERE t.id = $1`,
+      [req.params.id]
+    );
+    const tareaFull = full[0] || tarea;
+
+    if (tareaFull.asignado_email) {
+      try {
+        await enviarCorreo(
+          tareaFull.asignado_email,
+          `❌ Tarea rechazada: ${tareaFull.titulo}`,
+          templateAprobacionTarea({ tarea: tareaFull, accion: 'rechazada', motivo, aprobador: req.user.nombre })
+        );
+      } catch (e) { console.warn('[email] Error enviando notificación de rechazo:', e.message); }
+    }
+
+    res.json({ exitosa: true, tarea });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
 router.put('/proyectos/:id/aprobar', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Solo administradores pueden aprobar proyectos' });
+  if (!canApprove(req)) return res.status(403).json({ error: 'Solo administradores o gerentes pueden aprobar proyectos' });
   try {
     const result = await pool.query(
       `UPDATE projects.proyectos
@@ -76,7 +146,7 @@ router.put('/proyectos/:id/aprobar', async (req, res) => {
 });
 
 router.put('/proyectos/:id/rechazar', async (req, res) => {
-  if (!isAdmin(req)) return res.status(403).json({ error: 'Solo administradores pueden rechazar proyectos' });
+  if (!canApprove(req)) return res.status(403).json({ error: 'Solo administradores o gerentes pueden rechazar proyectos' });
   try {
     const result = await pool.query(
       `UPDATE projects.proyectos
@@ -90,6 +160,53 @@ router.put('/proyectos/:id/rechazar', async (req, res) => {
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Proyecto no encontrado' });
     res.json({ exitosa: true, proyecto: result.rows[0] });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ─── Notificación de tarea enviada a revisión ───
+router.put('/tareas/:id/solicitar-revision', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE projects.tareas
+       SET estado = 'revision', columna = 'revision',
+           estado_aprobacion = 'pendiente',
+           updated_at = NOW()
+       WHERE id = $1 AND estado = 'en_progreso'
+       RETURNING *`,
+      [req.params.id]
+    );
+    if (result.rows.length === 0) return res.status(400).json({ error: 'La tarea debe estar en progreso para solicitar revisión' });
+    const tarea = result.rows[0];
+
+    const { rows: full } = await pool.query(
+      `SELECT t.*, p.nombre AS proyecto_nombre, u.email AS asignado_email, u.nombre AS asignado_nombre
+       FROM projects.tareas t
+       LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id
+       LEFT JOIN launcher.usuarios u ON u.id = t.asignado_a
+       WHERE t.id = $1`,
+      [req.params.id]
+    );
+    const tareaFull = full[0] || tarea;
+
+    // Notify gerentes and admins
+    try {
+      const { rows: admins } = await pool.query(
+        `SELECT email FROM launcher.usuarios WHERE rol IN ('admin','gerente') AND activo = 1`
+      );
+      for (const admin of admins) {
+        if (admin.email && admin.email !== tareaFull.asignado_email) {
+          await enviarCorreo(
+            admin.email,
+            `📋 Tarea pendiente de revisión: ${tareaFull.titulo}`,
+            templateTareaEnRevision({ tarea: tareaFull })
+          );
+        }
+      }
+    } catch (e) { console.warn('[email] Error enviando notificación de revisión:', e.message); }
+
+    res.json({ exitosa: true, tarea });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
