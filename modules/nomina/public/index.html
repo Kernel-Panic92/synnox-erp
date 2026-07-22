@@ -138,16 +138,20 @@
   #hist-filters .form-group { min-width:160px; flex:1 1 calc(33% - 12px); }
 
   /* ── EMPLOYEE CARDS ── */
-  .emp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:16px;}
-  .emp-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;transition:border-color 0.2s;}
+  .emp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:16px;}
+  .emp-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;transition:border-color 0.2s;}
   .emp-card:hover{border-color:var(--accent);}
-  .emp-avatar{width:44px;height:44px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-weight:800;font-size:16px;color:#fff;margin-bottom:12px;}
-  .emp-name{font-family:var(--font-head);font-size:15px;font-weight:700;margin-bottom:4px;}
-  .emp-dept{font-size:12px;color:var(--muted);margin-bottom:14px;}
-  .emp-stats{display:flex;gap:16px;}
-  .emp-stat{font-size:12px;color:var(--muted);}
-  .emp-stat strong{display:block;font-size:17px;font-family:var(--font-body);font-weight:700;color:var(--text);}
-  .emp-actions{display:flex;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border);}
+  .emp-card-top{display:flex;align-items:center;gap:10px;margin-bottom:10px;}
+  .emp-avatar{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-family:var(--font-head);font-weight:800;font-size:13px;color:#fff;flex-shrink:0;}
+  .emp-name{font-family:var(--font-head);font-size:13px;font-weight:700;line-height:1.2;min-width:0;}
+  .emp-dept{font-size:11px;color:var(--muted);margin-bottom:8px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .emp-meta{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px;}
+  .emp-meta span{font-size:10px;padding:2px 8px;border-radius:6px;background:var(--surface2);color:var(--muted);}
+  .emp-meta span.loc{color:var(--accent);background:rgba(79,142,247,0.1);}
+  .emp-stats{display:flex;gap:12px;margin-bottom:10px;}
+  .emp-stat{font-size:11px;color:var(--muted);}
+  .emp-stat strong{font-size:14px;font-family:var(--font-body);font-weight:700;color:var(--text);margin-right:3px;}
+  .emp-actions{display:flex;gap:6px;padding-top:10px;border-top:1px solid var(--border);}
 
   /* ── REPORT ── */
   .report-filters{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px 24px;margin-bottom:20px;}
