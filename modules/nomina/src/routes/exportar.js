@@ -32,7 +32,7 @@ module.exports = function({ db, ExcelJS, getConfig, enviarCorreo, rolTienePermis
         const cedula = (r.cedula || '').trim();
         const horas = r.horas != null ? r.horas : '';
         const valor = r.transporte != null ? r.transporte : '';
-        return { A: cedula, B: r.sede || '', C: r.tipo || '', D: '', E: '', F: '',
+        return { A: cedula, B: r.empleadoNombre || '', C: r.tipo || '', D: '', E: '', F: '',
                  G: esValor ? '' : horas, H: esValor ? valor : '', I: '', J: '', K: '', L: '',
                  M: '', N: '', O: '', P: '', Q: '', R: '', S: '', T: r.observaciones || '' };
       });
