@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SynnoxERP</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <style>
   :root {
     --bg:#f0f2f7; --surface:#ffffff; --surface2:#e8eaf0; --border:#d0d4e4;
@@ -187,6 +189,8 @@
     .login-card{margin-left:max(12px,env(safe-area-inset-left));margin-right:max(12px,env(safe-area-inset-right));}
     .dash-header,.dash-body{padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right));}
   }
+  .mapa-pin{height:220px;border-radius:10px;border:1px solid var(--border);overflow:hidden;margin-top:8px;}
+  .mapa-pin .leaflet-container{background:var(--surface2);height:100%;}
 </style>
 </head>
 <body>
@@ -304,6 +308,7 @@
       <div class="tab" data-tab="modulos" onclick="showAdminTab('modulos')">Módulos</div>
       <div class="tab" data-tab="mcp" onclick="showAdminTab('mcp')">MCP</div>
       <div class="tab" data-tab="smtp" onclick="showAdminTab('smtp')">SMTP</div>
+      <div class="tab" data-tab="mapas" onclick="showAdminTab('mapas')">Mapas</div>
       <div class="tab" data-tab="apariencia" onclick="showAdminTab('apariencia')">Apariencia</div>
       <div class="tab" data-tab="seguridad" onclick="showAdminTab('seguridad')">Seguridad</div>
       <div class="tab" data-tab="nginx" onclick="showAdminTab('nginx')">Nginx</div>
@@ -353,11 +358,43 @@
 
   <!-- Modal: Centro de operación -->
   <div class="modal-overlay" id="centro-form-overlay">
-    <div class="modal" id="centro-form-screen" style="max-width:400px;">
+    <div class="modal" id="centro-form-screen" style="max-width:520px;">
       <h3 id="centro-form-title">Nuevo centro de operación</h3>
       <input type="hidden" id="centro-form-id">
-      <label>Nombre</label>
-      <input type="text" id="centro-form-nombre" placeholder="Ej: BOGOTA, MEDELLIN...">
+      <input type="hidden" id="centro-form-lat">
+      <input type="hidden" id="centro-form-lng">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+        <div style="grid-column:1/-1">
+          <label>Nombre *</label>
+          <input type="text" id="centro-form-nombre" placeholder="Ej: BOGOTA, MEDELLIN...">
+        </div>
+        <div>
+          <label>Código</label>
+          <input type="text" id="centro-form-codigo" placeholder="Ej: BOG-01">
+        </div>
+        <div>
+          <label>Ciudad</label>
+          <input type="text" id="centro-form-ciudad" placeholder="Ej: Bogotá">
+        </div>
+        <div style="grid-column:1/-1">
+          <label>Descripción</label>
+          <input type="text" id="centro-form-descripcion" placeholder="Descripción del centro">
+        </div>
+        <div style="grid-column:1/-1">
+          <label>Dirección</label>
+          <input type="text" id="centro-form-direccion" placeholder="Dirección completa" autocomplete="off">
+        </div>
+        <div>
+          <label>Teléfono</label>
+          <input type="text" id="centro-form-telefono" placeholder="+57 601 1234567">
+        </div>
+        <div>
+          <label>Email</label>
+          <input type="email" id="centro-form-email" placeholder="centro@empresa.com">
+        </div>
+      </div>
+      <div class="mapa-pin" id="mapa-pin-centro"></div>
+      <p style="font-size:11px;color:var(--muted);margin-top:6px;">💡 Haz clic en el mapa para posicionar o arrastra el marcador</p>
       <div style="display:flex;gap:10px;margin-top:16px;">
         <button class="btn" onclick="saveCentro()">💾 Guardar</button>
         <button class="btn btn-danger btn-sm" style="align-self:center;" onclick="closeCentroForm()">Cancelar</button>
@@ -426,6 +463,25 @@
         <button class="btn btn-sm" onclick="testSmtpConfig()" style="background:var(--surface2);color:var(--text);">📧 Enviar prueba</button>
       </div>
       <div id="smtp-result" style="margin-top:12px;"></div>
+    </div>
+  </div>
+  <div class="tab-content" id="tab-mapas">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
+      <div style="font-size:var(--fs);font-weight:600;">Configuración de Mapas</div>
+      <span id="gmaps-key-status" style="font-size:13px;"></span>
+    </div>
+    <div class="perm-rol-section">
+      <div class="perm-rol-titulo">Google Maps API Key</div>
+      <p style="font-size:13px;color:var(--muted);margin:0 0 16px;">
+        API key de Google Maps Places para autocomplete de direcciones en formularios.
+        <a href="https://console.cloud.google.com/apis/credentials" target="_blank" style="color:var(--accent);">Google Cloud Console ↗</a>
+      </p>
+      <label>API Key</label>
+      <input type="text" id="gmaps-key-input" placeholder="AIzaSy..." style="font-family:monospace;" autocomplete="off">
+      <div style="display:flex;gap:8px;margin-top:12px;">
+        <button class="btn" onclick="guardarGmapsKey()">💾 Guardar</button>
+        <button class="btn btn-sm btn-danger" onclick="eliminarGmapsKey()">🗑️ Eliminar</button>
+      </div>
     </div>
   </div>
   <div class="tab-content" id="tab-apariencia">
@@ -735,6 +791,21 @@
 
 <div id="toast-container" style="position:fixed;top:20px;right:20px;z-index:9999;display:flex;flex-direction:column;gap:8px;pointer-events:none;"></div>
 <style>@keyframes toast-in{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}</style>
+<script>
+var GOOGLE_MAPS_KEY = '';
+fetch('/api/config/gmaps/js-url', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('platform_jwt') } })
+  .then(function(r){ return r.json(); })
+  .then(function(d){
+    if(d.url){
+      GOOGLE_MAPS_KEY = d.url.match(/key=([^&]+)/)?.[1] || '';
+      var s = document.createElement('script');
+      s.src = d.url;
+      s.async = true; s.defer = true;
+      s.onload = function(){ window.googleMapsListo = true; };
+      document.head.appendChild(s);
+    }
+  }).catch(function(){});
+</script>
 <script src="config.js?v=20260630"></script>
 <script src="app.js?v=20260630"></script>
 </body>

@@ -183,8 +183,18 @@ db.exec(`
   CREATE TABLE IF NOT EXISTS centros_operacion (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre TEXT NOT NULL UNIQUE,
+    codigo TEXT DEFAULT '',
+    descripcion TEXT DEFAULT '',
+    direccion TEXT DEFAULT '',
+    ciudad TEXT DEFAULT '',
+    telefono TEXT DEFAULT '',
+    email TEXT DEFAULT '',
+    responsable_id INTEGER,
+    latitud REAL,
+    longitud REAL,
     activo INTEGER NOT NULL DEFAULT 1,
-    creado TEXT NOT NULL DEFAULT (datetime('now'))
+    creado TEXT NOT NULL DEFAULT (datetime('now')),
+    actualizado TEXT NOT NULL DEFAULT (datetime('now'))
   )
 `);
 // Migrar tabla legacy sedes → centros_operacion (si existía)
@@ -195,6 +205,17 @@ try {
     db.exec('DROP TABLE sedes');
   }
 } catch {}
+// Migraciones incrementales para columnas nuevas
+try { db.exec("ALTER TABLE centros_operacion ADD COLUMN codigo TEXT DEFAULT ''"); } catch {}
+try { db.exec("ALTER TABLE centros_operacion ADD COLUMN descripcion TEXT DEFAULT ''"); } catch {}
+try { db.exec("ALTER TABLE centros_operacion ADD COLUMN direccion TEXT DEFAULT ''"); } catch {}
+try { db.exec("ALTER TABLE centros_operacion ADD COLUMN ciudad TEXT DEFAULT ''"); } catch {}
+try { db.exec("ALTER TABLE centros_operacion ADD COLUMN telefono TEXT DEFAULT ''"); } catch {}
+try { db.exec("ALTER TABLE centros_operacion ADD COLUMN email TEXT DEFAULT ''"); } catch {}
+try { db.exec("ALTER TABLE centros_operacion ADD COLUMN responsable_id INTEGER"); } catch {}
+try { db.exec("ALTER TABLE centros_operacion ADD COLUMN latitud REAL"); } catch {}
+try { db.exec("ALTER TABLE centros_operacion ADD COLUMN longitud REAL"); } catch {}
+try { db.exec("ALTER TABLE centros_operacion ADD COLUMN actualizado TEXT NOT NULL DEFAULT (datetime('now'))"); } catch {}
 db.prepare("INSERT OR IGNORE INTO centros_operacion (nombre) VALUES ('Principal')").run();
 
 // ── Config table (key-value) ──
@@ -912,6 +933,26 @@ app.get('/api/admin/perfiles/:id/usuarios', verificarToken, soloAdmin, (req, res
 });
 
 // ── API: Centros de operación ──
+
+// Cache for centros (in-memory, 30s TTL)
+let _centrosCache = null;
+let _centrosCacheTs = 0;
+const CENTROS_CACHE_TTL = 30000;
+function getCentrosCache() {
+  const now = Date.now();
+  if (_centrosCache && (now - _centrosCacheTs) < CENTROS_CACHE_TTL) return _centrosCache;
+  _centrosCache = db.prepare('SELECT id, nombre, codigo, descripcion, direccion, ciudad, telefono, email, responsable_id, latitud, longitud, activo FROM centros_operacion WHERE activo = 1 ORDER BY nombre').all();
+  _centrosCacheTs = now;
+  return _centrosCache;
+}
+function invalidateCentrosCache() { _centrosCache = null; _centrosCacheTs = 0; }
+
+// Pública: módulos remotos consumen centros activos (con caché)
+app.get('/api/centros', publicLimiter, (req, res) => {
+  res.json(getCentrosCache());
+});
+
+// Admin: todos los centros (incluye inactivos y campos completos)
 app.get('/api/admin/centros', verificarToken, soloAdmin, (req, res) => {
   res.json(db.prepare('SELECT * FROM centros_operacion ORDER BY nombre').all());
 });
@@ -920,12 +961,34 @@ app.get('/api/admin/sedes', verificarToken, soloAdmin, (req, res) => {
   res.json(db.prepare('SELECT * FROM centros_operacion ORDER BY nombre').all());
 });
 
+app.get('/api/admin/centros/:id', verificarToken, soloAdmin, (req, res) => {
+  const centro = db.prepare('SELECT * FROM centros_operacion WHERE id = ?').get(req.params.id);
+  if (!centro) return res.status(404).json({ error: 'Centro no encontrado' });
+  res.json(centro);
+});
+
 app.post('/api/admin/centros', verificarToken, soloAdmin, (req, res) => {
-  const { nombre } = req.body;
+  const { nombre, codigo, descripcion, direccion, ciudad, telefono, email, responsable_id, latitud, longitud } = req.body;
   if (!nombre || !nombre.trim()) return res.status(400).json({ error: 'Nombre requerido' });
   try {
-    const result = db.prepare('INSERT INTO centros_operacion (nombre) VALUES (?)').run(nombre.trim());
-    res.json({ id: result.lastInsertRowid, nombre: nombre.trim(), activo: 1 });
+    const result = db.prepare(
+      `INSERT INTO centros_operacion (nombre, codigo, descripcion, direccion, ciudad, telefono, email, responsable_id, latitud, longitud)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    ).run(
+      nombre.trim(),
+      codigo?.trim() || '',
+      descripcion?.trim() || '',
+      direccion?.trim() || '',
+      ciudad?.trim() || '',
+      telefono?.trim() || '',
+      email?.trim() || '',
+      responsable_id || null,
+      latitud || null,
+      longitud || null
+    );
+    const centro = db.prepare('SELECT * FROM centros_operacion WHERE id = ?').get(result.lastInsertRowid);
+    invalidateCentrosCache();
+    res.json(centro);
   } catch (e) {
     if (e.message.includes('UNIQUE')) return res.status(409).json({ error: 'El centro ya existe' });
     res.status(500).json({ error: e.message });
@@ -934,22 +997,33 @@ app.post('/api/admin/centros', verificarToken, soloAdmin, (req, res) => {
 
 app.put('/api/admin/centros/:id', verificarToken, soloAdmin, (req, res) => {
   const { id } = req.params;
-  const { nombre, activo } = req.body;
+  const { nombre, codigo, descripcion, direccion, ciudad, telefono, email, responsable_id, latitud, longitud, activo } = req.body;
   const centro = db.prepare('SELECT * FROM centros_operacion WHERE id = ?').get(id);
   if (!centro) return res.status(404).json({ error: 'Centro no encontrado' });
   const oldNombre = centro.nombre;
   const updates = []; const params = [];
   if (nombre !== undefined) { updates.push('nombre = ?'); params.push(nombre.trim()); }
+  if (codigo !== undefined) { updates.push('codigo = ?'); params.push(codigo.trim()); }
+  if (descripcion !== undefined) { updates.push('descripcion = ?'); params.push(descripcion.trim()); }
+  if (direccion !== undefined) { updates.push('direccion = ?'); params.push(direccion.trim()); }
+  if (ciudad !== undefined) { updates.push('ciudad = ?'); params.push(ciudad.trim()); }
+  if (telefono !== undefined) { updates.push('telefono = ?'); params.push(telefono.trim()); }
+  if (email !== undefined) { updates.push('email = ?'); params.push(email.trim()); }
+  if (responsable_id !== undefined) { updates.push('responsable_id = ?'); params.push(responsable_id || null); }
+  if (latitud !== undefined) { updates.push('latitud = ?'); params.push(latitud || null); }
+  if (longitud !== undefined) { updates.push('longitud = ?'); params.push(longitud || null); }
   if (activo !== undefined) { updates.push('activo = ?'); params.push(activo ? 1 : 0); }
   if (!updates.length) return res.status(400).json({ error: 'Sin cambios' });
+  updates.push("actualizado = datetime('now')");
   params.push(id);
   try {
     db.prepare(`UPDATE centros_operacion SET ${updates.join(', ')} WHERE id = ?`).run(...params);
-    // Si renombramos, actualizar usuarios.sede y propagar a módulos que usan el nombre
     if (nombre !== undefined && nombre.trim() !== oldNombre) {
       db.prepare('UPDATE usuarios SET sede = ? WHERE sede = ?').run(nombre.trim(), oldNombre);
     }
-    res.json({ ok: true });
+    const updated = db.prepare('SELECT * FROM centros_operacion WHERE id = ?').get(id);
+    invalidateCentrosCache();
+    res.json({ ok: true, centro: updated });
   } catch (e) {
     if (e.message.includes('UNIQUE')) return res.status(409).json({ error: 'El centro ya existe' });
     res.status(500).json({ error: e.message });
@@ -964,6 +1038,27 @@ app.delete('/api/admin/centros/:id', verificarToken, soloAdmin, (req, res) => {
   const usersWithCentro = db.prepare("SELECT COUNT(*) as c FROM usuarios WHERE sede = ?").get(centro.nombre).c;
   if (usersWithCentro > 0) return res.status(400).json({ error: `${usersWithCentro} usuario(s) tienen este centro. Reasigna primero.` });
   db.prepare('DELETE FROM centros_operacion WHERE id = ?').run(id);
+  invalidateCentrosCache();
+  res.json({ ok: true });
+});
+
+// ── API: Google Maps config ──
+app.get('/api/config/gmaps/js-url', verificarToken, soloAdmin, (req, res) => {
+  const row = db.prepare("SELECT value FROM config WHERE key = 'google_maps_key'").get();
+  const key = row?.value || '';
+  if (!key) return res.json({ url: '' });
+  res.json({ url: `https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places` });
+});
+
+app.put('/api/admin/config/gmaps/key', verificarToken, soloAdmin, (req, res) => {
+  const { key } = req.body;
+  if (!key || !key.trim()) return res.status(400).json({ error: 'API key requerida' });
+  db.prepare("INSERT OR REPLACE INTO config (key, value) VALUES ('google_maps_key', ?)").run(key.trim());
+  res.json({ ok: true });
+});
+
+app.delete('/api/admin/config/gmaps/key', verificarToken, soloAdmin, (req, res) => {
+  db.prepare("DELETE FROM config WHERE key = 'google_maps_key'").run();
   res.json({ ok: true });
 });
 
