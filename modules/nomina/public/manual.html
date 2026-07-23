@@ -538,7 +538,7 @@ const CALLOUT_MAP = {
   'note':    { icon: '📝', cls: 'callout-note' }
 };
 
-fetch('/api/manual/' + rol + '?v=' + Date.now())
+fetch('/nomina/api/manual/' + rol + '?v=' + Date.now())
   .then(r => { if (!r.ok) throw new Error('Manual no disponible para este rol'); return r.text(); })
   .then(md => {
     let html = marked.parse(md);

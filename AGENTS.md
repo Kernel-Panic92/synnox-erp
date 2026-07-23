@@ -32,6 +32,13 @@
 #### PR #45 — Updater 502 (rama separada)
 - Fix del updater: respuesta antes de git reset + pnpm install
 
+#### PR #46 — Fix manual nómina público (sin auth)
+- **Bug**: `manual.html` no podía cargar los manuales porque el endpoint `/api/manual/:rol` requería autenticación JWT y el fetch no enviaba token
+- **Fix `server.js`**: Excluidas rutas `/manual/` del middleware auth global (`req.path.startsWith('/manual/')`)
+- **Fix `misc.js`**: Eliminado middleware `todosRoles` del endpoint `/manual/:rol` (ahora público)
+- **Fix `manual.html`**: Corregida URL de fetch de `/api/manual/` a `/nomina/api/manual/` (módulo montado en `/nomina`)
+- **Archivos**: Manuales `.md` ya existían replicados con branding "SynnoxERP" + screenshots en `public/screenshots/`
+
 ### Fix adicional — UNIQUE constraint en nómina
 - **Bug**: Usuarios existentes en `horas_extra.db` con `activo=0` causaban `UNIQUE constraint failed` al intentar INSERTAR un duplicado
 - **Fix**: `autenticar()` ahora verifica si el usuario existe pero está inactivo y lo reactiva con `UPDATE` en vez de INSERT
