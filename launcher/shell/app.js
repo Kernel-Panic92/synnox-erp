@@ -185,7 +185,6 @@ async function showLauncher() {
     const card = document.createElement('a');
     card.className = 'card';
     card.href = window.location.origin + mod.ruta;
-    card.target = '_blank';
     card.rel = 'noopener';
     card.onclick = () => {
       trackModuleVisit(mod.id);
@@ -289,7 +288,7 @@ async function cargarQuickActions() {
     <h2 style="margin-bottom:12px;">⚡ Accesos frecuentes</h2>
     <div style="display:flex;flex-wrap:wrap;gap:8px;">
       ${visible.map(s => `
-        <a href="${window.location.origin + s.ruta}" target="_blank" onclick="trackModuleVisit('${s.id}')" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);text-decoration:none;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
+        <a href="${window.location.origin + s.ruta}" onclick="trackModuleVisit('${s.id}')" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;font-size:13px;color:var(--text);text-decoration:none;transition:border-color 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">
           <span>${s.icon}</span> ${s.nombre}
         </a>
       `).join('')}
@@ -379,7 +378,7 @@ async function cargarPendingTasks() {
     w.innerHTML = `
       <h2 style="margin-bottom:12px;">📋 Tareas pendientes</h2>
       <div style="display:flex;flex-direction:column;gap:6px;">
-        ${tasks.map(t => `<a href="${t.link}" target="_blank" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(247,151,79,0.08);border:1px solid rgba(247,151,79,0.2);border-radius:8px;font-size:13px;color:var(--text);text-decoration:none;">
+        ${tasks.map(t => `<a href="${t.link}" rel="noopener" style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:rgba(247,151,79,0.08);border:1px solid rgba(247,151,79,0.2);border-radius:8px;font-size:13px;color:var(--text);text-decoration:none;">
           <span style="font-size:16px;">${t.icon}</span> ${t.text}
         </a>`).join('')}
       </div>`;
