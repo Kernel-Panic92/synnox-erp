@@ -84,7 +84,7 @@ function show(id) {
   ['loading-screen', 'login-screen', 'launcher-screen', 'admin-screen', 'admin-form-overlay', 'modulo-form-overlay'].forEach(s => {
     const el = document.getElementById(s);
     if (s === id) {
-      el.style.display = (s === 'login-screen') ? 'flex' : 'block';
+      el.style.display = (s === 'login-screen' || s === 'admin-screen') ? 'flex' : 'block';
     } else {
       el.style.display = 'none';
     }
@@ -569,7 +569,12 @@ function logout() {
 
 // ── Admin ──
 function showAdmin() {
-  document.getElementById('admin-header-user').innerHTML = esc(user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
+  const userNameEl = document.getElementById('admin-sidebar-user');
+  const userRoleEl = document.getElementById('admin-sidebar-role');
+  const versionEl = document.getElementById('admin-sidebar-version');
+  if (userNameEl) userNameEl.textContent = user?.nombre || '';
+  if (userRoleEl) userRoleEl.textContent = user?.rol || '';
+  if (versionEl) versionEl.textContent = launcherVersion ? 'v' + launcherVersion : '';
   show('admin-screen');
   showAdminTab('usuarios');
 }
@@ -1250,7 +1255,7 @@ async function testSmtpConfig() {
 
 // ── Admin tab router ──
 function showAdminTab(tab) {
-  document.querySelectorAll('#admin-screen .tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
+  document.querySelectorAll('#admin-sidebar .nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === tab));
   document.querySelectorAll('#admin-screen .tab-content').forEach(t => t.classList.toggle('active', t.id === 'tab-' + tab));
   if (tab === 'usuarios') loadUsers();
   else if (tab === 'perfiles') loadPerfiles();
