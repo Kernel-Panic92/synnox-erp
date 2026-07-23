@@ -114,6 +114,7 @@ async function init() {
       badgeEl.className = 'badge role-badge role-' + (data.rol || '').toLowerCase();
     }
     renderSidebar(data);
+    cargarVersion();
     cargarDashboard();
   } catch { logout(); }
 }

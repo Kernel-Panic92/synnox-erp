@@ -21,7 +21,7 @@ module.exports = function({ db, fs, path, __dirname, permisosPorRol, middlewares
     } catch { res.json({ version: '—', rama: '' }); }
   });
 
-  router.get('/manual/:rol', todosRoles, (req, res) => {
+  router.get('/manual/:rol', (req, res) => {
     const mapa = { admin: 'MANUAL_ADMIN', rrhh: 'MANUAL_RRHH', gerencia: 'MANUAL_GERENCIA', operador: 'MANUAL_OPERADOR', consulta: 'MANUAL_CONSULTA' };
     const nombre = mapa[req.params.rol] || 'MANUAL_OPERADOR';
     const ruta = path.join(__dirname, nombre + '.md');
