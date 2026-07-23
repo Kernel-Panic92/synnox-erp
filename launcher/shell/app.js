@@ -589,6 +589,7 @@ async function loadUsers() {
         <td class="actions">
           <button class="btn btn-sm btn-secondary" onclick="editUser(${u.id})">✏️ Editar</button>
           ${u.activo ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">🗑️ Desactivar</button>` : ''}
+          ${!u.activo ? `<button class="btn btn-sm btn-secondary" onclick="reactivateUser(${u.id})">♻️ Reactivar</button>` : ''}
           ${!u.activo ? `<button class="btn btn-sm btn-danger" onclick="deleteUserPermanent(${u.id})">🗑️ Eliminar</button>` : ''}
         </td>
       </tr>
@@ -732,6 +733,25 @@ async function deleteUser(id) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error || 'Error al desactivar');
     }
+    loadUsers();
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+async function reactivateUser(id) {
+  if (!await confirmModal('¿Reactivar este usuario?')) return;
+  try {
+    const res = await fetch(`/api/admin/usuarios/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
+      body: JSON.stringify({ activo: true })
+    });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Error al reactivar');
+    }
+    toast('Usuario reactivado', 'success');
     loadUsers();
   } catch (e) {
     toast(e.message, 'error');

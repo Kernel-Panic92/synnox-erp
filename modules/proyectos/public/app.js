@@ -68,6 +68,18 @@ function selectUsuarios(selectedId) {
     _todosUsuarios.map(u => `<option value="${u.id}" ${u.id == selectedId ? 'selected' : ''}>${esc(u.nombre)} (${esc(u.email)})</option>`).join('');
 }
 
+function filtrarSelectUsuarios(query, selectId) {
+  const select = document.getElementById(selectId);
+  const q = query.toLowerCase();
+  const selected = select.value;
+  Array.from(select.options).forEach(opt => {
+    if (!opt.value) { opt.style.display = ''; return; }
+    const u = _todosUsuarios.find(u => u.id == opt.value);
+    opt.style.display = (u && (u.nombre.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))) ? '' : 'none';
+  });
+  select.value = selected;
+}
+
 async function init() {
   try {
     const data = await api('/auth/me');
