@@ -149,6 +149,26 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
   .login-card { padding: 24px; margin: 16px; border-radius: 12px; }
 }
 
+/* ── Error Splash ── */
+.error-splash {
+  display: flex; align-items: center; justify-content: center; min-height: 100vh;
+  background: var(--bg); padding: 24px;
+}
+.error-splash-card {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 16px;
+  padding: 48px 40px; width: 420px; max-width: 100%; text-align: center;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.3);
+}
+.error-splash-icon { font-size: 48px; margin-bottom: 16px; }
+.error-splash-title { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
+.error-splash-msg { font-size: 14px; color: var(--muted); margin-bottom: 24px; line-height: 1.6; }
+.error-splash-btn {
+  display: inline-block; padding: 12px 24px; border-radius: 10px; font-size: 14px;
+  font-weight: 600; cursor: pointer; text-decoration: none; transition: opacity .2s;
+}
+.error-splash-btn-primary { background: var(--accent); color: #fff; border: none; }
+.error-splash-btn-primary:hover { opacity: .9; }
+
 /*
  * ══════════════════════════════════════════════════════════════
  * LAYOUT CONVENTIONS — Leer antes de crear grids o layouts

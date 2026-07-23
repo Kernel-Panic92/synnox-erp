@@ -297,13 +297,13 @@ function poblarSelectAprobadores() {
       document.getElementById('app-screen').classList.add('show');
       await iniciarApp();
     } else if (res.status === 403) {
-      document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:var(--font);"><div style="text-align:center;padding:40px;background:var(--surface);border:1px solid var(--border);border-radius:16px;max-width:400px;"><div style="font-size:48px;margin-bottom:16px;">🔒</div><div style="font-size:18px;font-weight:700;margin-bottom:8px;">Acceso denegado</div><div style="color:var(--muted);margin-bottom:24px;">No tienes permisos para acceder al módulo de Nómina. Contacta al administrador.</div><a href="/" style="display:inline-block;padding:10px 24px;background:var(--accent);color:#fff;border-radius:8px;text-decoration:none;font-weight:600;">Volver al Launcher</a></div></div>';
+      document.body.innerHTML = '<div class="error-splash"><div class="error-splash-card"><div class="error-splash-icon">🔒</div><div class="error-splash-title">Acceso denegado</div><div class="error-splash-msg">No tienes permisos para acceder al módulo de Nómina. Contacta al administrador.</div><a href="/" class="error-splash-btn error-splash-btn-primary">🏠 Volver al Launcher</a></div></div>';
     } else {
       throw new Error('Not authenticated');
     }
   } catch (e) {
     console.error('Session check failed:', e);
-    window.location.href = '/';
+    document.body.innerHTML = `<div class="error-splash"><div class="error-splash-card"><div class="error-splash-icon">⚠️</div><div class="error-splash-title">Error al cargar Nómina</div><div class="error-splash-msg">${e.message || 'No se pudo conectar con el servidor. Verifica tu sesión e intenta de nuevo.'}</div><a href="/" class="error-splash-btn error-splash-btn-primary">🏠 Volver al Launcher</a></div></div>`;
   }
 })();
 

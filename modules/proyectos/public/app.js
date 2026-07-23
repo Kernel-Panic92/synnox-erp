@@ -90,8 +90,9 @@ async function init() {
     if (data.rol) document.getElementById('user-badge').textContent = data.rol;
     await cargarTodosLosUsuarios();
     mostrarAppInterno();
-  } catch {
-    logout();
+  } catch (e) {
+    document.getElementById('app-screen').style.display = 'none';
+    document.body.insertAdjacentHTML('beforeend', `<div class="error-splash"><div class="error-splash-card"><div class="error-splash-icon">⚠️</div><div class="error-splash-title">Error al cargar Proyectos</div><div class="error-splash-msg">${e.message || 'No se pudo conectar con el servidor. Verifica tu sesión e intenta de nuevo.'}</div><a href="/" class="error-splash-btn error-splash-btn-primary">🏠 Volver al Launcher</a></div></div>`);
   }
 }
 
