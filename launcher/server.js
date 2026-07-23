@@ -2050,11 +2050,24 @@ app.post('/api/admin/updater/update', verificarToken, soloAdmin, async (req, res
   try {
     logUpdater('INICIANDO ACTUALIZACION (rama: ' + branch + ')');
     logUpdater('Fetch y reset a origin/' + branch + '...');
-    execFileSync('git', ['fetch', 'origin'], { cwd: LAUNCHER_DIR, stdio: 'pipe' });
-    execFileSync('git', ['reset', '--hard', 'origin/' + branch], { cwd: LAUNCHER_DIR, stdio: 'pipe' });
+    try {
+      execFileSync('git', ['fetch', 'origin'], { cwd: LAUNCHER_DIR, stdio: 'pipe' });
+    } catch (e) {
+      logUpdater('ERROR en git fetch: ' + e.message);
+      return res.json({ ok: false, error: 'Error al descargar cambios (git fetch): ' + e.message, step: 'git_fetch' });
+    }
+    try {
+      execFileSync('git', ['reset', '--hard', 'origin/' + branch], { cwd: LAUNCHER_DIR, stdio: 'pipe' });
+    } catch (e) {
+      logUpdater('ERROR en git reset: ' + e.message);
+      return res.json({ ok: false, error: 'Error al aplicar cambios (git reset): ' + e.message, step: 'git_reset' });
+    }
     logUpdater('Reset hard completado');
     logUpdater('Instalando dependencias...');
-    try { execSync('npm install --production', { cwd: __dirname, stdio: 'pipe' }); logUpdater('Dependencias instaladas'); } catch (e) { logUpdater('npm install: ' + e.message); }
+    try { execSync('npm install --production', { cwd: __dirname, stdio: 'pipe' }); logUpdater('Dependencias instaladas'); } catch (e) {
+      logUpdater('npm install: ' + e.message);
+      return res.json({ ok: false, error: 'Error al instalar dependencias (npm install): ' + e.message, step: 'npm_install' });
+    }
     const newCommit = execSync('git rev-parse --short HEAD', { cwd: LAUNCHER_DIR }).toString().trim();
     logUpdater('ACTUALIZACION COMPLETADA - Commit: ' + newCommit);
     fs.writeFileSync(path.join(__dirname, '.last-update'), new Date().toISOString());
@@ -2069,7 +2082,10 @@ app.post('/api/admin/updater/update', verificarToken, soloAdmin, async (req, res
         try { pm2Exec('restart synnoxerp'); } catch { logUpdater('PM2 no disponible — reinicio manual requerido'); }
       }, 1500);
     });
-  } catch (err) { logUpdater('ERROR: ' + err.message); res.json({ ok: false, error: err.message }); }
+  } catch (err) {
+    logUpdater('ERROR: ' + err.message);
+    res.json({ ok: false, error: err.message, step: 'unknown' });
+  }
 });
 
 app.post('/api/admin/updater/restart', verificarToken, soloAdmin, async (req, res) => {
