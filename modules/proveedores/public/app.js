@@ -28,6 +28,18 @@ function getPageFromHash(){
 }
 function savePage(v){localStorage.setItem('vd_last_page',v)}
 
+// ─── SIDEBAR HOME ────────────────────────────────────────────────────────────
+function injectSidebarHome(){
+  const footer=document.querySelector('.sidebar-footer');
+  if(!footer||footer.querySelector('.sidebar-home'))return;
+  const a=document.createElement('a');
+  a.href='/';a.className='sidebar-home';
+  a.innerHTML='<span class="icon">🏠</span> <span>Home</span>';
+  const btn=footer.querySelector('.btn-logout');
+  if(btn){footer.insertBefore(a,btn);const s=document.createElement('div');s.className='sidebar-separator';footer.insertBefore(s,btn);}
+  else footer.prepend(a);
+}
+
 function goNav(v){closeSidebar();goTo(v)}
 function setNav(id){
   document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));

@@ -61,6 +61,8 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
 .sidebar .user-info .role { font-size: 12px; color: var(--muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sidebar .user-info .badge { display: inline-block; background: var(--accent); color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-top: 4px; text-transform: uppercase; letter-spacing: .5px; }
 .sidebar nav { flex: 1; padding: 12px 0; overflow-y: auto; overflow-x: hidden; }
+.sidebar nav .sidebar-section { padding: 0; }
+.sidebar nav .sidebar-section-title { padding: 6px 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); user-select: none; }
 .sidebar nav .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 20px; color: var(--muted); font-size: 14px; cursor: pointer; transition: all .12s; border-left: 3px solid transparent; user-select: none; white-space: nowrap; }
 .sidebar nav .nav-item:hover { color: var(--text); background: rgba(255,255,255,.03); }
 .sidebar nav .nav-item.active { color: var(--accent); background: rgba(0,168,107,.08); border-left-color: var(--accent); }
@@ -81,7 +83,8 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
 .sidebar.collapsed .user-info,
 .sidebar.collapsed .sidebar-footer .btn-logout span:last-child,
 .sidebar.collapsed .sidebar-footer .sidebar-home span:last-child,
-.sidebar.collapsed .sidebar-footer .version { display: none; }
+.sidebar.collapsed .sidebar-footer .version,
+.sidebar.collapsed .sidebar-section-title { display: none; }
 .sidebar.collapsed .logo { justify-content: center; padding: 20px 0; }
 .sidebar.collapsed nav .nav-item { justify-content: center; padding: 12px 0; gap: 0; }
 .sidebar.collapsed nav .nav-item .icon { font-size: 20px; width: auto; }

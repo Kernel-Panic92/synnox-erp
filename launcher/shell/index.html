@@ -130,63 +130,62 @@
 
   /* Admin sidebar */
   #admin-screen{display:flex;min-height:100vh;}
-  .admin-sidebar{
+  #admin-screen .sidebar{
     position:fixed;top:0;left:0;width:230px;height:100vh;
     background:var(--surface);border-right:1px solid var(--border);
     display:flex;flex-direction:column;z-index:50;
     transition:width 0.2s;
   }
-  .admin-sidebar .sidebar-logo{
+  #admin-screen .sidebar .logo{
     padding:20px;border-bottom:1px solid var(--border);
     display:flex;align-items:center;gap:10px;
   }
-  .admin-sidebar .sidebar-logo img{height:24px;}
-  .admin-sidebar .sidebar-logo span{font-size:18px;font-weight:800;}
-  .admin-sidebar .sidebar-logo span b{color:var(--accent);}
-  .admin-sidebar .sidebar-section{
-    padding:8px 0;border-bottom:1px solid var(--border);
-  }
-  .admin-sidebar .sidebar-section-title{
+  #admin-screen .sidebar .logo img{height:24px;}
+  #admin-screen .sidebar .logo span{font-size:18px;font-weight:800;}
+  #admin-screen .sidebar .logo span b{color:var(--accent);}
+  #admin-screen .sidebar nav{flex:1;overflow-y:auto;}
+  #admin-screen .sidebar nav .sidebar-section{padding:8px 0;}
+  #admin-screen .sidebar nav .sidebar-section-title{
     padding:6px 20px;font-size:11px;font-weight:700;
     text-transform:uppercase;letter-spacing:0.8px;color:var(--muted);
   }
-  .admin-sidebar .nav-item{
+  #admin-screen .sidebar nav .nav-item{
     display:flex;align-items:center;gap:12px;
     padding:10px 20px;cursor:pointer;font-size:14px;font-weight:500;
     color:var(--muted);border-left:3px solid transparent;
     transition:all 0.15s;text-decoration:none;
   }
-  .admin-sidebar .nav-item:hover{color:var(--text);background:var(--surface2);}
-  .admin-sidebar .nav-item.active{
+  #admin-screen .sidebar nav .nav-item:hover{color:var(--text);background:var(--surface2);}
+  #admin-screen .sidebar nav .nav-item.active{
     color:var(--accent);border-left-color:var(--accent);
     background:rgba(91,155,247,0.06);font-weight:600;
   }
-  .admin-sidebar .nav-item .icon{font-size:16px;width:22px;text-align:center;flex-shrink:0;}
-  .admin-sidebar .sidebar-footer{
+  #admin-screen .sidebar nav .nav-item .icon{font-size:16px;width:22px;text-align:center;flex-shrink:0;}
+  #admin-screen .sidebar .sidebar-footer{
     margin-top:auto;padding:16px 20px;
     border-top:1px solid var(--border);
   }
-  .admin-sidebar .sidebar-footer .sidebar-home{
+  #admin-screen .sidebar .sidebar-footer .sidebar-home{
     display:flex;align-items:center;gap:12px;
     padding:8px 0;font-size:14px;color:var(--muted);
     cursor:pointer;transition:color 0.15s;margin-bottom:8px;
   }
-  .admin-sidebar .sidebar-footer .sidebar-home:hover{color:var(--text);}
-  .admin-sidebar .sidebar-footer .sidebar-home .icon{font-size:16px;width:22px;text-align:center;flex-shrink:0;}
-  .admin-sidebar .sidebar-footer .user-name{font-weight:600;font-size:14px;}
-  .admin-sidebar .sidebar-footer .user-role{font-size:12px;color:var(--muted);}
-  .admin-sidebar .sidebar-footer .btn-logout{
+  #admin-screen .sidebar .sidebar-footer .sidebar-home:hover{color:var(--text);}
+  #admin-screen .sidebar .sidebar-footer .sidebar-home .icon{font-size:16px;width:22px;text-align:center;flex-shrink:0;}
+  #admin-screen .sidebar .sidebar-footer .user-name{font-weight:600;font-size:14px;}
+  #admin-screen .sidebar .sidebar-footer .user-role{font-size:12px;color:var(--muted);}
+  #admin-screen .sidebar .sidebar-footer .btn-logout{
     display:flex;align-items:center;gap:8px;
     padding:8px 0;font-size:13px;color:var(--muted);
     cursor:pointer;transition:color 0.15s;background:none;border:none;
     font-family:var(--font);
   }
-  .admin-sidebar .sidebar-footer .btn-logout:hover{color:var(--danger);}
-  .admin-sidebar .sidebar-footer .version{font-size:11px;color:var(--muted);margin-top:8px;}
+  #admin-screen .sidebar .sidebar-footer .btn-logout:hover{color:var(--danger);}
+  #admin-screen .sidebar .sidebar-footer .version{font-size:11px;color:var(--muted);margin-top:8px;}
   .admin-main{margin-left:230px;flex:1;min-width:0;}
   @media(max-width:768px){
-    .admin-sidebar{transform:translateX(-100%);transition:transform 0.25s;}
-    .admin-sidebar.open{transform:translateX(0);}
+    #admin-screen .sidebar{transform:translateX(-100%);transition:transform 0.25s;}
+    #admin-screen .sidebar.open{transform:translateX(0);}
     .admin-main{margin-left:0;}
     .admin-main .hamburger{display:flex;}
   }
@@ -348,11 +347,8 @@
 </div>
 
 <div id="admin-screen">
-  <aside class="admin-sidebar" id="admin-sidebar">
-    <div class="sidebar-logo">
-      <img src="/media/LogoERP.png" alt="Logo">
-      <span><b>Admin</b></span>
-    </div>
+  <aside class="sidebar" id="admin-sidebar">
+    <div class="logo"><img src="/media/LogoERP.png" style="height:24px" alt="Logo"> <span><b>Admin</b></span></div>
     <nav style="flex:1;overflow-y:auto;">
       <div class="sidebar-section">
         <div class="sidebar-section-title">Gestión</div>

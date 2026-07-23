@@ -19,6 +19,7 @@ async function fetchUserAndShowApp(){
 }
 
 function showApp(){
+  injectSidebarHome();
   $('app-screen').classList.add('show');
   document.body.className=S.theme;
   const tb=$('theme-btn');if(tb)tb.textContent=S.theme==='dark'?'🌙':'☀️';

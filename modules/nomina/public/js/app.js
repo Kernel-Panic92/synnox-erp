@@ -159,8 +159,28 @@ function toggleSidebarCollapse() {
   localStorage.setItem('sidebar_collapsed', s.classList.contains('collapsed'));
 }
 
+// Sidebar Home link
+function injectSidebarHome() {
+  const footer = document.querySelector('.sidebar-footer');
+  if (!footer || footer.querySelector('.sidebar-home')) return;
+  const homeLink = document.createElement('a');
+  homeLink.href = '/';
+  homeLink.className = 'sidebar-home';
+  homeLink.innerHTML = '<span class="icon">🏠</span> <span>Home</span>';
+  const logoutBtn = footer.querySelector('.btn-logout');
+  if (logoutBtn) {
+    footer.insertBefore(homeLink, logoutBtn);
+    const sep = document.createElement('div');
+    sep.className = 'sidebar-separator';
+    footer.insertBefore(sep, logoutBtn);
+  } else {
+    footer.prepend(homeLink);
+  }
+}
+
 // App Initialization
 async function iniciarApp() {
+  injectSidebarHome();
   // Update user info in UI (framework standard IDs)
   if (sesion?.usuario) {
     const nameEl = document.getElementById('user-name');
