@@ -361,5 +361,5 @@ async function exportarXLSX() {
 // ── Manual / Ayuda ──
 function abrirManual() {
   const rol = sesion?.usuario?.rol || 'operador';
-  window.open('/nomina/manual.html?rol=' + rol, '_blank');
+  window.open('/manual.html?rol=' + rol, '_blank');
 }
