@@ -93,6 +93,17 @@ function renderSidebar(usuario) {
   ).join('');
 }
 
+function injectSidebarHome(){
+  const footer=document.querySelector('.sidebar-footer');
+  if(!footer||footer.querySelector('.sidebar-home'))return;
+  const a=document.createElement('a');
+  a.href='/';a.className='sidebar-home';
+  a.innerHTML='<span class="icon">🏠</span> <span>Home</span>';
+  const btn=footer.querySelector('.btn-logout');
+  if(btn){footer.insertBefore(a,btn);const s=document.createElement('div');s.className='sidebar-separator';footer.insertBefore(s,btn);}
+  else footer.prepend(a);
+}
+
 async function init() {
   if (localStorage.getItem('synnox_theme') !== 'dark') document.body.classList.add('light');
   const hoy = new Date().toISOString().split('T')[0];
