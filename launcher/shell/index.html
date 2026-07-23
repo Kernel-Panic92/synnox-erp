@@ -166,6 +166,13 @@
     margin-top:auto;padding:16px 20px;
     border-top:1px solid var(--border);
   }
+  .admin-sidebar .sidebar-footer .sidebar-home{
+    display:flex;align-items:center;gap:12px;
+    padding:8px 0;font-size:14px;color:var(--muted);
+    cursor:pointer;transition:color 0.15s;margin-bottom:8px;
+  }
+  .admin-sidebar .sidebar-footer .sidebar-home:hover{color:var(--text);}
+  .admin-sidebar .sidebar-footer .sidebar-home .icon{font-size:16px;width:22px;text-align:center;flex-shrink:0;}
   .admin-sidebar .sidebar-footer .user-name{font-weight:600;font-size:14px;}
   .admin-sidebar .sidebar-footer .user-role{font-size:12px;color:var(--muted);}
   .admin-sidebar .sidebar-footer .btn-logout{
@@ -371,6 +378,7 @@
       </div>
     </nav>
     <div class="sidebar-footer">
+      <a class="sidebar-home" onclick="showLauncher()"><span class="icon">🏠</span> <span>Home</span></a>
       <div class="user-name" id="admin-sidebar-user"></div>
       <div class="user-role" id="admin-sidebar-role"></div>
       <div class="version" id="admin-sidebar-version"></div>
