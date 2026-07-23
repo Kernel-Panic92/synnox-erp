@@ -39,6 +39,36 @@
 - **Fix `manual.html`**: Corregida URL de fetch de `/api/manual/` a `/nomina/api/manual/` (módulo montado en `/nomina`)
 - **Archivos**: Manuales `.md` ya existían replicados con branding "SynnoxERP" + screenshots en `public/screenshots/`
 
+### Cambios Sesión 22 — UI/UX Launcher y Framework
+
+#### PR #47 — Fix manual nómina público + logística versión sidebar
+- **Manual nómina**: `manual.html` no podía cargar manuales (endpoint requería auth). Fix: excluir `/manual/` del middleware auth global
+- **Logística versión**: `cargarVersion()` definida pero nunca llamada en `init()`. Fix: agregada llamada
+
+#### PR #48 — Fix URL de ayuda en nómina
+- **Bug**: `abrirManual()` abría `/manual.html` (raiz) en vez de `/nomina/manual.html`. Fix: corregida URL
+
+#### PR #49 — confirmModal con tipos visuales (delete/update/restart/info)
+- **`confirmModal(msg, title, type)`**: Nuevo 3er parámetro `type` para cambiar apariencia del modal
+- **Tipos**: `'delete'` (🗑️ rojo), `'update'` (🔄 azul), `'restart'` (♻️ amarillo), `'info'` (ℹ️ gris)
+- **Backward compatible**: 3er parámetro opcional, default `'delete'`
+
+#### PR #50 — Admin sidebar con pestañas agrupadas
+- **Reemplazado** tab bar horizontal por sidebar fijo a la izquierda
+- **13 pestañas** agrupadas en 3 categorías: Gestión, Sistema, Operaciones
+- **Sidebar**: logo, nav items con iconos, footer con usuario/Home/logout
+- **CSS**: clases `.admin-sidebar` → `.sidebar` (estándar)
+- **Responsive**: sidebar colapsable en móvil
+
+#### Sidebar unificado (commits directos en main)
+- **Home button**: Eliminado HTML estático de los 4 módulos. Cada módulo inyecta via `injectSidebarHome()`
+- **Admin**: Migrado de `.admin-sidebar` a `.sidebar` (clase estándar del framework)
+- **Proveedores**: Fix layout (`padding-right:120px` → `margin-left` de base.css)
+- **Error splash**: Nuevo componente `.error-splash` para errores de carga (en vez de redirect al launcher)
+- **Mismas pestañas**: Launcher abre módulos en la misma pestaña (eliminado `target="_blank"`)
+- **Admin flash fix**: Eliminada regla CSS `display:flex` que forzaba visibilidad del admin
+- **base.css**: Agregados estilos `.sidebar-section` y `.sidebar-section-title`
+
 ### Fix adicional — UNIQUE constraint en nómina
 - **Bug**: Usuarios existentes en `horas_extra.db` con `activo=0` causaban `UNIQUE constraint failed` al intentar INSERTAR un duplicado
 - **Fix**: `autenticar()` ahora verifica si el usuario existe pero está inactivo y lo reactiva con `UPDATE` en vez de INSERT
@@ -110,14 +140,17 @@
 - **CSS**: Usar variables del framework (`var(--surface)`, `var(--border)`, `var(--text)`, `var(--muted)`, `var(--accent)`, `var(--success)`, `var(--danger)`).
 - **Botones**: Seguir clases existentes: `btn`, `btn-sm`, `btn-secondary`, `btn-danger`.
 - **Tablas**: Usar estructura `<table id="xxx-table"><thead><tr>...</tr></thead><tbody></tbody></table>` con `overflow-x:auto`.
-- **Layout `.main`**: Siempre `flex:1;min-width:0;width:calc(100% - var(--sidebar-w))` cuando el sidebar es `position:fixed`.
+- **Layout `.main`**: Siempre `margin-left: var(--sidebar-w)` cuando el sidebar es `position:fixed`. NO usar `padding-right` ni `width:calc`.
 - **Grids**: Siempre `repeat(auto-fit, minmax(Xpx, 1fr))`. NUNCA `repeat(N, 1fr)` fijo. Usar `auto-fit` para pocos items, `auto-fill` para muchos.
 - **Tablas overflow**: `.table-wrap` siempre `overflow-x:auto`, NUNCA `overflow:hidden`.
 - **Skeletons**: Widgets con fetch deben mostrar skeleton loader mientras cargan.
 - **API**: Todas las rutas usan `verificarToken, soloAdmin`. Respuestas: `{ ok: true }` o `{ error: 'msg' }`.
 - **DB**: Migraciones con `try { db.exec("ALTER TABLE...") } catch {}` para columnas nuevas. Seeds con `INSERT OR IGNORE`.
 - **Auth**: Siempre via `verificarToken` middleware. JWT incluye `modulos_permisos` para permisos granulares.
-- **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`. **Home button**: El framework inyecta automáticamente el botón "🏠 Home" en `.sidebar-footer` — NO agregar HTML manualmente. El footer solo debe contener `<button class="btn-logout">`.
+- **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`. **Home button**: El framework inyecta automáticamente el botón "🏠 Home" en `.sidebar-footer` via `injectSidebarHome()`. NO agregar HTML estático del Home. Si el módulo NO usa `initFramework()`, agregar función `injectSidebarHome()` propia y llamarla en el init.
+- **Sidebar secciones**: Usar `.sidebar-section` con `.sidebar-section-title` para agrupar nav items. Ejemplo: `<div class="sidebar-section"><div class="sidebar-section-title">Grupo</div><div class="nav-item">...</div></div>`.
+- **Error splash**: Cuando un módulo falle al cargar (auth, red), mostrar `.error-splash` en vez de redirigir al launcher. Usar clases `.error-splash`, `.error-splash-card`, `.error-splash-icon`, `.error-splash-title`, `.error-splash-msg`, `.error-splash-btn`.
+- **Navegación same-tab**: Módulos y Home button SIEMPRE abren en la misma pestaña (`href="/"` sin `target="_blank"`). Launcher también abre módulos en la misma pestaña.
 - **Versión**: Todos los módulos leen `/api/version` del root `package.json` (versión unificada `1.0.0`). NO usar `package.json` del módulo. NO mostrar rama git. Frontend: `el.textContent = 'v' + data.version`.
 - **Instalación**: `install.sh` usa `$(pwd)` como INSTALL_DIR — ejecutar desde el directorio del repo clonado. NO copiar a otro path.
 - **Centros de operación**: Launcher es fuente única de verdad. CRUD en launcher, módulos consumen via `GET /api/centros` (caché 30s). NO crear tablas locales de centros.
@@ -195,7 +228,10 @@
 - **API**: Todas las rutas usan `verificarToken, soloAdmin`. Respuestas: `{ ok: true }` o `{ error: 'msg' }`.
 - **DB**: Migraciones con `try { db.exec("ALTER TABLE...") } catch {}` para columnas nuevas. Seeds con `INSERT OR IGNORE`.
 - **Auth**: Siempre via `verificarToken` middleware. JWT incluye `modulos_permisos` para permisos granulares.
-- **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`. **Home button**: El framework inyecta automáticamente el botón "🏠 Home" en `.sidebar-footer` — NO agregar HTML manualmente. El footer solo debe contener `<button class="btn-logout">`.
+- **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`. **Home button**: El framework inyecta automáticamente el botón "🏠 Home" en `.sidebar-footer` via `injectSidebarHome()`. NO agregar HTML estático del Home. Si el módulo NO usa `initFramework()`, agregar función `injectSidebarHome()` propia y llamarla en el init.
+- **Sidebar secciones**: Usar `.sidebar-section` con `.sidebar-section-title` para agrupar nav items.
+- **Error splash**: Cuando un módulo falle al cargar, mostrar `.error-splash` en vez de redirigir al launcher.
+- **Navegación same-tab**: Módulos y Home button SIEMPRE abren en la misma pestaña (`href="/"` sin `target="_blank"`).
 - **Versión**: Todos los módulos leen `/api/version` del root `package.json` (versión unificada `1.0.0`). NO usar `package.json` del módulo. NO mostrar rama git. Frontend: `el.textContent = 'v' + data.version`.
 - **Instalación**: Path default `~/.local/share/synnoxerp` (XDG). NO usar `/opt/`.
 - **Licencia**: Propietaria (LICENSE.md). NO redistribuir código fuente.
@@ -247,7 +283,10 @@
 - **API**: Todas las rutas usan `verificarToken, soloAdmin`. Respuestas: `{ ok: true }` o `{ error: 'msg' }`.
 - **DB**: Migraciones con `try { db.exec("ALTER TABLE...") } catch {}` para columnas nuevas. Seeds con `INSERT OR IGNORE`.
 - **Auth**: Siempre via `verificarToken` middleware. JWT incluye `modulos_permisos` para permisos granulares.
-- **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`. **Home button**: El framework inyecta automáticamente el botón "🏠 Home" en `.sidebar-footer` — NO agregar HTML manualmente. El footer solo debe contener `<button class="btn-logout">`.
+- **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`. **Home button**: El framework inyecta automáticamente el botón "🏠 Home" en `.sidebar-footer` via `injectSidebarHome()`. NO agregar HTML estático del Home. Si el módulo NO usa `initFramework()`, agregar función `injectSidebarHome()` propia y llamarla en el init.
+- **Sidebar secciones**: Usar `.sidebar-section` con `.sidebar-section-title` para agrupar nav items.
+- **Error splash**: Cuando un módulo falle al cargar, mostrar `.error-splash` en vez de redirigir al launcher.
+- **Navegación same-tab**: Módulos y Home button SIEMPRE abren en la misma pestaña (`href="/"` sin `target="_blank"`).
 - **Versión**: Todos los módulos leen `/api/version` del root `package.json` (versión unificada `1.0.0`). NO usar `package.json` del módulo. NO mostrar rama git. Frontend: `el.textContent = 'v' + data.version`.
 
 ---
