@@ -1,8 +1,42 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (23 Jul 2026 — sesión 20)
+## Estado (23 Jul 2026 — sesión 21)
 
-### Cambios Sesión 20 — Issues #28, #27, #25 + Installer refactor
+### Cambios Sesión 21 — Issues #36, #31, #37, #38, #41 + Framework Home button
+
+#### PR #39 — Reactivar usuarios, botón launcher, filtro asignación (Issues #36, #31, #37)
+- **Issue #36 — Reactivar usuario**: Botón "♻️ Reactivar" en tabla de usuarios del launcher para cuentas inactivas. Llama a `PUT /api/admin/usuarios/:id` con `{ activo: true }`
+- **Issue #31 — Botón regresar**: Enlace "Home" en sidebar de los 4 módulos (nómina, proveedores, logística, proyectos)
+- **Issue #37 — Dropdown asignación**: Pre-selecciona usuario actual al crear tarea nueva + campo de búsqueda con filtro en tiempo real por nombre/email
+
+#### PR #40 — Mejorar flujo de actualización (Issue #38)
+- **Frontend**: Validación `res.ok` antes de parsear JSON, spinner + barra de progreso con pasos, polling de logs cada 3s
+- **Backend**: Try/catch individual por paso (git fetch, git reset, npm install) con campo `step` en respuesta
+- **CSS**: Animación `@keyframes spin` para spinner
+
+#### PR #42 — Widgets stuck loading + redirect para operadores (Issue #41)
+- **Launcher**: Ocultar widgets admin-only (`display: none`) para usuarios no-admin en vez de dejar skeletons visibles
+- **Nómina**: Pantalla "🔒 Acceso denegado" en vez de redirect silencioso al launcher para 403
+
+#### PR #43 — Cookie path + updater 502
+- **Cookie fix**: Agregado `path: '/'` en login (`server.js`) y refresh token (`middleware/auth.js`). Sin esto, la cookie solo se enviaba a la ruta del request original, no a módulos como `/nomina/`
+- **Updater fix**: `res.json()` se envía ANTES de ejecutar git reset. Previene 502 si el proceso crashea durante actualización
+- **pnpm**: Cambiado `npm install --production` por `pnpm install --prod --frozen-lockfile`
+
+#### PR #44 — Home button + separador en framework
+- **Framework `base.css`**: Nuevas clases `.sidebar-home`, `.sidebar-separator` para botón Home y separador visual
+- **Framework `framework.js`**: Función `injectSidebarHome()` inyecta automáticamente el botón Home en el footer del sidebar
+- **CSS collapsed**: Home link se oculta correctamente en sidebar colapsado
+- **Módulos**: Eliminado HTML duplicado de Home en los 4 módulos
+
+#### PR #45 — Updater 502 (rama separada)
+- Fix del updater: respuesta antes de git reset + pnpm install
+
+### Fix adicional — UNIQUE constraint en nómina
+- **Bug**: Usuarios existentes en `horas_extra.db` con `activo=0` causaban `UNIQUE constraint failed` al intentar INSERTAR un duplicado
+- **Fix**: `autenticar()` ahora verifica si el usuario existe pero está inactivo y lo reactiva con `UPDATE` en vez de INSERT
+
+### Convenciones del Framework (ACTUALIZADO)
 
 #### PR #32 — Centralizar sedes/centros desde launcher (Issue #28)
 - **Schema enriquecido**: `centros_operacion` con codigo, descripcion, direccion, ciudad, telefono, email, responsable_id, latitud, longitud, actualizado
@@ -76,7 +110,7 @@
 - **API**: Todas las rutas usan `verificarToken, soloAdmin`. Respuestas: `{ ok: true }` o `{ error: 'msg' }`.
 - **DB**: Migraciones con `try { db.exec("ALTER TABLE...") } catch {}` para columnas nuevas. Seeds con `INSERT OR IGNORE`.
 - **Auth**: Siempre via `verificarToken` middleware. JWT incluye `modulos_permisos` para permisos granulares.
-- **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`.
+- **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`. **Home button**: El framework inyecta automáticamente el botón "🏠 Home" en `.sidebar-footer` — NO agregar HTML manualmente. El footer solo debe contener `<button class="btn-logout">`.
 - **Versión**: Todos los módulos leen `/api/version` del root `package.json` (versión unificada `1.0.0`). NO usar `package.json` del módulo. NO mostrar rama git. Frontend: `el.textContent = 'v' + data.version`.
 - **Instalación**: `install.sh` usa `$(pwd)` como INSTALL_DIR — ejecutar desde el directorio del repo clonado. NO copiar a otro path.
 - **Centros de operación**: Launcher es fuente única de verdad. CRUD en launcher, módulos consumen via `GET /api/centros` (caché 30s). NO crear tablas locales de centros.
@@ -154,7 +188,7 @@
 - **API**: Todas las rutas usan `verificarToken, soloAdmin`. Respuestas: `{ ok: true }` o `{ error: 'msg' }`.
 - **DB**: Migraciones con `try { db.exec("ALTER TABLE...") } catch {}` para columnas nuevas. Seeds con `INSERT OR IGNORE`.
 - **Auth**: Siempre via `verificarToken` middleware. JWT incluye `modulos_permisos` para permisos granulares.
-- **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`.
+- **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`. **Home button**: El framework inyecta automáticamente el botón "🏠 Home" en `.sidebar-footer` — NO agregar HTML manualmente. El footer solo debe contener `<button class="btn-logout">`.
 - **Versión**: Todos los módulos leen `/api/version` del root `package.json` (versión unificada `1.0.0`). NO usar `package.json` del módulo. NO mostrar rama git. Frontend: `el.textContent = 'v' + data.version`.
 - **Instalación**: Path default `~/.local/share/synnoxerp` (XDG). NO usar `/opt/`.
 - **Licencia**: Propietaria (LICENSE.md). NO redistribuir código fuente.
@@ -206,7 +240,7 @@
 - **API**: Todas las rutas usan `verificarToken, soloAdmin`. Respuestas: `{ ok: true }` o `{ error: 'msg' }`.
 - **DB**: Migraciones con `try { db.exec("ALTER TABLE...") } catch {}` para columnas nuevas. Seeds con `INSERT OR IGNORE`.
 - **Auth**: Siempre via `verificarToken` middleware. JWT incluye `modulos_permisos` para permisos granulares.
-- **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`.
+- **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`. **Home button**: El framework inyecta automáticamente el botón "🏠 Home" en `.sidebar-footer` — NO agregar HTML manualmente. El footer solo debe contener `<button class="btn-logout">`.
 - **Versión**: Todos los módulos leen `/api/version` del root `package.json` (versión unificada `1.0.0`). NO usar `package.json` del módulo. NO mostrar rama git. Frontend: `el.textContent = 'v' + data.version`.
 
 ---

@@ -48,6 +48,9 @@ function initFramework(opts = {}) {
     if (toggle) toggle.textContent = '▶';
   }
 
+  // Inject Home link into sidebar footer (if not already present)
+  injectSidebarHome();
+
   // Load module version
   loadVersion();
 }
@@ -61,6 +64,25 @@ async function loadVersion() {
     el.textContent = 'v' + (data.version || '1.0.0');
     window._appVer = 'v' + (data.version || '1.0.0');
   } catch { el.textContent = 'v—'; window._appVer = 'v—'; }
+}
+
+// ── Sidebar Home link ──
+function injectSidebarHome() {
+  const footer = document.querySelector('.sidebar-footer');
+  if (!footer || footer.querySelector('.sidebar-home')) return;
+  const homeLink = document.createElement('a');
+  homeLink.href = '/';
+  homeLink.className = 'sidebar-home';
+  homeLink.innerHTML = '<span class="icon">🏠</span> <span>Home</span>';
+  const logoutBtn = footer.querySelector('.btn-logout');
+  if (logoutBtn) {
+    footer.insertBefore(homeLink, logoutBtn);
+    const sep = document.createElement('div');
+    sep.className = 'sidebar-separator';
+    footer.insertBefore(sep, logoutBtn);
+  } else {
+    footer.prepend(homeLink);
+  }
 }
 
 // ── HTTP client ──
