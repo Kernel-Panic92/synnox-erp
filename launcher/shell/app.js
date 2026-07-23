@@ -1353,8 +1353,18 @@ async function checkUpdate() {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + jwtToken }
     });
-    const data = await res.json();
-    if (!data.ok) { statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + data.error + '</span>'; return; }
+    if (!res.ok) {
+      let errMsg = 'Error HTTP ' + res.status;
+      try { const text = await res.text(); if (text) errMsg += ': ' + text.substring(0, 200); } catch {}
+      statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + esc(errMsg) + '</span>';
+      return;
+    }
+    let data;
+    try { data = await res.json(); } catch {
+      statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ Respuesta no válida del servidor</span>';
+      return;
+    }
+    if (!data.ok) { statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + esc(data.error || 'Error') + '</span>'; return; }
     if (data.hasUpdates) {
       statusEl.innerHTML = '<span style="color:var(--warning);font-size:13px;">⬇ Nueva versión disponible: ' + esc(data.remoteCommit) + '</span>';
       updateBtn.disabled = false;
@@ -1364,10 +1374,16 @@ async function checkUpdate() {
       updateBtn.disabled = true;
       updateBtn.style.opacity = '0.5';
     }
-  } catch (e) { statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + e.message + '</span>'; }
+  } catch (e) {
+    let msg = e.message;
+    if (e.name === 'TypeError' && msg.includes('fetch')) msg = 'Error de conexión al servidor';
+    statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + esc(msg) + '</span>';
+  }
   checkBtn.disabled = false;
   checkBtn.textContent = '🔍 Buscar actualizaciones';
 }
+
+let _updatePolling = null;
 
 async function doUpdate() {
   const statusEl = document.getElementById('upd-status');
@@ -1377,14 +1393,37 @@ async function doUpdate() {
   updateBtn.disabled = true;
   updateBtn.textContent = 'Actualizando...';
   checkBtn.disabled = true;
-  statusEl.innerHTML = '<span style="color:var(--muted);font-size:13px;">⬇ Actualizando...</span>';
+  statusEl.innerHTML = `
+    <div style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);">
+      <div class="spinner" style="width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+      <span id="upd-step-text">Iniciando actualización...</span>
+    </div>
+    <div id="upd-progress-bar" style="margin-top:8px;height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;">
+      <div id="upd-progress-fill" style="height:100%;width:0%;background:var(--accent);transition:width 0.3s;"></div>
+    </div>`;
+  startUpdatePolling();
   try {
     const res = await fetch('/api/admin/updater/update', {
       method: 'POST',
       headers: { 'Authorization': 'Bearer ' + jwtToken, 'Content-Type': 'application/json' },
       body: JSON.stringify({ branch: 'main' })
     });
-    const data = await res.json();
+    if (!res.ok) {
+      let errMsg = 'Error HTTP ' + res.status;
+      try { const text = await res.text(); if (text) errMsg += ': ' + text.substring(0, 200); } catch {}
+      stopUpdatePolling();
+      statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + esc(errMsg) + '</span>';
+      resetUpdateButtons();
+      return;
+    }
+    let data;
+    try { data = await res.json(); } catch (e) {
+      stopUpdatePolling();
+      statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ Respuesta del servidor no válida. Verifique los logs.</span>';
+      loadUpdaterLogs();
+      resetUpdateButtons();
+      return;
+    }
     if (data.ok) {
       if (data.restarting) {
         statusEl.innerHTML = '<span style="color:var(--success);font-size:13px;">✓ ' + esc(data.message) + '</span><div style="font-size:13px;color:var(--muted);margin-top:8px;">Reiniciando servicios... La página se recargará automáticamente.</div>';
@@ -1393,11 +1432,48 @@ async function doUpdate() {
       } else {
         statusEl.innerHTML = '<span style="color:var(--success);font-size:13px;">✓ ' + esc(data.message || 'Actualización completada') + '</span>';
         loadUpdaterLogs();
+        stopUpdatePolling();
+        resetUpdateButtons();
       }
     } else {
-      statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + (data.error || 'Error') + '</span>';
+      stopUpdatePolling();
+      let errorHtml = '<span style="color:var(--danger);font-size:13px;">❌ ' + esc(data.error || 'Error desconocido') + '</span>';
+      if (data.step) errorHtml += '<div style="font-size:12px;color:var(--muted);margin-top:4px;">Fallo en paso: ' + esc(data.step) + '</div>';
+      statusEl.innerHTML = errorHtml;
+      loadUpdaterLogs();
+      resetUpdateButtons();
     }
-  } catch (e) { statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + e.message + '</span>'; }
+  } catch (e) {
+    stopUpdatePolling();
+    let msg = e.message;
+    if (e.name === 'TypeError' && msg.includes('fetch')) msg = 'Error de conexión — el servidor puede estar reiniciándose';
+    statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + esc(msg) + '</span>';
+    resetUpdateButtons();
+  }
+}
+
+function startUpdatePolling() {
+  stopUpdatePolling();
+  let stepIdx = 0;
+  const steps = ['Descargando cambios...', 'Reseteando código...', 'Instalando dependencias...', 'Validando...', 'Reiniciando servicios...'];
+  const pcts = [20, 40, 70, 85, 100];
+  _updatePolling = setInterval(() => {
+    if (stepIdx < steps.length - 1) stepIdx++;
+    const stepEl = document.getElementById('upd-step-text');
+    const fillEl = document.getElementById('upd-progress-fill');
+    if (stepEl) stepEl.textContent = steps[stepIdx];
+    if (fillEl) fillEl.style.width = pcts[stepIdx] + '%';
+    loadUpdaterLogs();
+  }, 3000);
+}
+
+function stopUpdatePolling() {
+  if (_updatePolling) { clearInterval(_updatePolling); _updatePolling = null; }
+}
+
+function resetUpdateButtons() {
+  const updateBtn = document.getElementById('upd-update-btn');
+  const checkBtn = document.getElementById('upd-check-btn');
   updateBtn.disabled = true;
   updateBtn.style.opacity = '0.5';
   updateBtn.textContent = '⬇ Aplicar actualización';
