@@ -28,7 +28,7 @@ function soloAdmin(req, res, next) {
 function firmarToken(payload, res, req) {
   const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
   const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
-  res.cookie('launcher_jwt', token, { httpOnly: true, secure: isSecure, sameSite: 'lax', maxAge: 60 * 60 * 1000 });
+  res.cookie('launcher_jwt', token, { httpOnly: true, secure: isSecure, sameSite: 'lax', path: '/', maxAge: 60 * 60 * 1000 });
   return token;
 }
 
