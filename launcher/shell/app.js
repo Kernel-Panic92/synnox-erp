@@ -217,6 +217,11 @@ async function showLauncher() {
     cargarUpcoming();
     cargarWeather();
     cargarActivity();
+  } else {
+    document.getElementById('module-summary-widget').style.display = 'none';
+    document.getElementById('pending-tasks-widget').style.display = 'none';
+    document.getElementById('alerts-widget').style.display = 'none';
+    document.getElementById('server-stats-widget').style.display = 'none';
   }
   show('launcher-screen');
 }
