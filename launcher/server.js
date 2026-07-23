@@ -34,19 +34,6 @@ const APP_VER = require('./package.json').version;
 
 app.use('/api', apiLimiter);
 
-// ── Cache for centros (in-memory, 30s TTL) ──
-let _centrosCache = null;
-let _centrosCacheTs = 0;
-const CENTROS_CACHE_TTL = 30000;
-function getCentrosCache() {
-  const now = Date.now();
-  if (_centrosCache && (now - _centrosCacheTs) < CENTROS_CACHE_TTL) return _centrosCache;
-  _centrosCache = db.prepare('SELECT id, nombre, codigo, descripcion, direccion, ciudad, telefono, email, responsable_id, activo FROM centros_operacion WHERE activo = 1 ORDER BY nombre').all();
-  _centrosCacheTs = now;
-  return _centrosCache;
-}
-function invalidateCentrosCache() { _centrosCache = null; _centrosCacheTs = 0; }
-
 app.get('/api/version', (req, res) => {
   res.json({ v: SERVER_START, version: APP_VER });
 });
@@ -1103,14 +1090,6 @@ app.put('/api/admin/config/gmaps/key', verificarToken, soloAdmin, (req, res) => 
 
 app.delete('/api/admin/config/gmaps/key', verificarToken, soloAdmin, (req, res) => {
   db.prepare("DELETE FROM config WHERE key = 'google_maps_key'").run();
-=======
-  // Audit
-  db.prepare(
-    `INSERT INTO centros_historial (centro_id, accion, usuario_id, usuario_nombre, antes)
-     VALUES (?, 'eliminar', ?, ?, ?)`
-  ).run(id, req.user?.id || null, req.user?.nombre || '', antes);
-  invalidateCentrosCache();
->>>>>>> origin/main
   res.json({ ok: true });
 });
 
