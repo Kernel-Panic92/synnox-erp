@@ -2047,45 +2047,49 @@ app.post('/api/admin/updater/update', verificarToken, soloAdmin, async (req, res
   let branch = req.body?.branch || 'main';
   const allowedBranches = ['main', 'master', 'release'];
   if (!allowedBranches.includes(branch)) branch = 'main';
-  try {
-    logUpdater('INICIANDO ACTUALIZACION (rama: ' + branch + ')');
-    logUpdater('Fetch y reset a origin/' + branch + '...');
-    try {
-      execFileSync('git', ['fetch', 'origin'], { cwd: LAUNCHER_DIR, stdio: 'pipe' });
-    } catch (e) {
-      logUpdater('ERROR en git fetch: ' + e.message);
-      return res.json({ ok: false, error: 'Error al descargar cambios (git fetch): ' + e.message, step: 'git_fetch' });
-    }
-    try {
-      execFileSync('git', ['reset', '--hard', 'origin/' + branch], { cwd: LAUNCHER_DIR, stdio: 'pipe' });
-    } catch (e) {
-      logUpdater('ERROR en git reset: ' + e.message);
-      return res.json({ ok: false, error: 'Error al aplicar cambios (git reset): ' + e.message, step: 'git_reset' });
-    }
-    logUpdater('Reset hard completado');
-    logUpdater('Instalando dependencias...');
-    try { execSync('npm install --production', { cwd: __dirname, stdio: 'pipe' }); logUpdater('Dependencias instaladas'); } catch (e) {
-      logUpdater('npm install: ' + e.message);
-      return res.json({ ok: false, error: 'Error al instalar dependencias (npm install): ' + e.message, step: 'npm_install' });
-    }
-    const newCommit = execSync('git rev-parse --short HEAD', { cwd: LAUNCHER_DIR }).toString().trim();
-    logUpdater('ACTUALIZACION COMPLETADA - Commit: ' + newCommit);
-    fs.writeFileSync(path.join(__dirname, '.last-update'), new Date().toISOString());
 
-    // Restart wordpress-mcp (separate process, safe)
-    try { pm2Exec('restart wordpress-mcp'); logUpdater('wordpress-mcp reiniciado'); } catch { logUpdater('wordpress-mcp no disponible para reiniciar'); }
+  // Send response immediately — update runs in background
+  // This prevents 502 if the process crashes during git reset / pnpm install
+  res.json({ ok: true, message: 'Actualización en progreso. El servicio se reiniciará automáticamente.', restarting: true });
 
-    // Respond first, then restart self after a brief delay
-    res.json({ ok: true, message: 'Actualización aplicada. Reiniciando servicios...', newCommit, restarting: true });
-    res.on('finish', () => {
-      setTimeout(() => {
+  res.on('finish', () => {
+    setTimeout(async () => {
+      try {
+        logUpdater('INICIANDO ACTUALIZACION (rama: ' + branch + ')');
+        logUpdater('Fetch y reset a origin/' + branch + '...');
+        try {
+          execFileSync('git', ['fetch', 'origin'], { cwd: LAUNCHER_DIR, stdio: 'pipe' });
+        } catch (e) {
+          logUpdater('ERROR en git fetch: ' + e.message);
+          return;
+        }
+        try {
+          execFileSync('git', ['reset', '--hard', 'origin/' + branch], { cwd: LAUNCHER_DIR, stdio: 'pipe' });
+        } catch (e) {
+          logUpdater('ERROR en git reset: ' + e.message);
+          return;
+        }
+        logUpdater('Reset hard completado');
+        logUpdater('Instalando dependencias...');
+        try { execSync('pnpm install --prod --frozen-lockfile', { cwd: LAUNCHER_DIR, stdio: 'pipe' }); logUpdater('Dependencias instaladas'); } catch (e) {
+          logUpdater('pnpm install: ' + e.message);
+          return;
+        }
+        const newCommit = execSync('git rev-parse --short HEAD', { cwd: LAUNCHER_DIR }).toString().trim();
+        logUpdater('ACTUALIZACION COMPLETADA - Commit: ' + newCommit);
+        fs.writeFileSync(path.join(__dirname, '.last-update'), new Date().toISOString());
+
+        // Restart wordpress-mcp (separate process, safe)
+        try { pm2Exec('restart wordpress-mcp'); logUpdater('wordpress-mcp reiniciado'); } catch { logUpdater('wordpress-mcp no disponible para reiniciar'); }
+
+        // Restart self
+        logUpdater('Reiniciando synnoxerp...');
         try { pm2Exec('restart synnoxerp'); } catch { logUpdater('PM2 no disponible — reinicio manual requerido'); }
-      }, 1500);
-    });
-  } catch (err) {
-    logUpdater('ERROR: ' + err.message);
-    res.json({ ok: false, error: err.message, step: 'unknown' });
-  }
+      } catch (err) {
+        logUpdater('ERROR: ' + err.message);
+      }
+    }, 1000);
+  });
 });
 
 app.post('/api/admin/updater/restart', verificarToken, soloAdmin, async (req, res) => {
