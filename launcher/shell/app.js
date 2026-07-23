@@ -5,20 +5,27 @@ let _serverStatsTimer = null;
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s||'')); return d.innerHTML; }
 
-function confirmModal(msg, title = 'Confirmar') {
+function confirmModal(msg, title = 'Confirmar', type = 'delete') {
+  const types = {
+    delete:  { icon: '🗑️', bg: 'rgba(239,68,68,0.1)',  btn: 'btn-danger' },
+    update:  { icon: '🔄', bg: 'rgba(37,99,235,0.1)',   btn: 'btn-primary' },
+    restart: { icon: '♻️', bg: 'rgba(234,179,8,0.1)',   btn: 'btn-primary' },
+    info:    { icon: 'ℹ️', bg: 'rgba(148,163,184,0.1)', btn: 'btn-secondary' },
+  };
+  const t = types[type] || types.delete;
   return new Promise(resolve => {
     const overlay = document.createElement('div');
     overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:1000';
     overlay.innerHTML = `
       <div data-confirm="1" style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;width:340px;text-align:center;flex-shrink:0">
-        <div style="width:64px;height:64px;margin:0 auto 16px;background:rgba(239,68,68,0.1);border-radius:50%;display:flex;align-items:center;justify-content:center">
-          <span style="font-size:28px">🗑️</span>
+        <div style="width:64px;height:64px;margin:0 auto 16px;background:${t.bg};border-radius:50%;display:flex;align-items:center;justify-content:center">
+          <span style="font-size:28px">${t.icon}</span>
         </div>
         <h3 style="font-size:18px;font-weight:700;margin-bottom:8px;color:var(--text)">${esc(title)}</h3>
         <p style="font-size:14px;color:var(--muted);margin-bottom:24px;line-height:1.5">${esc(msg)}</p>
         <div style="display:flex;gap:12px;justify-content:center">
           <button class="btn btn-sm" style="background:var(--surface2);color:var(--text);min-width:100px" onclick="this.closest('[data-confirm]').parentElement.remove();window._confirmResolve(false)">Cancelar</button>
-          <button class="btn btn-sm btn-danger" style="min-width:100px" onclick="this.closest('[data-confirm]').parentElement.remove();window._confirmResolve(true)">Confirmar</button>
+          <button class="btn btn-sm ${t.btn}" style="min-width:100px" onclick="this.closest('[data-confirm]').parentElement.remove();window._confirmResolve(true)">Confirmar</button>
         </div>
       </div>`;
     document.body.appendChild(overlay);
@@ -1394,7 +1401,7 @@ async function doUpdate() {
   const statusEl = document.getElementById('upd-status');
   const updateBtn = document.getElementById('upd-update-btn');
   const checkBtn = document.getElementById('upd-check-btn');
-  if (!await confirmModal('¿Aplicar actualización? Se descargarán los cambios, se instalarán dependencias y deberás reiniciar el servicio.')) return;
+  if (!await confirmModal('¿Aplicar actualización? Se descargarán los cambios, se instalarán dependencias y deberás reiniciar el servicio.', 'Actualizar', 'update')) return;
   updateBtn.disabled = true;
   updateBtn.textContent = 'Actualizando...';
   checkBtn.disabled = true;
@@ -1851,7 +1858,7 @@ function closeMcpModuleDetail() {
 }
 
 async function restartMcpModule(moduleId) {
-  if (!await confirmModal('¿Reiniciar ' + moduleId + '?')) return;
+  if (!await confirmModal('¿Reiniciar ' + moduleId + '?', 'Reiniciar', 'restart')) return;
   try {
     const res = await fetch('/api/admin/mcp-modules/' + encodeURIComponent(moduleId) + '/restart', {
       method: 'POST',

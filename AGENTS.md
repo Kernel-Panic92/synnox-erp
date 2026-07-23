@@ -105,7 +105,7 @@
 ### Convenciones del Framework (SEGUIR SIEMPRE)
 
 - **Modales**: Definir en HTML con `class="modal-overlay"`, mostrar/ocultar con `display: block/none`. NO crear modales dinámicamente con `document.createElement`.
-- **Confirmaciones**: Usar `confirmModal(msg, title)` del framework, NUNCA `confirm()` del navegador.
+- **Confirmaciones**: Usar `confirmModal(msg, title, type)` del framework, NUNCA `confirm()` del navegador. Tipos: `'delete'` (default, rojo 🗑️), `'update'` (azul 🔄), `'restart'` (amarillo ♻️), `'info'` (gris ℹ️).
 - **Mensajes**: Usar `toast(msg, type)` del framework para feedback al usuario.
 - **CSS**: Usar variables del framework (`var(--surface)`, `var(--border)`, `var(--text)`, `var(--muted)`, `var(--accent)`, `var(--success)`, `var(--danger)`).
 - **Botones**: Seguir clases existentes: `btn`, `btn-sm`, `btn-secondary`, `btn-danger`.
@@ -187,7 +187,7 @@
 ### Convenciones del Framework (SEGUIR SIEMPRE)
 
 - **Modales**: Definir en HTML con `class="modal-overlay"`, mostrar/ocultar con `display: block/none`. NO crear modales dinámicamente con `document.createElement`.
-- **Confirmaciones**: Usar `confirmModal(msg, title)` del framework, NUNCA `confirm()` del navegador.
+- **Confirmaciones**: Usar `confirmModal(msg, title, type)` del framework, NUNCA `confirm()` del navegador. Tipos: `'delete'` (default, rojo 🗑️), `'update'` (azul 🔄), `'restart'` (amarillo ♻️), `'info'` (gris ℹ️).
 - **Mensajes**: Usar `toast(msg, type)` del framework para feedback al usuario.
 - **CSS**: Usar variables del framework (`var(--surface)`, `var(--border)`, `var(--text)`, `var(--muted)`, `var(--accent)`, `var(--success)`, `var(--danger)`).
 - **Botones**: Seguir clases existentes: `btn`, `btn-sm`, `btn-secondary`, `btn-danger`.
@@ -239,7 +239,7 @@
 ### Convenciones del Framework (SEGUIR SIEMPRE)
 
 - **Modales**: Definir en HTML con `class="modal-overlay"`, mostrar/ocultar con `display: block/none`. NO crear modales dinámicamente con `document.createElement`.
-- **Confirmaciones**: Usar `confirmModal(msg, title)` del framework, NUNCA `confirm()` del navegador.
+- **Confirmaciones**: Usar `confirmModal(msg, title, type)` del framework, NUNCA `confirm()` del navegador. Tipos: `'delete'` (default, rojo 🗑️), `'update'` (azul 🔄), `'restart'` (amarillo ♻️), `'info'` (gris ℹ️).
 - **Mensajes**: Usar `toast(msg, type)` del framework para feedback al usuario.
 - **CSS**: Usar variables del framework (`var(--surface)`, `var(--border)`, `var(--text)`, `var(--muted)`, `var(--accent)`, `var(--success)`, `var(--danger)`).
 - **Botones**: Seguir clases existentes: `btn`, `btn-sm`, `btn-secondary`, `btn-danger`.
