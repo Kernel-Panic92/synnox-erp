@@ -156,6 +156,7 @@
 - **Instalación**: `install.sh` usa `$(pwd)` como INSTALL_DIR — ejecutar desde el directorio del repo clonado. NO copiar a otro path.
 - **Centros de operación**: Launcher es fuente única de verdad. CRUD en launcher, módulos consumen via `GET /api/centros` (caché 30s). NO crear tablas locales de centros. Mismos IDs en footer del sidebar: `sidebar-user-name`, `sidebar-user-role`.
 - **Roles**: `admin` (acceso total), `gerente` (aprobaciones + acceso completo), `operador` (usa perfiles). CSV import mapea `gerencia` → `gerente`.
+- **Telemetría**: Todos los módulos DEBEN incluir `<script src="/telemetry.js"></script>` antes de `</body>`. Script trackea page_view, errores JS y heartbeats. Endpoints públicos (sin auth). Datos centralizados en launcher.db.
 - **Licencia**: Propietaria (LICENSE.md). NO redistribuir código fuente.
 
 ---
