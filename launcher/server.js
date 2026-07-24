@@ -376,6 +376,9 @@ for (const m of modules) {
 // Update URLs to match current PORT
 db.prepare(`UPDATE modulos_plataforma SET url = ? WHERE tipo = 'interno'`).run(`http://localhost:${PORT}`);
 
+// Initialize centros store at startup for other modules
+setCentros(db.prepare('SELECT id, nombre, codigo, descripcion, direccion, ciudad, telefono, email, responsable_id, latitud, longitud, activo FROM centros_operacion WHERE activo = 1 ORDER BY nombre').all());
+
 // ── Permisos granular tables ──
 db.exec(`
   CREATE TABLE IF NOT EXISTS modulos_permisos_config (
