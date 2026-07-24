@@ -69,8 +69,15 @@ if [ ! -f "$DEST/index.html" ]; then
     </div>
     <nav id="sidebar-nav"><!-- nav-items here --></nav>
     <div class="sidebar-footer">
-      <div class="nav-item" onclick="toggleTheme()" style="cursor:pointer">🎨 Tema</div>
-      <div class="nav-item" onclick="mostrarLogoutConfirm()" style="cursor:pointer">🚪 Cerrar sesión</div>
+      <a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a>
+      <div class="user-name" id="sidebar-user-name"></div>
+      <div class="user-role" id="sidebar-user-role"></div>
+      <div class="version">
+        <div id="app-version">v—</div>
+      </div>
+      <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesión">
+        <span style="font-size:18px">&#x23FB;</span> Cerrar sesión
+      </button>
     </div>
   </div>
   <div class="sidebar-overlay" onclick="closeSidebar()"></div>

@@ -49,12 +49,15 @@ Todos los módulos usan el mismo sidebar. Copiar `base.css` y `framework.js` del
     </div>
   </nav>
   <div class="sidebar-footer">
-    <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesion">
-      <span style="font-size:18px">&#x23FB;</span> Cerrar sesion
-    </button>
+    <a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a>
+    <div class="user-name" id="sidebar-user-name"></div>
+    <div class="user-role" id="sidebar-user-role"></div>
     <div class="version">
       <div id="app-version">v—</div>
     </div>
+    <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesion">
+      <span style="font-size:18px">&#x23FB;</span> Cerrar sesion
+    </button>
   </div>
 </aside>
 ```
@@ -70,7 +73,7 @@ Todos los módulos usan el mismo sidebar. Copiar `base.css` y `framework.js` del
 | User info | `<div class="user-info">` | `.name#user-name`, `.role#user-role`, `.badge#user-badge` |
 | Nav container | `<nav id="sidebar-nav">` | Puede tener ítems estáticos o dinámicos |
 | Nav items | `<div class="nav-item" data-page="xxx">` | `<span class="icon">emoji</span>` + texto |
-| Footer | `<div class="sidebar-footer">` | `.btn-logout` + `.version` con `#app-version` |
+| Footer | `<div class="sidebar-footer">` | Home link + `#sidebar-user-name` + `#sidebar-user-role` + `#app-version` + `.btn-logout` |
 | Colapsado | `localStorage('sidebar_collapsed')` | Framework restaura en init |
 | Theme | `themeKey: 'synnox_theme'` | Lee del launcher |
 
