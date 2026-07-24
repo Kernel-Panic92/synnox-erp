@@ -1274,6 +1274,12 @@ app.delete('/api/admin/centros/:id', verificarToken, soloAdmin, (req, res) => {
 });
 
 // ── API: Google Maps config ──
+// Public endpoint for modules to get the API key
+app.get('/api/config/gmaps/key', (req, res) => {
+  const row = db.prepare("SELECT value FROM config WHERE key = 'google_maps_key'").get();
+  res.json({ key: row?.value || '' });
+});
+
 app.get('/api/config/gmaps/js-url', verificarToken, soloAdmin, (req, res) => {
   const row = db.prepare("SELECT value FROM config WHERE key = 'google_maps_key'").get();
   const key = row?.value || '';

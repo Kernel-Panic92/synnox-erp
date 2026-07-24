@@ -629,11 +629,15 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
 <script>
 var GOOGLE_MAPS_KEY = '';
 var _base = location.pathname.match(/^\/(\w+)\//) ? '/' + RegExp.$1 : '';
-fetch(_base + '/api/configuracion/gmaps/js-url').then(r=>r.json()).then(d=>{
-  if(d.url){
-    GOOGLE_MAPS_KEY = d.url.match(/key=([^&]+)/)?.[1] || '';
+// Try launcher first, then local config
+fetch('/api/config/gmaps/key').then(r=>r.json()).then(d=>{
+  if(d.key){ return d.key; }
+  return fetch(_base + '/api/configuracion/gmaps/key').then(r=>r.json()).then(d2=>d2.key||'');
+}).then(key=>{
+  if(key){
+    GOOGLE_MAPS_KEY = key;
     var s = document.createElement('script');
-    s.src = d.url + '&callback=iniciarAutocompleteCliente';
+    s.src = 'https://maps.googleapis.com/maps/api/js?key='+key+'&libraries=places&callback=iniciarAutocompleteCliente';
     s.async = true; s.defer = true;
     document.head.appendChild(s);
   }
