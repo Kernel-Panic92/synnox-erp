@@ -44,6 +44,7 @@
     trackPage();
   };
   window.addEventListener('popstate', trackPage);
+  window.addEventListener('hashchange', trackPage);
 
   window.addEventListener('error', function(e) {
     trackError(e.message, e.filename, e.lineno, e.colno, e.error);
