@@ -1148,11 +1148,13 @@ app.get('/api/admin/perfiles/:id/usuarios', verificarToken, soloAdmin, (req, res
 let _centrosCache = null;
 let _centrosCacheTs = 0;
 const CENTROS_CACHE_TTL = 30000;
+import { setCentros } from '../framework/centrosStore.js';
 function getCentrosCache() {
   const now = Date.now();
   if (_centrosCache && (now - _centrosCacheTs) < CENTROS_CACHE_TTL) return _centrosCache;
   _centrosCache = db.prepare('SELECT id, nombre, codigo, descripcion, direccion, ciudad, telefono, email, responsable_id, latitud, longitud, activo FROM centros_operacion WHERE activo = 1 ORDER BY nombre').all();
   _centrosCacheTs = now;
+  setCentros(_centrosCache);
   return _centrosCache;
 }
 function invalidateCentrosCache() { _centrosCache = null; _centrosCacheTs = 0; }
