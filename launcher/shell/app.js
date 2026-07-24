@@ -146,12 +146,17 @@ async function login() {
 
 let launcherVersion = '';
 
-const MODULOS_FIJOS = [
-  { id: 'proveedores', nombre: 'Proveedores', icon: '📄', desc: 'Facturas y proveedores', ruta: '/proveedores/' },
-  { id: 'logistica', nombre: 'Logística', icon: '🚚', desc: 'Planeación de rutas', ruta: '/logistica/' },
-  { id: 'nomina', nombre: 'Nómina', icon: '💰', desc: 'Horas extra y novedades', ruta: '/nomina/' },
-  { id: 'proyectos', nombre: 'Proyectos', icon: '📋', desc: 'Gestión de proyectos y tareas', ruta: '/proyectos/' },
-];
+let modulosCache = [];
+
+async function loadModulosDinamicos() {
+  try {
+    const res = await fetch('/api/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) throw new Error('Error al cargar módulos');
+    modulosCache = res.json ? await res.json() : [];
+  } catch {
+    modulosCache = [];
+  }
+}
 
 const SUBMODULOS = [
   { id: 'facturas', mod: 'proveedores', nombre: 'Facturas', icon: '📄', ruta: '/proveedores/#facturas' },
@@ -173,9 +178,18 @@ async function showLauncher() {
   const grid = document.getElementById('module-grid');
   grid.innerHTML = '';
 
-  const modulosDisponibles = user?.rol === 'admin'
-    ? MODULOS_FIJOS
-    : MODULOS_FIJOS.filter(m => user?.modulos?.includes(m.id));
+  await loadModulosDinamicos();
+
+  const modulosDisponibles = (user?.rol === 'admin'
+    ? modulosCache
+    : modulosCache.filter(m => user?.modulos?.includes(m.id))
+  ).map(m => ({
+    id: m.id,
+    nombre: m.nombre,
+    icon: m.icon || '📦',
+    desc: m.descripcion || '',
+    ruta: m.proxy_prefix || (m.url ? new URL(m.url).pathname : '/' + m.id + '/'),
+  }));
 
   // Sort by usage frequency (most visited first)
   const usage = JSON.parse(localStorage.getItem('module_usage') || '{}');
@@ -397,9 +411,9 @@ async function cargarAlerts() {
       else if (pct > 80) alerts.push({ level: 'warning', icon: '🟡', text: `Disco al ${pct}% — considerar limpiar` });
     }
     const healthRes = await fetch('/api/admin/health', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null);
-    if (healthRes?.modules) {
-      for (const [id, status] of Object.entries(healthRes.modules)) {
-        if (status !== 'ok') alerts.push({ level: 'danger', icon: '🔴', text: `Módulo ${id}: ${status}` });
+    if (Array.isArray(healthRes)) {
+      for (const m of healthRes) {
+        if (m.estado !== 'online') alerts.push({ level: 'danger', icon: '🔴', text: `Módulo ${m.nombre}: ${m.estado}${m.error ? ' — ' + m.error : ''}` });
       }
     }
     if (!alerts.length) { w.style.display = 'none'; return; }

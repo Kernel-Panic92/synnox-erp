@@ -676,7 +676,7 @@ app.get('/api/modulos', verificarToken, (req, res) => {
   const userModulos = req.usuario.modulos || [];
   const allModulos = getModulos(false);
   const filtered = (req.usuario.rol === 'admin') ? allModulos : allModulos.filter(m => userModulos.includes(m.id));
-  res.json(filtered.map(m => ({ id: m.id, nombre: m.nombre, url: m.public_url || m.url, icon: m.icon, descripcion: m.descripcion })));
+  res.json(filtered.map(m => ({ id: m.id, nombre: m.nombre, url: m.public_url || m.url, icon: m.icon, descripcion: m.descripcion, proxy_prefix: m.proxy_prefix })));
 });
 
 app.get('/api/auth/me', verificarToken, (req, res) => {
@@ -1500,16 +1500,35 @@ app.get('/api/admin/health', verificarToken, soloAdmin, async (req, res) => {
       if (moduleUrl === launcherHost || moduleUrl === `http://localhost:${PORT}`) {
         return { id: m.id, nombre: m.nombre, estado: 'online', status: 200, local: true };
       }
-      const sessionId = await ensureMcpSession(m);
-      const headers = { 'Content-Type': 'application/json' };
-      if (m.mcp_token) headers['Authorization'] = 'Bearer ' + m.mcp_token;
-      if (sessionId) headers['mcp-session-id'] = sessionId;
-      const r = await fetch(mcpUrl(m), {
-        method: 'POST', headers,
-        body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
-        signal: AbortSignal.timeout(3000),
-      });
-      return { id: m.id, nombre: m.nombre, estado: r.ok ? 'online' : 'error', status: r.status };
+      // Try HTTP health check first (works for any module with /api/health or /health)
+      try {
+        const r = await fetch(moduleUrl + '/api/health', {
+          method: 'GET',
+          signal: AbortSignal.timeout(3000),
+        });
+        if (r.ok) return { id: m.id, nombre: m.nombre, estado: 'online', status: r.status };
+      } catch {}
+      try {
+        const r = await fetch(moduleUrl + '/health', {
+          method: 'GET',
+          signal: AbortSignal.timeout(3000),
+        });
+        if (r.ok) return { id: m.id, nombre: m.nombre, estado: 'online', status: r.status };
+      } catch {}
+      // Fallback: MCP tools/list for modules with MCP enabled
+      if (m.mcp_enabled) {
+        const sessionId = await ensureMcpSession(m);
+        const headers = { 'Content-Type': 'application/json' };
+        if (m.mcp_token) headers['Authorization'] = 'Bearer ' + m.mcp_token;
+        if (sessionId) headers['mcp-session-id'] = sessionId;
+        const r = await fetch(mcpUrl(m), {
+          method: 'POST', headers,
+          body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
+          signal: AbortSignal.timeout(3000),
+        });
+        if (r.ok) return { id: m.id, nombre: m.nombre, estado: 'online', status: r.status };
+      }
+      return { id: m.id, nombre: m.nombre, estado: 'offline', error: 'No responde' };
     } catch (e) {
       return { id: m.id, nombre: m.nombre, estado: 'offline', error: e.message };
     }
