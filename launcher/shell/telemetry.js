@@ -1,0 +1,71 @@
+// Telemetry auto-tracking script
+(function() {
+  function getToken() {
+    var c = document.cookie.split('; ').find(function(r) { return r.startsWith('launcher_jwt='); });
+    return c ? c.split('=')[1] : localStorage.getItem('launcher_jwt');
+  }
+
+  function sendBeacon(url, data) {
+    try {
+      var blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
+      navigator.sendBeacon(url, blob);
+    } catch (e) {}
+  }
+
+  function trackPage() {
+    var token = getToken();
+    if (!token) return;
+    sendBeacon('/api/telemetry', {
+      evento: 'page_view',
+      pagina: location.pathname + location.hash,
+      datos: { referrer: document.referrer }
+    });
+  }
+
+  function trackError(msg, source, line, col, err) {
+    var token = getToken();
+    if (!token) return;
+    sendBeacon('/api/telemetry/error', {
+      mensaje: msg || 'Unknown error',
+      stack: err?.stack || '',
+      pagina: location.pathname,
+      linea: line || 0,
+      columna: col || 0
+    });
+  }
+
+  function heartbeat() {
+    var token = getToken();
+    if (!token) return;
+    sendBeacon('/api/telemetry/heartbeat', {});
+  }
+
+  // Track initial page
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', trackPage);
+  } else {
+    trackPage();
+  }
+
+  // Track navigation
+  var origPush = history.pushState;
+  history.pushState = function() {
+    origPush.apply(this, arguments);
+    trackPage();
+  };
+  window.addEventListener('popstate', trackPage);
+
+  // Track JS errors
+  window.addEventListener('error', function(e) {
+    trackError(e.message, e.filename, e.lineno, e.colno, e.error);
+  });
+
+  // Track unhandled promise rejections
+  window.addEventListener('unhandledrejection', function(e) {
+    trackError('Unhandled Promise: ' + (e.reason?.message || e.reason || 'Unknown'), '', 0, 0, e.reason);
+  });
+
+  // Heartbeat every 30s
+  setInterval(heartbeat, 30000);
+  heartbeat();
+})();

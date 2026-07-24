@@ -270,6 +270,56 @@ db.exec(`
 `);
 db.exec("DELETE FROM login_logs WHERE id NOT IN (SELECT id FROM login_logs ORDER BY id DESC LIMIT 500)");
 
+// ── Telemetry Tables ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS telemetria (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    evento TEXT NOT NULL,
+    pagina TEXT DEFAULT '',
+    usuario_id INTEGER DEFAULT NULL,
+    usuario_nombre TEXT DEFAULT '',
+    datos TEXT DEFAULT '',
+    ip TEXT DEFAULT '',
+    user_agent TEXT DEFAULT '',
+    creado TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  )
+`);
+db.exec("CREATE INDEX IF NOT EXISTS idx_telemetria_evento ON telemetria(evento)");
+db.exec("CREATE INDEX IF NOT EXISTS idx_telemetria_creado ON telemetria(creado)");
+db.exec("DELETE FROM telemetria WHERE id NOT IN (SELECT id FROM telemetria ORDER BY id DESC LIMIT 5000)");
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS errores_frontend (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    mensaje TEXT NOT NULL,
+    stack TEXT DEFAULT '',
+    pagina TEXT DEFAULT '',
+    linea INTEGER DEFAULT 0,
+    columna INTEGER DEFAULT 0,
+    usuario_id INTEGER DEFAULT NULL,
+    usuario_nombre TEXT DEFAULT '',
+    user_agent TEXT DEFAULT '',
+    creado TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  )
+`);
+db.exec("CREATE INDEX IF NOT EXISTS idx_errores_creado ON errores_frontend(creado)");
+db.exec("DELETE FROM errores_frontend WHERE id NOT IN (SELECT id FROM errores_frontend ORDER BY id DESC LIMIT 2000)");
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS sesiones_activas (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL,
+    usuario_nombre TEXT DEFAULT '',
+    ip TEXT DEFAULT '',
+    user_agent TEXT DEFAULT '',
+    ultimo_heartbeat TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    creado TEXT NOT NULL DEFAULT (datetime('now','localtime'))
+  )
+`);
+db.exec("CREATE INDEX IF NOT EXISTS idx_sesiones_usuario ON sesiones_activas(usuario_id)");
+// Purge stale sessions (>2 min without heartbeat)
+db.prepare("DELETE FROM sesiones_activas WHERE datetime(ultimo_heartbeat, '+2 minutes') < datetime('now')").run();
+
 // ── New Tables ──
 db.exec(`
   CREATE TABLE IF NOT EXISTS modulos_plataforma (
@@ -595,13 +645,158 @@ app.get('/api/admin/config', verificarToken, soloAdmin, (req, res) => {
 
 // ── Login logs ──
 app.get('/api/admin/login-logs', verificarToken, soloAdmin, (req, res) => {
-  const rows = db.prepare("SELECT id, fecha, ip, email, exitoso FROM login_logs ORDER BY id DESC LIMIT 50").all();
+  const limit = Math.min(500, parseInt(req.query.limit) || 50);
+  let where = '1=1';
+  const params = [];
+  if (req.query.exitoso !== undefined && req.query.exitoso !== '') { where += ' AND exitoso = ?'; params.push(parseInt(req.query.exitoso)); }
+  if (req.query.desde) { where += ' AND fecha >= ?'; params.push(req.query.desde); }
+  if (req.query.hasta) { where += ' AND fecha <= ?'; params.push(req.query.hasta + ' 23:59:59'); }
+  const rows = db.prepare(`SELECT id, fecha, ip, email, exitoso FROM login_logs WHERE ${where} ORDER BY id DESC LIMIT ?`).all(...params, limit);
   for (const row of rows) {
     if (row.email && row.email.includes(':')) {
       try { row.email = decryptEmail(row.email); } catch { row.email = '—'; }
     }
   }
   res.json({ logs: rows });
+});
+
+// ── Telemetry: public write endpoints ──
+app.post('/api/telemetry', verificarToken, (req, res) => {
+  try {
+    const { evento, pagina, datos } = req.body;
+    if (!evento) return res.status(400).json({ error: 'evento required' });
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    const ua = req.headers['user-agent'] || '';
+    const userId = req.usuario?.id || null;
+    const userName = req.usuario?.nombre || '';
+    db.prepare("INSERT INTO telemetria (evento, pagina, usuario_id, usuario_nombre, datos, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .run(evento, pagina || '', userId, userName, datos ? JSON.stringify(datos) : '', ip, ua);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/telemetry/error', verificarToken, (req, res) => {
+  try {
+    const { mensaje, stack, pagina, linea, columna } = req.body;
+    if (!mensaje) return res.status(400).json({ error: 'mensaje required' });
+    const ua = req.headers['user-agent'] || '';
+    const userId = req.usuario?.id || null;
+    const userName = req.usuario?.nombre || '';
+    db.prepare("INSERT INTO errores_frontend (mensaje, stack, pagina, linea, columna, usuario_id, usuario_nombre, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+      .run(mensaje, stack || '', pagina || '', linea || 0, columna || 0, userId, userName, ua);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/telemetry/heartbeat', verificarToken, (req, res) => {
+  try {
+    const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
+    const ua = req.headers['user-agent'] || '';
+    const userId = req.usuario.id;
+    const userName = req.usuario.nombre || '';
+    const existing = db.prepare("SELECT id FROM sesiones_activas WHERE usuario_id = ? AND ip = ?").get(userId, ip);
+    if (existing) {
+      db.prepare("UPDATE sesiones_activas SET ultimo_heartbeat = datetime('now','localtime'), user_agent = ? WHERE id = ?").run(ua, existing.id);
+    } else {
+      db.prepare("INSERT INTO sesiones_activas (usuario_id, usuario_nombre, ip, user_agent) VALUES (?, ?, ?, ?)")
+        .run(userId, userName, ip, ua);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Telemetry: admin read endpoints ──
+app.get('/api/admin/telemetry/dashboard', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const hoy = new Date().toISOString().slice(0, 10);
+    const sesionesActivas = db.prepare("SELECT COUNT(*) as total FROM sesiones_activas WHERE datetime(ultimo_heartbeat, '+2 minutes') >= datetime('now')").get().total;
+    const loginHoy = db.prepare("SELECT COUNT(*) as total FROM login_logs WHERE fecha LIKE ? AND exitoso = 1").get(hoy + '%').total;
+    const loginFallidosHoy = db.prepare("SELECT COUNT(*) as total FROM login_logs WHERE fecha LIKE ? AND exitoso = 0").get(hoy + '%').total;
+    const eventosHoy = db.prepare("SELECT COUNT(*) as total FROM telemetria WHERE creado LIKE ?").get(hoy + '%').total;
+    const erroresHoy = db.prepare("SELECT COUNT(*) as total FROM errores_frontend WHERE creado LIKE ?").get(hoy + '%').total;
+
+    // Top pages (last 30 days)
+    const topPaginas = db.prepare("SELECT pagina, COUNT(*) as total FROM telemetria WHERE evento = 'page_view' AND datetime(creado) >= datetime('now', '-30 days') GROUP BY pagina ORDER BY total DESC LIMIT 10").all();
+
+    // Top errors (last 30 days)
+    const topErrores = db.prepare("SELECT mensaje, COUNT(*) as total FROM errores_frontend WHERE datetime(creado) >= datetime('now', '-30 days') GROUP BY mensaje ORDER BY total DESC LIMIT 10").all();
+
+    // Events by day (last 7 days)
+    const eventosPorDia = db.prepare("SELECT date(creado) as dia, COUNT(*) as total FROM telemetria WHERE datetime(creado) >= datetime('now', '-7 days') GROUP BY dia ORDER BY dia").all();
+
+    res.json({ sesionesActivas, loginHoy, loginFallidosHoy, eventosHoy, erroresHoy, topPaginas, topErrores, eventosPorDia });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/admin/telemetry/eventos', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, parseInt(req.query.limit) || 50);
+    const offset = (page - 1) * limit;
+    const { evento, desde, hasta } = req.query;
+    let where = '1=1';
+    const params = [];
+    if (evento) { where += ' AND evento = ?'; params.push(evento); }
+    if (desde) { where += ' AND creado >= ?'; params.push(desde); }
+    if (hasta) { where += ' AND creado <= ?'; params.push(hasta + ' 23:59:59'); }
+    const total = db.prepare(`SELECT COUNT(*) as total FROM telemetria WHERE ${where}`).get(...params).total;
+    const rows = db.prepare(`SELECT * FROM telemetria WHERE ${where} ORDER BY id DESC LIMIT ? OFFSET ?`).all(...params, limit, offset);
+    res.json({ eventos: rows, total, page, pages: Math.ceil(total / limit) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.get('/api/admin/telemetry/errores', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.min(100, parseInt(req.query.limit) || 50);
+    const offset = (page - 1) * limit;
+    const { desde, hasta } = req.query;
+    let where = '1=1';
+    const params = [];
+    if (desde) { where += ' AND creado >= ?'; params.push(desde); }
+    if (hasta) { where += ' AND creado <= ?'; params.push(hasta + ' 23:59:59'); }
+    const total = db.prepare(`SELECT COUNT(*) as total FROM errores_frontend WHERE ${where}`).get(...params).total;
+    const rows = db.prepare(`SELECT * FROM errores_frontend WHERE ${where} ORDER BY id DESC LIMIT ? OFFSET ?`).all(...params, limit, offset);
+    res.json({ errores: rows, total, page, pages: Math.ceil(total / limit) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Sessions: admin endpoints ──
+app.get('/api/admin/sesiones', verificarToken, soloAdmin, (req, res) => {
+  try {
+    // Purge stale first
+    db.prepare("DELETE FROM sesiones_activas WHERE datetime(ultimo_heartbeat, '+2 minutes') < datetime('now')").run();
+    const sesiones = db.prepare("SELECT * FROM sesiones_activas ORDER BY ultimo_heartbeat DESC").all();
+    res.json({ sesiones });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+app.post('/api/admin/sesiones/:id/kill', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const { id } = req.params;
+    const sesion = db.prepare("SELECT * FROM sesiones_activas WHERE id = ?").get(id);
+    if (!sesion) return res.status(404).json({ error: 'Sesión no encontrada' });
+    // Invalidate all JWTs for this user by setting session invalidation
+    db.prepare("INSERT OR REPLACE INTO usuario_sesion_invalidada (usuario_id, invalidado_en) VALUES (?, datetime('now'))").run(sesion.usuario_id);
+    db.prepare("DELETE FROM sesiones_activas WHERE id = ?").run(id);
+    res.json({ ok: true, message: `Sesión de ${sesion.usuario_nombre} cerrada` });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── Password recovery ──
