@@ -12,7 +12,6 @@ const rateLimit = require('express-rate-limit');
 const { verificarToken, soloAdmin, parseCookies, firmarToken } = require('./middleware/auth');
 const { encryptEmail, decryptEmail } = require('./services/crypto');
 const { createLoginRateLimit, getLoginAttempts } = require('./services/rateLimit');
-const { setCentros } = require('../framework/centrosStore');
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 const mcpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 const publicLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
@@ -376,9 +375,6 @@ for (const m of modules) {
 }
 // Update URLs to match current PORT
 db.prepare(`UPDATE modulos_plataforma SET url = ? WHERE tipo = 'interno'`).run(`http://localhost:${PORT}`);
-
-// Initialize centros store at startup for other modules
-setCentros(db.prepare('SELECT id, nombre, codigo, descripcion, direccion, ciudad, telefono, email, responsable_id, latitud, longitud, activo FROM centros_operacion WHERE activo = 1 ORDER BY nombre').all());
 
 // ── Permisos granular tables ──
 db.exec(`
@@ -1157,7 +1153,7 @@ function getCentrosCache() {
   if (_centrosCache && (now - _centrosCacheTs) < CENTROS_CACHE_TTL) return _centrosCache;
   _centrosCache = db.prepare('SELECT id, nombre, codigo, descripcion, direccion, ciudad, telefono, email, responsable_id, latitud, longitud, activo FROM centros_operacion WHERE activo = 1 ORDER BY nombre').all();
   _centrosCacheTs = now;
-  setCentros(_centrosCache);
+  globalThis.__centrosCache = _centrosCache;
   return _centrosCache;
 }
 function invalidateCentrosCache() { _centrosCache = null; _centrosCacheTs = 0; }
