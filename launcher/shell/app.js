@@ -227,6 +227,7 @@ async function showLauncher() {
     grid.appendChild(adminCard);
   }
 
+  // Admin-only widgets
   if (user?.rol === 'admin') {
     cargarServerStats();
     cargarCommits();
@@ -238,10 +239,21 @@ async function showLauncher() {
     cargarWeather();
     cargarActivity();
   } else {
-    document.getElementById('module-summary-widget').style.display = 'none';
-    document.getElementById('pending-tasks-widget').style.display = 'none';
-    document.getElementById('alerts-widget').style.display = 'none';
     document.getElementById('server-stats-widget').style.display = 'none';
+    // Gerente: ver modulos, tareas pendientes, alertas, upcoming
+    if (user?.rol === 'gerente') {
+      cargarQuickActions();
+      cargarModuleSummary();
+      cargarPendingTasks();
+      cargarAlerts();
+      cargarUpcoming();
+    } else {
+      // Operador: solo modulos y quick actions
+      cargarQuickActions();
+      document.getElementById('module-summary-widget').style.display = 'none';
+      document.getElementById('pending-tasks-widget').style.display = 'none';
+      document.getElementById('alerts-widget').style.display = 'none';
+    }
   }
   show('launcher-screen');
 }
