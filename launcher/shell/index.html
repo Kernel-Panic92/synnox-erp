@@ -741,17 +741,24 @@
     </div>
     <div class="perm-rol-section" style="margin-top:20px;">
       <div class="perm-rol-titulo">Eventos recientes</div>
-      <div style="display:flex;gap:8px;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
+        <span style="font-size:12px;color:var(--muted);" id="tel-eventos-count">Mostrando 0 de 0 registros</span>
+        <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
+          <span style="font-size:12px;color:var(--muted);font-weight:600;">MOSTRAR</span>
+          <select id="tel-limit" style="width:70px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:12px;" onchange="loadTelemetriaEventos()">
+            <option value="20">20</option>
+            <option value="50">50</option>
+            <option value="100" selected>100</option>
+          </select>
+          <span style="font-size:12px;color:var(--muted);font-weight:600;">REGISTROS</span>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
         <select id="tel-evento-filter" style="width:150px;">
           <option value="">Todos los eventos</option>
           <option value="page_view">Page views</option>
           <option value="export">Exportaciones</option>
           <option value="click">Clicks</option>
-        </select>
-        <select id="tel-limit" style="width:100px;" onchange="loadTelemetriaEventos()">
-          <option value="20">20 registros</option>
-          <option value="50" selected>50 registros</option>
-          <option value="100">100 registros</option>
         </select>
         <input type="date" id="tel-desde" style="width:150px;">
         <input type="date" id="tel-hasta" style="width:150px;">

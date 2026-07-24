@@ -1792,15 +1792,21 @@ async function loadTelemetriaEventos() {
     const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + jwtToken } });
     if (!res.ok) return;
     const data = await res.json();
+    const eventos = data.eventos || [];
+    const total = data.total || eventos.length;
+    const countEl = document.getElementById('tel-eventos-count');
+    if (countEl) countEl.textContent = `Mostrando ${eventos.length} de ${total} registros`;
     const tbody = document.querySelector('#tel-eventos-table tbody');
-    tbody.innerHTML = (data.eventos || []).map(e => `
-      <tr>
+    tbody.innerHTML = eventos.map(e => {
+      const pagina = e.pagina || '';
+      const displayPagina = pagina.length > 40 ? pagina.substring(0, 40) + '...' : pagina;
+      return `<tr>
         <td style="white-space:nowrap;font-size:12px;">${esc(e.creado)}</td>
         <td><span class="badge badge-admin">${esc(e.evento)}</span></td>
-        <td style="font-size:12px;">${esc(e.pagina || '—')}</td>
+        <td style="font-size:12px;" title="${esc(pagina)}">${esc(displayPagina || '—')}</td>
         <td style="font-size:12px;">${esc(e.usuario_nombre || 'Anónimo')}</td>
-      </tr>
-    `).join('') || '<tr><td colspan="4" style="color:var(--muted);text-align:center;">Sin eventos</td></tr>';
+      </tr>`;
+    }).join('') || '<tr><td colspan="4" style="color:var(--muted);text-align:center;">Sin eventos</td></tr>';
   } catch (e) {}
 }
 
