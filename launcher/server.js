@@ -664,14 +664,23 @@ app.get('/api/admin/login-logs', verificarToken, soloAdmin, (req, res) => {
 });
 
 // ── Telemetry: public write endpoints ──
-app.post('/api/telemetry', verificarToken, (req, res) => {
+app.post('/api/telemetry', (req, res) => {
   try {
     const { evento, pagina, datos } = req.body;
     if (!evento) return res.status(400).json({ error: 'evento required' });
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
     const ua = req.headers['user-agent'] || '';
-    const userId = req.usuario?.id || null;
-    const userName = req.usuario?.nombre || '';
+    // Try to get user from token (optional)
+    let userId = null, userName = '';
+    try {
+      const cookies = parseCookies(req);
+      const token = cookies.launcher_jwt;
+      if (token) {
+        const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+        userId = decoded.id;
+        userName = decoded.nombre || '';
+      }
+    } catch {}
     db.prepare("INSERT INTO telemetria (evento, pagina, usuario_id, usuario_nombre, datos, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)")
       .run(evento, pagina || '', userId, userName, datos ? JSON.stringify(datos) : '', ip, ua);
     res.json({ ok: true });
@@ -680,13 +689,21 @@ app.post('/api/telemetry', verificarToken, (req, res) => {
   }
 });
 
-app.post('/api/telemetry/error', verificarToken, (req, res) => {
+app.post('/api/telemetry/error', (req, res) => {
   try {
     const { mensaje, stack, pagina, linea, columna } = req.body;
     if (!mensaje) return res.status(400).json({ error: 'mensaje required' });
     const ua = req.headers['user-agent'] || '';
-    const userId = req.usuario?.id || null;
-    const userName = req.usuario?.nombre || '';
+    let userId = null, userName = '';
+    try {
+      const cookies = parseCookies(req);
+      const token = cookies.launcher_jwt;
+      if (token) {
+        const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+        userId = decoded.id;
+        userName = decoded.nombre || '';
+      }
+    } catch {}
     db.prepare("INSERT INTO errores_frontend (mensaje, stack, pagina, linea, columna, usuario_id, usuario_nombre, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
       .run(mensaje, stack || '', pagina || '', linea || 0, columna || 0, userId, userName, ua);
     res.json({ ok: true });
@@ -695,12 +712,21 @@ app.post('/api/telemetry/error', verificarToken, (req, res) => {
   }
 });
 
-app.post('/api/telemetry/heartbeat', verificarToken, (req, res) => {
+app.post('/api/telemetry/heartbeat', (req, res) => {
   try {
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
     const ua = req.headers['user-agent'] || '';
-    const userId = req.usuario.id;
-    const userName = req.usuario.nombre || '';
+    let userId = null, userName = '';
+    try {
+      const cookies = parseCookies(req);
+      const token = cookies.launcher_jwt;
+      if (token) {
+        const decoded = require('jsonwebtoken').verify(token, process.env.JWT_SECRET);
+        userId = decoded.id;
+        userName = decoded.nombre || '';
+      }
+    } catch {}
+    if (!userId) return res.json({ ok: true });
     const existing = db.prepare("SELECT id FROM sesiones_activas WHERE usuario_id = ? AND ip = ?").get(userId, ip);
     if (existing) {
       db.prepare("UPDATE sesiones_activas SET ultimo_heartbeat = datetime('now','localtime'), user_agent = ? WHERE id = ?").run(ua, existing.id);
