@@ -748,6 +748,11 @@
           <option value="export">Exportaciones</option>
           <option value="click">Clicks</option>
         </select>
+        <select id="tel-limit" style="width:100px;" onchange="loadTelemetriaEventos()">
+          <option value="20">20 registros</option>
+          <option value="50" selected>50 registros</option>
+          <option value="100">100 registros</option>
+        </select>
         <input type="date" id="tel-desde" style="width:150px;">
         <input type="date" id="tel-hasta" style="width:150px;">
         <button class="btn btn-sm" onclick="loadTelemetriaEventos()">🔍 Filtrar</button>

@@ -1784,7 +1784,8 @@ async function loadTelemetriaEventos() {
     const evento = document.getElementById('tel-evento-filter')?.value || '';
     const desde = document.getElementById('tel-desde')?.value || '';
     const hasta = document.getElementById('tel-hasta')?.value || '';
-    let url = '/api/admin/telemetry/eventos?limit=50';
+    const limit = document.getElementById('tel-limit')?.value || '50';
+    let url = '/api/admin/telemetry/eventos?limit=' + limit;
     if (evento) url += '&evento=' + encodeURIComponent(evento);
     if (desde) url += '&desde=' + desde;
     if (hasta) url += '&hasta=' + hasta;
@@ -1796,8 +1797,8 @@ async function loadTelemetriaEventos() {
       <tr>
         <td style="white-space:nowrap;font-size:12px;">${esc(e.creado)}</td>
         <td><span class="badge badge-admin">${esc(e.evento)}</span></td>
-        <td style="font-size:12px;">${esc(e.pagina)}</td>
-        <td style="font-size:12px;">${esc(e.usuario_nombre || '—')}</td>
+        <td style="font-size:12px;">${esc(e.pagina || '—')}</td>
+        <td style="font-size:12px;">${esc(e.usuario_nombre || 'Anónimo')}</td>
       </tr>
     `).join('') || '<tr><td colspan="4" style="color:var(--muted);text-align:center;">Sin eventos</td></tr>';
   } catch (e) {}
