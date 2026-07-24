@@ -1,7 +1,8 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
-import { getCentros } from '../../../../framework/centrosStore.js';
+import centrosStore from '../../../../framework/centrosStore.js';
+const { getCentros } = centrosStore;
 const MODULE = 'logistica';
 
 const router = express.Router();

@@ -1148,7 +1148,7 @@ app.get('/api/admin/perfiles/:id/usuarios', verificarToken, soloAdmin, (req, res
 let _centrosCache = null;
 let _centrosCacheTs = 0;
 const CENTROS_CACHE_TTL = 30000;
-import { setCentros } from '../framework/centrosStore.js';
+const { setCentros } = require('../framework/centrosStore.js');
 function getCentrosCache() {
   const now = Date.now();
   if (_centrosCache && (now - _centrosCacheTs) < CENTROS_CACHE_TTL) return _centrosCache;
