@@ -12,6 +12,7 @@ const rateLimit = require('express-rate-limit');
 const { verificarToken, soloAdmin, parseCookies, firmarToken } = require('./middleware/auth');
 const { encryptEmail, decryptEmail } = require('./services/crypto');
 const { createLoginRateLimit, getLoginAttempts } = require('./services/rateLimit');
+const { setCentros } = require('../framework/centrosStore');
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 const mcpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 const publicLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
@@ -1151,7 +1152,6 @@ app.get('/api/admin/perfiles/:id/usuarios', verificarToken, soloAdmin, (req, res
 let _centrosCache = null;
 let _centrosCacheTs = 0;
 const CENTROS_CACHE_TTL = 30000;
-const { setCentros } = require('../framework/centrosStore.js');
 function getCentrosCache() {
   const now = Date.now();
   if (_centrosCache && (now - _centrosCacheTs) < CENTROS_CACHE_TTL) return _centrosCache;
