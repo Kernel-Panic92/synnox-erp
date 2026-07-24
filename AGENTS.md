@@ -154,7 +154,7 @@
 - **Navegación same-tab**: Módulos y Home button SIEMPRE abren en la misma pestaña (`href="/"` sin `target="_blank"`). Launcher también abre módulos en la misma pestaña.
 - **Versión**: Todos los módulos leen `/api/version` del root `package.json` (versión unificada `1.0.0`). NO usar `package.json` del módulo. NO mostrar rama git. Frontend: `el.textContent = 'v' + data.version`.
 - **Instalación**: `install.sh` usa `$(pwd)` como INSTALL_DIR — ejecutar desde el directorio del repo clonado. NO copiar a otro path.
-- **Centros de operación**: Launcher es fuente única de verdad. CRUD en launcher, módulos consumen via `GET /api/centros` (caché 30s). NO crear tablas locales de centros.
+- **Centros de operación**: Launcher es fuente única de verdad. CRUD en launcher, módulos consumen via `GET /api/centros` (caché 30s). NO crear tablas locales de centros. Mismos IDs en footer del sidebar: `sidebar-user-name`, `sidebar-user-role`.
 - **Roles**: `admin` (acceso total), `gerente` (aprobaciones + acceso completo), `operador` (usa perfiles). CSV import mapea `gerencia` → `gerente`.
 - **Licencia**: Propietaria (LICENSE.md). NO redistribuir código fuente.
 

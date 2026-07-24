@@ -375,3 +375,4 @@ pm2 save
 - Versión: SIEMPRE de root `package.json`, NO del módulo
 - Sidebar: SIEMPRE `base.css` + `framework.js`, NO CSS inline
 - Theme: SIEMPRE `synnox_theme`, NO key propia del módulo
+- **Sedes/Centros**: Fetch desde `GET /api/centros` del launcher (caché 30s). NO crear tablas locales de centros. Launcher es fuente única de verdad.
