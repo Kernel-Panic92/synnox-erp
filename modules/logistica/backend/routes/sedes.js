@@ -1,15 +1,13 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
-import centrosStore from '../../../../framework/centrosStore.js';
-const { getCentros } = centrosStore;
 const MODULE = 'logistica';
 
 const router = express.Router();
 
 async function validarCentroOperacion(nombre) {
   if (!nombre || !nombre.trim()) return true;
-  const centros = getCentros();
+  const centros = globalThis.__centrosCache || [];
   return centros.some(c => c.nombre === nombre.trim());
 }
 
@@ -34,7 +32,7 @@ router.get('/', async (req, res) => {
 
 router.get('/centros', async (req, res) => {
   try {
-    const centros = getCentros();
+    const centros = globalThis.__centrosCache || [];
     res.json(centros);
   } catch (err) {
     res.json([]);
