@@ -13,6 +13,24 @@ dotenv.config();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 3004;
+
+// Centros cache (read from launcher.db)
+import Database from 'better-sqlite3';
+let _centrosCache = null;
+let _centrosCacheTs = 0;
+function getCentrosFromLauncher() {
+  const now = Date.now();
+  if (_centrosCache && (now - _centrosCacheTs) < 30000) return _centrosCache;
+  try {
+    const launcherDbPath = path.resolve(process.cwd(), 'launcher', 'launcher.db');
+    if (!fs.existsSync(launcherDbPath)) return _centrosCache || [];
+    const db = new Database(launcherDbPath, { readonly: true });
+    _centrosCache = db.prepare('SELECT id, nombre, codigo, descripcion, direccion, ciudad, telefono, email, activo FROM centros_operacion WHERE activo = 1 ORDER BY nombre').all();
+    _centrosCacheTs = now;
+    db.close();
+    return _centrosCache;
+  } catch { return _centrosCache || []; }
+}
 const MODULE_ID = process.env.MODULE_ID || 'logistica';
 
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
@@ -86,8 +104,7 @@ app.use('/api/auditoria', protect, auditoriaRoutes);
 app.use('/api/clientes', protect, clientesRoutes);
 // Public endpoint for centros (no auth needed for dropdowns)
 app.get('/api/centros', (req, res) => {
-  const { getCentros } = require('../../../../framework/centrosStore');
-  res.json(getCentros());
+  res.json(getCentrosFromLauncher());
 });
 app.use('/api/sedes', protect, sedesRoutes);
 app.use('/api/rutas-pdf', protect, rutasPdfRoutes);
