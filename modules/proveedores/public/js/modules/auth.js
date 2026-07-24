@@ -44,6 +44,9 @@ function showApp(){
   }
   buildNav();
   
+  // Auto-sync centros from launcher (background, non-blocking)
+  api('POST','/centros/sync').catch(()=>{});
+
   if(localStorage.getItem('sidebar_collapsed')==='true'){
     $('sidebar').classList.add('collapsed');
     const t=$('sidebar').querySelector('.sidebar-toggle');
