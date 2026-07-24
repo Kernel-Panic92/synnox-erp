@@ -50,7 +50,8 @@ function toast(msg, type = 'info') {
 
 // ─── Theme toggle (universal: synnox_theme en localStorage) ────
 (function initTheme() {
-  const theme = localStorage.getItem('synnox_theme') || 'light';
+  let theme = localStorage.getItem('synnox_theme');
+  if (!theme) { theme = 'dark'; localStorage.setItem('synnox_theme', 'dark'); }
   const root = document.documentElement;
   if (theme === 'dark') {
     root.style.setProperty('--bg', '#12141a');
@@ -65,7 +66,7 @@ function toast(msg, type = 'info') {
 })();
 function toggleTheme() {
   const root = document.documentElement;
-  const isDark = root.style.getPropertyValue('--bg') === '#12141a' || root.style.getPropertyValue('--bg') === '';
+  const isDark = localStorage.getItem('synnox_theme') !== 'light';
   if (isDark) {
     root.style.setProperty('--bg', '#f0f2f7');
     root.style.setProperty('--surface', '#ffffff');

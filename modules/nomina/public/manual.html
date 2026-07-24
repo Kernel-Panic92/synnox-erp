@@ -7,11 +7,9 @@
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script nonce="__NONCE__">
   (function() {
-    var theme = localStorage.getItem('he_theme');
+    var theme = localStorage.getItem('synnox_theme');
+    if (!theme) { theme = 'dark'; localStorage.setItem('synnox_theme', 'dark'); }
     if (theme === 'dark') { document.documentElement.classList.add('dark'); }
-    else if (!theme && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      document.documentElement.classList.add('dark');
-    }
   })();
 </script>
 <style>
