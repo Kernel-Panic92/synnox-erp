@@ -680,7 +680,6 @@ app.post('/api/telemetry', (req, res) => {
         userName = decoded.nombre || '';
       }
     } catch {}
-    console.log('[Telemetry]', evento, pagina, userId || 'anon');
     db.prepare("INSERT INTO telemetria (evento, pagina, usuario_id, usuario_nombre, datos, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)")
       .run(evento, pagina || '', userId, userName, datos ? JSON.stringify(datos) : '', ip, ua);
     res.json({ ok: true });
