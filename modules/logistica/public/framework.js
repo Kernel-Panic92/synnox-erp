@@ -21,7 +21,9 @@ function initFramework(opts = {}) {
   HF.routeMap = opts.routes || {};
   HF.themePages = opts.themePages || ['dashboard'];
 
-  if (localStorage.getItem(HF.THEME_KEY) === 'light') document.body.classList.add('light');
+  const savedTheme = localStorage.getItem(HF.THEME_KEY);
+  if (!savedTheme) { localStorage.setItem(HF.THEME_KEY, 'dark'); }
+  if (savedTheme === 'light') document.body.classList.add('light');
 
   // Create toast container
   if (!document.getElementById('toast-container')) {
