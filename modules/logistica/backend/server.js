@@ -84,6 +84,11 @@ app.use('/api/configuracion', [verifyToken, requireModule(MODULE_ID), requirePer
 app.use('/api/backup', protect, backupRoutes);
 app.use('/api/auditoria', protect, auditoriaRoutes);
 app.use('/api/clientes', protect, clientesRoutes);
+// Public endpoint for centros (no auth needed for dropdowns)
+app.get('/api/centros', (req, res) => {
+  const { getCentros } = require('../../../../framework/centrosStore');
+  res.json(getCentros());
+});
 app.use('/api/sedes', protect, sedesRoutes);
 app.use('/api/rutas-pdf', protect, rutasPdfRoutes);
 app.use('/api/reportes', protect, reportesRoutes);
