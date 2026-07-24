@@ -1286,6 +1286,8 @@ function showAdminTab(tab) {
    else if (tab === 'mapas') loadGmapsKeyStatus();
    else if (tab === 'apariencia') loadGradConfig();
    else if (tab === 'seguridad') { loadRateLimitConfig(); loadSshConfig(); loadLoginLogs(); }
+   else if (tab === 'auditoria') loadAuditoria();
+   else if (tab === 'telemetria') loadTelemetria();
    else if (tab === 'nginx') loadNginx();
    else if (tab === 'actualizar') { loadUpdaterStatus(); loadUpdaterLogs(); }
     else if (tab === 'mcp-modules') { loadMcpModulesStatus(); }
@@ -1622,6 +1624,163 @@ async function loadLoginLogs() {
         : '<span class="badge badge-inactivo">Fallido</span>';
       return '<tr><td style="white-space:nowrap;">' + esc(r.fecha) + '</td><td>' + esc(r.ip) + '</td><td>' + esc(r.email) + '</td><td>' + badge + '</td></tr>';
     }).join('');
+  } catch (e) {}
+}
+
+// ── Auditoría ──
+async function loadAuditoria() {
+  try {
+    const [dashRes, sesionesRes] = await Promise.all([
+      fetch('/api/admin/telemetry/dashboard', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
+      fetch('/api/admin/sesiones', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
+    ]);
+    if (dashRes) {
+      document.getElementById('aud-sesiones').textContent = dashRes.sesionesActivas || 0;
+      document.getElementById('aud-logins').textContent = dashRes.loginHoy || 0;
+      document.getElementById('aud-fallidos').textContent = dashRes.loginFallidosHoy || 0;
+    }
+    if (sesionesRes?.sesiones) {
+      const tbody = document.querySelector('#sesiones-table tbody');
+      tbody.innerHTML = sesionesRes.sesiones.map(s => `
+        <tr>
+          <td>${esc(s.usuario_nombre)}</td>
+          <td style="font-family:monospace;font-size:12px;">${esc(s.ip)}</td>
+          <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${esc(s.user_agent)}">${esc((s.user_agent || '').substring(0, 60))}</td>
+          <td style="white-space:nowrap;font-size:12px;">${esc(s.ultimo_heartbeat)}</td>
+          <td><button class="btn btn-sm btn-danger" onclick="killSession(${s.id}, '${esc(s.usuario_nombre)}')">⛔ Cerrar</button></td>
+        </tr>
+      `).join('') || '<tr><td colspan="5" style="color:var(--muted);text-align:center;">No hay sesiones activas</td></tr>';
+    }
+    await loadAuditoriaLogs();
+  } catch (e) { toast('Error cargando auditoría: ' + e.message, 'error'); }
+}
+
+async function loadAuditoriaLogs() {
+  try {
+    const desde = document.getElementById('aud-desde')?.value || '';
+    const hasta = document.getElementById('aud-hasta')?.value || '';
+    const estado = document.getElementById('aud-estado')?.value || '';
+    let url = '/api/admin/login-logs?limit=100';
+    if (desde) url += '&desde=' + desde;
+    if (hasta) url += '&hasta=' + hasta;
+    if (estado !== '') url += '&exitoso=' + estado;
+    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) return;
+    const data = await res.json();
+    const tbody = document.querySelector('#aud-logs-table tbody');
+    tbody.innerHTML = (data.logs || []).map(r => {
+      const badge = r.exitoso
+        ? '<span class="badge badge-admin">Exitoso</span>'
+        : '<span class="badge badge-inactivo">Fallido</span>';
+      return `<tr><td style="white-space:nowrap;">${esc(r.fecha)}</td><td>${esc(r.ip)}</td><td>${esc(r.email)}</td><td>${badge}</td></tr>`;
+    }).join('');
+  } catch (e) {}
+}
+
+async function killSession(id, nombre) {
+  const ok = await confirmModal(`¿Cerrar sesión de ${nombre}?`, 'Cerrar sesión remota', 'delete');
+  if (!ok) return;
+  try {
+    const res = await fetch(`/api/admin/sesiones/${id}/kill`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + jwtToken }
+    });
+    const data = await res.json();
+    if (data.ok) { toast('Sesión cerrada', 'success'); loadAuditoria(); }
+    else toast(data.error || 'Error', 'error');
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
+}
+
+// ── Telemetría ──
+async function loadTelemetria() {
+  try {
+    const dash = await fetch('/api/admin/telemetry/dashboard', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null);
+    if (dash) {
+      document.getElementById('tel-eventos').textContent = dash.eventosHoy || 0;
+      document.getElementById('tel-errores').textContent = dash.erroresHoy || 0;
+      renderTelChartPaginas(dash.topPaginas || []);
+      renderTelChartDias(dash.eventosPorDia || []);
+      const errTbody = document.querySelector('#tel-errores-table tbody');
+      errTbody.innerHTML = (dash.topErrores || []).map(e => `<tr><td style="font-size:12px;max-width:400px;overflow:hidden;text-overflow:ellipsis;" title="${esc(e.mensaje)}">${esc(e.mensaje)}</td><td>${e.total}</td></tr>`).join('') || '<tr><td colspan="2" style="color:var(--muted);text-align:center;">Sin errores</td></tr>';
+    }
+    await loadTelemetriaEventos();
+  } catch (e) { toast('Error cargando telemetría: ' + e.message, 'error'); }
+}
+
+function renderTelChartPaginas(data) {
+  const canvas = document.getElementById('tel-chart-paginas');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width = canvas.parentElement.clientWidth - 32;
+  const h = canvas.height = 200;
+  ctx.clearRect(0, 0, w, h);
+  if (!data.length) { ctx.fillStyle = 'var(--muted)'; ctx.font = '13px sans-serif'; ctx.fillText('Sin datos', w / 2 - 30, h / 2); return; }
+  const max = Math.max(...data.map(d => d.total));
+  const barW = Math.min(40, (w - 40) / data.length - 4);
+  const chartH = h - 40;
+  data.forEach((d, i) => {
+    const barH = (d.total / max) * chartH;
+    const x = 20 + i * (barW + 4);
+    const y = h - 20 - barH;
+    ctx.fillStyle = 'rgba(var(--accent-rgb, 230,126,34), 0.8)';
+    ctx.fillRect(x, y, barW, barH);
+    ctx.fillStyle = '#999';
+    ctx.font = '10px sans-serif';
+    ctx.save();
+    ctx.translate(x + barW / 2, h - 4);
+    ctx.fillText(d.pagina?.substring(0, 8) || '?', -15, 0);
+    ctx.restore();
+    ctx.fillStyle = 'var(--text)';
+    ctx.fillText(d.total, x + barW / 2 - 5, y - 4);
+  });
+}
+
+function renderTelChartDias(data) {
+  const canvas = document.getElementById('tel-chart-dias');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.width = canvas.parentElement.clientWidth - 32;
+  const h = canvas.height = 200;
+  ctx.clearRect(0, 0, w, h);
+  if (!data.length) { ctx.fillStyle = 'var(--muted)'; ctx.font = '13px sans-serif'; ctx.fillText('Sin datos', w / 2 - 30, h / 2); return; }
+  const max = Math.max(...data.map(d => d.total));
+  const barW = Math.min(50, (w - 40) / data.length - 4);
+  const chartH = h - 40;
+  data.forEach((d, i) => {
+    const barH = (d.total / max) * chartH;
+    const x = 20 + i * (barW + 4);
+    const y = h - 20 - barH;
+    ctx.fillStyle = 'rgba(var(--success-rgb, 46,204,113), 0.8)';
+    ctx.fillRect(x, y, barW, barH);
+    ctx.fillStyle = '#999';
+    ctx.font = '10px sans-serif';
+    ctx.fillText((d.dia || '').slice(5), x, h - 4);
+    ctx.fillStyle = 'var(--text)';
+    ctx.fillText(d.total, x + barW / 2 - 5, y - 4);
+  });
+}
+
+async function loadTelemetriaEventos() {
+  try {
+    const evento = document.getElementById('tel-evento-filter')?.value || '';
+    const desde = document.getElementById('tel-desde')?.value || '';
+    const hasta = document.getElementById('tel-hasta')?.value || '';
+    let url = '/api/admin/telemetry/eventos?limit=50';
+    if (evento) url += '&evento=' + encodeURIComponent(evento);
+    if (desde) url += '&desde=' + desde;
+    if (hasta) url += '&hasta=' + hasta;
+    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) return;
+    const data = await res.json();
+    const tbody = document.querySelector('#tel-eventos-table tbody');
+    tbody.innerHTML = (data.eventos || []).map(e => `
+      <tr>
+        <td style="white-space:nowrap;font-size:12px;">${esc(e.creado)}</td>
+        <td><span class="badge badge-admin">${esc(e.evento)}</span></td>
+        <td style="font-size:12px;">${esc(e.pagina)}</td>
+        <td style="font-size:12px;">${esc(e.usuario_nombre || '—')}</td>
+      </tr>
+    `).join('') || '<tr><td colspan="4" style="color:var(--muted);text-align:center;">Sin eventos</td></tr>';
   } catch (e) {}
 }
 
