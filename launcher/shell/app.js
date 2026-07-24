@@ -1724,10 +1724,13 @@ function renderTelChartPaginas(data) {
   const canvas = document.getElementById('tel-chart-paginas');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  const w = canvas.width = canvas.parentElement.clientWidth - 32;
-  const h = canvas.height = 200;
+  const container = canvas.parentElement;
+  const w = container.clientWidth;
+  const h = 200;
+  canvas.width = w;
+  canvas.height = h;
   ctx.clearRect(0, 0, w, h);
-  if (!data.length) { ctx.fillStyle = 'var(--muted)'; ctx.font = '13px sans-serif'; ctx.fillText('Sin datos', w / 2 - 30, h / 2); return; }
+  if (!data.length) { ctx.fillStyle = '#888'; ctx.font = '13px sans-serif'; ctx.fillText('Sin datos', w / 2 - 30, h / 2); return; }
   const max = Math.max(...data.map(d => d.total));
   const barW = Math.min(40, (w - 40) / data.length - 4);
   const chartH = h - 40;
@@ -1752,10 +1755,13 @@ function renderTelChartDias(data) {
   const canvas = document.getElementById('tel-chart-dias');
   if (!canvas) return;
   const ctx = canvas.getContext('2d');
-  const w = canvas.width = canvas.parentElement.clientWidth - 32;
-  const h = canvas.height = 200;
+  const container = canvas.parentElement;
+  const w = container.clientWidth;
+  const h = 200;
+  canvas.width = w;
+  canvas.height = h;
   ctx.clearRect(0, 0, w, h);
-  if (!data.length) { ctx.fillStyle = 'var(--muted)'; ctx.font = '13px sans-serif'; ctx.fillText('Sin datos', w / 2 - 30, h / 2); return; }
+  if (!data.length) { ctx.fillStyle = '#888'; ctx.font = '13px sans-serif'; ctx.fillText('Sin datos', w / 2 - 30, h / 2); return; }
   const max = Math.max(...data.map(d => d.total));
   const barW = Math.min(50, (w - 40) / data.length - 4);
   const chartH = h - 40;

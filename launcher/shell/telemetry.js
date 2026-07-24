@@ -5,17 +5,20 @@
     return c ? c.split('=')[1] : localStorage.getItem('launcher_jwt');
   }
 
-  function sendBeacon(url, data) {
+  function telemetryPost(url, data) {
+    if (!getToken()) return;
     try {
-      var blob = new Blob([JSON.stringify(data)], { type: 'application/json' });
-      navigator.sendBeacon(url, blob);
+      fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data)
+      }).catch(function() {});
     } catch (e) {}
   }
 
   function trackPage() {
-    var token = getToken();
-    if (!token) return;
-    sendBeacon('/api/telemetry', {
+    telemetryPost('/api/telemetry', {
       evento: 'page_view',
       pagina: location.pathname + location.hash,
       datos: { referrer: document.referrer }
@@ -23,9 +26,7 @@
   }
 
   function trackError(msg, source, line, col, err) {
-    var token = getToken();
-    if (!token) return;
-    sendBeacon('/api/telemetry/error', {
+    telemetryPost('/api/telemetry/error', {
       mensaje: msg || 'Unknown error',
       stack: err?.stack || '',
       pagina: location.pathname,
@@ -35,9 +36,7 @@
   }
 
   function heartbeat() {
-    var token = getToken();
-    if (!token) return;
-    sendBeacon('/api/telemetry/heartbeat', {});
+    telemetryPost('/api/telemetry/heartbeat', {});
   }
 
   // Track initial page
