@@ -1,12 +1,15 @@
 // Telemetry auto-tracking script
 (function() {
+  console.log('[Telemetry] script loaded');
   function getToken() {
     var c = document.cookie.split('; ').find(function(r) { return r.startsWith('launcher_jwt='); });
     return c ? c.split('=')[1] : localStorage.getItem('launcher_jwt');
   }
 
   function telemetryPost(url, data) {
-    if (!getToken()) return;
+    var token = getToken();
+    console.log('[Telemetry] telemetryPost', url, 'token:', token ? 'yes' : 'no');
+    if (!token) return;
     try {
       fetch(url, {
         method: 'POST',
@@ -18,6 +21,7 @@
   }
 
   function trackPage() {
+    console.log('[Telemetry] trackPage called');
     telemetryPost('/api/telemetry', {
       evento: 'page_view',
       pagina: location.pathname + location.hash,
