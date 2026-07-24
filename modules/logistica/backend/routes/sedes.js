@@ -49,9 +49,9 @@ router.get('/', async (req, res) => {
 router.get('/centros', async (req, res) => {
   try {
     const centros = await getCentrosLauncher();
-    res.json(centros);
+    res.json(Array.isArray(centros) ? centros : []);
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    res.json([]);
   }
 });
 

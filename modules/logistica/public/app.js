@@ -727,7 +727,7 @@ async function cargarSedes() {
 function abrirModalSede(data) {
   const d = data || {};
   api('/sedes/centros').then(centros => {
-    const opts = centros.map(c => `<option value="${esc(c.nombre)}" ${d.centro_operacion === c.nombre ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('');
+    const opts = (Array.isArray(centros) ? centros : []).map(c => `<option value="${esc(c.nombre)}" ${d.centro_operacion === c.nombre ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('');
     abrirModal(
       data ? 'Editar sede' : 'Nueva sede',
       data ? 'Actualiza los datos de la sede' : 'Registra una nueva ubicación o punto de partida',
