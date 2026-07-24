@@ -20,7 +20,6 @@ async function fetchUserAndShowApp(){
 }
 
 function showApp(){
-  injectSidebarHome();
   $('app-screen').classList.add('show');
   document.body.className=S.theme;
   const tb=$('theme-btn');if(tb)tb.textContent=S.theme==='dark'?'🌙':'☀️';
@@ -28,6 +27,9 @@ function showApp(){
   const roleEl=$('user-role');if(roleEl)roleEl.textContent=S.usuario?.perfil_nombre||S.usuario?.rol||'—';
   const badge=$('user-badge');
   if(badge){badge.textContent=S.usuario?.rol||'';}
+  // Footer user info
+  const footerName=document.getElementById('sidebar-user-name');if(footerName)footerName.textContent=S.usuario?.nombre||'';
+  const footerRole=document.getElementById('sidebar-user-role');if(footerRole)footerRole.textContent=S.usuario?.perfil_nombre||S.usuario?.rol||'';
   initFiltros();
   
   fetch(BASE+'/api/version').then(r=>r.json()).then(d=>{

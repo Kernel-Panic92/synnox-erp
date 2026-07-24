@@ -180,7 +180,6 @@ function injectSidebarHome() {
 
 // App Initialization
 async function iniciarApp() {
-  injectSidebarHome();
   // Update user info in UI (framework standard IDs)
   if (sesion?.usuario) {
     const nameEl = document.getElementById('user-name');
@@ -189,6 +188,11 @@ async function iniciarApp() {
     if (roleEl) roleEl.textContent = sesion.usuario.perfil_nombre || rolLabel(sesion.usuario.rol);
     const badgeEl = document.getElementById('user-badge');
     if (badgeEl) badgeEl.textContent = sesion.usuario.rol;
+    // Footer user info
+    const footerName = document.getElementById('sidebar-user-name');
+    if (footerName) footerName.textContent = sesion.usuario.nombre;
+    const footerRole = document.getElementById('sidebar-user-role');
+    if (footerRole) footerRole.textContent = sesion.usuario.perfil_nombre || rolLabel(sesion.usuario.rol);
   }
   
   // Load all data

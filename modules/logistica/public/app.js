@@ -124,8 +124,12 @@ async function init() {
       badgeEl.textContent = data.perfil_nombre || data.rol || '';
       badgeEl.className = 'badge role-badge role-' + (data.rol || '').toLowerCase();
     }
+    // Footer user info
+    const footerName = document.getElementById('sidebar-user-name');
+    if (footerName) footerName.textContent = data.nombre || data.email || '';
+    const footerRole = document.getElementById('sidebar-user-role');
+    if (footerRole) footerRole.textContent = data.perfil_nombre || data.rol || '';
     renderSidebar(data);
-    injectSidebarHome();
     cargarVersion();
     cargarDashboard();
   } catch (e) {

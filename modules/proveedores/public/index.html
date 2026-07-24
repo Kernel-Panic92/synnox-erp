@@ -215,12 +215,15 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--ac
     </div>
     <nav id="sidebar-nav"></nav>
     <div class="sidebar-footer">
-      <button class="btn-logout" onclick="showLogoutConfirm()" title="Cerrar sesion">
-        <span style="font-size:18px">&#x23FB;</span> Cerrar sesion
-      </button>
+      <a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a>
+      <div class="user-name" id="sidebar-user-name"></div>
+      <div class="user-role" id="sidebar-user-role"></div>
       <div class="version">
         <div id="app-version"></div>
       </div>
+      <button class="btn-logout" onclick="showLogoutConfirm()" title="Cerrar sesion">
+        <span style="font-size:18px">&#x23FB;</span> Cerrar sesion
+      </button>
     </div>
   </aside>
 

@@ -88,6 +88,11 @@ async function init() {
     if (data.nombre) document.getElementById('user-name').textContent = data.nombre;
     if (data.rol) document.getElementById('user-role').textContent = data.rol === 'admin' ? 'Administrador' : data.rol === 'gerente' ? 'Gerente' : (data.perfil_nombre || data.rol);
     if (data.rol) document.getElementById('user-badge').textContent = data.rol;
+    // Footer user info
+    const footerName = document.getElementById('sidebar-user-name');
+    if (footerName && data.nombre) footerName.textContent = data.nombre;
+    const footerRole = document.getElementById('sidebar-user-role');
+    if (footerRole && data.rol) footerRole.textContent = data.rol === 'admin' ? 'Administrador' : data.rol === 'gerente' ? 'Gerente' : (data.perfil_nombre || data.rol);
     await cargarTodosLosUsuarios();
     mostrarAppInterno();
   } catch (e) {
