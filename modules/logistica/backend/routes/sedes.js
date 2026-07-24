@@ -1,29 +1,14 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
+import { getCentros } from '../utils/centros.js';
 const MODULE = 'logistica';
-const LAUNCHER_URL = process.env.LAUNCHER_URL || 'http://localhost:3002';
 
 const router = express.Router();
 
-// Cache de centros del launcher (30s TTL)
-let _centrosCache = null;
-let _centrosCacheTs = 0;
-async function getCentrosLauncher() {
-  const now = Date.now();
-  if (_centrosCache && (now - _centrosCacheTs) < 30000) return _centrosCache;
-  try {
-    const res = await fetch(`${LAUNCHER_URL}/api/centros`);
-    if (!res.ok) return _centrosCache || [];
-    _centrosCache = await res.json();
-    _centrosCacheTs = now;
-    return _centrosCache;
-  } catch { return _centrosCache || []; }
-}
-
 async function validarCentroOperacion(nombre) {
   if (!nombre || !nombre.trim()) return true;
-  const centros = await getCentrosLauncher();
+  const centros = getCentros();
   return centros.some(c => c.nombre === nombre.trim());
 }
 
@@ -48,8 +33,8 @@ router.get('/', async (req, res) => {
 
 router.get('/centros', async (req, res) => {
   try {
-    const centros = await getCentrosLauncher();
-    res.json(Array.isArray(centros) ? centros : []);
+    const centros = getCentros();
+    res.json(centros);
   } catch (err) {
     res.json([]);
   }
