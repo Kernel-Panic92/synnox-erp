@@ -670,7 +670,6 @@ app.post('/api/telemetry', (req, res) => {
     if (!evento) return res.status(400).json({ error: 'evento required' });
     const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || '';
     const ua = req.headers['user-agent'] || '';
-    // Try to get user from token (optional)
     let userId = null, userName = '';
     try {
       const cookies = parseCookies(req);
@@ -681,6 +680,7 @@ app.post('/api/telemetry', (req, res) => {
         userName = decoded.nombre || '';
       }
     } catch {}
+    console.log('[Telemetry]', evento, pagina, userId || 'anon');
     db.prepare("INSERT INTO telemetria (evento, pagina, usuario_id, usuario_nombre, datos, ip, user_agent) VALUES (?, ?, ?, ?, ?, ?, ?)")
       .run(evento, pagina || '', userId, userName, datos ? JSON.stringify(datos) : '', ip, ua);
     res.json({ ok: true });
