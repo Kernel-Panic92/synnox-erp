@@ -2539,9 +2539,11 @@ app.get('/api/admin/backup/general', verificarToken, soloAdmin, async (req, res)
 
     // 2. Nómina (SQLite)
     try {
-      const nominaDbPath = path.join(LAUNCHER_DIR, 'modules', 'nomina', 'horas_extra.db');
-      if (fs.existsSync(nominaDbPath)) {
-        const nominaDb = new Database(nominaDbPath, { readonly: true });
+      const nominaDbPath = path.join(LAUNCHER_DIR, 'horas_extra.db');
+      const nominaDbAlt = path.join(LAUNCHER_DIR, 'modules', 'nomina', 'horas_extra.db');
+      const dbPath = fs.existsSync(nominaDbPath) ? nominaDbPath : (fs.existsSync(nominaDbAlt) ? nominaDbAlt : null);
+      if (dbPath) {
+        const nominaDb = new Database(dbPath, { readonly: true });
         const nominaData = {};
         for (const t of ['usuarios', 'empleados', 'nominas', 'registros', 'tipos', 'usuario_empleados', 'configuracion', 'permisos_roles', 'roles', 'dashboard_layout']) {
           try { nominaData[t] = nominaDb.prepare(`SELECT * FROM ${t}`).all(); } catch {}
@@ -2564,20 +2566,22 @@ app.get('/api/admin/backup/general', verificarToken, soloAdmin, async (req, res)
       const schemaMap = {
         logistica: { prefix: 'logistics', tablas: ['vehiculos', 'pedidos_logistica', 'rutas', 'paradas_ruta', 'configuracion', 'usuarios'] },
         proyectos: { prefix: 'projects', tablas: ['proyectos', 'tareas', 'comentarios', 'evidencias'] },
-        proveedores: { prefix: 'proveedores', tablas: ['configuracion', 'usuarios', 'areas', 'categorias_compra', 'centros_operacion', 'facturas', 'eventos_flujo'] }
+        proveedores: { prefix: '', tablas: ['configuracion', 'usuarios', 'areas', 'categorias_compra', 'centros_operacion', 'facturas', 'eventos_flujo'] }
       };
 
       // Auto-discover: check which schemas exist in DB
-      const existentes = await pgPool.query(`SELECT schema_name FROM information_schema.schemata WHERE schema_name IN ('logistics','projects','proveedores')`);
+      const existentes = await pgPool.query(`SELECT schema_name FROM information_schema.schemata WHERE schema_name IN ('logistics','projects','public')`);
       const schemasDisponibles = new Set(existentes.rows.map(r => r.schema_name));
 
       for (const [nombre, cfg] of Object.entries(schemaMap)) {
-        if (!schemasDisponibles.has(cfg.prefix)) continue;
+        const schemaCheck = cfg.prefix || 'public';
+        if (!schemasDisponibles.has(schemaCheck)) continue;
         try {
           const data = {};
           for (const t of cfg.tablas) {
             try {
-              const r = await pgPool.query(`SELECT * FROM ${cfg.prefix}.${t}`);
+              const tabla = cfg.prefix ? `${cfg.prefix}.${t}` : t;
+              const r = await pgPool.query(`SELECT * FROM ${tabla}`);
               data[t] = r.rows;
             } catch {}
           }
