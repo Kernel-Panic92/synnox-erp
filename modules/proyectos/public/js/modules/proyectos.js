@@ -220,7 +220,7 @@ async function verActa(id) {
 }
 
 function descargarActaPDF(id) {
-  window.open('/api/actas/' + id + '/pdf', '_blank');
+  window.open(BASE + '/api/actas/' + id + '/pdf', '_blank');
 }
 
 async function eliminarActa(id) {
