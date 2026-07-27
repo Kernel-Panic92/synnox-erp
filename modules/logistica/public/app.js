@@ -2,6 +2,7 @@ const BASE = location.pathname.match(/^\/(\w+)\//) ? '/' + RegExp.$1 : '';
 const API = BASE + '/api';
 
 function logout() {
+  localStorage.removeItem('synnox_theme');
   window.location.href = '/logout';
 }
 

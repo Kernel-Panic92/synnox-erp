@@ -592,12 +592,14 @@ async function cargarServerStats() {
 
 function logout() {
   localStorage.removeItem('platform_jwt');
+  localStorage.removeItem('synnox_theme');
   jwtToken = null;
   user = null;
-  show('login-screen');
-  document.getElementById('login-user').value = '';
-  document.getElementById('login-pass').value = '';
-  fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+  fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
+    show('login-screen');
+    document.getElementById('login-user').value = '';
+    document.getElementById('login-pass').value = '';
+  });
 }
 
 // ── Admin ──

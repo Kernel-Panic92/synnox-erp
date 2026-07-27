@@ -181,6 +181,7 @@ function mostrarApp() {
 function logout() {
   HF.TOKEN = null; HF.USER = null;
   localStorage.removeItem(HF.TOKEN_KEY);
+  localStorage.removeItem('synnox_theme');
   window.location.href = '/logout';
 }
 

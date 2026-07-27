@@ -1,5 +1,6 @@
 function doLogout(){
   localStorage.removeItem('vd_u');
+  localStorage.removeItem('synnox_theme');
   window.location.href = '/logout';
 }
 function showLogoutConfirm(){$('logout-modal').classList.add('open')}
