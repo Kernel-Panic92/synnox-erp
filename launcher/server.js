@@ -2599,6 +2599,94 @@ app.get('/api/admin/backup/general', verificarToken, soloAdmin, async (req, res)
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── System-wide restore ──
+const multer = require('multer');
+const uploadRestore = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } });
+
+app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.single('backup'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
+    const zip = new AdmZip(req.file.buffer);
+    const manifestEntry = zip.getEntry('manifest.json');
+    if (!manifestEntry) return res.status(400).json({ error: 'ZIP no parece un backup general de SynnoxERP (falta manifest.json)' });
+    const manifest = JSON.parse(manifestEntry.getData().toString('utf8'));
+    const stats = {};
+
+    // 1. Restore Nómina (SQLite)
+    const nominaEntry = zip.getEntry('nomina/data.json');
+    if (nominaEntry) {
+      try {
+        const data = JSON.parse(nominaEntry.getData().toString('utf8'));
+        const nominaDbPath = path.join(LAUNCHER_DIR, 'horas_extra.db');
+        const nominaDbAlt = path.join(LAUNCHER_DIR, 'modules', 'nomina', 'horas_extra.db');
+        const dbPath = fs.existsSync(nominaDbPath) ? nominaDbPath : (fs.existsSync(nominaDbAlt) ? nominaDbAlt : null);
+        if (dbPath) {
+          const nominaDb = new Database(dbPath);
+          const tablas = ['dashboard_layout', 'usuario_empleados', 'registros', 'adjuntos', 'nominas', 'empleados', 'usuarios', 'tipos', 'permisos_roles', 'roles', 'configuracion'];
+          nominaDb.transaction(() => {
+            for (const t of tablas) { try { nominaDb.prepare(`DELETE FROM ${t}`).run(); } catch {} }
+            for (const [t, rows] of Object.entries(data)) {
+              if (!rows?.length) continue;
+              const cols = Object.keys(rows[0]);
+              const placeholders = cols.map(() => '?').join(',');
+              const ins = nominaDb.prepare(`INSERT OR IGNORE INTO ${t} (${cols.join(',')}) VALUES (${placeholders})`);
+              for (const r of rows) ins.run(...cols.map(c => r[c]));
+            }
+          })();
+          nominaDb.close();
+          stats.nomina = Object.entries(data).reduce((s, [t, r]) => s + (r?.length || 0), 0);
+        }
+      } catch (e) { console.error('Restore nómina error:', e.message); }
+    }
+
+    // 2. Restore PostgreSQL modules
+    const pgPool = new Pool({
+      host: process.env.PGHOST || process.env.DB_HOST || '127.0.0.1',
+      port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
+      database: process.env.PGDATABASE || process.env.DB_NAME || 'synnox_erp',
+      user: process.env.PGUSER || process.env.DB_USER || 'postgres',
+      password: process.env.PGPASSWORD || process.env.DB_PASSWORD || undefined
+    });
+    try {
+      const restoreMap = {
+        logistica: { prefix: 'logistics', tablas: ['paradas_ruta', 'pedidos_logistica', 'rutas', 'vehiculos', 'configuracion', 'usuarios'] },
+        proyectos: { prefix: 'projects', tablas: ['evidencias', 'comentarios', 'tareas', 'proyectos'] },
+        proveedores: { prefix: '', tablas: ['eventos_flujo', 'facturas', 'centros_operacion', 'categorias_compra', 'areas', 'usuarios', 'configuracion'] }
+      };
+
+      for (const [nombre, cfg] of Object.entries(restoreMap)) {
+        const entry = zip.getEntry(`${nombre}/data.json`);
+        if (!entry) continue;
+        try {
+          const data = JSON.parse(entry.getData().toString('utf8'));
+          await pgPool.query('BEGIN');
+          for (const t of cfg.tablas) {
+            const tabla = cfg.prefix ? `${cfg.prefix}.${t}` : t;
+            await pgPool.query(`DELETE FROM ${tabla}`);
+          }
+          let count = 0;
+          for (const t of cfg.tablas) {
+            const rows = data[t];
+            if (!rows?.length) continue;
+            const tabla = cfg.prefix ? `${cfg.prefix}.${t}` : t;
+            const cols = Object.keys(rows[0]);
+            for (const r of rows) {
+              const vals = cols.map(c => r[c]);
+              const placeholders = cols.map((_, i) => `$${i + 1}`).join(',');
+              await pgPool.query(`INSERT INTO ${tabla} (${cols.join(',')}) VALUES (${placeholders}) ON CONFLICT DO NOTHING`, vals);
+              count++;
+            }
+          }
+          await pgPool.query('COMMIT');
+          stats[nombre] = count;
+        } catch (e) { await pgPool.query('ROLLBACK'); console.error(`Restore ${nombre} error:`, e.message); }
+      }
+    } finally { await pgPool.end(); }
+
+    res.json({ ok: true, manifest, stats, mensaje: 'Restauración completada' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 if (require.main === module) {
   app.use('/media', express.static(path.join(__dirname, '..', 'media')));
   app.use(express.static(path.join(__dirname, 'shell')));

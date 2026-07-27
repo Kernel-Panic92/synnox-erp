@@ -840,6 +840,16 @@
         <button class="btn btn-primary" onclick="importarConfig()" style="width:100%;justify-content:center;padding:13px;">📤 Importar configuración</button>
         <div id="import-result" style="margin-top:14px;display:none;"></div>
       </div>
+      <div class="table-wrap" style="padding:28px 32px;">
+        <div style="font-family:var(--font-head);font-weight:700;font-size:16px;margin-bottom:6px;">♻️ Restaurar backup general</div>
+        <p style="color:var(--muted);font-size:13px;margin-bottom:20px;line-height:1.6;">
+          Restaura todos los módulos desde un ZIP de backup general.
+          <strong style="color:var(--danger);">Esto sobrescribirá TODOS los datos de Nómina, Logística, Proyectos y Proveedores.</strong>
+        </p>
+        <input type="file" id="restore-general-input" accept=".zip" style="margin-bottom:16px;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);width:100%;">
+        <button class="btn btn-danger" onclick="restaurarGeneral()" style="width:100%;justify-content:center;padding:13px;">♻️ Restaurar backup general</button>
+        <div id="restore-general-msg" style="margin-top:14px;"></div>
+      </div>
     </div>
   </div>
 </div>

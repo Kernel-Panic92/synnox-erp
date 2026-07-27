@@ -2098,6 +2098,33 @@ async function backupGeneral() {
   }
 }
 
+async function restaurarGeneral() {
+  const input = document.getElementById('restore-general-input');
+  const msgEl = document.getElementById('restore-general-msg');
+  if (!input?.files?.length) { if (msgEl) msgEl.innerHTML = '<span style="color:var(--warning);">Selecciona un archivo ZIP primero</span>'; return; }
+  const ok = confirm('⚠️ Esto sobrescribirá TODOS los datos de Nómina, Logística, Proyectos y Proveedores.\n\n¿Continuar?');
+  if (!ok) return;
+  if (msgEl) msgEl.innerHTML = '<span style="color:var(--muted);">Restaurando backup general...</span>';
+  try {
+    const fd = new FormData();
+    fd.append('backup', input.files[0]);
+    const res = await fetch('/api/admin/backup/restore', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + jwtToken },
+      body: fd
+    });
+    const data = await res.json();
+    if (res.ok) {
+      const mods = Object.entries(data.stats || {}).map(([k, v]) => `${k}: ${v} registros`).join(', ');
+      if (msgEl) msgEl.innerHTML = `<span style="color:var(--success);">✓ Restauración completada — ${mods}</span>`;
+    } else {
+      if (msgEl) msgEl.innerHTML = `<span style="color:var(--danger);">✗ ${data.error || 'Error'}</span>`;
+    }
+  } catch (e) {
+    if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">✗ ' + e.message + '</span>';
+  }
+}
+
 // ── Export / Import ──
 async function exportarConfig() {
   try {
