@@ -487,20 +487,17 @@ async function ejecutarBackupScript() {
 }
 
 function initBackupListeners() {
-  if (_backupListenerInit) return;
-  _backupListenerInit = true;
   const inp = document.getElementById('restore-file');
-  if (inp) {
-    inp.addEventListener('change', function() {
-      if (!this.files || !this.files[0]) return;
-      restoreFile = this.files[0];
-      const fnEl = document.getElementById('restore-filename');
-      if (fnEl) { fnEl.textContent = '📄 ' + restoreFile.name; fnEl.style.display = 'block'; }
-      const btnRestore = document.getElementById('btn-restaurar');
-      if (btnRestore) { btnRestore.disabled = false; btnRestore.style.opacity = '1'; }
-      ['restore-ok','restore-err'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
-    });
-  }
+  if (!inp) return;
+  inp.addEventListener('change', function() {
+    if (!this.files || !this.files[0]) return;
+    restoreFile = this.files[0];
+    const fnEl = document.getElementById('restore-filename');
+    if (fnEl) { fnEl.textContent = '📄 ' + restoreFile.name; fnEl.style.display = 'block'; }
+    const btnRestore = document.getElementById('btn-restaurar');
+    if (btnRestore) { btnRestore.disabled = false; btnRestore.style.opacity = '1'; }
+    ['restore-ok','restore-err'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
+  });
 }
 
 function handleRestoreDrop(e) {
