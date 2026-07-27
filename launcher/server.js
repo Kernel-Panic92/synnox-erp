@@ -2516,6 +2516,73 @@ app.post('/api/admin/import', verificarToken, soloAdmin, (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── System-wide backup ──
+const AdmZip = require('adm-zip');
+const { Pool } = require('pg');
+
+app.get('/api/admin/backup/general', verificarToken, soloAdmin, async (req, res) => {
+  try {
+    const zip = new AdmZip();
+    const manifest = { version: 1, generado: new Date().toISOString(), modulos: [] };
+
+    // 1. Launcher (SQLite)
+    try {
+      const modulos = db.prepare('SELECT * FROM modulos_plataforma ORDER BY orden').all();
+      const configRows = db.prepare('SELECT key, value FROM config ORDER BY key').all();
+      const config = {};
+      for (const r of configRows) config[r.key] = r.value;
+      const usuarios = db.prepare('SELECT id, nombre, email, rol, activo, creado, actualizado FROM usuarios ORDER BY id').all();
+      const centros = db.prepare('SELECT * FROM centros_operacion ORDER BY id').all();
+      zip.addFile('launcher/data.json', Buffer.from(JSON.stringify({ modulos, config, usuarios, centros }, null, 2), 'utf8'));
+      manifest.modulos.push('launcher');
+    } catch (e) { console.error('Backup launcher error:', e.message); }
+
+    // 2. Nómina (SQLite)
+    try {
+      const nominaDbPath = path.join(process.cwd(), 'modules', 'nomina', 'horas_extra.db');
+      if (fs.existsSync(nominaDbPath)) {
+        const nominaDb = new Database(nominaDbPath, { readonly: true });
+        const nominaData = {};
+        for (const t of ['usuarios', 'empleados', 'nominas', 'registros', 'tipos', 'usuario_empleados', 'configuracion', 'permisos_roles', 'roles', 'dashboard_layout']) {
+          try { nominaData[t] = nominaDb.prepare(`SELECT * FROM ${t}`).all(); } catch {}
+        }
+        zip.addFile('nomina/data.json', Buffer.from(JSON.stringify(nominaData, null, 2), 'utf8'));
+        nominaDb.close();
+        manifest.modulos.push('nomina');
+      }
+    } catch (e) { console.error('Backup nómina error:', e.message); }
+
+    // 3. PostgreSQL modules (logística, proyectos, proveedores)
+    const pgPool = new Pool({ connectionString: process.env.DATABASE_URL });
+    try {
+      const schemas = {
+        logistica: { prefix: 'logistics', tablas: ['vehiculos', 'pedidos_logistica', 'rutas', 'paradas_ruta', 'configuracion', 'usuarios'] },
+        proyectos: { prefix: 'projects', tablas: ['proyectos', 'tareas', 'comentarios', 'evidencias'] },
+        proveedores: { prefix: 'proveedores', tablas: ['configuracion', 'usuarios', 'areas', 'categorias_compra', 'centros_operacion', 'facturas', 'eventos_flujo'] }
+      };
+      for (const [nombre, cfg] of Object.entries(schemas)) {
+        try {
+          const data = {};
+          for (const t of cfg.tablas) {
+            try {
+              const r = await pgPool.query(`SELECT * FROM ${cfg.prefix}.${t}`);
+              data[t] = r.rows;
+            } catch {}
+          }
+          zip.addFile(`${nombre}/data.json`, Buffer.from(JSON.stringify(data, null, 2), 'utf8'));
+          manifest.modulos.push(nombre);
+        } catch (e) { console.error(`Backup ${nombre} error:`, e.message); }
+      }
+    } finally { await pgPool.end(); }
+
+    zip.addFile('manifest.json', Buffer.from(JSON.stringify(manifest, null, 2), 'utf8'));
+    const buf = zip.toBuffer();
+    res.set('Content-Type', 'application/zip');
+    res.set('Content-Disposition', `attachment; filename="synnoxerp_backup_${new Date().toISOString().slice(0,10)}.zip"`);
+    res.send(buf);
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 if (require.main === module) {
   app.use('/media', express.static(path.join(__dirname, '..', 'media')));
   app.use(express.static(path.join(__dirname, 'shell')));

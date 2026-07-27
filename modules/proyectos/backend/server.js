@@ -34,6 +34,7 @@ import usuariosRoutes from './routes/usuarios.js';
 import evidenciasRoutes from './routes/evidencias.js';
 import aprobacionRoutes from './routes/aprobacion.js';
 import alertasRoutes from './routes/alertas.js';
+import backupRoutes from './routes/backup.js';
 
 const protect = [verifyToken, verifySession, requireModule(MODULE_ID)];
 
@@ -44,6 +45,7 @@ app.use('/api/proyectos', protect, proyectosRoutes);
 app.use('/api/tareas', protect, tareasRoutes);
 app.use('/api/tareas', protect, comentariosRoutes);
 app.use('/api/usuarios', protect, usuariosRoutes);
+app.use('/api/backup', protect, backupRoutes);
 
 // Public endpoint for centros (read from launcher via globalThis shared store)
 app.get('/api/centros', (req, res) => {

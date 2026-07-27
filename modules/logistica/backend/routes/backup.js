@@ -115,14 +115,33 @@ router.post('/restore/local/:filename', soloAdmin, async (req, res) => {
     const data = JSON.parse(entry.getData().toString('utf8'));
     await pool.query('BEGIN');
     try {
-      const tablas = ['paradas_ruta', 'pedidos_logistica', 'rutas', 'posiciones_gps', 'historico_eficiencia', 'importaciones', 'vehiculos', 'configuracion'];
-      for (const t of tablas) await pool.query(`DELETE FROM logistics.${t}`);
+      const tablasBackup = ['paradas_ruta', 'pedidos_logistica', 'rutas', 'vehiculos', 'configuracion', 'usuarios'];
+      for (const t of tablasBackup) await pool.query(`DELETE FROM logistics.${t}`);
+
       if (data.vehiculos) for (const r of data.vehiculos) await pool.query(
         `INSERT INTO logistics.vehiculos (id, placa, alias, capacidad_peso, capacidad_volumen, sede, estado) VALUES ($1,$2,$3,$4,$5,$6,$7) ON CONFLICT (id) DO UPDATE SET placa=$2`,
         [r.id, r.placa, r.alias, r.capacidad_peso, r.capacidad_volumen, r.sede, r.estado]);
+
+      if (data.pedidos_logistica) for (const r of data.pedidos_logistica) await pool.query(
+        `INSERT INTO logistics.pedidos_logistica (id, numero_factura, cliente_nombre, direccion, ciudad, barrio, telefono, latitud, longitud, valor_credito, tipo_cliente, estado, ruta_id, secuencia_en_ruta, peso_estimado, volumen_estimado, nota_entrega, vehiculo_id, sede) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19) ON CONFLICT (id) DO UPDATE SET numero_factura=$2`,
+        [r.id, r.numero_factura, r.cliente_nombre, r.direccion, r.ciudad, r.barrio, r.telefono, r.latitud, r.longitud, r.valor_credito, r.tipo_cliente, r.estado, r.ruta_id, r.secuencia_en_ruta, r.peso_estimado, r.volumen_estimado, r.nota_entrega, r.vehiculo_id, r.sede]);
+
+      if (data.rutas) for (const r of data.rutas) await pool.query(
+        `INSERT INTO logistics.rutas (id, nombre, fecha, vehiculo_id, sede, distancia_total_estimada, distancia_total_real, tiempo_estimado, tiempo_real, estado, cantidad_paradas, paradas_completadas, paradas_fallidas, eficiencia, geometria) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15::jsonb) ON CONFLICT (id) DO UPDATE SET nombre=$2`,
+        [r.id, r.nombre, r.fecha, r.vehiculo_id, r.sede, r.distancia_total_estimada, r.distancia_total_real, r.tiempo_estimado, r.tiempo_real, r.estado, r.cantidad_paradas, r.paradas_completadas, r.paradas_fallidas, r.eficiencia, r.geometria ? JSON.stringify(r.geometria) : null]);
+
+      if (data.paradas_ruta) for (const r of data.paradas_ruta) await pool.query(
+        `INSERT INTO logistics.paradas_ruta (id, ruta_id, pedido_id, secuencia, latitud, longitud, direccion, cliente_nombre, estado) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9) ON CONFLICT (id) DO UPDATE SET ruta_id=$2`,
+        [r.id, r.ruta_id, r.pedido_id, r.secuencia, r.latitud, r.longitud, r.direccion, r.cliente_nombre, r.estado]);
+
       if (data.configuracion) for (const r of data.configuracion) await pool.query(
         `INSERT INTO logistics.configuracion (clave, valor) VALUES ($1,$2) ON CONFLICT (clave) DO UPDATE SET valor=$2`,
         [r.clave, r.valor]);
+
+      if (data.usuarios) for (const r of data.usuarios) await pool.query(
+        `INSERT INTO logistics.usuarios (id, nombre, email, password_hash, rol, activo) VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT (id) DO UPDATE SET nombre=$2`,
+        [r.id, r.nombre, r.email, r.password_hash || '(restaurado)', r.rol, r.activo]);
+
       await pool.query('COMMIT');
       res.json({ exitosa: true, mensaje: 'Restauración completada' });
     } catch (e) { await pool.query('ROLLBACK'); throw e; }
