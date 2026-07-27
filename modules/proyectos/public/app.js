@@ -24,13 +24,6 @@ function getToken() {
   return c ? c.split('=')[1] : localStorage.getItem('launcher_jwt');
 }
 
-function logout() {
-  document.cookie = 'launcher_jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-  localStorage.removeItem('launcher_jwt');
-  localStorage.removeItem(HF.TOKEN_KEY);
-  window.location.href = '/';
-}
-
 function mostrarAppInterno() {
   document.getElementById('app-screen').style.display = 'block';
   navigate(HF.themePages[0] || 'dashboard');

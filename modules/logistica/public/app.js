@@ -1,11 +1,6 @@
 const BASE = location.pathname.match(/^\/(\w+)\//) ? '/' + RegExp.$1 : '';
 const API = BASE + '/api';
 
-function logout() {
-  document.cookie = 'launcher_jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-  window.location.href = '/';
-}
-
 async function api(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...opts.headers };
   const res = await fetch(API + path, { ...opts, headers });
