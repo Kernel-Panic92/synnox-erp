@@ -181,8 +181,14 @@ module.exports = function createRegistrosRouter({
       const sede = emp.sede;
       const id = uid();
 
-      db.prepare('INSERT INTO registros (id,empleadoId,nominaId,fecha,horas,tipo,aprobador,motivo,creado,concepto,observaciones,transporte,sede,creadoPor,estado,aprobadoPor,fechaAprobado) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
-        .run(id, empleadoId, nominaId, fecha, hs, tipo, aprobador, motivo, new Date().toISOString(), concepto||'', observaciones||'', parseFloat(transporte||0), sede, req.usuario.id, 'pendiente', '', '');
+      let aprobacion_pendiente = 0;
+      const nominaRow = db.prepare('SELECT fecha_limite, fin FROM nominas WHERE id = ?').get(nominaId);
+      if (nominaRow && nominaRow.fecha_limite && fecha > nominaRow.fecha_limite) {
+        aprobacion_pendiente = 1;
+      }
+
+      db.prepare('INSERT INTO registros (id,empleadoId,nominaId,fecha,horas,tipo,aprobador,motivo,creado,concepto,observaciones,transporte,sede,creadoPor,estado,aprobadoPor,fechaAprobado,aprobacion_pendiente) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+        .run(id, empleadoId, nominaId, fecha, hs, tipo, aprobador, motivo, new Date().toISOString(), concepto||'', observaciones||'', parseFloat(transporte||0), sede, req.usuario.id, 'pendiente', '', '', aprobacion_pendiente);
 
       try {
         const cfg = getConfig();

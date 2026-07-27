@@ -274,7 +274,7 @@ function renderUltimosRegistros() {
       <td data-label="Horas"><strong>${esc(decimalAHoraMinuto(r.horas))}h</strong></td>
       <td data-label="Tipo"><span class="badge badge-${esc(r.tipo)}">${esc(nombreTipo(r.tipo))}</span></td>
       <td data-label="Motivo" style="max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.motivo || '—')}</td>
-      <td data-label="Estado"><span class="badge badge-${esc(badgeEstado)}">${esc(r.estado)}</span></td>
+      <td data-label="Estado"><span class="badge badge-${esc(badgeEstado)}">${esc(r.estado)}</span>${r.aprobacion_pendiente ? ' <span class="badge badge-info" style="font-size:10px;">⏳</span>' : ''}</td>
     </tr>`;
   }).join('');
 }

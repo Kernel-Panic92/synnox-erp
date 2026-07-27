@@ -65,6 +65,13 @@ async function guardarRegistro() {
     showToast('La fecha no corresponde al período de nómina seleccionado', 'warning');
     return;
   }
+  if (nomSel && nomSel.fecha_limite && fecha > nomSel.fecha_limite) {
+    await alertar({
+      titulo: 'Fuera de fecha límite',
+      mensaje: `La fecha ${fecha} es posterior a la fecha límite (${nomSel.fecha_limite}) de este período. Esta novedad será aprobada para el próximo período de nómina.`,
+      icono: '⏰'
+    });
+  }
   let horas = 0;
   if (!esValor) {
     const horaRaw = document.getElementById('reg-horas')?.value;
@@ -481,7 +488,7 @@ async function renderHistorial(resetPage = true) {
       <td><strong>${esc(decimalAHoraMinuto(r.horas))}h</strong></td>
       <td>${esc(nombreTipo(r.tipo))}</td>
       <td style="font-weight:600;color:var(--success);">${r.transporte > 0 ? '$' + Number(r.transporte).toLocaleString('es-CO') : '—'}</td>
-      <td><span class="badge badge-${estadoCls}">${esc(r.estado)}</span></td>
+      <td><span class="badge badge-${estadoCls}">${esc(r.estado)}</span>${r.aprobacion_pendiente ? ' <span class="badge badge-info" title="Aprobación pendiente para próximo período" style="font-size:10px;margin-left:4px;">⏳ próximo</span>' : ''}</td>
       <td><div class="actions-cell" onclick="event.stopPropagation();">${actionsHtml}</div></td>
     </tr>`;
   }

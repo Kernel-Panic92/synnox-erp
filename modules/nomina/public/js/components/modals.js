@@ -57,4 +57,37 @@ function confirmar({ titulo, mensaje, icono = '⚠️', btnTxt = 'Confirmar', on
   modal.style.zIndex = '200';
 }
 
+function alertar({ titulo, mensaje, icono = '⚠️', btnTxt = 'Aceptar' }) {
+  return new Promise(resolve => {
+    const modal = document.getElementById('modal-confirm');
+    const tituloEl = document.getElementById('confirm-title');
+    const msgEl = document.getElementById('confirm-msg');
+    const iconEl = document.getElementById('confirm-icon');
+    const btnEl = document.getElementById('confirm-btn');
+
+    if (!modal || !tituloEl || !msgEl || !iconEl || !btnEl) { resolve(); return; }
+
+    tituloEl.textContent = titulo;
+    msgEl.textContent = mensaje;
+    iconEl.textContent = icono;
+    btnEl.innerHTML = btnTxt;
+    btnEl.disabled = false;
+
+    const oldObs = document.getElementById('confirm-obs-wrap');
+    if (oldObs) oldObs.remove();
+
+    const newBtn = btnEl.cloneNode(true);
+    btnEl.parentNode.replaceChild(newBtn, btnEl);
+
+    newBtn.onclick = () => {
+      cerrarModal('modal-confirm');
+      resolve();
+    };
+
+    modal.classList.add('open');
+    modal.style.display = 'flex';
+    modal.style.zIndex = '200';
+  });
+}
+
 

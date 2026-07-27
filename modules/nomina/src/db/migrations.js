@@ -125,6 +125,8 @@ module.exports = function runMigrations(db) {
     `ALTER TABLE empleados ADD COLUMN activo INTEGER NOT NULL DEFAULT 1`,
     `ALTER TABLE usuarios ADD COLUMN sede TEXT NOT NULL DEFAULT 'Principal'`,
     `ALTER TABLE usuarios ADD COLUMN cambio_password INTEGER NOT NULL DEFAULT 0`,
+    `ALTER TABLE nominas ADD COLUMN fecha_limite TEXT DEFAULT ''`,
+    `ALTER TABLE registros ADD COLUMN aprobacion_pendiente INTEGER NOT NULL DEFAULT 0`,
   ];
   for (const sql of alterMigrations) {
     try { db.exec(sql); } catch {}

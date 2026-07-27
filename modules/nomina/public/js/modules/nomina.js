@@ -46,14 +46,21 @@ function renderNomina() {
     const totalAnioH = lista.reduce((s, n) =>
       s + registros.filter(r => r.nominaId === n.id).reduce((ss, r) => ss + parseFloat(r.horas || 0), 0), 0);
 
+    const hoy = new Date().toISOString().slice(0, 10);
+
     const filas = lista.map(n => {
       const regs   = registros.filter(r => r.nominaId === n.id);
       const totalH = regs.reduce((s, r) => s + parseFloat(r.horas || 0), 0);
       const puedeEliminar = hasPerm('eliminar_nominas');
+      const puedeEditar = hasPerm('editar_nominas') || hasPerm('nominas');
+      const fechaLimite = n.fecha_limite || '';
+      const pastDeadline = fechaLimite && hoy > fechaLimite && n.fin >= hoy;
+      const isPast = n.fin < hoy;
       return `<tr>
         <td><strong>${esc(n.nombre)}</strong></td>
         <td><span class="badge badge-${esc(n.tipo)}">${esc(n.tipo)}</span></td>
         <td>${esc(fmt(n.inicio))}</td><td>${esc(fmt(n.fin))}</td>
+        <td>${puedeEditar ? `<input type="date" value="${fechaLimite}" style="width:130px;padding:4px 6px;font-size:12px;background:var(--surface);border:1px solid ${pastDeadline ? 'var(--danger)' : 'var(--border)'};border-radius:6px;color:var(--text);" onchange="guardarFechaLimite('${esc(n.id)}', this.value)" title="Fecha límite de registro">` : (fechaLimite ? esc(fmt(fecha_limite)) : '—')}${pastDeadline ? ' <span style="color:var(--danger);font-size:10px;" title="Fuera de fecha límite">⏰</span>' : ''}</td>
         <td>${esc(regs.length)}</td>
         <td><strong>${esc(totalH.toFixed(1))}h</strong></td>
         <td>${puedeEliminar ? `<button class="btn btn-sm btn-outline" onclick="editarNomina('${esc(n.id)}')">✏️</button> <button class="btn btn-sm btn-danger" onclick="eliminarNomina('${esc(n.id)}')">🗑️</button>` : ''}</td>
@@ -72,7 +79,7 @@ function renderNomina() {
       <div id="nom-body-${esc(anio)}" class="nom-anio-body${collapsed ? ' collapsed' : ''}">
         <table>
           <thead><tr>
-            <th>Nombre</th><th>Tipo</th><th>Inicio</th><th>Fin</th><th>Registros</th><th>Total Horas</th><th>Acciones</th>
+            <th>Nombre</th><th>Tipo</th><th>Inicio</th><th>Fin</th><th>Fecha Límite</th><th>Registros</th><th>Total Horas</th><th>Acciones</th>
           </tr></thead>
           <tbody>${filas}</tbody>
         </table>
@@ -146,6 +153,19 @@ async function eliminarNomina(id) {
       }
     }
   });
+}
+
+async function guardarFechaLimite(id, fechaLimite) {
+  try {
+    const res = await PUT(`/api/nominas/${id}`, { fecha_limite: fechaLimite });
+    if (res.ok) {
+      const nom = nominas.find(n => n.id === id);
+      if (nom) nom.fecha_limite = fechaLimite;
+      showToast('Fecha límite actualizada', 'success');
+    } else {
+      showToast('Error al guardar', 'error');
+    }
+  } catch(e) { showToast('Error: ' + e.message, 'error'); }
 }
 
 // Populate nomina selects in historial/registration

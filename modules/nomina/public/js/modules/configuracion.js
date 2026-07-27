@@ -7,6 +7,7 @@ async function rConfig(){
 
   const tabs = [
     { id: 'smtp', label: '📧 Correo' },
+    { id: 'calendario', label: '📅 Calendario' },
     { id: 'backup', label: '💾 Backup' },
     { id: 'seguridad', label: '🛡️ Seguridad' },
     { id: 'auditoria', label: '📋 Auditoría' },
@@ -194,6 +195,70 @@ async function renderCfgTab(){
       </div>`;
     cargarAuditoria();
   }
+  else if (cfgTab === 'calendario') {
+    try {
+      const res = await GET('/api/configuracion');
+      if (!res.ok) { c.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted)">Error cargando configuración</div>'; return; }
+      const cfg = await res.json();
+      const habilitado = cfg.calendario_habilitado === '1';
+      const diasQuincenal = cfg.calendario_dias_quincenal || '2';
+      const diasMensual = cfg.calendario_dias_mensual || '5';
+      const diasSemanal = cfg.calendario_dias_semanal || '1';
+      c.innerHTML = `
+        <div style="max-width:600px;">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:18px;margin-bottom:20px;">
+            <h4 style="margin-bottom:16px;font-family:var(--font-head);">📅 Calendario de Nómina</h4>
+            <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
+              Configura cuántos días antes del fin de período se cierra el registro de novedades.
+              Los registros realizados después de la fecha límite serán marcados para aprobación en el próximo período.
+            </p>
+            <div style="margin-bottom:16px;padding:12px;background:var(--surface2);border-radius:8px;">
+              <label style="display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;text-transform:none;letter-spacing:normal;font-weight:400;">
+                <input type="checkbox" id="cal-habilitado" style="width:auto;flex-shrink:0" ${habilitado ? 'checked' : ''}>
+                Habilitar fechas límite de registro
+              </label>
+            </div>
+            <div id="cal-dias-config" style="${habilitado ? '' : 'opacity:0.4;pointer-events:none;'}">
+              <h4 style="margin-bottom:12px;font-family:var(--font-head);font-size:14px;">Días antes del cierre por tipo de período</h4>
+              <div class="form-grid" style="grid-template-columns:repeat(auto-fit,minmax(180px,1fr));">
+                <div class="form-group">
+                  <label style="font-size:13px;text-transform:none;letter-spacing:normal;font-weight:400;">📅 Quincenal</label>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <input type="number" id="cal-dias-quincenal" value="${diasQuincenal}" min="0" max="30" style="width:80px;">
+                    <span style="font-size:12px;color:var(--muted);">días antes del fin</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label style="font-size:13px;text-transform:none;letter-spacing:normal;font-weight:400;">📆 Mensual</label>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <input type="number" id="cal-dias-mensual" value="${diasMensual}" min="0" max="30" style="width:80px;">
+                    <span style="font-size:12px;color:var(--muted);">días antes del fin</span>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label style="font-size:13px;text-transform:none;letter-spacing:normal;font-weight:400;">🗓️ Semanal</label>
+                  <div style="display:flex;align-items:center;gap:8px;">
+                    <input type="number" id="cal-dias-semanal" value="${diasSemanal}" min="0" max="7" style="width:80px;">
+                    <span style="font-size:12px;color:var(--muted);">días antes del fin</span>
+                  </div>
+                </div>
+              </div>
+              <div style="margin-top:12px;padding:10px 12px;background:var(--surface2);border-radius:8px;font-size:12px;color:var(--muted);">
+                💡 Estos valores se aplican al generar períodos nuevos. Los períodos existentes mantienen sus fechas límite.
+              </div>
+            </div>
+            <div class="flex" style="margin-top:16px;">
+              <button class="btn btn-primary" onclick="guardarCalendario()">✓ Guardar</button>
+            </div>
+            <div id="cal-msg" style="margin-top:10px;"></div>
+          </div>
+        </div>`;
+      document.getElementById('cal-habilitado').addEventListener('change', function() {
+        const el = document.getElementById('cal-dias-config');
+        if (el) { el.style.opacity = this.checked ? '' : '0.4'; el.style.pointerEvents = this.checked ? '' : 'none'; }
+      });
+    } catch(e) { c.innerHTML = `<div style="text-align:center;padding:40px;color:var(--danger)">Error: ${esc(e.message)}</div>`; }
+  }
   else if (cfgTab === 'telemetria') {
     c.innerHTML = '<div id="diag-content" style="padding:4px 0;"><div style="text-align:center;padding:40px;color:var(--muted);">Cargando telemetría...</div></div>';
     cargarDiagnostico();
@@ -249,6 +314,27 @@ async function testSmtp() {
     }
   } catch(e) { showToast('Error: ' + e.message, 'error'); }
   setLoading('btn-test-smtp', false);
+}
+
+// ── CALENDARIO ──
+
+async function guardarCalendario() {
+  const msg = document.getElementById('cal-msg');
+  try {
+    const body = {
+      calendario_habilitado: document.getElementById('cal-habilitado').checked ? '1' : '0',
+      calendario_dias_quincenal: document.getElementById('cal-dias-quincenal').value,
+      calendario_dias_mensual: document.getElementById('cal-dias-mensual').value,
+      calendario_dias_semanal: document.getElementById('cal-dias-semanal').value
+    };
+    const res = await PUT('/api/configuracion', body);
+    if (res.ok) {
+      msg.innerHTML = '<span style="color:var(--success)">✓ Configuración guardada</span>';
+      showToast('Calendario actualizado', 'success');
+    } else {
+      msg.innerHTML = '<span style="color:var(--danger)">✗ Error al guardar</span>';
+    }
+  } catch(e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
 }
 
 // ── BACKUP ──

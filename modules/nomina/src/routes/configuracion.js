@@ -23,7 +23,7 @@ module.exports = function createConfiguracionRouter({ db, getConfig, encryptSmtp
   });
 
   router.put('/', soloAdmin, (req, res) => {
-    const campos = ['smtp_host','smtp_puerto','smtp_tls','smtp_usuario','smtp_password','smtp_remitente','reset_asunto','reset_cuerpo','smtp_heredar','launcher_url'];
+    const campos = ['smtp_host','smtp_puerto','smtp_tls','smtp_usuario','smtp_password','smtp_remitente','reset_asunto','reset_cuerpo','smtp_heredar','launcher_url','calendario_habilitado','calendario_dias_quincenal','calendario_dias_mensual','calendario_dias_semanal'];
     for (const campo of campos) {
       if (req.body[campo] !== undefined) {
         if (campo === 'smtp_password' && req.body[campo].includes('•')) continue;
