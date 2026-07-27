@@ -38,9 +38,8 @@ router.get('/:id', soloAdmin, async (req, res) => {
 
     const tareas = await pool.query(
       `SELECT t.titulo, t.estado, t.prioridad, t.fecha_limite, t.horas_invertidas,
-              t.estado_aprobacion, u.nombre AS asignado_nombre
+              t.estado_aprobacion, t.asignado_a
        FROM projects.tareas t
-       LEFT JOIN (SELECT id, nombre FROM users) u ON u.id = t.asignado_a
        WHERE t.proyecto_id = $1
        ORDER BY t.estado, t.prioridad`, [acta.proyecto_id]);
 
@@ -80,9 +79,8 @@ router.get('/:id/pdf', soloAdmin, async (req, res) => {
 
     const tareas = await pool.query(
       `SELECT t.titulo, t.estado, t.prioridad, t.fecha_limite, t.horas_invertidas,
-              u.nombre AS asignado_nombre
+              t.asignado_a
        FROM projects.tareas t
-       LEFT JOIN (SELECT id, nombre FROM users) u ON u.id = t.asignado_a
        WHERE t.proyecto_id = $1
        ORDER BY t.estado, t.prioridad`, [acta.proyecto_id]);
 
@@ -155,7 +153,7 @@ router.get('/:id/pdf', soloAdmin, async (req, res) => {
       doc.text(t.titulo || '—', 55, doc.y, { width: 200, ellipsis: true });
       doc.text(t.estado, 260, doc.y, { width: 80 });
       doc.text(t.prioridad, 345, doc.y, { width: 70 });
-      doc.text(t.asignado_nombre || 'Sin asignar', 420, doc.y, { width: 145, ellipsis: true });
+      doc.text(t.asignado_a ? 'Usuario #' + t.asignado_a : 'Sin asignar', 420, doc.y, { width: 145, ellipsis: true });
       doc.y += 16;
       rowIdx++;
     }
