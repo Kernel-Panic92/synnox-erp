@@ -2593,3 +2593,52 @@ async function loadGmapsKeyStatus() {
   } catch {}
 }
 
+// ── Dynamic Table Filters ──
+function initTableFilters(tableId, opts = {}) {
+  const table = document.getElementById(tableId);
+  if (!table) return;
+  const tbody = table.querySelector('tbody');
+  if (!tbody) return;
+  const rows = Array.from(tbody.querySelectorAll('tr'));
+  const searchCols = opts.searchCols || null;
+  const statusKey = opts.statusKey || 'status';
+
+  function applyFilters() {
+    const search = (opts.searchId ? document.getElementById(opts.searchId) : document.querySelector('.table-filters .filter-input'))?.value.toLowerCase() || '';
+    const status = (opts.statusId ? document.getElementById(opts.statusId) : document.querySelector('.table-filters .filter-select'))?.value || '';
+    let visible = 0;
+    rows.forEach(row => {
+      let matchSearch = true;
+      if (search) {
+        if (searchCols && searchCols.length) {
+          matchSearch = searchCols.some(ci => {
+            const cell = row.children[ci];
+            return cell && cell.textContent.toLowerCase().includes(search);
+          });
+        } else {
+          matchSearch = row.textContent.toLowerCase().includes(search);
+        }
+      }
+      const matchStatus = !status || row.dataset[statusKey] === status;
+      const show = matchSearch && matchStatus;
+      row.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    const countEl = opts.countId ? document.getElementById(opts.countId) : document.querySelector('.table-filters .filter-count');
+    if (countEl) countEl.textContent = `Mostrando ${visible} de ${rows.length} registros`;
+  }
+
+  const searchEl = opts.searchId ? document.getElementById(opts.searchId) : document.querySelector('.table-filters .filter-input');
+  const statusEl = opts.statusId ? document.getElementById(opts.statusId) : document.querySelector('.table-filters .filter-select');
+  if (searchEl) searchEl.addEventListener('input', applyFilters);
+  if (statusEl) statusEl.addEventListener('change', applyFilters);
+  applyFilters();
+  return { applyFilters, rows };
+}
+
+function clearTableFilters(containerId) {
+  const root = containerId ? document.getElementById(containerId) : document;
+  const inputs = root.querySelectorAll('.table-filters .filter-input, .table-filters .filter-select');
+  inputs.forEach(el => { el.value = ''; el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input')); });
+}
+
