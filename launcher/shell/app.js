@@ -2078,6 +2078,26 @@ async function restartMcpModule(moduleId) {
   } catch (e) { listEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + e.message + '</span>'; }
 }
 
+// ── Backup general del sistema ──
+async function backupGeneral() {
+  const msgEl = document.getElementById('backup-general-msg');
+  if (msgEl) msgEl.innerHTML = '<span style="color:var(--muted);">Generando backup del sistema...</span>';
+  try {
+    const res = await fetch('/api/admin/backup/general', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || 'Error al generar backup'); }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'synnoxerp_backup_' + new Date().toISOString().slice(0, 10) + '.zip';
+    a.click();
+    URL.revokeObjectURL(url);
+    if (msgEl) msgEl.innerHTML = '<span style="color:var(--success);">✓ Backup descargado</span>';
+  } catch (e) {
+    if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">✗ ' + e.message + '</span>';
+  }
+}
+
 // ── Export / Import ──
 async function exportarConfig() {
   try {
