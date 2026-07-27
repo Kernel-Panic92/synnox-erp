@@ -537,6 +537,12 @@ app.post('/api/auth/logout', (req, res) => {
   res.json({ ok: true });
 });
 
+app.get('/logout', (req, res) => {
+  const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
+  res.clearCookie('launcher_jwt', { path: '/', httpOnly: true, secure: isSecure, sameSite: 'lax' });
+  res.redirect('/');
+});
+
 // ── Refresh token (sliding session) ──
 app.post('/api/auth/refresh', verificarToken, (req, res) => {
   const userWithPerms = getUserWithPermissions(db, req.usuario.id);

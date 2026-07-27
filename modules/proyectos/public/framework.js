@@ -181,9 +181,7 @@ function mostrarApp() {
 function logout() {
   HF.TOKEN = null; HF.USER = null;
   localStorage.removeItem(HF.TOKEN_KEY);
-  fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
-    window.location.href = '/';
-  });
+  window.location.href = '/logout';
 }
 
 function mostrarLogoutConfirm() { document.getElementById('modal-logout').classList.add('show'); }

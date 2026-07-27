@@ -592,13 +592,12 @@ async function cargarServerStats() {
 
 function logout() {
   localStorage.removeItem('platform_jwt');
-  fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
-    jwtToken = null;
-    user = null;
-    show('login-screen');
-    document.getElementById('login-user').value = '';
-    document.getElementById('login-pass').value = '';
-  });
+  jwtToken = null;
+  user = null;
+  show('login-screen');
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+  fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
 }
 
 // ── Admin ──

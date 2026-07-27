@@ -11,8 +11,7 @@ async function mostrarLogoutConfirm() {
       registros = [];
       usuarios = [];
       centros = [];
-      await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-      window.location.href = '/';
+      window.location.href = '/logout';
     }
   });
 }

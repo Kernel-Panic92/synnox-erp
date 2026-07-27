@@ -2,9 +2,7 @@ const BASE = location.pathname.match(/^\/(\w+)\//) ? '/' + RegExp.$1 : '';
 const API = BASE + '/api';
 
 function logout() {
-  fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
-    window.location.href = '/';
-  });
+  window.location.href = '/logout';
 }
 
 async function api(path, opts = {}) {

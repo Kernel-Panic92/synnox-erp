@@ -1,8 +1,6 @@
 function doLogout(){
   localStorage.removeItem('vd_u');
-  fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
-    window.location.href = '/';
-  });
+  window.location.href = '/logout';
 }
 function showLogoutConfirm(){$('logout-modal').classList.add('open')}
 function closeLogoutConfirm(){$('logout-modal').classList.remove('open')}
