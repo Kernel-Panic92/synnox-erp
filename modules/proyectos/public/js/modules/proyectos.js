@@ -42,8 +42,9 @@ async function cargarProyectos() {
           </div>
           <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${pct}% completado (${completadas}/${total})</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            ${p.estado_aprobacion !== 'aprobada' && usuario?.rol === 'admin' ? `<button class="btn btn-xs btn-success" onclick="event.stopPropagation();aprobarProyecto(${p.id})">Aprobar</button>` : ''}
+            ${p.estado !== 'completado' && (p.estado_aprobacion !== 'aprobada') && usuario?.rol === 'admin' ? `<button class="btn btn-xs btn-success" onclick="event.stopPropagation();aprobarProyecto(${p.id})">Aprobar</button>` : ''}
             ${p.estado_aprobacion === 'aprobada' && usuario?.rol === 'admin' ? `<button class="btn btn-xs btn-danger" onclick="event.stopPropagation();rechazarProyecto(${p.id})">Desaprobar</button>` : ''}
+            ${p.estado !== 'completado' && usuario?.rol === 'admin' ? `<button class="btn btn-xs btn-warning" onclick="event.stopPropagation();cerrarProyecto(${p.id})">Cerrar</button>` : ''}
             <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();abrirModalProyecto(${p.id})">Editar</button>
             <button class="btn btn-xs btn-danger" onclick="event.stopPropagation();eliminarProyecto(${p.id})">Eliminar</button>
           </div>
@@ -136,5 +137,98 @@ async function rechazarProyecto(id) {
     await api('/proyectos/' + id + '/rechazar', { method: 'PUT' });
     toast('Proyecto desaprobado', 'warning');
     cargarProyectos();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ── Actas de cierre ──
+async function cargarActas() {
+  try {
+    const data = await api('/actas');
+    const actas = data.actas || [];
+    document.getElementById('actas-count').textContent = `${actas.length} acta(s)`;
+    const grid = document.getElementById('actas-grid');
+    if (!actas.length) {
+      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">&#x1F4CB;</div><p>No hay actas de cierre. Genera una desde la vista de un proyecto.</p></div>';
+      return;
+    }
+    grid.innerHTML = actas.map(a => `
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+          <strong style="font-size:14px">${esc(a.proyecto_nombre)}</strong>
+          <span class="badge badge-info" style="font-size:11px">Acta #${a.id}</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px">
+          ${new Date(a.created_at).toLocaleDateString('es-CO')}
+          ${a.observaciones ? ' — ' + esc(a.observaciones.slice(0, 80)) + (a.observaciones.length > 80 ? '...' : '') : ''}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <button class="btn btn-xs btn-secondary" onclick="verActa(${a.id})">👁️ Ver</button>
+          <button class="btn btn-xs btn-primary" onclick="descargarActaPDF(${a.id})">📄 PDF</button>
+          <button class="btn btn-xs btn-danger" onclick="eliminarActa(${a.id})">🗑️</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function cerrarProyecto(id) {
+  const p = _proyectos.find(x => x.id === id);
+  if (!p) return;
+  const body = `
+    <div class="form-group"><label>Resumen ejecutivo</label><textarea id="acta-resumen" rows="3" placeholder="Describe brevemente los resultados del proyecto...">${esc(p.descripcion || '')}</textarea></div>
+    <div class="form-group"><label>Observaciones de cierre</label><textarea id="acta-obs" rows="3" placeholder="Notas adicionales sobre el cierre..."></textarea></div>
+  `;
+  const actions = `<button class="btn btn-sm btn-secondary" onclick="cerrarModal()">Cancelar</button>
+    <button class="btn btn-sm btn-primary" onclick="generarActaCierre(${id})">Cerrar y generar acta</button>`;
+  abrirModal('Cerrar Proyecto', `¿Cerrar "${p.nombre}" y generar acta de cierre?`, body, actions);
+}
+
+async function generarActaCierre(proyectoId) {
+  const resumen = document.getElementById('acta-resumen')?.value || '';
+  const obs = document.getElementById('acta-obs')?.value || '';
+  try {
+    await api('/actas', { method: 'POST', body: JSON.stringify({ proyecto_id: proyectoId, resumen_ejecutivo: resumen, observaciones: obs }) });
+    await api('/proyectos/' + proyectoId, { method: 'PUT', body: JSON.stringify({ estado: 'completado' }) });
+    cerrarModal();
+    toast('Acta generada y proyecto cerrado', 'success');
+    cargarProyectos();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+async function verActa(id) {
+  try {
+    const data = await api('/actas/' + id);
+    const a = data.acta;
+    const tareas = data.tareas || [];
+    const body = `
+      <div style="font-size:13px;margin-bottom:12px">
+        <div><strong>Proyecto:</strong> ${esc(a.proyecto_nombre)}</div>
+        <div><strong>Estado:</strong> ${esc(a.proyecto_estado)}</div>
+        <div><strong>Fecha cierre:</strong> ${new Date(a.created_at).toLocaleDateString('es-CO')}</div>
+      </div>
+      ${a.resumen_ejecutivo ? `<div style="margin-bottom:12px"><strong>Resumen ejecutivo:</strong><p style="font-size:13px;color:var(--muted)">${esc(a.resumen_ejecutivo)}</p></div>` : ''}
+      <div style="margin-bottom:12px"><strong>Tareas (${tareas.length}):</strong></div>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Tarea</th><th>Estado</th><th>Prioridad</th><th>Asignado</th></tr></thead><tbody>
+        ${tareas.map(t => `<tr><td>${esc(t.titulo)}</td><td><span class="badge badge-${t.estado==='completada'?'success':'warning'}">${t.estado}</span></td><td>${esc(t.prioridad)}</td><td>${esc(t.asignado_nombre || '—')}</td></tr>`).join('')}
+      </tbody></table></div>
+      ${a.observaciones ? `<div style="margin-top:12px"><strong>Observaciones:</strong><p style="font-size:13px;color:var(--muted)">${esc(a.observaciones)}</p></div>` : ''}
+    `;
+    const actions = `<button class="btn btn-sm btn-primary" onclick="descargarActaPDF(${id})">📄 Descargar PDF</button>
+      <button class="btn btn-sm btn-secondary" onclick="cerrarModal()">Cerrar</button>`;
+    abrirModal('Acta de Cierre #' + id, '', body, actions);
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function descargarActaPDF(id) {
+  window.open('/api/actas/' + id + '/pdf', '_blank');
+}
+
+async function eliminarActa(id) {
+  const ok = await confirmarModal('Eliminar Acta', '¿Eliminar esta acta de cierre?');
+  if (!ok) return;
+  try {
+    await api('/actas/' + id, { method: 'DELETE' });
+    toast('Acta eliminada', 'success');
+    cargarActas();
   } catch (err) { toast(err.message, 'error'); }
 }

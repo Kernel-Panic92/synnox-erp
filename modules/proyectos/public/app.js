@@ -15,6 +15,7 @@ initFramework({
     tareas: () => cargarTareas(),
     tablero: () => cargarTablero(),
     reportes: () => cargarReportes(),
+    actas: () => cargarActas(),
   },
   themePages: ['dashboard']
 });

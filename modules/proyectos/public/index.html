@@ -53,6 +53,7 @@
     <div class="nav-item" data-page="tareas" onclick="navigate('tareas')"><span class="icon">&#x2705;</span> Tareas</div>
     <div class="nav-item" data-page="tablero" onclick="navigate('tablero')"><span class="icon">&#x1F5C2;</span> Tablero</div>
     <div class="nav-item" data-page="reportes" onclick="navigate('reportes')"><span class="icon">&#x1F4C8;</span> Reportes</div>
+    <div class="nav-item" data-page="actas" onclick="navigate('actas')"><span class="icon">&#x1F4CB;</span> Actas</div>
   </nav>
   <div class="sidebar-footer">
     <a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a>
@@ -119,6 +120,12 @@
       <div class="page" id="page-reportes">
         <div class="stats-row" id="rpt-estados"></div>
         <div class="card"><h3 style="margin-bottom:12px">Tareas pendientes por usuario</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Usuario</th><th>Pendientes</th><th>Porcentaje</th></tr></thead><tbody id="rpt-asignado"></tbody></table></div></div>
+      </div>
+
+      <!-- Actas de cierre -->
+      <div class="page" id="page-actas">
+        <div class="flex mb-12"><div class="spacer text-muted" id="actas-count">0 actas</div></div>
+        <div id="actas-grid" class="card-grid"></div>
       </div>
 
     </div>
