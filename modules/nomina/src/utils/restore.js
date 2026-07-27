@@ -16,8 +16,8 @@ module.exports = function createRestoreUtils({ db, encryptSmtp }) {
       }
       if (data.nominas?.length) {
         db.prepare('DELETE FROM nominas').run();
-        const ins = db.prepare('INSERT OR REPLACE INTO nominas VALUES (?,?,?,?,?)');
-        data.nominas.forEach(n => { ins.run(n.id, n.nombre, n.tipo, n.inicio, n.fin); nominas++; });
+        const ins = db.prepare('INSERT OR REPLACE INTO nominas (id,nombre,tipo,inicio,fin,fecha_limite) VALUES (?,?,?,?,?,?)');
+        data.nominas.forEach(n => { ins.run(n.id, n.nombre, n.tipo, n.inicio, n.fin, n.fecha_limite||''); nominas++; });
       }
       if (data.tipos?.length) {
         db.prepare('DELETE FROM tipos').run();
@@ -26,8 +26,8 @@ module.exports = function createRestoreUtils({ db, encryptSmtp }) {
       }
       if (data.registros?.length) {
         db.prepare('DELETE FROM registros').run();
-        const ins = db.prepare('INSERT OR REPLACE INTO registros (id,empleadoId,nominaId,fecha,horas,tipo,aprobador,motivo,creado,concepto,sede,creadoPor,observaciones,transporte,estado,aprobadoPor,fechaAprobado) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
-        data.registros.forEach(r => { ins.run(r.id, r.empleadoId, r.nominaId, r.fecha, r.horas, r.tipo, r.aprobador, r.motivo, r.creado, r.concepto||'', r.sede||'Principal', r.creadoPor||'', r.observaciones||'', parseFloat(r.transporte||0), r.estado||'pendiente', r.aprobadoPor||'', r.fechaAprobado||''); registros++; });
+        const ins = db.prepare('INSERT OR REPLACE INTO registros (id,empleadoId,nominaId,fecha,horas,tipo,aprobador,motivo,creado,concepto,sede,creadoPor,observaciones,transporte,estado,aprobadoPor,fechaAprobado,aprobacion_pendiente) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)');
+        data.registros.forEach(r => { ins.run(r.id, r.empleadoId, r.nominaId, r.fecha, r.horas, r.tipo, r.aprobador, r.motivo, r.creado, r.concepto||'', r.sede||'Principal', r.creadoPor||'', r.observaciones||'', parseFloat(r.transporte||0), r.estado||'pendiente', r.aprobadoPor||'', r.fechaAprobado||'', r.aprobacion_pendiente||0); registros++; });
       }
       if (data.usuario_empleados?.length) {
         db.prepare('DELETE FROM usuario_empleados').run();
