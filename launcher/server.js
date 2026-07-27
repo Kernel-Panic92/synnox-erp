@@ -530,6 +530,13 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
   } catch (e) { console.error('[LOGIN]', e.stack || e.message); res.status(500).json({ error: 'Error interno' }); }
 });
 
+// ── Logout (clear httpOnly cookie) ──
+app.post('/api/auth/logout', (req, res) => {
+  const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
+  res.clearCookie('launcher_jwt', { path: '/', httpOnly: true, secure: isSecure, sameSite: 'lax' });
+  res.json({ ok: true });
+});
+
 // ── Refresh token (sliding session) ──
 app.post('/api/auth/refresh', verificarToken, (req, res) => {
   const userWithPerms = getUserWithPermissions(db, req.usuario.id);

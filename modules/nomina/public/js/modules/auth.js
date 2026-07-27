@@ -5,15 +5,13 @@ async function mostrarLogoutConfirm() {
     icono: '👋',
     btnTxt: 'Cerrar sesión',
     onConfirm: async () => {
-      document.cookie = 'launcher_jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-      localStorage.removeItem('he_logged_in');
-      localStorage.removeItem('platform_jwt');
       sesion = null;
       empleados = [];
       nominas = [];
       registros = [];
       usuarios = [];
       centros = [];
+      await fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
       window.location.href = '/';
     }
   });

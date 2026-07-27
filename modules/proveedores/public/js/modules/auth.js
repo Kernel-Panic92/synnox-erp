@@ -1,7 +1,8 @@
 function doLogout(){
   localStorage.removeItem('vd_u');
-  document.cookie = 'launcher_jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; SameSite=Lax';
-  window.location.href = '/';
+  fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
+    window.location.href = '/';
+  });
 }
 function showLogoutConfirm(){$('logout-modal').classList.add('open')}
 function closeLogoutConfirm(){$('logout-modal').classList.remove('open')}
