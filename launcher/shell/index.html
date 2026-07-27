@@ -392,6 +392,11 @@
         <button class="btn btn-sm" onclick="showUserForm()">+ Nuevo</button>
       </div>
     </div>
+    <div class="table-filters">
+      <div class="filter-group"><input type="text" class="filter-input" id="fil-usuarios-q" placeholder="🔍 Buscar nombre, email..."></div>
+      <div class="filter-group"><select class="filter-select" id="fil-usuarios-rol"><option value="">Todos los roles</option><option value="admin">Admin</option><option value="rrhh">RRHH</option><option value="gerencia">Gerencia</option><option value="operador">Operador</option><option value="consulta">Consulta</option></select></div>
+      <div class="filter-actions"><span class="filter-count" id="usuarios-count"></span><button class="btn btn-sm btn-secondary" onclick="clearTableFilters('tab-usuarios')">Limpiar</button></div>
+    </div>
     <div style="overflow-x:auto;">
       <table id="users-table">
         <thead><tr><th>ID</th><th>Nombre</th><th>Email</th><th>Rol</th><th>Perfil</th><th>Centro</th><th>Estado</th><th>Acción</th></tr></thead>
@@ -415,6 +420,10 @@
     <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
       <div style="font-size:var(--fs);font-weight:600;">Centros de operación</div>
       <button class="btn btn-sm" onclick="showCentroForm()">+ Nuevo</button>
+    </div>
+    <div class="table-filters">
+      <div class="filter-group"><input type="text" class="filter-input" id="fil-centros-q" placeholder="🔍 Buscar nombre, ciudad..."></div>
+      <div class="filter-actions"><span class="filter-count" id="centros-count"></span><button class="btn btn-sm btn-secondary" onclick="clearTableFilters('tab-centros')">Limpiar</button></div>
     </div>
     <div style="overflow-x:auto;">
       <table id="centros-table">
@@ -478,6 +487,10 @@
           <button class="btn btn-sm" onclick="showModuloForm()">+ Nuevo</button>
           <button class="btn btn-sm" onclick="showScaffoldModal()" style="background:var(--accent);color:#fff;">🧩 Scaffold</button>
       </div>
+    </div>
+    <div class="table-filters">
+      <div class="filter-group"><input type="text" class="filter-input" id="fil-modulos-q" placeholder="🔍 Buscar nombre, URL..."></div>
+      <div class="filter-actions"><span class="filter-count" id="modulos-count"></span><button class="btn btn-sm btn-secondary" onclick="clearTableFilters('tab-modulos')">Limpiar</button></div>
     </div>
     <div style="overflow-x:auto;">
       <table id="modulos-table">

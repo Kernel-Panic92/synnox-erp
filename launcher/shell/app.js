@@ -639,6 +639,7 @@ async function loadUsers() {
         </td>
       </tr>
     `).join('');
+    initTableFilters('users-table', { searchId: 'fil-usuarios-q', statusId: 'fil-usuarios-rol', statusKey: 'rol', countId: 'usuarios-count', searchCols: [1, 2] });
   } catch (e) {
     toast(e.message, 'error');
   }
@@ -888,6 +889,7 @@ async function loadModulos() {
         </td>
       </tr>
     `).join('');
+    initTableFilters('modulos-table', { searchId: 'fil-modulos-q', countId: 'modulos-count', searchCols: [1, 2] });
   } catch (e) {
     document.querySelector('#modulos-table tbody').innerHTML = '<tr><td colspan="7" style="color:var(--danger);">Error: ' + e.message + '</td></tr>';
   }
@@ -2372,6 +2374,7 @@ async function loadCentros() {
         </td>
       </tr>
     `).join('');
+    initTableFilters('centros-table', { searchId: 'fil-centros-q', countId: 'centros-count', searchCols: [1, 3] });
   } catch (e) { toast('Error cargando centros de operación', 'error'); }
 }
 
