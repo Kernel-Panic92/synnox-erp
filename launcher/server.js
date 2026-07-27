@@ -533,13 +533,13 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
 // ── Logout (clear httpOnly cookie) ──
 app.post('/api/auth/logout', (req, res) => {
   const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
-  res.clearCookie('launcher_jwt', { path: '/', httpOnly: true, secure: isSecure, sameSite: 'lax' });
+  res.setHeader('Set-Cookie', `launcher_jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax${isSecure ? '; Secure' : ''}`);
   res.json({ ok: true });
 });
 
 app.get('/logout', (req, res) => {
   const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
-  res.clearCookie('launcher_jwt', { path: '/', httpOnly: true, secure: isSecure, sameSite: 'lax' });
+  res.setHeader('Set-Cookie', `launcher_jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax${isSecure ? '; Secure' : ''}`);
   res.redirect('/');
 });
 
