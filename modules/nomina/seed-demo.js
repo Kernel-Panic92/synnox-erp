@@ -151,11 +151,9 @@ db.transaction(() => {
   db.prepare('DELETE FROM nominas').run();
   db.prepare('DELETE FROM empleados').run();
   db.prepare('DELETE FROM usuarios').run();
-  db.prepare('DELETE FROM centros').run();
 })();
 console.log('   ✓ Datos anteriores eliminados\n');
 
-const insertCenter = db.prepare('INSERT INTO centros (id, nombre, activo, creado) VALUES (?, ?, ?, ?)');
 const insertUser = db.prepare('INSERT INTO usuarios (id, nombre, email, password, rol, sede, activo, cambio_password, creado) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
 const insertEmployee = db.prepare('INSERT INTO empleados (id, nombre, cedula, cargo, departamento, sede, email, telefono, tipo_vinculacion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)');
 const insertPayroll = db.prepare('INSERT INTO nominas (id, nombre, tipo, inicio, fin) VALUES (?, ?, ?, ?, ?)');
@@ -164,10 +162,6 @@ const insertAssignment = db.prepare('INSERT INTO usuario_empleados (usuarioId, e
 
 try {
   db.transaction(() => {
-    console.log('📍 Insertando centros de operación...');
-    centers.forEach(c => insertCenter.run(c.id, c.nombre, c.activo, c.creado));
-    console.log(`   ✓ ${centers.length} centros creados`);
-
     console.log('👥 Insertando usuarios...');
     users.forEach(u => insertUser.run(u.id, u.nombre, u.email, u.password, u.rol, u.sede, u.activo, u.cambio_password, u.creado));
     console.log(`   ✓ ${users.length} usuarios creados (2 admin, 4 rrhh, 4 gerencia, 8 operador, 2 consulta)`);

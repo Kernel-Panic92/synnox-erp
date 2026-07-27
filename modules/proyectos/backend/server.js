@@ -45,6 +45,11 @@ app.use('/api/tareas', protect, tareasRoutes);
 app.use('/api/tareas', protect, comentariosRoutes);
 app.use('/api/usuarios', protect, usuariosRoutes);
 
+// Public endpoint for centros (read from launcher via globalThis shared store)
+app.get('/api/centros', (req, res) => {
+  res.json(globalThis.__centrosCache || []);
+});
+
 app.get('/api/auth/me', verifyToken, (req, res) => {
   res.json({
     id: req.user.id,

@@ -164,7 +164,7 @@ async function toolDashboard() {
 }
 
 async function toolListarVehiculos({ sede, estado } = {}) {
-  let sql = 'SELECT v.*, s.nombre AS sede_nombre FROM logistics.vehiculos v LEFT JOIN logistics.sedes s ON s.nombre = v.sede WHERE 1=1';
+  let sql = 'SELECT v.* FROM logistics.vehiculos v WHERE 1=1';
   const params = [];
   let idx = 1;
   if (sede) { params.push(sede); sql += ` AND v.sede=$${idx++}`; }
@@ -175,8 +175,8 @@ async function toolListarVehiculos({ sede, estado } = {}) {
 }
 
 async function toolListarSedes() {
-  const { rows } = await pool.query('SELECT * FROM logistics.sedes WHERE activo=true ORDER BY nombre');
-  return { total: rows.length, sedes: rows };
+  const centros = (globalThis.__centrosCache || []).filter(c => c.activo);
+  return { total: centros.length, sedes: centros };
 }
 
 async function toolListarPedidos({ estado, fecha, q } = {}) {
@@ -226,6 +226,7 @@ async function toolGenerarRutas({ fecha, zona, sede_id, tipo } = {}) {
 
   let depot = null;
   let sedeNombre = null;
+  const centros = globalThis.__centrosCache || [];
 
   if (zona && !sede_id) {
     const ciudadRow = await pool.query(
@@ -235,22 +236,23 @@ async function toolGenerarRutas({ fecha, zona, sede_id, tipo } = {}) {
       [zona]
     );
     if (ciudadRow.rows.length > 0) {
-      const { rows: sedeRows } = await pool.query(
-        'SELECT id, nombre, latitud, longitud FROM logistics.sedes WHERE (ciudad ILIKE $1 OR nombre ILIKE $1) AND activo=true LIMIT 1',
-        [`%${ciudadRow.rows[0].ciudad}%`]
+      const ciudad = ciudadRow.rows[0].ciudad;
+      const centro = centros.find(c =>
+        (c.ciudad && c.ciudad.toLowerCase().includes(ciudad.toLowerCase())) ||
+        (c.nombre && c.nombre.toLowerCase().includes(ciudad.toLowerCase()))
       );
-      if (sedeRows.length > 0) {
-        sedeNombre = sedeRows[0].nombre;
-        if (sedeRows[0].latitud) depot = { lat: Number(sedeRows[0].latitud), lng: Number(sedeRows[0].longitud) };
+      if (centro) {
+        sedeNombre = centro.nombre;
+        if (centro.latitud) depot = { lat: Number(centro.latitud), lng: Number(centro.longitud) };
       }
     }
   }
 
   if (sede_id) {
-    const { rows: sedeRows } = await pool.query('SELECT nombre, latitud, longitud FROM logistics.sedes WHERE id=$1 AND activo=true', [sede_id]);
-    if (sedeRows.length > 0) {
-      sedeNombre = sedeRows[0].nombre;
-      if (sedeRows[0].latitud) depot = { lat: Number(sedeRows[0].latitud), lng: Number(sedeRows[0].longitud) };
+    const centro = centros.find(c => c.id === Number(sede_id));
+    if (centro) {
+      sedeNombre = centro.nombre;
+      if (centro.latitud) depot = { lat: Number(centro.latitud), lng: Number(centro.longitud) };
     }
   }
 

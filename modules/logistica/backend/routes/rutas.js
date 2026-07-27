@@ -64,6 +64,7 @@ router.post('/generar', requirePermiso('crear', MODULE), async (req, res) => {
     let sedeNombre = sede || null;
 
     const rutaCol = tipo === 'moto' ? 'c.ruta_moto' : 'c.ruta';
+    const centros = globalThis.__centrosCache || [];
 
     // Auto-detectar sede desde la zona si no se especificó sede_id
     if (ruta && !sede_id) {
@@ -76,27 +77,26 @@ router.post('/generar', requirePermiso('crear', MODULE), async (req, res) => {
       );
       if (ciudadRow.rows.length > 0) {
         const ciudad = ciudadRow.rows[0].ciudad;
-        const sedeRow = await pool.query(
-          `SELECT id, nombre, latitud, longitud FROM logistics.sedes
-           WHERE (ciudad ILIKE $1 OR nombre ILIKE $1) AND activo=true LIMIT 1`,
-          [`%${ciudad}%`]
+        const centro = centros.find(c =>
+          (c.ciudad && c.ciudad.toLowerCase().includes(ciudad.toLowerCase())) ||
+          (c.nombre && c.nombre.toLowerCase().includes(ciudad.toLowerCase()))
         );
-        if (sedeRow.rows.length > 0) {
-          sedeNombre = sedeRow.rows[0].nombre;
-          if (sedeRow.rows[0].latitud && sedeRow.rows[0].longitud) {
-            depot = { lat: Number(sedeRow.rows[0].latitud), lng: Number(sedeRow.rows[0].longitud) };
+        if (centro) {
+          sedeNombre = centro.nombre;
+          if (centro.latitud && centro.longitud) {
+            depot = { lat: Number(centro.latitud), lng: Number(centro.longitud) };
           }
-          console.log(`[rutas/generar] sede auto-detectada para zona "${ruta}": "${sedeNombre}" (${ciudad})`);
+          console.log(`[rutas/generar] centro auto-detectado para zona "${ruta}": "${sedeNombre}" (${ciudad})`);
         }
       }
     }
 
     if (sede_id) {
-      const sedeRow = await pool.query('SELECT nombre, latitud, longitud FROM logistics.sedes WHERE id=$1 AND activo=true', [sede_id]);
-      if (sedeRow.rows.length === 0) return res.status(404).json({ error: 'Sede no encontrada o inactiva' });
-      sedeNombre = sedeRow.rows[0].nombre;
-      if (sedeRow.rows[0].latitud && sedeRow.rows[0].longitud) {
-        depot = { lat: Number(sedeRow.rows[0].latitud), lng: Number(sedeRow.rows[0].longitud) };
+      const centro = centros.find(c => c.id === Number(sede_id));
+      if (!centro) return res.status(404).json({ error: 'Centro no encontrado o inactivo' });
+      sedeNombre = centro.nombre;
+      if (centro.latitud && centro.longitud) {
+        depot = { lat: Number(centro.latitud), lng: Number(centro.longitud) };
       }
     }
 
@@ -309,16 +309,16 @@ router.get('/mapa/datos', async (req, res) => {
       SELECT id, placa, alias, ultima_posicion_lat, ultima_posicion_lng, estado
       FROM logistics.vehiculos WHERE ultima_posicion_lat IS NOT NULL AND ultima_posicion_lng IS NOT NULL`);
 
-    const sedes = await pool.query(`
-      SELECT id, nombre, centro_operacion, ciudad, direccion, latitud, longitud
-      FROM logistics.sedes WHERE activo=true AND latitud IS NOT NULL AND longitud IS NOT NULL`);
+    const sedes = (globalThis.__centrosCache || [])
+      .filter(c => c.latitud && c.longitud)
+      .map(c => ({ id: c.id, nombre: c.nombre, ciudad: c.ciudad, direccion: c.direccion, latitud: c.latitud, longitud: c.longitud }));
 
     res.json({
       exitosa: true,
       rutas: rutas.rows,
       paradas,
       vehiculos: vehiculos.rows,
-      sedes: sedes.rows
+      sedes
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

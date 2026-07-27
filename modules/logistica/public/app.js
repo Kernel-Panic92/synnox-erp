@@ -291,10 +291,10 @@ async function cargarDashboard() {
     // Weather — one card per sede with coordinates
     if (weatherEl) {
       try {
-        const sedesRes = await api('/sedes');
-        const sedes = (sedesRes.sedes || []).filter(s => s.latitud && s.longitud);
-        if (sedes.length) {
-          const weatherCards = await Promise.allSettled(sedes.map(async (sede) => {
+        const centros = await api('/centros');
+        const conCoords = (Array.isArray(centros) ? centros : []).filter(s => s.latitud && s.longitud);
+        if (conCoords.length) {
+          const weatherCards = await Promise.allSettled(conCoords.map(async (sede) => {
             const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${sede.latitud}&longitude=${sede.longitud}&current=temperature_2m,weather_code,relative_humidity_2m,wind_speed_10m&timezone=America/Bogota`);
             const data = await res.json();
             const c = data.current;
@@ -411,11 +411,11 @@ async function poblarSedesVehiculo() {
   const select = document.getElementById('v-sede');
   if (!select) return;
   try {
-    const data = await api('/sedes');
-    const sedes = data.sedes || [];
+    const centros = await api('/centros');
+    const lista = Array.isArray(centros) ? centros : [];
     const sedeActual = select.dataset.sede || '';
     select.innerHTML = '<option value="">— Sin sede —</option>' +
-      sedes.map(s => `<option value="${esc(s.nombre)}" ${s.nombre===sedeActual?'selected':''}>${esc(s.nombre)}</option>`).join('');
+      lista.map(s => `<option value="${esc(s.nombre)}" ${s.nombre===sedeActual?'selected':''}>${esc(s.nombre)}</option>`).join('');
   } catch { select.innerHTML = '<option value="">Error al cargar</option>'; }
 }
 
@@ -598,7 +598,7 @@ function abrirModalPedido(data) {
      <button class="btn btn-primary" onclick="${data ? 'guardarPedido('+d.id+')' : 'guardarPedido()'}">${data ? 'Guardar cambios' : 'Crear pedido'}</button>`
   );
   setTimeout(async () => {
-    if (!_sedesCache) { const res = await api('/sedes'); _sedesCache = res.sedes || []; }
+    if (!_sedesCache) { const centros = await api('/centros'); _sedesCache = Array.isArray(centros) ? centros : []; }
     const select = document.getElementById('p-sede');
     if (select) {
       select.innerHTML = '<option value="">Seleccione sede</option>' +
@@ -698,119 +698,44 @@ async function guardarCliente(id) {
   } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
-/* ── CRUD: Sedes ── */
+/* ── Sedes (lectura desde Launcher) ── */
 async function cargarSedes() {
   const tbody = document.querySelector('#tbl-sedes tbody');
-  const filtro = document.getElementById('filtro-sedes').value.trim();
+  const filtro = document.getElementById('filtro-sedes')?.value.trim() || '';
   try {
-    const data = await api('/sedes' + (filtro ? '?q=' + encodeURIComponent(filtro) : ''));
-    if (!data.sedes?.length) {
-      tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:32px;">No hay sedes registradas</td></tr>';
+    const centros = await api('/centros');
+    let lista = Array.isArray(centros) ? centros : [];
+    if (filtro) {
+      const q = filtro.toLowerCase();
+      lista = lista.filter(c =>
+        (c.nombre || '').toLowerCase().includes(q) ||
+        (c.ciudad || '').toLowerCase().includes(q) ||
+        (c.direccion || '').toLowerCase().includes(q)
+      );
+    }
+    if (!lista.length) {
+      tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:32px;">No hay sedes registradas en el Launcher</td></tr>';
       return;
     }
-    tbody.innerHTML = data.sedes.map(s => `<tr>
+    tbody.innerHTML = lista.map(s => `<tr>
       <td><strong>${esc(s.nombre)}</strong></td>
-      <td>${esc(s.centro_operacion || '—')}</td>
       <td>${esc(s.ciudad || '—')}</td>
       <td>${esc(s.direccion || '—')}</td>
       <td>${esc(s.telefono || '—')}</td>
+      <td>${esc(s.email || '—')}</td>
       <td>${s.latitud != null && s.longitud != null ? Number(s.latitud).toFixed(4)+', '+Number(s.longitud).toFixed(4) : '—'}</td>
       <td><span class="badge badge-${s.activo ? 'success' : 'danger'}">${s.activo ? 'Activo' : 'Inactivo'}</span></td>
-      <td><button class="btn btn-sm btn-secondary" onclick="editarSede(${s.id})" title="Editar">✏️</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('sede',${s.id},'${esc(s.nombre)}')" title="Eliminar">🗑️</button></td>
     </tr>`).join('');
   } catch (e) {
-    console.error('Error al cargar sedes:', e);
-    tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:32px;">Error al cargar: ' + esc(e.message) + '</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted" style="padding:32px;">Error al cargar sedes: ' + esc(e.message) + '</td></tr>';
   }
-}
-
-function abrirModalSede(data) {
-  const d = data || {};
-  fetch(BASE + '/api/centros').then(r => r.json()).then(centros => {
-    const opts = (Array.isArray(centros) ? centros : []).map(c => `<option value="${esc(c.nombre)}" ${d.centro_operacion === c.nombre ? 'selected' : ''}>${esc(c.nombre)}</option>`).join('');
-    abrirModal(
-      data ? 'Editar sede' : 'Nueva sede',
-      data ? 'Actualiza los datos de la sede' : 'Registra una nueva ubicación o punto de partida',
-      `<div class="form-grid">
-          <div class="form-group"><label>Nombre *</label><input id="s-nombre" value="${d.nombre||''}" placeholder="Medellín Centro"></div>
-          <div class="form-group"><label>Centro de Operación</label><select id="s-centro"><option value="">— Sin centro —</option>${opts}</select></div>
-          <div class="form-group"><label>Ciudad</label><input id="s-ciudad" value="${d.ciudad||''}" placeholder="Medellín"></div>
-          <div class="form-group"><label>Dirección</label><input id="s-direccion" value="${d.direccion||''}" placeholder="Carrera 50 #45-12"></div>
-          <div class="form-group"><label>Teléfono</label><input id="s-telefono" value="${d.telefono||''}" placeholder="3001234567"></div>
-          <div class="form-group"><label>Latitud</label><input type="number" step="any" id="s-lat" value="${d.latitud||''}" placeholder="6.2476"></div>
-          <div class="form-group"><label>Longitud</label><input type="number" step="any" id="s-lng" value="${d.longitud||''}" placeholder="-75.5658"></div>
-          ${data ? `<div class="form-group"><label>Activo</label><select id="s-activo">
-            <option value="true" ${d.activo!==false?'selected':''}>Activo</option>
-            <option value="false" ${d.activo===false?'selected':''}>Inactivo</option>
-          </select></div>` : ''}
-        </div>
-        <div class="mapa-pin" id="mapa-pin-sede"></div>
-        <p style="font-size:11px;color:var(--muted);margin-top:6px;">💡 Haz clic en el mapa para posicionar o arrastra el marcador</p>
-      `,
-      `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
-       <button class="btn btn-primary" onclick="${data ? 'guardarSede('+d.id+')' : 'guardarSede()'}">${data ? 'Guardar cambios' : 'Crear sede'}</button>`
-    );
-    setTimeout(() => { configurarAutocompleteSede(); initMapaPin('mapa-pin-sede', 's-lat', 's-lng'); }, 100);
-  }).catch(() => {
-    abrirModal(
-      data ? 'Editar sede' : 'Nueva sede',
-      data ? 'Actualiza los datos de la sede' : 'Registra una nueva ubicación o punto de partida',
-      `<div class="form-grid">
-          <div class="form-group"><label>Nombre *</label><input id="s-nombre" value="${d.nombre||''}" placeholder="Medellín Centro"></div>
-          <div class="form-group"><label>Centro de Operación</label><input id="s-centro" value="${d.centro_operacion||''}" placeholder="Norte, Sur, Este, Oeste..."></div>
-          <div class="form-group"><label>Ciudad</label><input id="s-ciudad" value="${d.ciudad||''}" placeholder="Medellín"></div>
-          <div class="form-group"><label>Dirección</label><input id="s-direccion" value="${d.direccion||''}" placeholder="Carrera 50 #45-12"></div>
-          <div class="form-group"><label>Teléfono</label><input id="s-telefono" value="${d.telefono||''}" placeholder="3001234567"></div>
-          <div class="form-group"><label>Latitud</label><input type="number" step="any" id="s-lat" value="${d.latitud||''}" placeholder="6.2476"></div>
-          <div class="form-group"><label>Longitud</label><input type="number" step="any" id="s-lng" value="${d.longitud||''}" placeholder="-75.5658"></div>
-          ${data ? `<div class="form-group"><label>Activo</label><select id="s-activo">
-            <option value="true" ${d.activo!==false?'selected':''}>Activo</option>
-            <option value="false" ${d.activo===false?'selected':''}>Inactivo</option>
-          </select></div>` : ''}
-        </div>
-        <div class="mapa-pin" id="mapa-pin-sede"></div>
-        <p style="font-size:11px;color:var(--muted);margin-top:6px;">💡 Haz clic en el mapa para posicionar o arrastra el marcador</p>
-      `,
-      `<button class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
-       <button class="btn btn-primary" onclick="${data ? 'guardarSede('+d.id+')' : 'guardarSede()'}">${data ? 'Guardar cambios' : 'Crear sede'}</button>`
-    );
-    setTimeout(() => { configurarAutocompleteSede(); initMapaPin('mapa-pin-sede', 's-lat', 's-lng'); }, 100);
-  });
-}
-
-function editarSede(id) {
-  api('/sedes/' + id).then(d => abrirModalSede(d.sede)).catch(e => mostrarAlerta(e.message, 'error'));
-}
-
-async function guardarSede(id) {
-  const centroEl = document.getElementById('s-centro');
-  const body = {
-    nombre: document.getElementById('s-nombre').value.trim(),
-    centro_operacion: centroEl ? (centroEl.tagName === 'SELECT' ? centroEl.value : centroEl.value.trim()) : null,
-    ciudad: document.getElementById('s-ciudad').value.trim(),
-    direccion: document.getElementById('s-direccion').value.trim(),
-    telefono: document.getElementById('s-telefono').value.trim(),
-    latitud: document.getElementById('s-lat').value ? +document.getElementById('s-lat').value : null,
-    longitud: document.getElementById('s-lng').value ? +document.getElementById('s-lng').value : null
-  };
-  if (id) {
-    const activoEl = document.getElementById('s-activo');
-    if (activoEl) body.activo = activoEl.value === 'true';
-  }
-  if (!body.nombre) { mostrarAlerta('El nombre es requerido', 'warning'); return; }
-  try {
-    if (id) await api('/sedes/' + id, { method: 'PUT', body: JSON.stringify(body) });
-    else await api('/sedes', { method: 'POST', body: JSON.stringify(body) });
-    cerrarModal();
-    cargarSedes();
-  } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
 
 /* ── Eliminar (genérico) ── */
 async function confirmarEliminar(tipo, id, label) {
   const ok = await confirmarModal('Confirmar eliminación', label ? `¿Eliminar ${tipo} "${label}"?` : `¿Eliminar ${tipo} #${id}?`);
   if (!ok) return;
-  const endpoints = { vehiculo: '/vehiculos/', pedido: '/pedidos/', cliente: '/clientes/', sede: '/sedes/', ruta: '/rutas/' };
+  const endpoints = { vehiculo: '/vehiculos/', pedido: '/pedidos/', cliente: '/clientes/', ruta: '/rutas/' };
   const ep = endpoints[tipo];
   if (!ep) return;
   try {
@@ -818,7 +743,6 @@ async function confirmarEliminar(tipo, id, label) {
     if (tipo === 'vehiculo') cargarVehiculos();
     else if (tipo === 'pedido') cargarPedidos();
     else if (tipo === 'cliente') cargarClientes();
-    else if (tipo === 'sede') cargarSedes();
     else if (tipo === 'ruta') cargarRutas();
   } catch (e) { mostrarAlerta(e.message, 'error'); }
 }
@@ -846,8 +770,8 @@ async function asignarMasivoPedido() {
   const ids = Array.from(checks).map(c => +c.value);
 
   if (!_sedesCache || !_sedesCache.length) {
-    const res = await api('/sedes');
-    _sedesCache = res.sedes || [];
+    const centros = await api('/centros');
+    _sedesCache = Array.isArray(centros) ? centros : [];
   }
   if (!_vehiculosCache || !_vehiculosCache.length) {
     const res = await api('/vehiculos');
@@ -1028,7 +952,7 @@ async function poblarSedesRutas() {
   const select = document.getElementById('filtro-rutas-sede');
   if (!select) return;
   try {
-    if (!_sedesCache) { const d = await api('/sedes'); _sedesCache = d.sedes || []; }
+    if (!_sedesCache) { const centros = await api('/centros'); _sedesCache = Array.isArray(centros) ? centros : []; }
     const actual = select.value;
     select.innerHTML = '<option value="">Todas las sedes</option>' +
       _sedesCache.map(s => `<option value="${esc(s.nombre)}" ${s.nombre===actual?'selected':''}>${esc(s.nombre)}</option>`).join('');
@@ -1848,45 +1772,6 @@ function configurarAutocompleteCliente() {
     }
     if (place.formatted_address) input.value = place.formatted_address;
     actualizarMapaPin('mapa-pin-cliente', lat, lng);
-  });
-}
-
-function configurarAutocompleteSede() {
-  if (typeof google === 'undefined' || !window.googleMapsListo) {
-    const input = document.getElementById('s-direccion');
-    if (input && !input._aviso) {
-      input._aviso = true;
-      input.placeholder = '🔑 Configura API Key en Ajustes → Mapas';
-      input.title = 'Ve a Configuración → Mapas para ingresar tu API key de Google Maps';
-    }
-    return;
-  }
-  const input = document.getElementById('s-direccion');
-  if (!input || input._autocomplete) return;
-
-  const ac = new google.maps.places.Autocomplete(input, {
-    componentRestrictions: { country: 'co' },
-    fields: ['address_components', 'formatted_address', 'geometry', 'name']
-  });
-  input._autocomplete = true;
-
-  ac.addListener('place_changed', () => {
-    const place = ac.getPlace();
-    if (!place.geometry) return;
-    const lat = place.geometry.location.lat();
-    const lng = place.geometry.location.lng();
-    document.getElementById('s-lat').value = lat;
-    document.getElementById('s-lng').value = lng;
-    for (const comp of place.address_components || []) {
-      if (comp.types.includes('locality') || comp.types.includes('administrative_area_level_2')) {
-        document.getElementById('s-ciudad').value = comp.long_name;
-        break;
-      } else if (comp.types.includes('administrative_area_level_1')) {
-        document.getElementById('s-ciudad').value = comp.long_name;
-      }
-    }
-    if (place.formatted_address) input.value = place.formatted_address;
-    actualizarMapaPin('mapa-pin-sede', lat, lng);
   });
 }
 
@@ -2806,11 +2691,12 @@ async function inicializarReportes() {
   const hace30 = new Date(Date.now() - 30 * 864e5).toISOString().split('T')[0];
   document.getElementById('rpt-fecha-desde').value = hace30;
   document.getElementById('rpt-fecha-hasta').value = hoy;
-  // Poblar sedes
+  // Poblar sedes (centros del launcher)
   try {
-    const sedes = await api('/sedes');
+    const centros = await api('/centros');
+    const lista = Array.isArray(centros) ? centros : [];
     const sel = document.getElementById('rpt-sede');
-    sel.innerHTML = '<option value="">Todas</option>' + (sedes.sedes||[]).map(s => `<option value="${esc(s.nombre)}">${esc(s.nombre)}</option>`).join('');
+    sel.innerHTML = '<option value="">Todas</option>' + lista.map(s => `<option value="${esc(s.nombre)}">${esc(s.nombre)}</option>`).join('');
   } catch {}
   // Poblar vehículos
   try {

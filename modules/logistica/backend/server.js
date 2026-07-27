@@ -38,7 +38,6 @@ import configRoutes from './routes/configuracion.js';
 import backupRoutes from './routes/backup.js';
 import auditoriaRoutes from './routes/auditoria.js';
 import clientesRoutes from './routes/clientes.js';
-import sedesRoutes from './routes/sedes.js';
 import rutasPdfRoutes from './routes/rutas-pdf.js';
 import reportesRoutes from './routes/reportes.js';
 import widetechRoutes from './routes/widetech.js';
@@ -88,7 +87,6 @@ app.use('/api/clientes', protect, clientesRoutes);
 app.get('/api/centros', (req, res) => {
   res.json(globalThis.__centrosCache || []);
 });
-app.use('/api/sedes', protect, sedesRoutes);
 app.use('/api/rutas-pdf', protect, rutasPdfRoutes);
 app.use('/api/reportes', protect, reportesRoutes);
 app.use('/api/widetech', [verifyToken, requireModule(MODULE_ID), requirePermiso('configurar', MODULE_ID)], widetechRoutes);

@@ -2,13 +2,6 @@
 import bcrypt from 'bcryptjs';
 import pool from '../config/db.js';
 
-const sedes = [
-  { nombre: 'Bodega Principal Cali', direccion: 'Cra 1 # 26-85, Barrio San Vicente', ciudad: 'Cali', latitud: 3.4516, longitud: -76.5320, centro_operacion: 'Cali Sur' },
-  { nombre: 'Sede Norte', direccion: 'Av 3N # 52-10, Barrio Granada', ciudad: 'Cali', latitud: 3.4725, longitud: -76.5192, centro_operacion: 'Cali Norte' },
-  { nombre: 'Centro de Distribución Jamundí', direccion: 'Cra 10 # 15-40, Jamundí', ciudad: 'Jamundí', latitud: 3.2600, longitud: -76.5400, centro_operacion: 'Jamundí' },
-  { nombre: 'Sede Palmira', direccion: 'Cra 30 # 28-12, Palmira', ciudad: 'Palmira', latitud: 3.5394, longitud: -76.3036, centro_operacion: 'Palmira' },
-];
-
 const clientes = [
   { nombre: 'Almacenes Éxito S.A.', direccion: 'Cra 10 # 15-00, Cali', ciudad: 'Cali', telefono: '602-1234567', latitud: 3.4584, longitud: -76.5342, ruta: 'Sur-1', ruta_moto: 'Moto-Sur' },
   { nombre: 'Farmacias Cruz Verde', direccion: 'Av 6N # 12-34, Cali', ciudad: 'Cali', telefono: '602-2345678', latitud: 3.4652, longitud: -76.5401, ruta: 'Norte-1', ruta_moto: 'Moto-Norte' },
@@ -51,19 +44,9 @@ function randomHora() {
 }
 
 async function seedDemo() {
-  console.log('Sembrando datos demo de logistics...');
-  try {
-    // 1. Sedes
-    for (const s of sedes) {
-      await pool.query(
-        `INSERT INTO logistics.sedes (nombre, direccion, ciudad, latitud, longitud, centro_operacion, activo)
-         VALUES ($1,$2,$3,$4,$5,$6,true) ON CONFLICT (nombre) DO NOTHING`,
-        [s.nombre, s.direccion, s.ciudad, s.latitud, s.longitud, s.centro_operacion]
-      );
-    }
-    console.log(`  ${sedes.length} sedes`);
-
-    // 2. Clientes
+    console.log('Sembrando datos demo de logistics...');
+    try {
+    // 1. Clientes
     for (const c of clientes) {
       await pool.query(
         `INSERT INTO logistics.clientes (nombre, direccion, ciudad, telefono, latitud, longitud, geocodificado, ruta, ruta_moto)

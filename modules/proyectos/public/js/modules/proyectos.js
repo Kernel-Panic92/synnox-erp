@@ -1,4 +1,5 @@
 let _proyectos = [];
+let _centrosCache = null;
 
 async function cargarProyectos() {
   try {
@@ -18,6 +19,7 @@ async function cargarProyectos() {
       const pct = total > 0 ? Math.round((completadas / total) * 100) : 0;
       const estadoCls = p.estado === 'completado' ? 'badge-success' : p.estado === 'archivado' ? 'badge-muted' : 'badge-info';
       const aprobCls = p.estado_aprobacion === 'aprobada' ? 'badge-success' : p.estado_aprobacion === 'rechazada' ? 'badge-danger' : 'badge-muted';
+      const centro = _centrosCache?.find(c => c.id === p.centro_id);
       return `
         <div class="card" style="cursor:pointer">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
@@ -28,6 +30,7 @@ async function cargarProyectos() {
             </span>
           </div>
           ${p.descripcion ? `<p style="font-size:12px;color:var(--muted);margin-bottom:10px">${esc(p.descripcion)}</p>` : ''}
+          ${centro ? `<div style="font-size:11px;color:var(--muted);margin-bottom:4px">&#x1F3E2; ${esc(centro.nombre)}</div>` : ''}
           ${p.fecha_limite ? `<div style="font-size:11px;color:var(--muted);margin-bottom:8px">&#x1F4C5; ${formatDate(p.fecha_limite)}</div>` : ''}
           <div style="display:flex;gap:8px;font-size:11px;margin-bottom:8px">
             <span>&#x23F3; ${parseInt(p.tareas_pendientes) || 0}</span>
@@ -52,20 +55,35 @@ async function cargarProyectos() {
   }
 }
 
+async function cargarCentrosProyectos() {
+  if (_centrosCache) return;
+  try {
+    const centros = await api('/centros');
+    _centrosCache = Array.isArray(centros) ? centros : [];
+  } catch { _centrosCache = []; }
+}
+
 async function abrirModalProyecto(id) {
+  await cargarCentrosProyectos();
   const p = id ? _proyectos.find(x => x.id === id) : null;
   const titulo = p ? 'Editar Proyecto' : 'Nuevo Proyecto';
+  const centroOpts = (_centrosCache || []).map(c =>
+    `<option value="${c.id}" ${p?.centro_id === c.id ? 'selected' : ''}>${esc(c.nombre)}</option>`
+  ).join('');
   const body = `
     <div class="form-group"><label>Nombre *</label><input id="proy-nombre" value="${esc(p?.nombre || '')}"></div>
     <div class="form-group"><label>Descripcion</label><textarea id="proy-desc">${esc(p?.descripcion || '')}</textarea></div>
     <div class="form-row">
+      <div class="form-group"><label>Centro de Operación</label><select id="proy-centro">
+        <option value="">— Sin centro —</option>${centroOpts}
+      </select></div>
       <div class="form-group"><label>Estado</label><select id="proy-estado">
         <option value="activo" ${p?.estado === 'activo' ? 'selected' : ''}>Activo</option>
         <option value="completado" ${p?.estado === 'completado' ? 'selected' : ''}>Completado</option>
         <option value="archivado" ${p?.estado === 'archivado' ? 'selected' : ''}>Archivado</option>
       </select></div>
-      <div class="form-group"><label>Fecha Limite</label><input type="date" id="proy-fecha" value="${p?.fecha_limite ? p.fecha_limite.split('T')[0] : ''}"></div>
     </div>
+    <div class="form-group"><label>Fecha Limite</label><input type="date" id="proy-fecha" value="${p?.fecha_limite ? p.fecha_limite.split('T')[0] : ''}"></div>
   `;
   const actions = `<button class="btn btn-sm btn-secondary" onclick="cerrarModal()">Cancelar</button>
     <button class="btn btn-sm btn-primary" onclick="guardarProyecto(${id || 'null'})">Guardar</button>`;
@@ -73,11 +91,13 @@ async function abrirModalProyecto(id) {
 }
 
 async function guardarProyecto(id) {
+  const centroEl = document.getElementById('proy-centro');
   const body = {
     nombre: document.getElementById('proy-nombre').value.trim(),
     descripcion: document.getElementById('proy-desc').value.trim(),
     estado: document.getElementById('proy-estado').value,
-    fecha_limite: document.getElementById('proy-fecha').value || null
+    fecha_limite: document.getElementById('proy-fecha').value || null,
+    centro_id: centroEl?.value ? Number(centroEl.value) : null
   };
   if (!body.nombre) return toast('El nombre es requerido', 'error');
   try {
