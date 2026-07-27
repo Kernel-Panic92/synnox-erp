@@ -2553,7 +2553,13 @@ app.get('/api/admin/backup/general', verificarToken, soloAdmin, async (req, res)
     } catch (e) { console.error('Backup nómina error:', e.message); }
 
     // 3. PostgreSQL modules — discover dynamically
-    const pgPool = new Pool({ connectionString: process.env.DATABASE_URL });
+    const pgPool = new Pool({
+      host: process.env.PGHOST || process.env.DB_HOST || '127.0.0.1',
+      port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
+      database: process.env.PGDATABASE || process.env.DB_NAME || 'synnox_erp',
+      user: process.env.PGUSER || process.env.DB_USER || 'postgres',
+      password: process.env.PGPASSWORD || process.env.DB_PASSWORD || undefined
+    });
     try {
       const schemaMap = {
         logistica: { prefix: 'logistics', tablas: ['vehiculos', 'pedidos_logistica', 'rutas', 'paradas_ruta', 'configuracion', 'usuarios'] },
