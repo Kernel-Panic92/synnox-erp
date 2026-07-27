@@ -156,7 +156,7 @@ module.exports.createRestoreRouter = function({ db, AdmZip, encryptSmtp, middlew
           return res.status(400).json({error:'Formato no soportado, use .zip o .json'});
         data=JSON.parse(req.file.buffer.toString('utf8'));
       }
-      if (data.app!=='HorasExtra') return res.status(400).json({error:'Archivo de backup inválido'});
+      if (data.app!=='HorasExtra' && data.app!=='Horix') return res.status(400).json({error:'Archivo de backup inválido'});
       const resumen = restoreData(data,req.usuario.id);
       res.json({ok:true,mensaje:'Restauración completada correctamente', resumen});
     } catch(e) {console.error('❌ Error restaurando backup subido:', e.message, e.stack?.split('\n').slice(0,4).join('\n'));res.status(500).json({error:'Error restaurando backup'});}
