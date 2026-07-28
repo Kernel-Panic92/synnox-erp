@@ -17,11 +17,65 @@ Plataforma ERP modular con arquitectura monorepo unificado. Un servidor, cinco m
 
 | Módulo | Función | DB | Ruta |
 |--------|---------|-----|------|
-| **Launcher** | Login, dashboard, admin | SQLite | `/` |
-| **Proveedores** | Facturas, compras | PostgreSQL | `/proveedores/` |
-| **Logística** | Rutas, pedidos, vehículos | PostgreSQL | `/logistica/` |
-| **Nómina** | Horas extra, novedades | SQLite | `/nomina/` |
-| **Proyectos** | Gestión de proyectos y tareas | PostgreSQL | `/proyectos/` |
+| **Launcher** | Login, dashboard, admin, backups | SQLite | `/` |
+| **Proveedores** | Facturas, compras, proveedores | PostgreSQL | `/proveedores/` |
+| **Logística** | Rutas, pedidos, vehículos, clientes | PostgreSQL | `/logistica/` |
+| **Nómina** | Horas extra, novedades, calendario | SQLite | `/nomina/` |
+| **Proyectos** | Gestión de proyectos, tareas, actas | PostgreSQL | `/proyectos/` |
+
+## Features MVP v1.1.0
+
+### Launcher
+- Dashboard centralizado con widgets de todos los módulos
+- Gestión de usuarios, roles y permisos
+- Gestión de centros de operación (CRUD centralizado)
+- Backup general del sistema (ZIP con todos los módulos)
+- Backup individual por módulo
+- Import/Export de configuración
+- Telemetría y auditoría de accesos
+- Actualización del sistema vía UI
+
+### Nómina
+- Registro de horas extra con aprobación
+- Calendario de nómina con fechas límite configurables
+- Alertas al registrar fuera de fecha límite
+- Dashboard con gráficos por sede, departamento, empleado
+- Exportación SIESA (formato contable)
+- Backup/Restore completo
+
+### Logística
+- Gestión de flota vehicular
+- Pedidos con asignación masiva
+- Generación de rutas optimizadas (VRP)
+- Mapa interactivo con Leaflet
+- Reportes de eficiencia y KPIs
+- Importación de datos (SIESA, Widetech GPS)
+- Exportación a Excel
+
+### Proveedores
+- Gestión de facturas y proveedores
+- Flujo de aprobación con centro de operación
+- Categorías de compra y áreas
+- Sync de centros desde launcher
+- Backup con uploads
+
+### Proyectos
+- Gestión de proyectos y tareas (estilo Kanban)
+- Tablero visual con drag & drop
+- Actas de cierre de proyecto con exportación a PDF
+- Sistema de aprobación por gerente
+- Comentarios y evidencias en tareas
+- Alertas de vencimiento por email
+
+## Seguridad
+
+- **JWT httpOnly cookies** — previene robo de token via XSS
+- **Rate limiting** — protección contra fuerza bruta
+- **CSRF protection** — tokens en requests modificativos
+- **Password hashing** — bcryptjs
+- **CORS configurado** — por dominio
+- **Path traversal protection** — en uploads y downloads
+- **Backup automático pre-import** — antes de restaurar datos
 
 ## Instalación rápida
 
@@ -140,30 +194,15 @@ sudo apt install certbot python3-certbot-nginx
 sudo certbot --nginx -d tudominio.com
 ```
 
-## Seguridad
-
-### JWT_SECRET
-
-**NUNCA** usar valores por defecto. Si `JWT_SECRET` no está configurado, el servidor no arranca.
-
-```bash
-# Generar secret fuerte
-node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
-```
-
-### Cookie
-
-- `httpOnly: true` — previene robo de token via XSS
-- `sameSite: lax` — permite navegación desde el launcher a módulos
-- `secure: true` solo en HTTPS (producción)
-
-### Primer login
+## Primer login
 
 1. Abrir `https://tudominio.com`
 2. Login: `admin@synnoxerp.com` / contraseña del `.env`
 3. **Cambiar contraseña inmediatamente** en Admin → Usuarios
 4. Configurar SMTP en Configuración → Correo
 5. Asignar módulos a usuarios en Admin → Usuarios
+6. Crear centros de operación en Admin → Centros
+7. Generar períodos de nómina en Nómina → Períodos
 
 ## Comandos útiles
 
@@ -176,6 +215,9 @@ pm2 status
 
 # Reiniciar
 pm2 restart synnoxerp
+
+# Backup general
+curl -H "Authorization: Bearer <token>" http://localhost:3002/api/admin/backup/general -o backup.zip
 
 # Actualizar
 cd ~/.local/share/synnoxerp
@@ -190,14 +232,14 @@ pm2 restart synnoxerp
 synnox-erp/
 ├── server.js              # Entry point unificado
 ├── .env                   # Variables de entorno (no subir a git)
-├── package.json           # Dependencias raíz
+├── package.json           # Dependencias raíz (v1.1.0)
 ├── install.sh             # Instalador automático
 ├── SECURITY.md            # Documentación CVEs
 ├── ARCHITECTURE.md        # Arquitectura del sistema
 ├── AGENTS.md              # Contexto para AI agents
 ├── framework/
-│   ├── base.css           # CSS compartido (sidebar, layout, variables)
-│   ├── framework.js       # JS compartido (sidebar, auth, navigation)
+│   ├── base.css           # CSS compartido (sidebar, layout, filtros)
+│   ├── framework.js       # JS compartido (sidebar, auth, filtros)
 │   ├── auth.mjs           # Auth compartida (ESM)
 │   └── README.md          # Guía para crear módulos
 ├── launcher/
@@ -208,51 +250,29 @@ synnox-erp/
 └── modules/
     ├── proveedores/       # Facturas y proveedores
     ├── logistica/         # Rutas y pedidos
-    ├── nomina/            # Horas extra
-    └── proyectos/         # Gestión de proyectos
+    ├── nomina/            # Horas extra y calendario
+    └── proyectos/         # Gestión de proyectos y actas
 ```
 
-## Framework — Sidebar
+## Changelog v1.1.0
 
-Todos los módulos usan el mismo sidebar del framework. Al crear un módulo nuevo:
+### Features
+- **Calendario de nómina** — Fechas límite configurables por tipo de período
+- **Actas de cierre** — Generación y exportación a PDF de actas de proyecto
+- **Backup general** — Endpoint para respaldar todos los módulos en un solo ZIP
+- **Filtros dinámicos** — CSS y JS reutilizable para tablas
+- **Sedes centralizadas** — Módulos consumen centros desde el launcher
+- **Logout seguro** — Server-side cookie clearing para httpOnly
 
-1. Copiar `framework/base.css` y `framework/framework.js` al `public/` del módulo
-2. Usar `<aside class="sidebar">` (NO `<nav>` ni `<div>`)
-3. Incluir toggle de colapsado: `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`
-4. Nav items: `<div class="nav-item" data-page="xxx" onclick="navigate('xxx')"><span class="icon">emoji</span> Texto</div>`
-5. Overlay: `<div class="sidebar-overlay" onclick="closeSidebar()"></div>`
-6. User info IDs: `#user-name`, `#user-role`, `#user-badge`
-7. Footer: `<div class="sidebar-footer">` con `.btn-logout` y `.version`
-8. Theme: `initFramework({ themeKey: 'synnox_theme' })` — lee del launcher
+### Fixes
+- **Logística restore** — Ahora restaura las 6 tablas correctamente
+- **Logout módulos** — Cookie httpOnly ahora se limpia correctamente
+- **Nómina backup** — Restore incluye fecha_limite y aprobacion_pendiente
+- **Framework logout** — Todas las copias de framework.js actualizadas
 
-## Framework — Versión
-
-Todos los módulos muestran la misma versión (del root `package.json`):
-
-```js
-// Backend: leer de root package.json
-const rootPkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf8'));
-res.json({ version: rootPkg.version });
-
-// Frontend: framework.js loadVersion() ya hace esto automáticamente
-```
-
-## Troubleshooting
-
-### Servidor no arranca
-- Verificar `.env` tiene `JWT_SECRET` configurado
-- Verificar PostgreSQL está corriendo: `pg_isready`
-- Ver logs: `pm2 logs synnoxerp`
-
-### Módulos no autentican
-- Verificar que el cookie `launcher_jwt` exista (DevTools → Application → Cookies)
-- Verificar `JWT_SECRET` es igual en todos los módulos (mismo `.env`)
-- Verificar `NODE_ENV` no cause problemas con `secure` cookies en HTTP
-
-### Nginx 502 Bad Gateway
-- Verificar PM2 está corriendo: `pm2 status`
-- Verificar puerto: `curl http://localhost:3002/api/health`
-- Ver logs nginx: `tail -f /var/log/nginx/error.log`
+### Security
+- **Server-side logout** — Endpoint POST /api/auth/logout + GET /logout
+- **Backup pre-import** — Backup automático antes de restaurar datos
 
 ## Licencia
 
