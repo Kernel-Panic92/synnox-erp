@@ -66,12 +66,11 @@ function filtrarSelectUsuarios(query, selectId) {
   const select = document.getElementById(selectId);
   const q = query.toLowerCase();
   const selected = select.value;
-  Array.from(select.options).forEach(opt => {
-    if (!opt.value) { opt.style.display = ''; return; }
-    const u = _todosUsuarios.find(u => u.id == opt.value);
-    opt.style.display = (u && (u.nombre.toLowerCase().includes(q) || u.email.toLowerCase().includes(q))) ? '' : 'none';
-  });
-  select.value = selected;
+  const filtered = _todosUsuarios.filter(u =>
+    u.nombre.toLowerCase().includes(q) || u.email.toLowerCase().includes(q)
+  );
+  select.innerHTML = '<option value="">Sin asignar</option>' +
+    filtered.map(u => `<option value="${u.id}" ${u.id == selected ? 'selected' : ''}>${esc(u.nombre)} (${esc(u.email)})</option>`).join('');
 }
 
 async function init() {

@@ -84,8 +84,9 @@ router.get('/:id/pdf', soloAdmin, async (req, res) => {
        WHERE t.proyecto_id = $1
        ORDER BY t.estado, t.prioridad`, [acta.proyecto_id]);
 
-    const centro = acta.centro_id ? await pool.query(
-      `SELECT nombre, direccion, ciudad FROM centros_operacion WHERE id = $1`, [acta.centro_id]) : null;
+    const centro = acta.centro_id
+      ? (globalThis.__centrosCache || []).find(c => c.id === acta.centro_id) || null
+      : null;
 
     const doc = new PDFDocument({ size: 'letter', margin: 50 });
     res.setHeader('Content-Type', 'application/pdf');
@@ -112,7 +113,7 @@ router.get('/:id/pdf', soloAdmin, async (req, res) => {
       ['Descripción', acta.proyecto_descripcion || 'Sin descripción'],
       ['Estado', acta.proyecto_estado],
       ['Fecha límite', acta.fecha_limite ? new Date(acta.fecha_limite).toLocaleDateString('es-CO') : 'Sin fecha'],
-      ['Centro', centro?.rows[0]?.nombre || 'Sin centro'],
+      ['Centro', centro?.nombre || 'Sin centro'],
       ['Fecha de cierre', new Date(acta.created_at).toLocaleDateString('es-CO')]
     ];
     for (const [label, value] of datos) {
