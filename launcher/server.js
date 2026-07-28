@@ -1834,13 +1834,13 @@ function generarNginx() {
   } catch {}
 
   const isProd = mode === 'prod';
-  const port = isProd ? 443 : 8445;
+  const port = 443;
   const sslCert = isProd
     ? `/etc/letsencrypt/live/${dominio}/fullchain.pem`
-    : '/etc/ssl/platform/cert.pem';
+    : '/etc/ssl/synnoxerp/cert.pem';
   const sslKey = isProd
     ? `/etc/letsencrypt/live/${dominio}/privkey.pem`
-    : '/etc/ssl/platform/key.pem';
+    : '/etc/ssl/synnoxerp/key.pem';
 
   const modulos = db.prepare("SELECT * FROM modulos_plataforma WHERE activo = 1 AND proxy_prefix != '' ORDER BY orden").all();
 
