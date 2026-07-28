@@ -212,7 +212,7 @@ async function abrirModalTarea(id) {
         <option value="revision" ${t?.estado === 'revision' ? 'selected' : ''}>Revision</option>
         <option value="completada" ${t?.estado === 'completada' ? 'selected' : ''}>Completada</option>
       </select></div>
-      <div class="form-group"><label>Asignado a</label><input type="text" id="tarea-asignado-search" placeholder="Buscar usuario..." oninput="filtrarSelectUsuarios(this.value, 'tarea-asignado')" style="margin-bottom:4px;"><select id="tarea-asignado" size="4" style="width:100%;">${usuarios}</select></div>
+      <div class="form-group"><label>Asignado a</label><input type="text" id="tarea-asignado-search" placeholder="Buscar usuario..." oninput="filtrarSelectUsuarios(this.value, 'tarea-asignado')" style="margin-bottom:4px;"><select id="tarea-asignado">${usuarios}</select></div>
     </div>
     <div class="form-row">
       <div class="form-group"><label>Fecha Limite</label><input type="date" id="tarea-fecha" value="${t?.fecha_limite ? t.fecha_limite.split('T')[0] : ''}"></div>
