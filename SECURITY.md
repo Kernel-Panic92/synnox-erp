@@ -217,3 +217,47 @@ The IMAP service processed emails but never marked duplicates as `\Seen`, creati
 - [ ] Audit logging for all admin actions
 - [ ] Penetration testing
 - [ ] Frontend build obfuscation
+
+---
+
+## Hardening — Sesión 21 (24 Jul 2026)
+
+### Backup Pre-Import
+- `POST /api/admin/import` now creates automatic backup before destructive imports
+- Backup saved to `LAUNCHER_DIR/backups/pre-import-{timestamp}.json`
+
+### Rate Limiting
+- `GET/POST /api/auth/reset` now have `loginRateLimit` (previously unprotected)
+
+### Cookie Security
+- `encryptEmail` without fallback — removed `|| 'fallback'` from encryption key
+- JWT_SECRET enforcement — all modules call `process.exit(1)` if not configured
+
+---
+
+## Hardening — Sesión 22 (27 Jul 2026)
+
+### Server-Side Logout
+- **Problem**: Cookie `launcher_jwt` is `httpOnly` — JavaScript cannot clear it with `document.cookie`
+- **Fix**: New endpoint `GET /logout` and `POST /api/auth/logout` that use `res.clearCookie()` server-side
+- **All modules**: Redirect to `/logout` instead of trying to clear cookie client-side
+
+### Backup General del Sistema
+- `GET /api/admin/backup/general` — ZIP with all modules (launcher, nómina, logística, proyectos, proveedores)
+- `POST /api/admin/backup/restore` — Restore all modules from ZIP
+- Dynamic schema discovery — auto-detects which PostgreSQL schemas exist
+
+### Restore Fix (Logística)
+- **Bug**: Restore deleted 6 tables but only re-inserted 2 (vehiculos, configuracion)
+- **Fix**: Now re-inserts all 6 backed-up tables with upsert
+
+### Nómina Calendar
+- `fecha_limite` column on `nominas` table
+- `aprobacion_pendiente` column on `registros` table
+- Server-side validation: records after deadline get flagged
+- Frontend: modal alert when recording outside deadline
+
+### Actas de Cierre (Proyectos)
+- New table `projects.actas_cierre`
+- PDF generation with PDFKit (professional format)
+- "Cerrar Proyecto" button (admin/gerente, only when approved)

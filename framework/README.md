@@ -376,3 +376,9 @@ pm2 save
 - Sidebar: SIEMPRE `base.css` + `framework.js`, NO CSS inline
 - Theme: SIEMPRE `synnox_theme`, NO key propia del módulo
 - **Sedes/Centros**: Fetch desde `GET /api/centros` del launcher (caché 30s). NO crear tablas locales de centros. Launcher es fuente única de verdad.
+- **Logout**: Usar `window.location.href = '/logout'` (server-side cookie clearing). NO usar `document.cookie` (httpOnly).
+- **Filtros**: Usar `.table-filters` + `initTableFilters()` del framework. Ver CSS en `base.css`.
+- **Modales**: Usar `abrirModal(titulo, desc, body, actions)` y `cerrarModal()` del framework.
+- **Confirmaciones**: Usar `confirmarModal(titulo, mensaje)` del framework. NO usar `confirm()` del navegador.
+- **Toasts**: Usar `toast(msg, type)` del framework para feedback.
+- **Backups**: Cada módulo debe tener `GET /api/backup` (export) y `POST /api/backup/restore` (import). Usar ZIP con `backup.json` + CSVs.
