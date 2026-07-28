@@ -1,6 +1,81 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (23 Jul 2026 — sesión 21)
+## Estado (28 Jul 2026 — sesión 23)
+
+### Cambios Sesión 23 — Deploy producción + fixes
+
+#### Deploy a producción (192.168.168.95)
+- **Servidor**: Ubuntu 24.04, Node 20.20.2, PostgreSQL 16, nginx + Let's Encrypt
+- **URL**: `https://horixvitamar.fortiddns.com`
+- **Path**: `/opt/synnoxerp` (repo clonado via SSH deploy key read-only)
+- **PM2**: `synnoxerp` process, auto-start via `pm2-root.service`
+- **Nginx**: HTTPS con Let's Encrypt existente, HTTP→HTTPS redirect
+- **DB**: PostgreSQL `synnox_erp`, usuario `synnox`
+- **Módulos**: Launcher + Proveedores + Logística + Nómina + Proyectos
+
+#### Fixes durante deploy
+- **CORS theme.js**: `modules/proyectos/public/theme.js` usaba `http://localhost:3002` hardcodeado → `window.location.origin`
+- **PostgreSQL permissions**: `synnox` user no tenía permisos en schemas `public`, `projects`, `logistics` → GRANT ALL + ALTER DEFAULT PRIVILEGES
+- **Migraciones**: Ejecutadas manualmente para proveedores (40 tablas), proyectos (4 migrations), logística (17 migrations)
+- **install.sh**: Agregado GRANT de PostgreSQL después de crear DB (evita permission denied en installs futuros)
+- **Updater SSH**: PM2 corre como `root`, llave SSH estaba en `~coordinadorsistemas/.ssh/` → copiada a `/root/.ssh/` + `GIT_SSH_COMMAND` en `.env`
+
+#### Fixes pre-deploy
+- **Nginx paths**: `launcher/server.js` generador nginx usaba `/etc/ssl/platform/` (legacy) y puerto `8445` → `/etc/ssl/synnoxerp/` y `443`
+- **platform-test.conf**: Mismos paths/puerto legacy corregidos
+- **Dropdown asignación**: `<select size="4">` (listbox roto por CSS) → combobox searchable con input + dropdown nativo
+- **Actas PDF**: Query SQL a `centros_operacion` (sin columna `ciudad`) → lookup desde `globalThis.__centrosCache`
+
+#### Convenciones actualizadas
+- **Deploy key SSH**: Read-only, solo para `git fetch/pull`. Llave en `/root/.ssh/id_ed25519_synnox`
+- **GIT_SSH_COMMAND**: Configurado en `.env` de producción para que PM2 (root) pueda hacer fetch
+- **PostgreSQL grants**: `install.sh` ejecuta GRANTs después de crear DB — no depender de superuser para migraciones
+- **Combobox searchable**: Usar `selectBuscador()` + `initSelectBuscador()` del framework en vez de `<select size="4">` con `filtrarSelectUsuarios()`
+
+### Pendientes nuevos
+- [ ] **Fix updater**: La migración de proveedores falla al restart si DB ya tiene tablas (reintentable)
+- [ ] **Ofuscar builds frontend** — Evaluar `javascript-obfuscator` o similar
+
+### Pendientes anteriores (actualizados)
+- [ ] Observabilidad centralizada (tabla `auditoria_central`)
+- [ ] APIs internas entre módulos
+- [ ] SSH `execSync` → `ssh2` (test-ssh)
+- [ ] CSP nonce en proveedores
+- [ ] Dividir `launcher/server.js` (~2700 líneas → routers separados)
+- [ ] ESLint + Prettier config
+- [ ] Limpiar `.env` legacy
+- [ ] Actualizar docs restantes
+
+### Convenciones del Framework (SEGUIR SIEMPRE)
+
+- **Modales**: Definir en HTML con `class="modal-overlay"`, mostrar/ocultar con `display: block/none`. NO crear modales dinámicamente con `document.createElement`.
+- **Confirmaciones**: Usar `confirmModal(msg, title, type)` del framework, NUNCA `confirm()` del navegador. Tipos: `'delete'` (default, rojo 🗑️), `'update'` (azul 🔄), `'restart'` (amarillo ♻️), `'info'` (gris ℹ️).
+- **Mensajes**: Usar `toast(msg, type)` del framework para feedback al usuario.
+- **CSS**: Usar variables del framework (`var(--surface)`, `var(--border)`, `var(--text)`, `var(--muted)`, `var(--accent)`, `var(--success)`, `var(--danger)`).
+- **Botones**: Seguir clases existentes: `btn`, `btn-sm`, `btn-secondary`, `btn-danger`.
+- **Tablas**: Usar estructura `<table id="xxx-table"><thead><tr>...</tr></thead><tbody></tbody></table>` con `overflow-x:auto`.
+- **Layout `.main`**: Siempre `margin-left: var(--sidebar-w)` cuando el sidebar es `position:fixed`. NO usar `padding-right` ni `width:calc`.
+- **Grids**: Siempre `repeat(auto-fit, minmax(Xpx, 1fr))`. NUNCA `repeat(N, 1fr)` fijo. Usar `auto-fit` para pocos items, `auto-fill` para muchos.
+- **Tablas overflow**: `.table-wrap` siempre `overflow-x:auto`, NUNCA `overflow:hidden`.
+- **Skeletons**: Widgets con fetch deben mostrar skeleton loader mientras cargan.
+- **API**: Todas las rutas usan `verificarToken, soloAdmin`. Respuestas: `{ ok: true }` o `{ error: 'msg' }`.
+- **DB**: Migraciones con `try { db.exec("ALTER TABLE...") } catch {}` para columnas nuevas. Seeds con `INSERT OR IGNORE`.
+- **Auth**: Siempre via `verificarToken` middleware. JWT incluye `modulos_permisos` para permisos granulares.
+- **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`.
+- **Footer del sidebar (MANDATORIO)**: DEBE seguir esta estructura HTML: `<div class="sidebar-footer"><a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a><div class="user-name" id="sidebar-user-name"></div><div class="user-role" id="sidebar-user-role"></div><div class="version" id="app-version">v—</div><button class="btn-logout" onclick="...">⏻ Cerrar sesión</button></div>`. Poblar `sidebar-user-name` y `sidebar-user-role` desde `/api/auth/me`. NO usar `injectSidebarHome()` — el Home link es HTML estático. Orden: Home → Usuario → Versión → Logout.
+- **Sidebar secciones**: Usar `.sidebar-section` con `.sidebar-section-title` para agrupar nav items. Ejemplo: `<div class="sidebar-section"><div class="sidebar-section-title">Grupo</div><div class="nav-item">...</div></div>`.
+- **Error splash**: Cuando un módulo falle al cargar (auth, red), mostrar `.error-splash` en vez de redirigir al launcher. Usar clases `.error-splash`, `.error-splash-card`, `.error-splash-icon`, `.error-splash-title`, `.error-splash-msg`, `.error-splash-btn`.
+- **Navegación same-tab**: Módulos y Home button SIEMPRE abren en la misma pestaña (`href="/"` sin `target="_blank"`). Launcher también abre módulos en la misma pestaña.
+- **Versión**: Todos los módulos leen `/api/version` del root `package.json` (versión unificada `1.0.0`). NO usar `package.json` del módulo. NO mostrar rama git. Frontend: `el.textContent = 'v' + data.version`.
+- **Instalación**: `install.sh` usa `$(pwd)` como INSTALL_DIR — ejecutar desde el directorio del repo clonado. NO copiar a otro path.
+- **Centros de operación**: Launcher es fuente única de verdad. CRUD en launcher, módulos consumen via `GET /api/centros` (caché 30s). NO crear tablas locales de centros. Mismos IDs en footer del sidebar: `sidebar-user-name`, `sidebar-user-role`.
+- **Roles**: `admin` (acceso total), `gerente` (aprobaciones + acceso completo), `operador` (usa perfiles). CSV import mapea `gerencia` → `gerente`.
+- **Telemetría**: Todos los módulos DEBEN incluir `<script src="/telemetry.js"></script>` antes de `</body>`. Script trackea page_view, errores JS y heartbeats. Endpoints públicos (sin auth). Datos centralizados en launcher.db.
+- **Licencia**: Propietaria (LICENSE.md). NO redistribuir código fuente.
+- **Combobox searchable**: Para selects con búsqueda, usar `selectBuscador()` + `initSelectBuscador()` en vez de `<select size="4">` con `filtrarSelectUsuarios()`. El size=4 rompe por CSS global.
+- **Deploy SSH**: Llave read-only en `/root/.ssh/id_ed25519_synnox`. Configurar `GIT_SSH_COMMAND` en `.env` para que PM2 (root) pueda hacer git fetch.
+
+---
 
 ### Cambios Sesión 21 — Issues #36, #31, #37, #38, #41 + Framework Home button
 
