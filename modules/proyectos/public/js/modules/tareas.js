@@ -177,8 +177,6 @@ async function abrirModalTarea(id) {
     try { const d = await api('/tareas/' + id); t = d.tarea; } catch {}
   }
 
-  const usuarios = selectUsuarios(id ? t?.asignado_a : usuario?.id);
-
   const body = `
     <div class="form-group"><label>Proyecto</label><select id="tarea-proyecto">${_tareasProyectos.map(p => `<option value="${p.id}" ${(t?.proyecto_id == p.id) ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}</select></div>
     <div class="form-group"><label>Titulo *</label><input id="tarea-titulo" value="${esc(t?.titulo || '')}"></div>
@@ -212,7 +210,7 @@ async function abrirModalTarea(id) {
         <option value="revision" ${t?.estado === 'revision' ? 'selected' : ''}>Revision</option>
         <option value="completada" ${t?.estado === 'completada' ? 'selected' : ''}>Completada</option>
       </select></div>
-      <div class="form-group"><label>Asignado a</label><input type="text" id="tarea-asignado-search" placeholder="Buscar usuario..." oninput="filtrarSelectUsuarios(this.value, 'tarea-asignado')" style="margin-bottom:4px;"><select id="tarea-asignado">${usuarios}</select></div>
+      <div class="form-group"><label>Asignado a</label>${selectBuscador('tarea-asignado', _todosUsuarios, id ? t?.asignado_a : usuario?.id, 'Buscar usuario...')}</div>
     </div>
     <div class="form-row">
       <div class="form-group"><label>Fecha Limite</label><input type="date" id="tarea-fecha" value="${t?.fecha_limite ? t.fecha_limite.split('T')[0] : ''}"></div>
@@ -222,6 +220,7 @@ async function abrirModalTarea(id) {
   const actions = `<button class="btn btn-sm btn-secondary" onclick="cerrarModal()">Cancelar</button>
     <button class="btn btn-sm btn-primary" onclick="guardarTarea(${id || 'null'})">Guardar</button>`;
   abrirModal(id ? 'Editar Tarea' : 'Nueva Tarea', '', body, actions);
+  initSelectBuscador('tarea-asignado');
 }
 
 async function guardarTarea(id) {

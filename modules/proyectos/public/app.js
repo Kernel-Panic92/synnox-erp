@@ -73,6 +73,76 @@ function filtrarSelectUsuarios(query, selectId) {
     filtered.map(u => `<option value="${u.id}" ${u.id == selected ? 'selected' : ''}>${esc(u.nombre)} (${esc(u.email)})</option>`).join('');
 }
 
+function selectBuscador(id, usuarios, selectedId, placeholder) {
+  const sel = usuarios.find(u => u.id == selectedId);
+  const displayVal = sel ? `${sel.nombre} (${sel.email})` : '';
+  const optionsHtml = usuarios.map(u =>
+    `<div class="select-buscador-option${u.id == selectedId ? ' selected' : ''}" data-value="${u.id}">${esc(u.nombre)} (${esc(u.email)})</div>`
+  ).join('');
+  return `
+    <div class="select-buscador" id="${id}-wrapper">
+      <input type="text" class="select-buscador-input" id="${id}-display"
+        placeholder="${placeholder || 'Buscar...'}" value="${esc(displayVal)}" autocomplete="off">
+      <input type="hidden" id="${id}" value="${selectedId || ''}">
+      <div class="select-buscador-list" id="${id}-list">
+        <div class="select-buscador-option" data-value="">Sin asignar</div>
+        ${optionsHtml}
+      </div>
+    </div>`;
+}
+
+function initSelectBuscador(id) {
+  const display = document.getElementById(id + '-display');
+  const list = document.getElementById(id + '-list');
+  const hidden = document.getElementById(id);
+  if (!display || !list) return;
+
+  display.addEventListener('focus', () => {
+    display.value = '';
+    Array.from(list.children).forEach(o => o.style.display = '');
+    list.style.display = 'block';
+  });
+
+  display.addEventListener('input', () => {
+    const q = display.value.toLowerCase();
+    let visible = 0;
+    Array.from(list.children).forEach(opt => {
+      if (!opt.dataset.value) { opt.style.display = ''; visible++; return; }
+      const match = opt.textContent.toLowerCase().includes(q);
+      opt.style.display = match ? '' : 'none';
+      if (match) visible++;
+    });
+    if (visible === 0) {
+      if (!list.querySelector('.empty-msg')) {
+        const empty = document.createElement('div');
+        empty.className = 'select-buscador-option empty-msg';
+        empty.textContent = 'Sin resultados';
+        list.appendChild(empty);
+      }
+    } else {
+      const empty = list.querySelector('.empty-msg');
+      if (empty) empty.remove();
+    }
+    list.style.display = 'block';
+  });
+
+  list.addEventListener('mousedown', (e) => {
+    const opt = e.target.closest('.select-buscador-option');
+    if (!opt || opt.classList.contains('empty-msg')) return;
+    const val = opt.dataset.value || '';
+    const text = val ? opt.textContent : '';
+    hidden.value = val;
+    display.value = text;
+    list.querySelectorAll('.select-buscador-option').forEach(o => o.classList.remove('selected'));
+    opt.classList.add('selected');
+    list.style.display = 'none';
+  });
+
+  display.addEventListener('blur', () => {
+    setTimeout(() => { list.style.display = 'none'; }, 150);
+  });
+}
+
 async function init() {
   try {
     const data = await api('/auth/me');

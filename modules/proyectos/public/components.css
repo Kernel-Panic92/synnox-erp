@@ -127,3 +127,26 @@ body.light .cli-card { background: #fff; border-color: #d0d4e4; box-shadow: 0 1p
 .truncate { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .empty-state { text-align: center; padding: 48px 20px; color: var(--muted); }
 .empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: .4; }
+
+/* ── Select Buscador (combobox) ── */
+.select-buscador { position: relative; }
+.select-buscador-input {
+  width: 100%; background: var(--surface2); border: 1px solid var(--border); border-radius: 8px;
+  color: var(--text); padding: 10px 14px; font: inherit; outline: none; transition: border .15s;
+  cursor: pointer;
+}
+.select-buscador-input:focus { border-color: var(--accent); }
+.select-buscador-input::placeholder { color: var(--muted); }
+.select-buscador-list {
+  position: absolute; top: 100%; left: 0; right: 0; z-index: 210;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  max-height: 200px; overflow-y: auto; box-shadow: 0 8px 24px rgba(0,0,0,.15);
+  display: none; margin-top: 4px;
+}
+.select-buscador-option {
+  padding: 9px 14px; cursor: pointer; font-size: 14px; transition: background .1s;
+}
+.select-buscador-option:hover { background: var(--surface2); }
+.select-buscador-option.selected { background: rgba(16,185,129,.1); color: var(--accent); font-weight: 600; }
+.select-buscador-option.empty-msg { color: var(--muted); cursor: default; font-style: italic; }
+.select-buscador-option.empty-msg:hover { background: transparent; }
