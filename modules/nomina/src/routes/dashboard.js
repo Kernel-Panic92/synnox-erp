@@ -43,11 +43,8 @@ module.exports = function({ db, middlewares: { todosRoles } }) {
       prevDate.setMonth(prevDate.getMonth() - 1);
       const mesPrefix = prevDate.getFullYear() + '-' + String(prevDate.getMonth() + 1).padStart(2, '0');
 
-      const permisos = db.prepare('SELECT permiso FROM permisos_roles WHERE rol = ?').all(u.rol).map(p => p.permiso);
-      const verTodos = permisos.includes('ver_todos');
-      const verSede = permisos.includes('ver_sede');
-      const verPropios = permisos.includes('ver_propios');
-      const efectivo = verTodos ? 'todos' : verSede ? 'sede' : 'propios';
+      const { tienePermiso } = require('../utils/permisos');
+      const efectivo = tienePermiso(u, 'ver_todos') ? 'todos' : tienePermiso(u, 'ver_sede') ? 'sede' : 'propios';
 
       let whereVis = '';
       const visParams = [];

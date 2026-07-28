@@ -10,12 +10,15 @@ function rolTienePermiso(rol, permiso) {
 }
 
 // Check permissions from JWT (launcher granular permissions)
-// Falls back to local permisos_roles if JWT permissions not available
+// When JWT provides permissions, they are authoritative (restrictive override)
+// Falls back to local permisos_roles only when no JWT permissions present
 function tienePermiso(usuario, permiso) {
   if (usuario.rol === 'admin') return true;
-  // Check JWT permissions first (from launcher profile)
-  if (usuario.nominaPermisos && usuario.nominaPermisos.includes(perfilPermisoMap[permiso] || permiso)) return true;
-  // Fallback to local permission system
+  // When JWT provides granular permissions, they are authoritative
+  if (usuario.nominaPermisos && usuario.nominaPermisos.length > 0) {
+    return usuario.nominaPermisos.includes(perfilPermisoMap[permiso] || permiso);
+  }
+  // Fallback to local permission system only when no JWT permissions present
   return rolTienePermiso(usuario.rol, permiso);
 }
 

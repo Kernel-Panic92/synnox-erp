@@ -103,11 +103,9 @@ module.exports = function({ db, ExcelJS, getConfig, enviarCorreo, rolTienePermis
       if (filters.vinculo) { sql += ' AND e.tipo_vinculacion = ?'; params.push(filters.vinculo); }
       if (filters.fechaDesde) { sql += ' AND r.fecha >= ?'; params.push(filters.fechaDesde); }
       if (filters.fechaHasta) { sql += ' AND r.fecha <= ?'; params.push(filters.fechaHasta); }
+      const { tienePermiso } = require('../utils/permisos');
       const u = db.prepare('SELECT rol, sede FROM usuarios WHERE id = ?').get(req.usuario.id);
-      const verTodos = rolTienePermiso(u.rol, 'ver_todos');
-      const verSede = rolTienePermiso(u.rol, 'ver_sede');
-      const verPropios = rolTienePermiso(u.rol, 'ver_propios');
-      const efectivo = verTodos ? 'todos' : verSede ? 'sede' : 'propios';
+      const efectivo = tienePermiso(req.usuario, 'ver_todos') ? 'todos' : tienePermiso(req.usuario, 'ver_sede') ? 'sede' : 'propios';
       if (efectivo === 'sede') { sql += ' AND e.sede = ?'; params.push(u.sede); }
       else if (efectivo === 'propios') { sql += ' AND r.creadoPor = ?'; params.push(req.usuario.id); }
       if (efectivo === 'todos' && filters.sede) { sql += ' AND e.sede = ?'; params.push(filters.sede); }
