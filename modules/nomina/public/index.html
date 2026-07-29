@@ -128,6 +128,9 @@
   /* ── MODAL ── */
   .modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.7);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:100;display:none;align-items:center;justify-content:center;}
   .modal-overlay.open{display:flex;}
+  /* Confirmaciones y acciones siempre encima del modal-detalle */
+  #modal-overlay{z-index:200;}
+  #modal-detalle{z-index:100;}
   .modal{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:32px;width:560px;max-width:95vw;max-height:90vh;overflow-y:auto;animation:slideUp 0.25s ease;}
   .modal-title{font-family:var(--font-head);font-size:19px;font-weight:700;margin-bottom:24px;}
   .modal-footer{display:flex;gap:10px;justify-content:flex-end;margin-top:24px;}
