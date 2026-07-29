@@ -631,12 +631,13 @@ async function loadUsers() {
         <td>${u.perfil_nombre ? `<span style="color:var(--accent);">${esc(u.perfil_nombre)}</span>` : '—'}</td>
         <td style="font-size:12px;color:var(--muted);">${esc(u.sede || 'Principal')}</td>
         <td>${u.activo ? '<span style="color:var(--success);">Activo</span>' : '<span class="badge badge-inactivo">Inactivo</span>'}</td>
-        <td class="actions">
-          <button class="btn btn-sm btn-secondary" onclick="editUser(${u.id})">✏️ Editar</button>
-          <button class="btn btn-sm btn-secondary" onclick="diagnosticarAuth(${u.id})" title="Ver diagnóstico de auth">🔍 Auth</button>
-          ${u.activo ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">🗑️ Desactivar</button>` : ''}
-          ${!u.activo ? `<button class="btn btn-sm btn-secondary" onclick="reactivateUser(${u.id})">♻️ Reactivar</button>` : ''}
-          ${!u.activo ? `<button class="btn btn-sm btn-danger" onclick="deleteUserPermanent(${u.id})">🗑️ Eliminar</button>` : ''}
+        <td class="actions" style="white-space:nowrap;">
+          <button class="btn-icon" onclick="editUser(${u.id})" title="Editar">✏️</button>
+          <button class="btn-icon" onclick="resetPasswordUser(${u.id}, this)" title="Reset password">🔑</button>
+          <button class="btn-icon" onclick="diagnosticarAuth(${u.id})" title="Diagnóstico auth">🔍</button>
+          ${u.activo ? `<button class="btn-icon btn-icon-danger" onclick="deleteUser(${u.id})" title="Desactivar">🗑️</button>` : ''}
+          ${!u.activo ? `<button class="btn-icon" onclick="reactivateUser(${u.id})" title="Reactivar">♻️</button>` : ''}
+          ${!u.activo ? `<button class="btn-icon btn-icon-danger" onclick="deleteUserPermanent(${u.id})" title="Eliminar permanentemente">❌</button>` : ''}
         </td>
       </tr>
     `).join('');
@@ -771,6 +772,24 @@ function editUser(id) {
     const u = users.find(x => x.id === id);
     if (u) showUserForm(u);
   });
+}
+
+async function resetPasswordUser(userId, btn) {
+  if (!await confirmModal('¿Enviar email de recuperación de contraseña a este usuario?', 'Reset Password', 'info')) return;
+  try {
+    btn.disabled = true;
+    const res = await fetch(`/api/admin/usuarios/${userId}/reset-password`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + jwtToken }
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al enviar email');
+    toast(data.message || 'Email de recuperación enviado', 'success');
+  } catch (e) {
+    toast(e.message, 'error');
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 async function diagnosticarAuth(userId) {

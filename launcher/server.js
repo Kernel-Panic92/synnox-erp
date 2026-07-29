@@ -1086,6 +1086,32 @@ app.put('/api/admin/usuarios/:id', verificarToken, soloAdmin, (req, res) => {
   } catch (e) { res.status(500).json({ error: 'Error interno' }); }
 });
 
+app.post('/api/admin/usuarios/:id/reset-password', verificarToken, soloAdmin, async (req, res) => {
+  const id = parseInt(req.params.id);
+  if (isNaN(id)) return res.status(400).json({ error: 'ID inválido' });
+  const user = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(id);
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+  try {
+    db.prepare('DELETE FROM reset_tokens WHERE email = ?').run(user.email);
+    const crypto = require('crypto');
+    const token = crypto.randomBytes(32).toString('hex');
+    const expiresAt = new Date(Date.now() + 3600000).toISOString().replace('T', ' ').split('.')[0];
+    db.prepare('INSERT INTO reset_tokens (email, token, expires_at) VALUES (?, ?, ?)').run(user.email, token, expiresAt);
+    const { dominio } = getDominioYLauncherPort();
+    const mode = (() => { try { const r = fs.readFileSync(path.join(INSTALL_DIR, 'config.env'), 'utf8'); const m = r.match(/^MODE=(.+)$/m); return m?.[1]?.trim() || 'test'; } catch { return 'test'; } })();
+    const launcherPort = mode === 'prod' ? '9443' : String(PORT);
+    const protocol = mode === 'prod' ? 'https' : 'http';
+    const resetUrl = `${protocol}://${dominio}:${launcherPort}/reset?token=${token}`;
+    if (mail.isConfigured()) {
+      mail.sendResetEmail(user.email, resetUrl, user.nombre).catch(e => console.error('[MAIL] sendResetEmail error:', e.message));
+      res.json({ ok: true, message: 'Email de recuperación enviado a ' + user.email });
+    } else {
+      console.log('[RESET] SMTP no configurado — token para', user.email, ':', resetUrl);
+      res.json({ ok: true, message: 'SMTP no configurado. Token generado: ' + resetUrl });
+    }
+  } catch (e) { console.error('[RESET]', e.message); res.status(500).json({ error: 'Error interno' }); }
+});
+
 app.delete('/api/admin/usuarios/:id', verificarToken, soloAdmin, (req, res) => {
   const id = parseInt(req.params.id);
   if (isNaN(id) || id === req.usuario.id) return res.status(400).json({ error: 'ID inválido o no puedes desactivarte' });
