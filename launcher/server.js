@@ -497,7 +497,7 @@ function logLoginAttempt(ip, email, exitoso) {
   db.prepare("INSERT INTO login_logs (ip, email, exitoso) VALUES (?, ?, ?)").run(ip || '', encEmail, exitoso ? 1 : 0);
 }
 
-const { buildPayload, getUserWithPermissions } = require('./../framework/auth');
+const { buildPayload, getUserWithPermissions, verifySessionValid } = require('./../framework/auth');
 const loginRateLimit = createLoginRateLimit(db);
 const loginAttempts = getLoginAttempts();
 
