@@ -17,7 +17,7 @@ const upload     = multer({ storage: multer.memoryStorage(), limits: { fileSize:
 const { db, uid } = require('./src/db');
 require('./src/db/migrations')(db);
 const { parseCookies, createAuth } = require('./src/middleware/auth');
-const { encryptSmtp, hashPassword, validarPassword, generateToken } = require('./src/utils/crypto');
+const { encryptSmtp, hashPassword } = require('./src/utils/crypto');
 const { getConfig, getAdminEmail } = require('./src/utils/config');
 const { permisosPorRol, rolTienePermiso, tienePermiso } = require('./src/utils/permisos');
 const { restoreData } = require('./src/utils/restore')({ db, encryptSmtp });
@@ -152,7 +152,7 @@ app.use('/api/auth', require('./src/routes/auth')({
 }));
 
 app.use('/api', require('./src/routes/misc')({ db, fs, path, __dirname, permisosPorRol, middlewares: { todosRoles } }));
-app.use('/api/usuarios', require('./src/routes/usuarios')({ db, uid, BASE_URL, hashPassword, generateToken, getConfig, validarPassword, rolTienePermiso, enviarCorreo, middlewares: { todosRoles, soloAdmin }, APP_NAME }));
+app.use('/api/usuarios', require('./src/routes/usuarios')({ db, rolTienePermiso, middlewares: { todosRoles, soloAdmin } }));
 app.use('/api/admin', require('./src/routes/auditoria')({ db, middlewares: { soloAdmin } }));
 
 // ─────────────────────────────────────────────
