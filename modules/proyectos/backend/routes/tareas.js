@@ -18,6 +18,13 @@ router.get('/', requirePermiso('ver', 'proyectos'), async (req, res) => {
     const conditions = [];
     let idx = 1;
 
+    // Operadores solo ven sus tareas asignadas
+    const esAdminGerente = req.user?.rol === 'admin' || req.user?.rol === 'gerente';
+    if (!esAdminGerente) {
+      params.push(req.user.id);
+      conditions.push(`t.asignado_a = $${idx++}`);
+    }
+
     if (proyecto_id) { params.push(proyecto_id); conditions.push(`t.proyecto_id = $${idx++}`); }
     if (estado) { params.push(estado); conditions.push(`t.estado = $${idx++}`); }
     if (asignado_a) { params.push(asignado_a); conditions.push(`t.asignado_a = $${idx++}`); }
@@ -52,13 +59,12 @@ router.get('/', requirePermiso('ver', 'proyectos'), async (req, res) => {
 
 router.get('/:id', requirePermiso('ver', 'proyectos'), async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT t.*, p.nombre AS proyecto_nombre
-       FROM projects.tareas t
-       LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id
-       WHERE t.id = $1`,
-      [req.params.id]
-    );
+    const esAdminGerente = req.user?.rol === 'admin' || req.user?.rol === 'gerente';
+    const query = esAdminGerente
+      ? `SELECT t.*, p.nombre AS proyecto_nombre FROM projects.tareas t LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id WHERE t.id = $1`
+      : `SELECT t.*, p.nombre AS proyecto_nombre FROM projects.tareas t LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id WHERE t.id = $1 AND t.asignado_a = $2`;
+    const params = esAdminGerente ? [req.params.id] : [req.params.id, req.user.id];
+    const result = await pool.query(query, params);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Tarea no encontrada' });
     res.json({ exitosa: true, tarea: result.rows[0] });
   } catch (err) {
