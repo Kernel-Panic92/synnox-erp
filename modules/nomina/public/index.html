@@ -958,9 +958,8 @@
 
     <!-- USUARIOS -->
     <div class="page" id="page-usuarios">
-      <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
-        <div><div class="page-title">Gestión de Usuarios</div><div class="page-sub">Solo el administrador puede gestionar accesos</div></div>
-        <button class="btn btn-primary" onclick="abrirModalUsuario()">+ Nuevo Usuario</button>
+      <div class="page-header">
+        <div><div class="page-title">Usuarios</div><div class="page-sub">Gestión de usuarios desde el Launcher. Aquí solo se asignan empleados.</div></div>
       </div>
       <div class="filters">
         <label style="font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;width:100%;">Filtros</label>
@@ -1119,56 +1118,24 @@
 </div>
 
 <!-- MODAL USUARIO -->
-<div class="modal-overlay" id="modal-usuario">
-  <div class="modal">
-    <div class="modal-title" id="modal-usr-title">Nuevo Usuario</div>
-    <div class="form-grid">
-      <div class="form-group"><label>Nombre Completo *</label><input type="text" id="usr-nombre" placeholder="Nombre del usuario"/></div>
-      <div class="form-group"><label>Correo Electrónico *</label><input type="email" id="usr-email" placeholder="correo@empresa.com"/></div>
-      <div class="form-group" id="usuario-password-group" style="display:block;">
-        <label>Contraseña *</label><input type="password" id="usuario-password" placeholder="Mín. 8 caracteres"/>
-      </div>
-      <div class="form-group"><label>Rol *</label>
-        <select id="usr-rol">
-          <option value="operador">Operador — Ver su sede</option>
-          <option value="consulta">Consulta — Solo lectura</option>
-          <option value="gerencia">Gerencia — Aprobar registros</option>
-          <option value="rrhh">RRHH — Registrar y editar</option>
-          <option value="admin">Admin — Acceso total</option>
-        </select>
-      </div>
-      <div class="form-group"><label>Sede *</label><select id="usr-sede"><option value="">Seleccionar centro...</option></select></div>
-      <div class="form-group" id="usr-activo-group" style="display:none;">
-        <label>Estado</label>
-        <select id="usr-activo"><option value="1">Activo</option><option value="0">Inactivo</option></select>
-      </div>
+<div class="modal-overlay" id="modal-empleados">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-title" id="modal-emp-title">Asignar Empleados</div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
+      Selecciona los empleados que este usuario puede gestionar. Sin selección = acceso a todos.
     </div>
-    <div style="margin-top:16px;padding:12px 14px;background:var(--surface2);border-radius:9px;font-size:12px;color:var(--muted);">
-      <strong style="color:var(--text);">Roles:</strong>
-      <span style="color:var(--danger)"> Admin</span> — acceso total, gestión de usuarios.
-      <span style="color:var(--accent)"> RRHH</span> — puede registrar y editar horas, empleados y nóminas.
-      <span style="color:var(--success)"> Consulta</span> — solo visualiza y exporta reportes.
-      <span style="color:var(--warning)"> Operador</span> — ve solo los registros de su sede.
-    </div>
-    <!-- Empleados asignados -->
-    <div id="usr-emp-section" style="margin-top:16px;">
-      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-        <label style="font-size:13px;font-weight:600;">Empleados Autorizados</label>
-        <span style="font-size:11px;color:var(--muted);">Sin selección = acceso a todos</span>
-      </div>
-      <input type="text" id="usr-emp-search" placeholder="🔍 Filtrar empleados..." oninput="filtrarEmpModal()"
-        style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;margin-bottom:8px;box-sizing:border-box;outline:none;"
-        onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
-      <div id="usr-emp-list" style="max-height:180px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;background:var(--surface2);padding:6px;display:flex;flex-direction:column;gap:3px;"></div>
-      <div style="margin-top:6px;display:flex;gap:8px;">
-        <button class="btn btn-secondary btn-sm" onclick="seleccionarTodosEmp(true)">✔ Todos</button>
-        <button class="btn btn-secondary btn-sm" onclick="seleccionarTodosEmp(false)">✖ Ninguno</button>
-        <span id="usr-emp-count" style="font-size:11px;color:var(--muted);margin-left:auto;align-self:center;"></span>
-      </div>
+    <input type="text" id="usr-emp-search" placeholder="🔍 Filtrar empleados..." oninput="filtrarEmpModal()"
+      style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;margin-bottom:8px;box-sizing:border-box;outline:none;"
+      onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
+    <div id="usr-emp-list" style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;background:var(--surface2);padding:6px;display:flex;flex-direction:column;gap:3px;"></div>
+    <div style="margin-top:6px;display:flex;gap:8px;">
+      <button class="btn btn-secondary btn-sm" onclick="seleccionarTodosEmp(true)">✔ Todos</button>
+      <button class="btn btn-secondary btn-sm" onclick="seleccionarTodosEmp(false)">✖ Ninguno</button>
+      <span id="usr-emp-count" style="font-size:11px;color:var(--muted);margin-left:auto;align-self:center;"></span>
     </div>
     <div class="modal-footer">
-      <button class="btn btn-secondary" onclick="cerrarModal('modal-usuario')">Cancelar</button>
-      <button class="btn btn-primary" id="btn-guardar-usr" onclick="guardarUsuario()">Guardar Usuario</button>
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-empleados')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEmpleados()">Guardar</button>
     </div>
   </div>
 </div>

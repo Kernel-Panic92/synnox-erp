@@ -1,45 +1,11 @@
-// users.js - User management module
+// users.js - User management (read-only + employee assignments)
+// User CRUD (create, edit, delete, reset password) is managed from the Launcher.
+// This module only handles employee assignments (usuario_empleados).
 
 let _empAsigSeleccionados = new Set();
 
-const ROL_DESC = {
-  admin:    'Acceso total',
-  rrhh:     'Registrar y editar',
-  gerencia: 'Aprobar registros',
-  operador: 'Ver su sede',
-  consulta: 'Solo lectura'
-};
-
-let _rolesCache = null;
-
-async function poblarRolesUsuarios() {
-  if (_rolesCache) { aplicarRolesDropdowns(_rolesCache); return; }
-  try {
-    const res = await fetchCSRF('/api/roles');
-    if (!res.ok) return;
-    _rolesCache = await res.json();
-    aplicarRolesDropdowns(_rolesCache);
-  } catch {}
-}
-
-function aplicarRolesDropdowns(roles) {
-  const filRol = document.getElementById('usr-fil-rol');
-  const modalRol = document.getElementById('usr-rol');
-  const actualFil = filRol?.value || '';
-  const actualModal = modalRol?.value || '';
-  if (filRol) {
-    filRol.innerHTML = '<option value="">Todos los roles</option>' + roles.map(r => `<option value="${r}">${rolLabel(r)}</option>`).join('');
-    if (actualFil) filRol.value = actualFil;
-  }
-  if (modalRol) {
-    modalRol.innerHTML = roles.map(r => `<option value="${r}">${rolLabel(r)}${ROL_DESC[r] ? ' — ' + ROL_DESC[r] : ''}</option>`).join('');
-    if (actualModal) modalRol.value = actualModal;
-  }
-}
-
 function renderUsuarios() {
   poblarSedesUsuarios();
-  poblarRolesUsuarios();
   const tbody = document.getElementById('usuarios-body');
   if (!tbody) return;
 
@@ -66,12 +32,12 @@ function renderUsuarios() {
     <td data-label="Estado"><span class="badge badge-${u.activo?'activo':'inactivo'}">${u.activo?'Activo':'Inactivo'}</span></td>
     <td data-label="Creado">${esc(fmtDate(u.creado))}</td>
     <td data-label="Acciones"><div class="actions-cell">
-      <button class="btn btn-secondary btn-sm" onclick="editarUsuario('${esc(u.id)}')">✏ Editar</button>
-      <button class="btn btn-secondary btn-sm" onclick="enviarResetPassword('${esc(u.id)}', this)">🔑 Reset</button>
-      ${u.id !== sesion?.usuario?.id ? '<button class="btn btn-danger btn-sm" onclick="eliminarUsuario(\'' + esc(u.id) + '\')">🗑</button>' : ''}
+      <button class="btn btn-secondary btn-sm" onclick="asignarEmpleados('${esc(u.id)}')" title="Asignar empleados">👥 Asignar</button>
     </div></td>
   </tr>`).join('');
 }
+
+// ── Employee assignment modal ──
 
 function renderEmpModal(filtro = '') {
   const q = filtro.toLowerCase();
@@ -127,116 +93,41 @@ function actualizarContadorEmp() {
   if (el) el.textContent = n > 0 ? `${n} seleccionado${n>1?'s':''}` : 'Sin restricción';
 }
 
-function abrirModalUsuario(id = null) {
-  editUsrId = id;
-  document.getElementById('modal-usr-title').textContent = id ? 'Editar Usuario' : 'Nuevo Usuario';
-  const passGroup = document.getElementById('usuario-password-group');
-  const activoGroup = document.getElementById('usr-activo-group');
+let _asignandoUsuarioId = null;
 
-  if (id) {
-    const u = usuarios.find(u => u.id === id);
-    document.getElementById('usr-nombre').value = u.nombre;
-    document.getElementById('usr-email').value = u.email;
-    document.getElementById('usr-rol').value = u.rol;
-    document.getElementById('usr-sede').value = u.sede || '';
-    document.getElementById('usr-activo').value = u.activo ? '1' : '0';
-    if (passGroup) passGroup.style.display = 'none';
-    if (activoGroup) activoGroup.style.display = 'flex';
-  } else {
-    ['usr-nombre','usr-email'].forEach(i => { const el = document.getElementById(i); if (el) el.value = ''; });
-    document.getElementById('usr-rol').value = 'operador';
-    document.getElementById('usr-sede').value = '';
-    if (passGroup) passGroup.style.display = 'block';
-    if (activoGroup) activoGroup.style.display = 'none';
-  }
+function asignarEmpleados(userId) {
+  _asignandoUsuarioId = userId;
+  const u = usuarios.find(u => u.id === userId);
+  document.getElementById('modal-emp-title').textContent = `Empleados de ${u?.nombre || 'Usuario'}`;
 
   _empAsigSeleccionados = new Set();
   const searchEl = document.getElementById('usr-emp-search');
   if (searchEl) searchEl.value = '';
 
-  if (id) {
-    GET('/api/usuarios/' + id + '/empleados').then(res => {
-      if (res.ok) return res.json();
-      return [];
-    }).then(lista => {
-      _empAsigSeleccionados = new Set(lista);
-      renderEmpModal();
-    }).catch(() => renderEmpModal());
-  } else {
+  GET('/api/usuarios/' + userId + '/empleados').then(res => {
+    if (res.ok) return res.json();
+    return [];
+  }).then(lista => {
+    _empAsigSeleccionados = new Set(lista);
     renderEmpModal();
-  }
+  }).catch(() => renderEmpModal());
 
-  document.getElementById('modal-usuario').classList.add('open');
-  document.getElementById('modal-usuario').style.display = 'flex';
+  document.getElementById('modal-empleados').classList.add('open');
+  document.getElementById('modal-empleados').style.display = 'flex';
 }
 
-function editarUsuario(id) {
-  abrirModalUsuario(id);
-}
-
-async function guardarUsuario() {
-  const nombre = document.getElementById('usr-nombre')?.value.trim();
-  const email = document.getElementById('usr-email')?.value.trim();
-  const rol = document.getElementById('usr-rol')?.value;
-  const sede = document.getElementById('usr-sede')?.value;
-  const activo = document.getElementById('usr-activo')?.value === '1';
-
-  if (!nombre || !email || !rol || !sede) {
-    showToast('Completa todos los campos incluyendo sede.', 'error');
-    return;
-  }
-
-  setLoading('btn-guardar-usr', true);
-
+async function guardarEmpleados() {
+  if (!_asignandoUsuarioId) return;
   try {
-    let idGuardado = editUsrId;
-    if (editUsrId) {
-      await PUT('/api/usuarios/' + editUsrId, { nombre, email, rol, sede, activo });
-    } else {
-      const res = await POST('/api/usuarios', { nombre, email, rol, sede });
-      const data = await res.json();
-      if (!res.ok) { showToast(data.error || 'Error al crear', 'error'); setLoading('btn-guardar-usr', false); return; }
-      idGuardado = data.id;
-    }
-    if (idGuardado) {
-      await PUT('/api/usuarios/' + idGuardado + '/empleados', { empleados: [..._empAsigSeleccionados] });
-    }
-    cerrarModal('modal-usuario');
-    await loadAll();
-    renderUsuarios();
-    showToast(editUsrId ? 'Usuario actualizado.' : 'Usuario creado. Se envió correo de bienvenida.');
+    await PUT('/api/usuarios/' + _asignandoUsuarioId + '/empleados', { empleados: [..._empAsigSeleccionados] });
+    cerrarModal('modal-empleados');
+    showToast('Empleados actualizados.');
   } catch (e) {
     showToast(e.message, 'error');
-  } finally {
-    setLoading('btn-guardar-usr', false);
   }
 }
 
-async function eliminarUsuario(id) {
-  confirmar({
-    titulo: 'Eliminar Usuario',
-    mensaje: '¿Estás seguro de que deseas eliminar este usuario? Perderá acceso al sistema de forma permanente.',
-    icono: '🔐',
-    onConfirm: async () => {
-      const res = await DEL('/api/usuarios/' + id);
-      if (res.ok) { await loadAll(); renderUsuarios(); showToast('Usuario eliminado.'); }
-      else { const d = await res.json(); showToast(d.error || 'Error', 'error'); }
-    }
-  });
-}
-
-async function enviarResetPassword(id, btn) {
-  if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> Enviando...'; }
-  try {
-    const res = await POST('/api/usuarios/' + id + '/reset-password', {});
-    if (res.ok) showToast('Correo de recuperación enviado.');
-    else { const d = await res.json(); showToast(d.error || 'Error', 'error'); }
-  } catch (e) {
-    showToast(e.message, 'error');
-  } finally {
-    if (btn) { btn.disabled = false; btn.innerHTML = '🔑 Reset'; }
-  }
-}
+// ── Filters ──
 
 function filtrarUsuarios() {
   renderUsuarios();
@@ -250,7 +141,7 @@ function limpiarFiltrosUsuario() {
   renderUsuarios();
 }
 
-// Poblar dropdown de sedes desde centros global
+// Populate sede filter from global centros
 function poblarSedesUsuarios() {
   const sel = document.getElementById('usr-fil-sede');
   if (!sel) return;
@@ -266,5 +157,3 @@ function poblarSedesUsuarios() {
     });
   }
 }
-
-
