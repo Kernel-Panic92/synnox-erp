@@ -838,6 +838,22 @@ async function diagnosticarAuth(userId) {
 
     document.getElementById('diag-content').innerHTML = html;
     document.getElementById('diag-modal').style.display = 'block';
+
+    // Also run auth test
+    const testRes = await fetch(`/api/admin/diagnostico/test-auth/${userId}`, {
+      headers: { 'Authorization': 'Bearer ' + jwtToken }
+    });
+    if (testRes.ok) {
+      const testData = await testRes.json();
+      const stepsHtml = testData.steps.map(s =>
+        `<div style="padding:4px 0;">${s.ok ? '✅' : '❌'} <strong>${s.step}</strong>${s.error ? ` — <span style="color:var(--danger);">${esc(s.error)}</span>` : ''}</div>`
+      ).join('');
+      document.getElementById('diag-test-result').innerHTML = `
+        <h3 style="margin:16px 0 8px;color:var(--text);">🧪 Test de Auth (simulación)</h3>
+        ${stepsHtml}
+        ${!testData.ok ? `<div style="margin-top:8px;padding:8px;background:var(--danger);color:#fff;border-radius:6px;font-size:12px;">FALLÓ en: <strong>${testData.step}</strong> — ${esc(testData.error)}</div>` : ''}
+      `;
+    }
   } catch (e) {
     toast(e.message, 'error');
   }
