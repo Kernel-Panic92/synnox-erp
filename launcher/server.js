@@ -2282,7 +2282,7 @@ app.post('/register', requireOauth, express.json(), (req, res) => {
 });
 
 // ── Well-known OAuth metadata ──
-function getBaseUrl() {
+function getMcpBaseUrl() {
   const configPath = path.join(INSTALL_DIR, 'config.env');
   let dominio = COMPANY_DOMAIN;
   let mcpPort = '9443';
@@ -2299,7 +2299,7 @@ function getBaseUrl() {
 }
 
 app.get('/.well-known/oauth-authorization-server', requireOauth, (req, res) => {
-  const base = getBaseUrl();
+  const base = getMcpBaseUrl();
   res.json({
     issuer: base,
     authorization_endpoint: base + '/mcp/oauth/authorize',
@@ -2314,7 +2314,7 @@ app.get('/.well-known/oauth-authorization-server', requireOauth, (req, res) => {
 });
 
 app.get('/.well-known/oauth-protected-resource', requireOauth, (req, res) => {
-  const base = getBaseUrl();
+  const base = getMcpBaseUrl();
   res.json({
     resource: base + '/mcp',
     authorization_servers: [base]
