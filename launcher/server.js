@@ -936,6 +936,40 @@ app.get('/api/admin/usuarios', verificarToken, soloAdmin, (req, res) => {
   `).all());
 });
 
+// ── Diagnóstico de auth por usuario (solo admin, solo lectura) ──
+app.get('/api/admin/diagnostico/auth/:userId', verificarToken, soloAdmin, (req, res) => {
+  const userId = parseInt(req.params.userId);
+  if (isNaN(userId)) return res.status(400).json({ error: 'ID inválido' });
+
+  const user = db.prepare('SELECT id, nombre, email, rol, activo, seq, perfil_id, sede, actualizado FROM usuarios WHERE id = ?').get(userId);
+  if (!user) return res.status(404).json({ error: 'Usuario no encontrado' });
+
+  const modulos = db.prepare('SELECT modulo_id FROM user_modulos WHERE user_id = ?').all(userId).map(r => r.modulo_id);
+
+  let perfil = null;
+  let perfilPermisos = [];
+  if (user.perfil_id) {
+    perfil = db.prepare('SELECT id, nombre, descripcion FROM perfiles WHERE id = ?').get(user.perfil_id);
+    perfilPermisos = db.prepare('SELECT modulo_id, permiso FROM perfil_permisos WHERE perfil_id = ?').all(user.perfil_id);
+  }
+
+  const modulosPermisos = db.prepare('SELECT modulo_id, permiso_id FROM modulos_permisos_perfil WHERE perfil_id = ? AND activo = 1').all(user.perfil_id || 0);
+  const userPermisos = db.prepare('SELECT modulo_id, permiso_id FROM modulos_permisos_usuario WHERE usuario_id = ? AND activo = 1').all(userId);
+
+  // Simulate JWT payload
+  const payload = buildPayload(getUserWithPermissions(db, userId));
+
+  res.json({
+    usuario: user,
+    modulos_asignados: modulos,
+    perfil,
+    perfil_permisos: perfilPermisos,
+    modulos_permisos_perfil: modulosPermisos,
+    modulos_permisos_usuario: userPermisos,
+    jwt_payload_simulado: payload
+  });
+});
+
 app.post('/api/admin/usuarios', verificarToken, soloAdmin, async (req, res) => {
   const { nombre, email, password, rol, perfil_id, sede } = req.body;
   if (!nombre || !email) return res.status(400).json({ error: 'Nombre y email son requeridos' });

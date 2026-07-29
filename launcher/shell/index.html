@@ -933,6 +933,20 @@
   </div>
 </div>
 
+<!-- Modal diagnóstico auth -->
+<div class="modal-overlay" id="diag-modal">
+  <div class="modal" style="max-width:640px;max-height:80vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+      <div class="modal-title" style="margin:0;">🔍 Diagnóstico de Auth</div>
+      <span onclick="cerrarDiag()" style="font-size:20px;cursor:pointer;color:var(--muted);">&times;</span>
+    </div>
+    <div id="diag-content" style="color:var(--text);">Cargando...</div>
+    <div style="text-align:right;margin-top:16px;">
+      <button class="btn btn-sm btn-secondary" onclick="cerrarDiag()">Cerrar</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="modal-import-csv">
   <div class="modal" style="max-width:480px;">
     <div class="modal-title">📥 Importar usuarios desde CSV</div>

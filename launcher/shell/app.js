@@ -633,6 +633,7 @@ async function loadUsers() {
         <td>${u.activo ? '<span style="color:var(--success);">Activo</span>' : '<span class="badge badge-inactivo">Inactivo</span>'}</td>
         <td class="actions">
           <button class="btn btn-sm btn-secondary" onclick="editUser(${u.id})">✏️ Editar</button>
+          <button class="btn btn-sm btn-secondary" onclick="diagnosticarAuth(${u.id})" title="Ver diagnóstico de auth">🔍 Auth</button>
           ${u.activo ? `<button class="btn btn-sm btn-danger" onclick="deleteUser(${u.id})">🗑️ Desactivar</button>` : ''}
           ${!u.activo ? `<button class="btn btn-sm btn-secondary" onclick="reactivateUser(${u.id})">♻️ Reactivar</button>` : ''}
           ${!u.activo ? `<button class="btn btn-sm btn-danger" onclick="deleteUserPermanent(${u.id})">🗑️ Eliminar</button>` : ''}
@@ -770,6 +771,80 @@ function editUser(id) {
     const u = users.find(x => x.id === id);
     if (u) showUserForm(u);
   });
+}
+
+async function diagnosticarAuth(userId) {
+  try {
+    const res = await fetch(`/api/admin/diagnostico/auth/${userId}`, {
+      headers: { 'Authorization': 'Bearer ' + jwtToken }
+    });
+    if (!res.ok) throw new Error('Error al cargar diagnóstico');
+    const data = await res.json();
+    const u = data.usuario;
+    const jwt = data.jwt_payload_simulado;
+
+    const modulosHtml = data.modulos_asignados.length
+      ? data.modulos_asignados.map(m => `<span class="badge" style="background:var(--accent);color:#fff;margin:2px;">${esc(m)}</span>`).join(' ')
+      : '<span style="color:var(--danger);">Ninguno asignado</span>';
+
+    const jwtModulos = jwt.modulos?.length
+      ? jwt.modulos.map(m => `<span class="badge" style="background:var(--success);color:#fff;margin:2px;">${esc(m)}</span>`).join(' ')
+      : '<span style="color:var(--danger);">Vacío</span>';
+
+    const html = `
+      <div style="font-size:13px;line-height:1.8;">
+        <h3 style="margin:0 0 12px;color:var(--text);">👤 Usuario</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr><td style="color:var(--muted);padding:2px 8px;">ID</td><td>${u.id}</td></tr>
+          <tr><td style="color:var(--muted);padding:2px 8px;">Nombre</td><td>${esc(u.nombre)}</td></tr>
+          <tr><td style="color:var(--muted);padding:2px 8px;">Email</td><td>${esc(u.email)}</td></tr>
+          <tr><td style="color:var(--muted);padding:2px 8px;">Rol</td><td><span class="badge badge-${u.rol}">${u.rol}</span></td></tr>
+          <tr><td style="color:var(--muted);padding:2px 8px;">Activo</td><td>${u.activo ? '✅ Sí' : '❌ No'}</td></tr>
+          <tr><td style="color:var(--muted);padding:2px 8px;">Seq (sesión)</td><td>${u.seq}</td></tr>
+          <tr><td style="color:var(--muted);padding:2px 8px;">Perfil</td><td>${data.perfil ? esc(data.perfil.nombre) : '—'}</td></tr>
+          <tr><td style="color:var(--muted);padding:2px 8px;">Sede</td><td>${esc(u.sede || '—')}</td></tr>
+        </table>
+
+        <h3 style="margin:16px 0 8px;color:var(--text);">📦 Módulos asignados (user_modulos)</h3>
+        <div>${modulosHtml}</div>
+
+        <h3 style="margin:16px 0 8px;color:var(--text);">🔑 JWT payload simulado</h3>
+        <table style="width:100%;border-collapse:collapse;">
+          <tr><td style="color:var(--muted);padding:2px 8px;">modulos</td><td>${jwtModulos}</td></tr>
+          <tr><td style="color:var(--muted);padding:2px 8px;">seq</td><td>${jwt.seq}</td></tr>
+          <tr><td style="color:var(--muted);padding:2px 8px;">rol</td><td>${jwt.rol}</td></tr>
+          <tr><td style="color:var(--muted);padding:2px 8px;">perfil</td><td>${esc(jwt.perfil_nombre || '—')}</td></tr>
+        </table>
+
+        <h3 style="margin:16px 0 8px;color:var(--text);">🛡️ Permisos del perfil</h3>
+        <div>${data.perfil_permisos.length
+          ? data.perfil_permisos.map(p => `<code style="font-size:11px;background:var(--surface2);padding:2px 6px;border-radius:4px;margin:2px;display:inline-block;">${esc(p.modulo_id)}.${esc(p.permiso)}</code>`).join(' ')
+          : '<span style="color:var(--muted);">Sin permisos de perfil</span>'
+        }</div>
+
+        <h3 style="margin:16px 0 8px;color:var(--text);">⚙️ Permisos funcionales (modulos_permisos)</h3>
+        <div>${data.modulos_permisos_perfil.length
+          ? data.modulos_permisos_perfil.map(p => `<code style="font-size:11px;background:var(--surface2);padding:2px 6px;border-radius:4px;margin:2px;display:inline-block;">${esc(p.modulo_id)}.${esc(p.permiso_id)}</code>`).join(' ')
+          : '<span style="color:var(--muted);">Sin permisos funcionales</span>'
+        }</div>
+
+        <h3 style="margin:16px 0 8px;color:var(--text);">👤 Permisos individuales (usuario)</h3>
+        <div>${data.modulos_permisos_usuario.length
+          ? data.modulos_permisos_usuario.map(p => `<code style="font-size:11px;background:var(--surface2);padding:2px 6px;border-radius:4px;margin:2px;display:inline-block;">${esc(p.modulo_id)}.${esc(p.permiso_id)}</code>`).join(' ')
+          : '<span style="color:var(--muted);">Sin permisos individuales</span>'
+        }</div>
+      </div>
+    `;
+
+    document.getElementById('diag-content').innerHTML = html;
+    document.getElementById('diag-modal').style.display = 'block';
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+function cerrarDiag() {
+  document.getElementById('diag-modal').style.display = 'none';
 }
 
 async function deleteUser(id) {
