@@ -160,7 +160,16 @@ async function init() {
     mostrarAppInterno();
   } catch (e) {
     document.getElementById('app-screen').style.display = 'none';
-    document.body.insertAdjacentHTML('beforeend', `<div class="error-splash"><div class="error-splash-card"><div class="error-splash-icon">⚠️</div><div class="error-splash-title">Error al cargar Proyectos</div><div class="error-splash-msg">${e.message || 'No se pudo conectar con el servidor. Verifica tu sesión e intenta de nuevo.'}</div><a href="/" class="error-splash-btn error-splash-btn-primary">🏠 Volver al Launcher</a></div></div>`);
+    const isModuleDenied = e.message?.includes('acceso al módulo') || e.message?.includes('Acceso denegado');
+    const isSessionInvalid = e.message?.includes('Sesión invalidada') || e.message?.includes('Sesión expirada');
+    const icon = isModuleDenied ? '🔒' : isSessionInvalid ? '🔑' : '⚠️';
+    const title = isModuleDenied ? 'Acceso denegado' : isSessionInvalid ? 'Sesión expirada' : 'Error al cargar Proyectos';
+    const msg = isModuleDenied
+      ? 'No tienes permisos para acceder al módulo de Proyectos. Contacta al administrador.'
+      : isSessionInvalid
+        ? 'Tu sesión fue actualizada. Vuelve al Launcher e inicia sesión nuevamente.'
+        : (e.message || 'No se pudo conectar con el servidor. Verifica tu sesión e intenta de nuevo.');
+    document.body.insertAdjacentHTML('beforeend', `<div class="error-splash"><div class="error-splash-card"><div class="error-splash-icon">${icon}</div><div class="error-splash-title">${title}</div><div class="error-splash-msg">${msg}</div><a href="/" class="error-splash-btn error-splash-btn-primary">🏠 Volver al Launcher</a></div></div>`);
   }
 }
 

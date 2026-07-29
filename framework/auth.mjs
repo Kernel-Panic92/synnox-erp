@@ -67,6 +67,13 @@ export function requirePermiso(permisoId, moduloId) {
   };
 }
 
+// Standard middleware chain for protected API routes: verifyToken → verifySession → requireModule
+// Usage: const protect = createProtect('mi_modulo');
+//        app.use('/api', protect, routes);
+export function createProtect(moduleId) {
+  return [verifyToken, verifySession, requireModule(moduleId)];
+}
+
 // Session version cache (5 second TTL)
 const _seqCache = new Map();
 function getCachedSeq(userId) {

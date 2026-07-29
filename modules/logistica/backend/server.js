@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import pool from './config/db.js';
-import { verifyToken, verifySession, requireModule, requirePermiso } from '../../../framework/auth.mjs';
+import { verifyToken, verifySession, requireModule, requirePermiso, createProtect } from '../../../framework/auth.mjs';
 
 dotenv.config();
 
@@ -43,7 +43,7 @@ import reportesRoutes from './routes/reportes.js';
 import widetechRoutes from './routes/widetech.js';
 import widetechSyncRoutes from './routes/widetech-sync.js';
 
-app.get('/api/dashboard/resumen', verifyToken, async (req, res) => {
+app.get('/api/dashboard/resumen', protect, async (req, res) => {
   try {
     const pool = (await import('./config/db.js')).default;
     const [pedidosHoy, enRuta, entregados] = await Promise.all([
@@ -60,7 +60,7 @@ app.get('/api/dashboard/resumen', verifyToken, async (req, res) => {
 });
 
 app.use('/api/health', healthRoutes);
-app.get('/api/rutas/diagnostico', verifyToken, async (req, res) => {
+app.get('/api/rutas/diagnostico', protect, async (req, res) => {
   try {
     const pool = (await import('./config/db.js')).default;
     const pedidosPendientesSinRuta = await pool.query(`SELECT id, numero_factura, latitud, longitud FROM logistics.pedidos_logistica WHERE estado='pendiente' AND ruta_id IS NULL`);
@@ -74,7 +74,7 @@ app.get('/api/rutas/diagnostico', verifyToken, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-const protect = [verifyToken, verifySession, requireModule(MODULE_ID)];
+const protect = createProtect(MODULE_ID);
 app.use('/api/vehiculos', protect, vehiculosRoutes);
 app.use('/api/pedidos', protect, pedidosRoutes);
 app.use('/api/rutas', protect, rutasRoutes);
@@ -92,8 +92,8 @@ app.use('/api/reportes', protect, reportesRoutes);
 app.use('/api/widetech', [verifyToken, requireModule(MODULE_ID), requirePermiso('configurar', MODULE_ID)], widetechRoutes);
 app.use('/api/widetech-sync', protect, widetechSyncRoutes);
 
-// GET /api/auth/me — verify JWT and return user info (auto-create if new)
-app.get('/api/auth/me', verifyToken, async (req, res) => {
+// GET /api/auth/me — verify JWT, session and module access
+app.get('/api/auth/me', protect, async (req, res) => {
   console.log(`[logistica] /me llamado — user: ${req.user?.email}, rol: ${req.user?.rol}, modulos: ${JSON.stringify(req.user?.modulos)}`);
   try {
     const result = await pool.query('SELECT id, nombre, email, rol, activo FROM logistics.usuarios WHERE email=$1', [req.user.email]);

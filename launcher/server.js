@@ -918,6 +918,10 @@ app.get('/api/modulos', verificarToken, (req, res) => {
 app.get('/api/auth/me', verificarToken, (req, res) => {
   const userWithPerms = getUserWithPermissions(db, req.usuario.id);
   if (!userWithPerms) return res.status(404).json({ error: 'Usuario no encontrado' });
+  // Verify seq (session version) — reject stale JWTs
+  if (userWithPerms.seq !== req.usuario.seq) {
+    return res.status(401).json({ error: 'Sesión invalidada. Inicia sesión nuevamente.' });
+  }
   const { modulos, modulos_permisos, permisos, perfil_nombre, ...rest } = userWithPerms;
   res.json({ ...rest, modulos, modulos_permisos, permisos, perfil_nombre });
 });
@@ -1103,7 +1107,7 @@ app.put('/api/admin/usuarios/:id/modulos', verificarToken, soloAdmin, (req, res)
   });
   transaction();
   invalidarSesionUsuario(userId);
-  res.json({ ok: true, modulos });
+  res.json({ ok: true, modulos, sesionInvalidada: true });
 });
 
 // ── API: Perfiles ──

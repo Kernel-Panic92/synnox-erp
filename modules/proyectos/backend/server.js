@@ -5,7 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
-import { verifyToken, verifySession, requireModule, requirePermiso } from '../../../framework/auth.mjs';
+import { verifyToken, verifySession, requireModule, requirePermiso, createProtect } from '../../../framework/auth.mjs';
 
 dotenv.config();
 
@@ -37,7 +37,7 @@ import alertasRoutes from './routes/alertas.js';
 import backupRoutes from './routes/backup.js';
 import actasRoutes from './routes/actas.js';
 
-const protect = [verifyToken, verifySession, requireModule(MODULE_ID)];
+const protect = createProtect(MODULE_ID);
 
 app.use('/api/tareas', protect, evidenciasRoutes);
 app.use('/api', protect, aprobacionRoutes);
@@ -54,7 +54,7 @@ app.get('/api/centros', (req, res) => {
   res.json(globalThis.__centrosCache || []);
 });
 
-app.get('/api/auth/me', verifyToken, (req, res) => {
+app.get('/api/auth/me', protect, (req, res) => {
   res.json({
     id: req.user.id,
     nombre: req.user.nombre,
@@ -65,7 +65,7 @@ app.get('/api/auth/me', verifyToken, (req, res) => {
   });
 });
 
-app.get('/api/dashboard', verifyToken, async (req, res) => {
+app.get('/api/dashboard', protect, async (req, res) => {
   try {
     const pool = (await import('./config/db.js')).default;
     const estados = await pool.query(

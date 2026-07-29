@@ -1,6 +1,38 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (28 Jul 2026 — sesión 23)
+## Estado (28 Jul 2026 — sesión 24)
+
+### Cambios Sesión 24 — Fix seguridad: acceso no autorizado a módulos + UX sesión invalidada
+
+#### Problema reportado
+- Usuario operador con perfil asignado recibe "Not authenticated" al acceder a nómina después de que el admin le asigna módulos
+- Descubrimiento adicional: 3 de 4 módulos permiten acceso a usuarios sin el módulo asignado (solo proveedores estaba correcto)
+
+#### Causa raíz
+1. **Acceso no autorizado**: `/api/auth/me` de logística, proyectos y nómina solo verificaban JWT válido, NO verificaban `requireModule('xxx')`. Cualquier usuario autenticado podía acceder a módulos no asignados.
+2. **Sesión invalidada**: Al asignar módulos via `PUT /api/admin/usuarios/:id/modulos`, se ejecuta `invalidarSesionUsuario()` que incrementa `seq`. El JWT viejo del operador queda con `seq` antiguo → `verifySessionValid()` lo rechaza con 401.
+
+#### Fixes aplicados
+- **Logística** (`modules/logistica/backend/server.js`): `/api/auth/me`, `/api/dashboard/resumen` y `/api/rutas/diagnostico` ahora usan `protect` (verifyToken + verifySession + requireModule)
+- **Proyectos** (`modules/proyectos/backend/server.js`): `/api/auth/me` y `/api/dashboard` ahora usan `protect`
+- **Nómina** (`modules/nomina/server.js`): Ya tenía `requireModule('nomina')` en middleware global (línea 147) — correcto
+- **Framework** (`framework/auth.mjs`): Nuevo helper `createProtect(moduleId)` que devuelve `[verifyToken, verifySession, requireModule(moduleId)]`
+- **Frontend** (3 módulos): Error splash ahora distingue entre "Acceso denegado" (🔒), "Sesión expirada" (🔑) y error genérico (⚠️)
+- **Launcher** (`launcher/server.js`): `PUT /api/admin/usuarios/:id/modulos` devuelve `sesionInvalidada: true`; `/api/auth/me` verifica `seq` contra DB
+- **Launcher** (`launcher/shell/app.js`): Toast informativo "El usuario debe cerrar sesión y volver a entrar" al guardar módulos
+
+#### Convención para futuros módulos (MANDATORIO)
+- **`createProtect(moduleId)`**: Usar del framework para proteger TODAS las rutas API. Ejemplo:
+  ```js
+  import { createProtect } from '../../../framework/auth.mjs';
+  const protect = createProtect('mi_modulo');
+  app.use('/api', protect, routes);
+  ```
+- **`/api/auth/me`**: DEBE usar `protect`, NO solo `verifyToken`. Sin esto, cualquier usuario autenticado puede acceder al módulo.
+- **Error splash**: Los módulos DEBEN mostrar error-splash diferenciado para 403 (🔒 Acceso denegado) y 401 (🔑 Sesión expirada).
+- **Proveedores** (CJS): Usa su propio `requireModule('proveedores')` en middleware global — no necesita cambios.
+
+### Estado (28 Jul 2026 — sesión 23)
 
 ### Cambios Sesión 23 — Deploy producción + fixes
 

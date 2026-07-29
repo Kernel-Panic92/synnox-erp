@@ -739,11 +739,15 @@ async function saveUser() {
     const userId = id || result.id;
     if (rol === 'operador' && userId) {
       const selectedModulos = getSelectedModulos();
-      await fetch('/api/admin/usuarios/' + userId + '/modulos', {
+      const modRes = await fetch('/api/admin/usuarios/' + userId + '/modulos', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
         body: JSON.stringify({ modulos: selectedModulos })
       });
+      const modData = await modRes.json().catch(() => ({}));
+      if (modRes.ok && modData.sesionInvalidada) {
+        toast('Módulos actualizados. El usuario debe cerrar sesión y volver a entrar.', 'info');
+      }
     }
 
     closeForm();

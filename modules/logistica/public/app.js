@@ -10,6 +10,10 @@ async function api(path, opts = {}) {
   const headers = { 'Content-Type': 'application/json', ...opts.headers };
   const res = await fetch(API + path, { ...opts, headers });
   if (res.status === 401) { logout(); throw new Error('Sesión expirada'); }
+  if (res.status === 403) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || 'Acceso denegado', { cause: 'module_denied' });
+  }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Error del servidor');
   return data;
@@ -134,12 +138,21 @@ async function init() {
     cargarDashboard();
   } catch (e) {
     document.getElementById('app-screen').style.display = 'none';
+    const isModuleDenied = e.message?.includes('acceso al módulo') || e.message?.includes('Acceso denegado');
+    const isSessionInvalid = e.message?.includes('Sesión invalidada') || e.message?.includes('Sesión expirada');
+    const icon = isModuleDenied ? '🔒' : isSessionInvalid ? '🔑' : '⚠️';
+    const title = isModuleDenied ? 'Acceso denegado' : isSessionInvalid ? 'Sesión expirada' : 'Error al cargar Logística';
+    const msg = isModuleDenied
+      ? 'No tienes permisos para acceder al módulo de Logística. Contacta al administrador.'
+      : isSessionInvalid
+        ? 'Tu sesión fue actualizada. Vuelve al Launcher e inicia sesión nuevamente.'
+        : (e.message || 'No se pudo conectar con el servidor. Verifica tu sesión e intenta de nuevo.');
     document.body.insertAdjacentHTML('beforeend', `
       <div class="error-splash">
         <div class="error-splash-card">
-          <div class="error-splash-icon">⚠️</div>
-          <div class="error-splash-title">Error al cargar Logística</div>
-          <div class="error-splash-msg">${e.message || 'No se pudo conectar con el servidor. Verifica tu sesión e intenta de nuevo.'}</div>
+          <div class="error-splash-icon">${icon}</div>
+          <div class="error-splash-title">${title}</div>
+          <div class="error-splash-msg">${msg}</div>
           <a href="/" class="error-splash-btn error-splash-btn-primary">🏠 Volver al Launcher</a>
         </div>
       </div>
