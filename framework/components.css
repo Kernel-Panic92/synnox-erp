@@ -54,6 +54,9 @@ button, .btn {
   align-items: center; justify-content: center; padding: 20px;
 }
 .modal-overlay.show { display: flex; }
+/* Confirmaciones y acciones siempre encima del modal-detalle */
+#modal-overlay { z-index: 300; }
+#modal-detalle { z-index: 200; }
 .modal {
   background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 28px;
   width: 100%; max-width: 540px; max-height: 80vh; overflow-y: auto;

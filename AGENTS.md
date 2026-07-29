@@ -89,6 +89,7 @@
 ### Convenciones del Framework (SEGUIR SIEMPRE)
 
 - **Modales**: Definir en HTML con `class="modal-overlay"`, mostrar/ocultar con `display: block/none`. NO crear modales dinámicamente con `document.createElement`.
+- **Z-index modales**: `#modal-overlay` (confirmaciones/acciones) SIEMPRE z-index MAYOR que `#modal-detalle` (panel de detalle). Framework: overlay=300, detalle=200. Evita que confirmaciones queden detrás del modal de detalle.
 - **Confirmaciones**: Usar `confirmModal(msg, title, type)` del framework, NUNCA `confirm()` del navegador. Tipos: `'delete'` (default, rojo 🗑️), `'update'` (azul 🔄), `'restart'` (amarillo ♻️), `'info'` (gris ℹ️).
 - **Mensajes**: Usar `toast(msg, type)` del framework para feedback al usuario.
 - **CSS**: Usar variables del framework (`var(--surface)`, `var(--border)`, `var(--text)`, `var(--muted)`, `var(--accent)`, `var(--success)`, `var(--danger)`).
