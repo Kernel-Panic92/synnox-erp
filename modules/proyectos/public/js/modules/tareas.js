@@ -305,7 +305,7 @@ async function abrirModalDetalleTarea(id) {
           }).join('') || '<p style="color:var(--muted);font-size:12px;padding:8px 0">Sin evidencias subidas</p>'}
         </div>
         <div class="evidencia-upload" style="display:flex;flex-direction:column;gap:8px;padding:10px;border:1px dashed var(--border);border-radius:8px">
-          <textarea id="evidencia-desc" placeholder="Describe la evidencia (opcional)..." style="font-size:12px;min-height:50px;resize:vertical"></textarea>
+          <textarea id="evidencia-desc" placeholder="Descripción del adjunto (opcional, no es la descripción de la tarea)..." style="font-size:12px;min-height:50px;resize:vertical"></textarea>
           <div style="display:flex;gap:8px;align-items:center">
             <input id="evidencia-file" type="file" accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.doc,.docx,.xls,.xlsx" style="flex:1;font-size:12px">
             <button class="btn btn-sm btn-primary" onclick="subirEvidencia(${t.id})">Subir</button>
@@ -340,7 +340,20 @@ async function abrirModalDetalleTarea(id) {
         ${badgeEstado(t.estado)} ${badgeAprobacion(t.estado_aprobacion)} ${badgePrioridad(t.prioridad)}
         <span class="badge badge-muted">${esc(t.tipo || 'tarea')}</span>
       </div>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:12px">${esc(t.descripcion || 'Sin descripcion')}</p>
+      <div style="margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+          <strong style="font-size:13px">Descripcion</strong>
+          <button class="btn btn-xs btn-secondary" onclick="editarDescripcionTarea(${t.id})" title="Editar descripcion">&#9998;</button>
+        </div>
+        <p id="tarea-desc-display" style="font-size:13px;color:var(--muted);margin:0">${esc(t.descripcion || 'Sin descripcion')}</p>
+        <div id="tarea-desc-edit" style="display:none">
+          <textarea id="tarea-desc-input" style="width:100%;min-height:60px;resize:vertical;font-size:13px">${esc(t.descripcion || '')}</textarea>
+          <div style="display:flex;gap:6px;margin-top:6px">
+            <button class="btn btn-xs btn-primary" onclick="guardarDescripcionTarea(${t.id})">Guardar</button>
+            <button class="btn btn-xs btn-secondary" onclick="cancelarEdicionDescripcion()">Cancelar</button>
+          </div>
+        </div>
+      </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;color:var(--muted);margin-bottom:16px">
         <div>Proyecto: <strong>${esc(t.proyecto_nombre || '—')}</strong></div>
         <div>Asignado: <strong>${t.asignado_a ? esc(nombreUsuario(t.asignado_a)) : '—'}</strong></div>
@@ -385,5 +398,25 @@ async function agregarComentario(tareaId) {
     await api('/tareas/' + tareaId + '/comentarios', { method: 'POST', body: JSON.stringify({ contenido }) });
     input.value = '';
     abrirModalDetalleTarea(tareaId);
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+function editarDescripcionTarea(id) {
+  document.getElementById('tarea-desc-display').style.display = 'none';
+  document.getElementById('tarea-desc-edit').style.display = 'block';
+  document.getElementById('tarea-desc-input').focus();
+}
+
+function cancelarEdicionDescripcion() {
+  document.getElementById('tarea-desc-display').style.display = 'block';
+  document.getElementById('tarea-desc-edit').style.display = 'none';
+}
+
+async function guardarDescripcionTarea(id) {
+  const desc = document.getElementById('tarea-desc-input').value.trim();
+  try {
+    await api('/tareas/' + id, { method: 'PUT', body: JSON.stringify({ descripcion: desc }) });
+    toast('Descripcion actualizada', 'success');
+    abrirModalDetalleTarea(id);
   } catch (err) { toast(err.message, 'error'); }
 }
