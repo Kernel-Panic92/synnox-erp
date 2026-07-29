@@ -88,13 +88,15 @@ router.post('/', requirePermiso('crear_tarea', 'proyectos'), async (req, res) =>
     // Notificar al asignado
     if (asignado_a) {
       try {
-        const { default: fetch } = await import('node-fetch');
-        await fetch(`http://127.0.0.1:${process.env.PORT || 3002}/api/notificaciones/crear`, {
+        const token = req.headers.authorization?.replace('Bearer ', '');
+        const notifRes = await fetch('http://127.0.0.1:3002/api/notificaciones/crear', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${req.headers.authorization?.replace('Bearer ', '')}` },
-          body: JSON.stringify({ usuario_id: asignado_a, modulo: 'proyectos', tipo: 'tarea_asignada', titulo: 'Tarea asignada', mensaje: `Se te asignó la tarea "${titulo}"`, url: '/proyectos/#tareas' })
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ usuario_id: asignado_a, modulo: 'proyectos', tipo: 'tarea_asignada', titulo: 'Tarea asignada', mensaje: 'Se te asignó la tarea "' + titulo + '"', url: '/proyectos/#tareas' })
         });
-      } catch {}
+        const notifData = await notifRes.json();
+        console.log('[notif] Resultado:', notifRes.status, notifData);
+      } catch (e) { console.warn('[notif] Error:', e.message); }
     }
     res.status(201).json({ exitosa: true, tarea: result.rows[0] });
   } catch (err) {
