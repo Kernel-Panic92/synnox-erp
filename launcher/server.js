@@ -1882,8 +1882,19 @@ app.delete('/api/notificaciones/:id', verificarToken, (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.post('/api/notificaciones/crear', verificarToken, (req, res) => {
+app.post('/api/notificaciones/crear', (req, res) => {
   try {
+    // Bypass auth for internal requests (localhost)
+    const isInternal = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+    if (!isInternal) {
+      // External requests need auth
+      const token = req.headers.authorization?.replace('Bearer ', '') || req.cookies?.launcher_jwt;
+      if (!token) return res.status(401).json({ error: 'No autenticado' });
+      try {
+        const jwt = require('jsonwebtoken');
+        jwt.verify(token, process.env.JWT_SECRET);
+      } catch { return res.status(401).json({ error: 'Token inválido' }); }
+    }
     const { usuario_id, modulo, tipo, titulo, mensaje, url } = req.body;
     if (!usuario_id || !modulo || !tipo || !titulo || !mensaje) {
       return res.status(400).json({ error: 'Faltan campos requeridos' });

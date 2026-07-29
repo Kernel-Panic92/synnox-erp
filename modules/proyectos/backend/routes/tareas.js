@@ -88,14 +88,11 @@ router.post('/', requirePermiso('crear_tarea', 'proyectos'), async (req, res) =>
     // Notificar al asignado
     if (asignado_a) {
       try {
-        const token = req.headers.authorization?.replace('Bearer ', '');
-        const notifRes = await fetch('http://127.0.0.1:3002/api/notificaciones/crear', {
+        await fetch('http://127.0.0.1:3002/api/notificaciones/crear', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ usuario_id: asignado_a, modulo: 'proyectos', tipo: 'tarea_asignada', titulo: 'Tarea asignada', mensaje: 'Se te asignó la tarea "' + titulo + '"', url: '/proyectos/#tareas' })
         });
-        const notifData = await notifRes.json();
-        console.log('[notif] Resultado:', notifRes.status, notifData);
       } catch (e) { console.warn('[notif] Error:', e.message); }
     }
     res.status(201).json({ exitosa: true, tarea: result.rows[0] });

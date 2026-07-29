@@ -76,11 +76,10 @@ router.put('/tareas/:id/aprobar', async (req, res) => {
     // Notificación in-app
     if (tarea.asignado_a) {
       try {
-        const { default: fetch } = await import('node-fetch');
-        await fetch(`http://127.0.0.1:${process.env.PORT || 3002}/api/notificaciones/crear`, {
+        await fetch('http://127.0.0.1:3002/api/notificaciones/crear', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${req.headers.authorization?.replace('Bearer ', '')}` },
-          body: JSON.stringify({ usuario_id: tarea.asignado_a, modulo: 'proyectos', tipo: 'proyecto_aprobado', titulo: 'Tarea aprobada', mensaje: `Tu tarea "${tarea.titulo}" fue aprobada por ${req.user.nombre}`, url: '/proyectos/#tareas' })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usuario_id: tarea.asignado_a, modulo: 'proyectos', tipo: 'proyecto_aprobado', titulo: 'Tarea aprobada', mensaje: 'Tu tarea "' + tarea.titulo + '" fue aprobada por ' + req.user.nombre, url: '/proyectos/#tareas' })
         });
       } catch {}
     }
@@ -135,11 +134,10 @@ router.put('/tareas/:id/rechazar', async (req, res) => {
     // Notificación in-app
     if (tarea.asignado_a) {
       try {
-        const { default: fetch } = await import('node-fetch');
-        await fetch(`http://127.0.0.1:${process.env.PORT || 3002}/api/notificaciones/crear`, {
+        await fetch('http://127.0.0.1:3002/api/notificaciones/crear', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${req.headers.authorization?.replace('Bearer ', '')}` },
-          body: JSON.stringify({ usuario_id: tarea.asignado_a, modulo: 'proyectos', tipo: 'proyecto_rechazado', titulo: 'Tarea rechazada', mensaje: `Tu tarea "${tarea.titulo}" fue rechazada: ${motivo}`, url: '/proyectos/#tareas' })
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usuario_id: tarea.asignado_a, modulo: 'proyectos', tipo: 'proyecto_rechazado', titulo: 'Tarea rechazada', mensaje: 'Tu tarea "' + tarea.titulo + '" fue rechazada: ' + motivo, url: '/proyectos/#tareas' })
         });
       } catch {}
     }
