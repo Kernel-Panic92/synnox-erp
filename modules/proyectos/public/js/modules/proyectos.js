@@ -6,6 +6,8 @@ async function cargarProyectos() {
     const data = await api('/proyectos');
     _proyectos = data.proyectos || [];
     document.getElementById('proyectos-count').textContent = `${_proyectos.length} proyecto(s)`;
+    const ids = _proyectos.map(p => p.asignado_a).filter(Boolean);
+    await cargarNombresUsuarios(ids);
     const grid = document.getElementById('proyectos-grid');
 
     if (!_proyectos.length) {
@@ -31,6 +33,7 @@ async function cargarProyectos() {
           </div>
           ${p.descripcion ? `<p style="font-size:12px;color:var(--muted);margin-bottom:10px">${esc(p.descripcion)}</p>` : ''}
           ${centro ? `<div style="font-size:11px;color:var(--muted);margin-bottom:4px">&#x1F3E2; ${esc(centro.nombre)}</div>` : ''}
+          ${p.asignado_a ? `<div style="font-size:11px;color:var(--muted);margin-bottom:4px">&#x1F464; ${esc(nombreUsuario(p.asignado_a))}</div>` : ''}
           ${p.fecha_limite ? `<div style="font-size:11px;color:var(--muted);margin-bottom:8px">&#x1F4C5; ${formatDate(p.fecha_limite)}</div>` : ''}
           <div style="display:flex;gap:8px;font-size:11px;margin-bottom:8px">
             <span>&#x23F3; ${parseInt(p.tareas_pendientes) || 0}</span>
@@ -66,6 +69,7 @@ async function cargarCentrosProyectos() {
 
 async function abrirModalProyecto(id) {
   await cargarCentrosProyectos();
+  await cargarTodosLosUsuarios();
   const p = id ? _proyectos.find(x => x.id === id) : null;
   const titulo = p ? 'Editar Proyecto' : 'Nuevo Proyecto';
   const centroOpts = (_centrosCache || []).map(c =>
@@ -84,11 +88,15 @@ async function abrirModalProyecto(id) {
         <option value="archivado" ${p?.estado === 'archivado' ? 'selected' : ''}>Archivado</option>
       </select></div>
     </div>
-    <div class="form-group"><label>Fecha Limite</label><input type="date" id="proy-fecha" value="${p?.fecha_limite ? p.fecha_limite.split('T')[0] : ''}"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Fecha Limite</label><input type="date" id="proy-fecha" value="${p?.fecha_limite ? p.fecha_limite.split('T')[0] : ''}"></div>
+      <div class="form-group"><label>Asignado a</label>${selectBuscador('proy-asignado', _todosUsuarios, p?.asignado_a, 'Buscar usuario...')}</div>
+    </div>
   `;
   const actions = `<button class="btn btn-sm btn-secondary" onclick="cerrarModal()">Cancelar</button>
     <button class="btn btn-sm btn-primary" onclick="guardarProyecto(${id || 'null'})">Guardar</button>`;
   abrirModal(titulo, '', body, actions);
+  initSelectBuscador('proy-asignado');
 }
 
 async function guardarProyecto(id) {
@@ -98,7 +106,8 @@ async function guardarProyecto(id) {
     descripcion: document.getElementById('proy-desc').value.trim(),
     estado: document.getElementById('proy-estado').value,
     fecha_limite: document.getElementById('proy-fecha').value || null,
-    centro_id: centroEl?.value ? Number(centroEl.value) : null
+    centro_id: centroEl?.value ? Number(centroEl.value) : null,
+    asignado_a: parseInt(document.getElementById('proy-asignado').value) || null
   };
   if (!body.nombre) return toast('El nombre es requerido', 'error');
   try {
