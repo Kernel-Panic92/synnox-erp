@@ -972,44 +972,53 @@ app.get('/api/admin/diagnostico/auth/:userId', verificarToken, soloAdmin, (req, 
 
 // ── Test auth flow simulation (solo admin) ──
 app.get('/api/admin/diagnostico/test-auth/:userId', verificarToken, soloAdmin, (req, res) => {
-  const userId = parseInt(req.params.userId);
-  if (isNaN(userId)) return res.status(400).json({ error: 'ID inválido' });
-
-  const steps = [];
-
-  // Step 1: Build payload
-  const userWithPerms = getUserWithPermissions(db, userId);
-  if (!userWithPerms) return res.json({ ok: false, step: 'buildPayload', error: 'Usuario no encontrado' });
-  const payload = buildPayload(userWithPerms);
-  steps.push({ step: 'buildPayload', ok: true, modulos: payload.modulos, seq: payload.seq });
-
-  // Step 2: Sign JWT
-  let token;
   try {
-    token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
-    steps.push({ step: 'signJWT', ok: true, tokenLength: token.length });
+    const userId = parseInt(req.params.userId);
+    if (isNaN(userId)) return res.status(400).json({ error: 'ID inválido' });
+
+    const steps = [];
+
+    // Step 1: Build payload
+    const userWithPerms = getUserWithPermissions(db, userId);
+    if (!userWithPerms) return res.json({ ok: false, step: 'buildPayload', error: 'Usuario no encontrado' });
+    const payload = buildPayload(userWithPerms);
+    steps.push({ step: 'buildPayload', ok: true, modulos: payload.modulos, seq: payload.seq });
+
+    // Step 2: Sign JWT
+    let token;
+    try {
+      token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+      steps.push({ step: 'signJWT', ok: true, tokenLength: token.length });
+    } catch (e) {
+      return res.json({ ok: false, step: 'signJWT', error: e.message });
+    }
+
+    // Step 3: Verify JWT (same as module does)
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET);
+      steps.push({ step: 'verifyJWT', ok: true, email: decoded.email, modulos: decoded.modulos });
+    } catch (e) {
+      return res.json({ ok: false, step: 'verifyJWT', error: e.message });
+    }
+
+    // Step 4: Check session validity
+    try {
+      const sessionValid = verifySessionValid(payload);
+      steps.push({ step: 'verifySession', ok: sessionValid, payloadSeq: payload.seq, dbSeq: userWithPerms.seq });
+    } catch (e) {
+      steps.push({ step: 'verifySession', ok: false, error: e.message });
+    }
+
+    // Step 5: Check module access
+    const hasNomina = payload.modulos.includes('nomina');
+    const isAdmin = payload.rol === 'admin';
+    steps.push({ step: 'requireModule', ok: hasNomina || isAdmin, modulos: payload.modulos, rol: payload.rol });
+
+    res.json({ ok: true, steps, payload });
   } catch (e) {
-    return res.json({ ok: false, step: 'signJWT', error: e.message });
+    console.error('[test-auth] Error:', e);
+    res.status(500).json({ ok: false, error: e.message, stack: e.stack });
   }
-
-  // Step 3: Verify JWT (same as module does)
-  try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    steps.push({ step: 'verifyJWT', ok: true, email: decoded.email, modulos: decoded.modulos });
-  } catch (e) {
-    return res.json({ ok: false, step: 'verifyJWT', error: e.message });
-  }
-
-  // Step 4: Check session validity
-  const sessionValid = verifySessionValid(payload);
-  steps.push({ step: 'verifySession', ok: sessionValid, payloadSeq: payload.seq, dbSeq: userWithPerms.seq });
-
-  // Step 5: Check module access
-  const hasNomina = payload.modulos.includes('nomina');
-  const isAdmin = payload.rol === 'admin';
-  steps.push({ step: 'requireModule', ok: hasNomina || isAdmin, modulos: payload.modulos, rol: payload.rol });
-
-  res.json({ ok: true, steps, payload });
 });
 
 app.post('/api/admin/usuarios', verificarToken, soloAdmin, async (req, res) => {

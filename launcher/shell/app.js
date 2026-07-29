@@ -855,7 +855,7 @@ async function diagnosticarAuth(userId) {
           ${!testData.ok ? `<div style="margin-top:8px;padding:8px;background:var(--danger);color:#fff;border-radius:6px;font-size:12px;">FALLÓ en: <strong>${testData.step}</strong> — ${esc(testData.error)}</div>` : ''}
         `;
       } else {
-        document.getElementById('diag-test-result').innerHTML = `<div style="margin-top:12px;padding:8px;background:var(--surface2);border-radius:6px;font-size:12px;color:var(--muted);">Test no disponible (${testRes.status}: ${esc(testData.error || 'Error desconocido')})</div>`;
+        document.getElementById('diag-test-result').innerHTML = `<div style="margin-top:12px;padding:8px;background:var(--surface2);border-radius:6px;font-size:12px;color:var(--muted);">Test no disponible (${testRes.status}: ${esc(testData.error || 'Error desconocido')}${testData.stack ? `<br><code style="font-size:10px;color:var(--danger);">${esc(testData.stack.split('\n').slice(0,3).join('\n'))}</code>` : ''})</div>`;
       }
     } catch (e) {
       document.getElementById('diag-test-result').innerHTML = `<div style="margin-top:12px;padding:8px;background:var(--surface2);border-radius:6px;font-size:12px;color:var(--danger);">Error al ejecutar test: ${esc(e.message)}</div>`;
