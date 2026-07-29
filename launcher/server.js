@@ -470,6 +470,7 @@ const defaultPermisosConfig = {
   ],
   proyectos: [
     ['ver', 'Ver proyectos y tareas'],
+    ['ver_propios', 'Ver solo tareas asignadas (sin esto ve todas)'],
     ['crear', 'Crear proyectos'],
     ['editar', 'Editar proyectos'],
     ['eliminar', 'Eliminar proyectos'],
