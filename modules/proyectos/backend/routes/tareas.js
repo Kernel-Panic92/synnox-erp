@@ -20,7 +20,6 @@ router.get('/', requirePermiso('ver', 'proyectos'), async (req, res) => {
 
     // Operadores solo ven sus tareas asignadas
     const esAdminGerente = req.user?.rol === 'admin' || req.user?.rol === 'gerente';
-    console.log(`[tareas] GET user=${req.user?.id} rol=${req.user?.rol} esAdminGerente=${esAdminGerente}`);
     if (!esAdminGerente) {
       params.push(req.user.id);
       conditions.push(`t.asignado_a = $${idx++}`);
