@@ -46,6 +46,7 @@ function applyPermControls() {
   const pagePermMap = {
     registro: 'registros',
     empleados: 'empleados',
+    usuarios: 'usuarios',
     centros: 'centros',
     nomina: 'nominas',
     nominas: 'nominas',
