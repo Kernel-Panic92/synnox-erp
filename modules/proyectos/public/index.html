@@ -90,7 +90,12 @@
 
       <!-- Proyectos -->
       <div class="page" id="page-proyectos">
-        <div class="flex mb-12"><div class="spacer text-muted" id="proyectos-count">0 proyectos</div><button class="btn btn-primary btn-sm" onclick="abrirModalProyecto()">+ Nuevo Proyecto</button></div>
+        <div class="filters">
+          <input id="filtro-proy-busqueda" type="text" placeholder="Buscar proyecto..." oninput="cargarProyectos()">
+          <div class="spacer"></div>
+          <span class="text-muted" id="proyectos-count" style="font-size:12px">0 proyectos</span>
+          <button class="btn btn-primary btn-sm" onclick="abrirModalProyecto()">+ Nuevo Proyecto</button>
+        </div>
         <div class="card-grid" id="proyectos-grid"></div>
       </div>
 

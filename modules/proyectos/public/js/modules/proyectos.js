@@ -5,17 +5,23 @@ async function cargarProyectos() {
   try {
     const data = await api('/proyectos');
     _proyectos = data.proyectos || [];
-    document.getElementById('proyectos-count').textContent = `${_proyectos.length} proyecto(s)`;
+    const q = (document.getElementById('filtro-proy-busqueda')?.value || '').toLowerCase();
+    const filtrados = q ? _proyectos.filter(p =>
+      p.nombre.toLowerCase().includes(q) ||
+      (p.descripcion || '').toLowerCase().includes(q) ||
+      nombreUsuario(p.asignado_a).toLowerCase().includes(q)
+    ) : _proyectos;
+    document.getElementById('proyectos-count').textContent = `${filtrados.length} proyecto(s)`;
     const ids = _proyectos.map(p => p.asignado_a).filter(Boolean);
     await cargarNombresUsuarios(ids);
     const grid = document.getElementById('proyectos-grid');
 
-    if (!_proyectos.length) {
-      grid.innerHTML = '<div class="empty-state" style="grid-column:1/-1"><div class="icon">&#x1F4C1;</div><p>No hay proyectos. Crea el primero para empezar.</p></div>';
+    if (!filtrados.length) {
+      grid.innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="icon">&#x1F4C1;</div><p>${q ? 'No se encontraron proyectos' : 'No hay proyectos. Crea el primero para empezar.'}</p></div>`;
       return;
     }
 
-    grid.innerHTML = _proyectos.map(p => {
+    grid.innerHTML = filtrados.map(p => {
       const total = parseInt(p.total_tareas) || 0;
       const completadas = parseInt(p.tareas_completadas) || 0;
       const pct = total > 0 ? Math.round((completadas / total) * 100) : 0;
@@ -45,11 +51,11 @@ async function cargarProyectos() {
           </div>
           <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${pct}% completado (${completadas}/${total})</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            ${p.estado !== 'completado' && (p.estado_aprobacion !== 'aprobada') && ['admin','gerente'].includes(usuario?.rol) ? `<button class="btn btn-xs btn-success" onclick="event.stopPropagation();aprobarProyecto(${p.id})">Aprobar</button>` : ''}
-            ${p.estado_aprobacion === 'aprobada' && ['admin','gerente'].includes(usuario?.rol) ? `<button class="btn btn-xs btn-danger" onclick="event.stopPropagation();rechazarProyecto(${p.id})">Desaprobar</button>` : ''}
-            ${p.estado_aprobacion === 'aprobada' && ['admin','gerente'].includes(usuario?.rol) ? `<button class="btn btn-xs btn-warning" onclick="event.stopPropagation();cerrarProyecto(${p.id})">Cerrar</button>` : ''}
-            ${tienePermiso('editar') ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();abrirModalProyecto(${p.id})">Editar</button>` : ''}
-            ${tienePermiso('eliminar') ? `<button class="btn btn-xs btn-danger" onclick="event.stopPropagation();eliminarProyecto(${p.id})">Eliminar</button>` : ''}
+            ${p.estado !== 'completado' && (p.estado_aprobacion !== 'aprobada') && ['admin','gerente'].includes(usuario?.rol) ? `<button class="btn btn-xs btn-success" onclick="event.stopPropagation();aprobarProyecto(${p.id})" title="Aprobar">&#10003;</button>` : ''}
+            ${p.estado_aprobacion === 'aprobada' && ['admin','gerente'].includes(usuario?.rol) ? `<button class="btn btn-xs btn-danger" onclick="event.stopPropagation();rechazarProyecto(${p.id})" title="Desaprobar">&#10007;</button>` : ''}
+            ${p.estado_aprobacion === 'aprobada' && ['admin','gerente'].includes(usuario?.rol) ? `<button class="btn btn-xs btn-warning" onclick="event.stopPropagation();cerrarProyecto(${p.id})" title="Cerrar proyecto">&#x1F516;</button>` : ''}
+            ${tienePermiso('editar') ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();abrirModalProyecto(${p.id})" title="Editar">&#9998;</button>` : ''}
+            ${tienePermiso('eliminar') ? `<button class="btn btn-xs btn-danger" onclick="event.stopPropagation();eliminarProyecto(${p.id})" title="Eliminar">&#10005;</button>` : ''}
           </div>
         </div>
       `;
