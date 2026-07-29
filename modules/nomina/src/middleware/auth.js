@@ -13,11 +13,12 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
     return async (req, res, next) => {
       const cookies = parseCookies(req);
       const token = cookies.launcher_jwt || req.headers['authorization']?.replace('Bearer ', '');
-      if (!token) return res.status(401).json({ error: 'Token requerido' });
+      if (!token) { globalThis.logAuth?.({ type: 'no_token', path: req.path }); return res.status(401).json({ error: 'Token requerido' }); }
       try {
         const payload = jwt.verify(token, JWT_SECRET);
         if (!payload || !payload.email) return res.status(401).json({ error: 'Token inválido' });
         console.log(`[nomina:auth] OK — email: ${payload.email}, rol: ${payload.rol}, modulos: ${JSON.stringify(payload.modulos)}, seq: ${payload.seq}`);
+        globalThis.logAuth?.({ type: 'ok', path: req.path, email: payload.email, modulos: payload.modulos });
         const payloadNombre = payload.nombre || payload.email.split('@')[0];
         const payloadRol = ['admin','rrhh','gerencia','operador','consulta'].includes(payload.rol) ? payload.rol : 'operador';
         let user = db.prepare('SELECT * FROM usuarios WHERE email = ? AND activo = 1').get(payload.email);
@@ -44,6 +45,7 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
         const tokenPreview = token ? token.substring(0, 20) + '...' : 'null';
         const secretPreview = JWT_SECRET ? JWT_SECRET.substring(0, 8) + '...' : 'UNDEFINED';
         console.error(`[nomina:auth] FALLÓ — ${err.message} | token: ${tokenPreview} | secret: ${secretPreview} | name: ${err.name}`);
+        globalThis.logAuth?.({ type: 'error', path: req.path, error: err.message, errorName: err.name, tokenPreview, secretPreview });
         return res.status(401).json({ error: 'Token inválido o expirado' });
       }
     };
