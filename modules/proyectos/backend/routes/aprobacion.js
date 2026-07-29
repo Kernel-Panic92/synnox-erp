@@ -73,6 +73,18 @@ router.put('/tareas/:id/aprobar', async (req, res) => {
       } catch (e) { console.warn('[email] Error enviando notificación de aprobación:', e.message); }
     }
 
+    // Notificación in-app
+    if (tarea.asignado_a) {
+      try {
+        const { default: fetch } = await import('node-fetch');
+        await fetch(`http://127.0.0.1:${process.env.PORT || 3002}/api/notificaciones/crear`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${req.headers.authorization?.replace('Bearer ', '')}` },
+          body: JSON.stringify({ usuario_id: tarea.asignado_a, modulo: 'proyectos', tipo: 'proyecto_aprobado', titulo: 'Tarea aprobada', mensaje: `Tu tarea "${tarea.titulo}" fue aprobada por ${req.user.nombre}`, url: '/proyectos/#tareas' })
+        });
+      } catch {}
+    }
+
     res.json({ exitosa: true, tarea });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -118,6 +130,18 @@ router.put('/tareas/:id/rechazar', async (req, res) => {
           templateAprobacionTarea({ tarea: tareaFull, accion: 'rechazada', motivo, aprobador: req.user.nombre })
         );
       } catch (e) { console.warn('[email] Error enviando notificación de rechazo:', e.message); }
+    }
+
+    // Notificación in-app
+    if (tarea.asignado_a) {
+      try {
+        const { default: fetch } = await import('node-fetch');
+        await fetch(`http://127.0.0.1:${process.env.PORT || 3002}/api/notificaciones/crear`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${req.headers.authorization?.replace('Bearer ', '')}` },
+          body: JSON.stringify({ usuario_id: tarea.asignado_a, modulo: 'proyectos', tipo: 'proyecto_rechazado', titulo: 'Tarea rechazada', mensaje: `Tu tarea "${tarea.titulo}" fue rechazada: ${motivo}`, url: '/proyectos/#tareas' })
+        });
+      } catch {}
     }
 
     res.json({ exitosa: true, tarea });

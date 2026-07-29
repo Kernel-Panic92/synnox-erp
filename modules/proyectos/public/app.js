@@ -164,6 +164,7 @@ async function init() {
     const footerRole = document.getElementById('sidebar-user-role');
     if (footerRole && data.rol) footerRole.textContent = data.rol === 'admin' ? 'Administrador' : data.rol === 'gerente' ? 'Gerente' : (data.perfil_nombre || data.rol);
     await cargarTodosLosUsuarios();
+    initNotifications(60000);
     if (!tienePermiso('crear')) {
       const btnNuevo = document.querySelector('#page-proyectos .btn-primary');
       if (btnNuevo) btnNuevo.style.display = 'none';

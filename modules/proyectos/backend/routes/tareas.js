@@ -85,6 +85,17 @@ router.post('/', requirePermiso('crear_tarea', 'proyectos'), async (req, res) =>
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
       [proyecto_id || null, titulo, descripcion || '', tipo || 'tarea', prioridad || 'media', est, col, asignado_a || null, reportero || null, fecha_limite || null, estimacion_horas || null]
     );
+    // Notificar al asignado
+    if (asignado_a) {
+      try {
+        const { default: fetch } = await import('node-fetch');
+        await fetch(`http://127.0.0.1:${process.env.PORT || 3002}/api/notificaciones/crear`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${req.headers.authorization?.replace('Bearer ', '')}` },
+          body: JSON.stringify({ usuario_id: asignado_a, modulo: 'proyectos', tipo: 'tarea_asignada', titulo: 'Tarea asignada', mensaje: `Se te asignó la tarea "${titulo}"`, url: '/proyectos/#tareas' })
+        });
+      } catch {}
+    }
     res.status(201).json({ exitosa: true, tarea: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });

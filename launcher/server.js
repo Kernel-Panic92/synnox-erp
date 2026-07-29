@@ -422,6 +422,23 @@ db.exec(`
   )
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS notificaciones (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    modulo TEXT NOT NULL,
+    tipo TEXT NOT NULL,
+    titulo TEXT NOT NULL,
+    mensaje TEXT NOT NULL,
+    url TEXT,
+    leida INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+db.exec("CREATE INDEX IF NOT EXISTS idx_notif_usuario ON notificaciones(usuario_id)");
+db.exec("CREATE INDEX IF NOT EXISTS idx_notif_leida ON notificaciones(usuario_id, leida)");
+db.exec("DELETE FROM notificaciones WHERE id NOT IN (SELECT id FROM notificaciones ORDER BY id DESC LIMIT 200)");
+
 // Seed default permission configs for known modules
 const defaultPermisosConfig = {
   proveedores: [
@@ -1825,6 +1842,55 @@ init();
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
+});
+
+// ── API: Notificaciones ──
+app.get('/api/notificaciones', verificarToken, (req, res) => {
+  try {
+    const userId = req.user.id;
+    const rows = db.prepare('SELECT * FROM notificaciones WHERE usuario_id = ? ORDER BY created_at DESC LIMIT 50').all(userId);
+    res.json({ notificaciones: rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/notificaciones/no-leidas', verificarToken, (req, res) => {
+  try {
+    const userId = req.user.id;
+    const row = db.prepare('SELECT COUNT(*) as count FROM notificaciones WHERE usuario_id = ? AND leida = 0').get(userId);
+    res.json({ count: row.count });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/notificaciones/:id/leer', verificarToken, (req, res) => {
+  try {
+    db.prepare('UPDATE notificaciones SET leida = 1 WHERE id = ? AND usuario_id = ?').run(req.params.id, req.user.id);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/notificaciones/leer-todas', verificarToken, (req, res) => {
+  try {
+    db.prepare('UPDATE notificaciones SET leida = 1 WHERE usuario_id = ? AND leida = 0').run(req.user.id);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/notificaciones/:id', verificarToken, (req, res) => {
+  try {
+    db.prepare('DELETE FROM notificaciones WHERE id = ? AND usuario_id = ?').run(req.params.id, req.user.id);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/notificaciones/crear', verificarToken, (req, res) => {
+  try {
+    const { usuario_id, modulo, tipo, titulo, mensaje, url } = req.body;
+    if (!usuario_id || !modulo || !tipo || !titulo || !mensaje) {
+      return res.status(400).json({ error: 'Faltan campos requeridos' });
+    }
+    const result = db.prepare('INSERT INTO notificaciones (usuario_id, modulo, tipo, titulo, mensaje, url) VALUES (?, ?, ?, ?, ?, ?)').run(usuario_id, modulo, tipo, titulo, mensaje, url || null);
+    res.json({ ok: true, id: result.lastInsertRowid });
+  } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 // ── API: Health check ──

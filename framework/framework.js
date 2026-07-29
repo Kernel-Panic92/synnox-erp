@@ -366,3 +366,97 @@ function clearTableFilters(containerId) {
   const inputs = root.querySelectorAll('.table-filters .filter-input, .table-filters .filter-select');
   inputs.forEach(el => { el.value = ''; el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input')); });
 }
+
+// ── Notifications ──
+let _notifPollTimer = null;
+
+async function cargarNotificaciones() {
+  try {
+    const res = await fetch(HF.API + '/notificaciones/no-leidas', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    if (!res.ok) return;
+    const { count } = await res.json();
+    const badge = document.getElementById('notif-count');
+    if (badge) badge.textContent = count > 0 ? (count > 99 ? '99+' : count) : '';
+  } catch {}
+}
+
+async function toggleNotifDropdown() {
+  const dd = document.getElementById('notif-dropdown');
+  if (!dd) return;
+  const isOpen = dd.classList.contains('show');
+  dd.classList.toggle('show');
+  if (!isOpen) {
+    try {
+      const res = await fetch(HF.API + '/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+      if (!res.ok) return;
+      const { notificaciones } = await res.json();
+      const list = dd.querySelector('.notif-list');
+      if (!notificaciones.length) {
+        list.innerHTML = '<div class="notif-empty">Sin notificaciones</div>';
+      } else {
+        list.innerHTML = notificaciones.map(n => {
+          const icons = { tarea_asignada: '📋', tarea_vencida: '⏰', proyecto_aprobado: '✅', proyecto_rechazado: '❌', comentario: '💬', factura_nueva: '📄', factura_vencida: '⚠️', ruta_asignada: '🛣️', backup: '💾', sistema: '⚙️' };
+          const timeAgo = timeSince(new Date(n.created_at));
+          return `<div class="notif-item${n.leida ? '' : ' unread'}" onclick="marcarNotifLeida(${n.id}, '${n.url || ''}')">
+            <div class="notif-icon">${icons[n.tipo] || '🔔'}</div>
+            <div class="notif-content">
+              <div class="notif-title">${esc(n.titulo)}</div>
+              <div class="notif-msg">${esc(n.mensaje)}</div>
+              <div class="notif-time">${timeAgo}</div>
+            </div>
+          </div>`;
+        }).join('');
+      }
+    } catch {}
+  }
+}
+
+async function marcarNotifLeida(id, url) {
+  try {
+    await fetch(HF.API + '/notificaciones/' + id + '/leer', { method: 'PUT', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    cargarNotificaciones();
+    if (url) window.location.href = url;
+    const dd = document.getElementById('notif-dropdown');
+    if (dd) dd.classList.remove('show');
+  } catch {}
+}
+
+async function marcarTodasLeidas() {
+  try {
+    await fetch(HF.API + '/notificaciones/leer-todas', { method: 'PUT', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    cargarNotificaciones();
+    toggleNotifDropdown();
+    toggleNotifDropdown();
+  } catch {}
+}
+
+function timeSince(date) {
+  const seconds = Math.floor((new Date() - date) / 1000);
+  if (seconds < 60) return 'Ahora';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return minutes + ' min';
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours + ' h';
+  const days = Math.floor(hours / 24);
+  return days + ' d';
+}
+
+function initNotifications(pollMs) {
+  cargarNotificaciones();
+  if (_notifPollTimer) clearInterval(_notifPollTimer);
+  _notifPollTimer = setInterval(cargarNotificaciones, pollMs || 60000);
+  document.addEventListener('click', (e) => {
+    const dd = document.getElementById('notif-dropdown');
+    const bell = document.querySelector('.notif-bell');
+    if (dd && !dd.contains(e.target) && !bell?.contains(e.target)) dd.classList.remove('show');
+  });
+}
+
+function injectNotificationBell(headerEl) {
+  if (!headerEl || document.querySelector('.notif-bell')) return;
+  const bell = document.createElement('div');
+  bell.className = 'notif-bell';
+  bell.onclick = toggleNotifDropdown;
+  bell.innerHTML = '🔔<span class="notif-badge" id="notif-count"></span><div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div>';
+  headerEl.appendChild(bell);
+}
