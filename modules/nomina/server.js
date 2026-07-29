@@ -28,18 +28,8 @@ const enviarCorreo = require('./src/utils/email')({ getConfig, nodemailer, escap
 const PORT         = parseInt(process.env.PORT || '3000', 10);
 const CORS_ORIGIN  = process.env.CORS_ORIGIN || '';
 const BACKUP_TOKEN = process.env.BACKUP_TOKEN || '';
-globalThis._nominaAuthLog = []; // Ring buffer for auth events (last 50)
-function logAuth(event) { globalThis._nominaAuthLog.push({ ts: new Date().toISOString(), ...event }); if (globalThis._nominaAuthLog.length > 50) globalThis._nominaAuthLog.shift(); }
-globalThis.logAuth = logAuth;
 const app = express();
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api/') && req.path !== '/api/version') {
-    const cookies = req.headers['cookie'] || '';
-    const hasJwt = cookies.includes('launcher_jwt=');
-    console.log(`[nomina] ${req.method} ${req.path} | cookie: ${hasJwt} | auth: ${!!req.headers['authorization']} | secret: ${!!process.env.JWT_SECRET}`);
-  }
-  next();
-});
+app.use((req, res, next) => { console.log(`[nomina] ${req.method} ${req.path}`); next(); });
 app.set('trust proxy', 1);
 
 // CORS — restringir en producción
@@ -152,14 +142,9 @@ const { soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles, 
   getConfig
 });
 
-// ── Auth log endpoint (exento de auth — solo lectura, sin datos sensibles) ──
-app.get('/api/_auth-log', (req, res) => {
-  res.json({ log: globalThis._nominaAuthLog || [], JWT_SECRET_set: !!process.env.JWT_SECRET });
-});
-
 // ─── Auth global: verify JWT + check module access for all /api routes ──────
-app.use('/api', (req, res, next) => { if (req.path === '/version' || req.path.startsWith('/manual/') || req.path === '/_auth-log') return next(); autenticar([])(req, res, next); });
-app.use('/api', (req, res, next) => { if (req.path === '/version' || req.path.startsWith('/manual/') || req.path === '/_auth-log') return next(); requireModule('nomina')(req, res, next); });
+app.use('/api', (req, res, next) => { if (req.path === '/version' || req.path.startsWith('/manual/')) return next(); autenticar([])(req, res, next); });
+app.use('/api', (req, res, next) => { if (req.path === '/version' || req.path.startsWith('/manual/')) return next(); requireModule('nomina')(req, res, next); });
 
 app.use('/api/auth', require('./src/routes/auth')({
   db, crypto, middlewares: { todosRoles, soloAdmin }

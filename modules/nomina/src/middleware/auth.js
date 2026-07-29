@@ -13,14 +13,11 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
     return async (req, res, next) => {
       const cookies = parseCookies(req);
       const token = cookies.launcher_jwt || req.headers['authorization']?.replace('Bearer ', '');
-      if (!token) { globalThis.logAuth?.({ type: 'no_token', path: req.path }); return res.status(401).json({ error: 'Token requerido' }); }
+      if (!token) return res.status(401).json({ error: 'Token requerido' });
       let payload;
       try {
         payload = jwt.verify(token, JWT_SECRET);
-      } catch (err) {
-        const tokenPreview = token ? token.substring(0, 20) + '...' : 'null';
-        console.error(`[nomina:auth] JWT FALLÓ — ${err.message} | token: ${tokenPreview}`);
-        globalThis.logAuth?.({ type: 'jwt_error', path: req.path, error: err.message });
+      } catch {
         return res.status(401).json({ error: 'Token inválido o expirado' });
       }
       try {
@@ -41,18 +38,15 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
           user.activo = 1;
         }
         const sesionValida = await verifySessionValid(payload);
-        if (!sesionValida) { globalThis.logAuth?.({ type: 'session_invalid', path: req.path, email: payload.email }); return res.status(401).json({ error: 'Sesión invalidada. Inicia sesión nuevamente.' }); }
+        if (!sesionValida) return res.status(401).json({ error: 'Sesión invalidada. Inicia sesión nuevamente.' });
         if (rolesPermitidos.length && !rolesPermitidos.includes(user.rol))
           return res.status(403).json({ error: 'Sin permisos para esta acción' });
         req.usuario = user;
         req.perfil_nombre = payload.perfil_nombre || null;
         const modPermisos = payload.modulos_permisos || {};
         req.usuario.nominaPermisos = modPermisos.nomina || [];
-        globalThis.logAuth?.({ type: 'ok', path: req.path, email: payload.email, modulos: payload.modulos });
         next();
       } catch (err) {
-        console.error(`[nomina:auth] DB/otro error — ${err.message}`);
-        globalThis.logAuth?.({ type: 'db_error', path: req.path, error: err.message, errorName: err.name });
         return res.status(500).json({ error: 'Error interno de autenticación' });
       }
     };
@@ -92,25 +86,19 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
     return (req, res, next) => {
       if (!req.usuario) return res.status(401).json({ error: 'No autenticado' });
       if (req.usuario.rol === 'admin') return next();
-      // Read modulos from JWT (local user record doesn't have it)
       try {
         const cookies = parseCookies(req);
         const token = cookies.launcher_jwt || req.headers['authorization']?.replace('Bearer ', '');
         if (token) {
           const payload = jwt.verify(token, JWT_SECRET);
           const modulos = payload.modulos || [];
-          console.log(`[nomina:requireModule] modulos: ${JSON.stringify(modulos)}, buscando: ${moduleId}, includes: ${modulos.includes(moduleId)}`);
           if (modulos.includes(moduleId)) return next();
         }
-      } catch (err) {
-        console.error(`[nomina:requireModule] Error: ${err.message}`);
-      }
+      } catch {}
       res.status(403).json({ error: `No tienes acceso al módulo ${moduleId}` });
     };
   }
 
-  // JWT-based permission check (reads modulos_permisos from launcher-issued JWT)
-  // Migración gradual: coexiste con requierePermiso local
   function requierePermisoJWT(permisoId) {
     return (req, res, next) => {
       if (!req.usuario) return res.status(401).json({ error: 'No autenticado' });
@@ -133,6 +121,3 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
 }
 
 module.exports = { parseCookies, createAuth };
-
-// Re-export parseCookies for nomina/server.js → telemetry.js
-// (kept for backward compat, now sourced from framework/auth)
