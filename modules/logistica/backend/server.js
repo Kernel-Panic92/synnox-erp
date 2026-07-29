@@ -43,6 +43,8 @@ import reportesRoutes from './routes/reportes.js';
 import widetechRoutes from './routes/widetech.js';
 import widetechSyncRoutes from './routes/widetech-sync.js';
 
+const protect = createProtect(MODULE_ID);
+
 app.get('/api/dashboard/resumen', protect, async (req, res) => {
   try {
     const pool = (await import('./config/db.js')).default;
@@ -74,7 +76,6 @@ app.get('/api/rutas/diagnostico', protect, async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-const protect = createProtect(MODULE_ID);
 app.use('/api/vehiculos', protect, vehiculosRoutes);
 app.use('/api/pedidos', protect, pedidosRoutes);
 app.use('/api/rutas', protect, rutasRoutes);
