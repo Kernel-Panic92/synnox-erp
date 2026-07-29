@@ -1956,7 +1956,11 @@ function resetGradConfig() {
         return;
       }
     } catch {}
+    // Clear both localStorage AND cookie to avoid stale JWT in modules
     localStorage.removeItem('platform_jwt');
+    jwtToken = null;
+    user = null;
+    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
   }
   show('login-screen');
   const params = new URLSearchParams(window.location.search);
@@ -1985,6 +1989,7 @@ setInterval(async () => {
       localStorage.removeItem('platform_jwt');
       jwtToken = null;
       user = null;
+      fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
       show('login-screen');
     }
   } catch {}
