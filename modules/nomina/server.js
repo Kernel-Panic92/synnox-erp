@@ -29,7 +29,14 @@ const PORT         = parseInt(process.env.PORT || '3000', 10);
 const CORS_ORIGIN  = process.env.CORS_ORIGIN || '';
 const BACKUP_TOKEN = process.env.BACKUP_TOKEN || '';
 const app = express();
-app.use((req, res, next) => { console.log(`[nomina] ${req.method} ${req.path}`); next(); });
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/') && req.path !== '/api/version') {
+    const cookies = req.headers['cookie'] || '';
+    const hasJwt = cookies.includes('launcher_jwt=');
+    console.log(`[nomina] ${req.method} ${req.path} | cookie: ${hasJwt} | auth: ${!!req.headers['authorization']} | secret: ${!!process.env.JWT_SECRET}`);
+  }
+  next();
+});
 app.set('trust proxy', 1);
 
 // CORS — restringir en producción

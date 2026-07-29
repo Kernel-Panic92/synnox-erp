@@ -41,7 +41,9 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
         req.usuario.nominaPermisos = modPermisos.nomina || [];
         next();
       } catch (err) {
-        console.error(`[nomina:auth] FALLÓ — ${err.message}, token length: ${token?.length}, secret set: ${!!JWT_SECRET}`);
+        const tokenPreview = token ? token.substring(0, 20) + '...' : 'null';
+        const secretPreview = JWT_SECRET ? JWT_SECRET.substring(0, 8) + '...' : 'UNDEFINED';
+        console.error(`[nomina:auth] FALLÓ — ${err.message} | token: ${tokenPreview} | secret: ${secretPreview} | name: ${err.name}`);
         return res.status(401).json({ error: 'Token inválido o expirado' });
       }
     };
