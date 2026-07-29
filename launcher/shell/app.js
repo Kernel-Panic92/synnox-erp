@@ -1885,7 +1885,6 @@ async function loadTelemetriaEventos() {
 // ── Session check + refresh ──
 (async () => {
   try { const r = await fetch('/api/version'); const d = await r.json(); launcherVersion = d.version || ''; } catch {}
-  await loadGradConfig();
   if (jwtToken) {
     try {
       // Refresh token silently to extend session
