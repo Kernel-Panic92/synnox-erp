@@ -1425,63 +1425,12 @@ function showAdminTab(tab) {
    else if (tab === 'seguridad') { loadRateLimitConfig(); loadSshConfig(); loadLoginLogs(); }
    else if (tab === 'auditoria') loadAuditoria();
    else if (tab === 'telemetria') loadTelemetria();
-   else if (tab === 'nginx') loadNginx();
    else if (tab === 'actualizar') { loadUpdaterStatus(); loadUpdaterLogs(); }
     else if (tab === 'mcp-modules') { loadMcpModulesStatus(); }
     else if (tab === 'respaldo') { document.getElementById('import-result').style.display = 'none'; }
 
 }
 
-// ── Nginx ──
-async function loadNginx() {
-  const pre = document.getElementById('nginx-config');
-  const statusEl = document.getElementById('nginx-status');
-  pre.textContent = 'Cargando...';
-  statusEl.innerHTML = '';
-  try {
-    const res = await fetch('/api/admin/nginx', {
-      headers: { 'Authorization': 'Bearer ' + jwtToken }
-    });
-    if (!res.ok) throw new Error('Error');
-    const data = await res.json();
-    pre.textContent = data.config;
-    if (data.actual) {
-      statusEl.innerHTML = '<span style="color:var(--success);font-size:13px;">✓ Configuración actual coincide con la generada</span>';
-    } else if (data.actual === '') {
-      statusEl.innerHTML = '<span style="color:var(--muted);font-size:13px;">No hay archivo nginx en /etc/nginx/sites-available/synnoxerp</span>';
-    } else {
-      statusEl.innerHTML = '<span style="color:var(--warning);font-size:13px;">⚠ La configuración actual difiere de la generada</span>';
-    }
-  } catch (e) {
-    pre.textContent = 'Error: ' + e.message;
-  }
-}
-
-async function generarNginx() {
-  const btn = document.getElementById('nginx-gen-btn');
-  const statusEl = document.getElementById('nginx-status');
-  btn.disabled = true;
-  btn.textContent = 'Generando...';
-  statusEl.innerHTML = '<span style="color:var(--muted);font-size:13px;">Generando y recargando nginx...</span>';
-  try {
-    const res = await fetch('/api/admin/nginx/generate', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + jwtToken }
-    });
-    const data = await res.json();
-    if (data.ok) {
-      statusEl.innerHTML = '<span style="color:var(--success);font-size:13px;">✓ Nginx generado y recargado exitosamente</span>';
-    } else {
-      statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + (data.error || 'Error') + '</span>';
-    }
-    loadNginx();
-  } catch (e) {
-    statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + e.message + '</span>';
-  } finally {
-    btn.disabled = false;
-    btn.textContent = '⚡ Generar y recargar';
-  }
-}
 
 // ── Updater ──
 async function loadUpdaterStatus() {

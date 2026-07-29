@@ -2031,33 +2031,6 @@ app.get('/api/admin/mcp/url', verificarToken, soloAdmin, (req, res) => {
   });
 });
 
-app.get('/api/admin/nginx', verificarToken, soloAdmin, (req, res) => {
-  const config = generarNginx();
-  const configPath = '/etc/nginx/sites-available/synnoxerp';
-  let actual = '';
-  try { actual = fs.readFileSync(configPath, 'utf8'); } catch {}
-  res.json({ config, actual, matches: config === actual });
-});
-
-app.post('/api/admin/nginx/generate', verificarToken, soloAdmin, (req, res) => {
-  const config = generarNginx();
-  const configPath = '/etc/nginx/sites-available/synnoxerp';
-  try {
-    fs.writeFileSync(configPath, config, 'utf8');
-    try {
-      fs.symlinkSync('/etc/nginx/sites-available/synnoxerp', '/etc/nginx/sites-enabled/synnoxerp');
-    } catch {}
-    try {
-      fs.unlinkSync('/etc/nginx/sites-enabled/default');
-    } catch {}
-    execFileSync('nginx', ['-t'], { timeout: 5000 });
-    execFileSync('systemctl', ['reload', 'nginx'], { timeout: 5000 });
-    res.json({ ok: true });
-  } catch (e) {
-    res.json({ ok: false, error: e.message || 'Error al generar nginx' });
-  }
-});
-
 // ── Session cache for MCP modules ──
 const mcpSessions = new Map();
 

@@ -366,7 +366,6 @@
         <div class="nav-item" data-page="smtp" onclick="showAdminTab('smtp')"><span class="icon">📧</span> SMTP</div>
         <div class="nav-item" data-page="mapas" onclick="showAdminTab('mapas')"><span class="icon">🗺️</span> Mapas</div>
         <div class="nav-item" data-page="apariencia" onclick="showAdminTab('apariencia')"><span class="icon">🎨</span> Apariencia</div>
-        <div class="nav-item" data-page="nginx" onclick="showAdminTab('nginx')"><span class="icon">🌐</span> Nginx</div>
       </div>
       <div class="sidebar-section">
         <div class="sidebar-section-title">Operaciones</div>
@@ -787,16 +786,6 @@
         </table>
       </div>
     </div>
-  </div>
-  <div class="tab-content" id="tab-nginx">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
-      <div style="font-size:var(--fs);font-weight:600;">Configuración Nginx</div>
-      <div style="display:flex;gap:8px;">
-        <button class="btn btn-sm" id="nginx-gen-btn" onclick="generarNginx()">⚡ Generar y recargar</button>
-      </div>
-    </div>
-    <div id="nginx-status"></div>
-    <pre id="nginx-config" style="background:var(--surface2);border:1px solid var(--border);border-radius:9px;padding:16px;font-size:13px;overflow-x:auto;white-space:pre;max-height:400px;color:var(--text);margin-top:8px;"></pre>
   </div>
   <div class="tab-content" id="tab-actualizar">
     <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
