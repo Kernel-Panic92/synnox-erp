@@ -29,7 +29,7 @@ async function cargarProyectos() {
       const aprobCls = p.estado_aprobacion === 'aprobada' ? 'badge-success' : p.estado_aprobacion === 'rechazada' ? 'badge-danger' : 'badge-muted';
       const centro = _centrosCache?.find(c => c.id === p.centro_id);
       return `
-        <div class="card" style="cursor:pointer">
+        <div class="card" style="cursor:pointer" onclick="verTareasProyecto(${p.id})">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
             <strong style="font-size:15px">${esc(p.nombre)}</strong>
             <span style="display:flex;gap:6px">
@@ -63,6 +63,14 @@ async function cargarProyectos() {
   } catch (err) {
     document.getElementById('proyectos-grid').innerHTML = '<div class="empty-state" style="grid-column:1/-1"><p>Error al cargar proyectos</p></div>';
   }
+}
+
+function verTareasProyecto(proyectoId) {
+  navigate('tareas');
+  setTimeout(() => {
+    const sel = document.getElementById('filtro-proyecto');
+    if (sel) { sel.value = proyectoId; cargarTareas(); }
+  }, 100);
 }
 
 async function cargarCentrosProyectos() {
