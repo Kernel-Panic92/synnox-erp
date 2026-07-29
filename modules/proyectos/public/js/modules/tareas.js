@@ -40,7 +40,7 @@ async function cargarTareas() {
         <td class="nombre-asignado">${t.asignado_a ? esc(nombreUsuario(t.asignado_a)) : '<span style="color:var(--muted)">Sin asignar</span>'}</td>
         <td style="font-size:12px;color:var(--muted)">${formatDate(t.fecha_limite)}</td>
     <td>
-      ${t.estado === 'en_progreso' ? `<button class="btn btn-xs btn-info" onclick="abrirModalSolicitarRevision(${t.id})" title="Solicitar revision">&#x1F504; Revisión</button>` : ''}
+      ${t.estado === 'en_progreso' ? `<button class="btn btn-xs btn-info" onclick="abrirModalSolicitarRevision(${t.id})" title="Solicitar revisión">&#x1F4CB;</button>` : ''}
       ${t.estado === 'revision' && (usuario?.rol === 'admin' || usuario?.rol === 'gerente') ? `<button class="btn btn-xs btn-success" onclick="aprobarTarea(${t.id})" title="Aprobar">&#10003;</button>` : ''}
       ${t.estado === 'revision' && (usuario?.rol === 'admin' || usuario?.rol === 'gerente') ? `<button class="btn btn-xs btn-danger" onclick="rechazarTarea(${t.id})" title="Rechazar">&#10007;</button>` : ''}
       ${t.estado === 'revision' && usuario?.rol !== 'admin' && usuario?.rol !== 'gerente' ? `<span class="badge badge-warning">Pend. aprobación</span>` : ''}
