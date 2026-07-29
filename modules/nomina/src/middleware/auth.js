@@ -14,39 +14,46 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
       const cookies = parseCookies(req);
       const token = cookies.launcher_jwt || req.headers['authorization']?.replace('Bearer ', '');
       if (!token) { globalThis.logAuth?.({ type: 'no_token', path: req.path }); return res.status(401).json({ error: 'Token requerido' }); }
+      let payload;
       try {
-        const payload = jwt.verify(token, JWT_SECRET);
+        payload = jwt.verify(token, JWT_SECRET);
+      } catch (err) {
+        const tokenPreview = token ? token.substring(0, 20) + '...' : 'null';
+        console.error(`[nomina:auth] JWT FALLÓ — ${err.message} | token: ${tokenPreview}`);
+        globalThis.logAuth?.({ type: 'jwt_error', path: req.path, error: err.message });
+        return res.status(401).json({ error: 'Token inválido o expirado' });
+      }
+      try {
         if (!payload || !payload.email) return res.status(401).json({ error: 'Token inválido' });
-        console.log(`[nomina:auth] OK — email: ${payload.email}, rol: ${payload.rol}, modulos: ${JSON.stringify(payload.modulos)}, seq: ${payload.seq}`);
-        globalThis.logAuth?.({ type: 'ok', path: req.path, email: payload.email, modulos: payload.modulos });
         const payloadNombre = payload.nombre || payload.email.split('@')[0];
         const payloadRol = ['admin','rrhh','gerencia','operador','consulta'].includes(payload.rol) ? payload.rol : 'operador';
-        let user = db.prepare('SELECT * FROM usuarios WHERE email = ? AND activo = 1').get(payload.email);
+        let user = db.prepare('SELECT * FROM usuarios WHERE email = ?').get(payload.email);
         if (!user) {
           const id = require('crypto').randomUUID();
           db.prepare('INSERT INTO usuarios (id, nombre, email, password, rol, activo, sede, creado) VALUES (?,?,?,?,?,1,?,?)').run(id, payloadNombre, payload.email, '', payloadRol, payload.sede || 'Principal', new Date().toISOString());
           user = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(id);
-        } else if (user.nombre !== payloadNombre || user.rol !== payloadRol) {
-          db.prepare('UPDATE usuarios SET nombre = ?, rol = ? WHERE id = ?').run(payloadNombre, payloadRol, user.id);
-          user = { ...user, nombre: payloadNombre, rol: payloadRol };
+        } else {
+          if (!user.activo) db.prepare('UPDATE usuarios SET activo = 1 WHERE id = ?').run(user.id);
+          if (user.nombre !== payloadNombre || user.rol !== payloadRol) {
+            db.prepare('UPDATE usuarios SET nombre = ?, rol = ? WHERE id = ?').run(payloadNombre, payloadRol, user.id);
+            user = { ...user, nombre: payloadNombre, rol: payloadRol };
+          }
+          user.activo = 1;
         }
         const sesionValida = await verifySessionValid(payload);
-        console.log(`[nomina:auth] sesionValida: ${sesionValida}, payload.seq: ${payload.seq}`);
-        if (!sesionValida) return res.status(401).json({ error: 'Sesión invalidada. Inicia sesión nuevamente.' });
+        if (!sesionValida) { globalThis.logAuth?.({ type: 'session_invalid', path: req.path, email: payload.email }); return res.status(401).json({ error: 'Sesión invalidada. Inicia sesión nuevamente.' }); }
         if (rolesPermitidos.length && !rolesPermitidos.includes(user.rol))
           return res.status(403).json({ error: 'Sin permisos para esta acción' });
         req.usuario = user;
         req.perfil_nombre = payload.perfil_nombre || null;
-        // Attach granular permissions from launcher JWT
         const modPermisos = payload.modulos_permisos || {};
         req.usuario.nominaPermisos = modPermisos.nomina || [];
+        globalThis.logAuth?.({ type: 'ok', path: req.path, email: payload.email, modulos: payload.modulos });
         next();
       } catch (err) {
-        const tokenPreview = token ? token.substring(0, 20) + '...' : 'null';
-        const secretPreview = JWT_SECRET ? JWT_SECRET.substring(0, 8) + '...' : 'UNDEFINED';
-        console.error(`[nomina:auth] FALLÓ — ${err.message} | token: ${tokenPreview} | secret: ${secretPreview} | name: ${err.name}`);
-        globalThis.logAuth?.({ type: 'error', path: req.path, error: err.message, errorName: err.name, tokenPreview, secretPreview });
-        return res.status(401).json({ error: 'Token inválido o expirado' });
+        console.error(`[nomina:auth] DB/otro error — ${err.message}`);
+        globalThis.logAuth?.({ type: 'db_error', path: req.path, error: err.message, errorName: err.name });
+        return res.status(500).json({ error: 'Error interno de autenticación' });
       }
     };
   }
