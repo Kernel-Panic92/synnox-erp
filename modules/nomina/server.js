@@ -23,7 +23,8 @@ const { permisosPorRol, rolTienePermiso, tienePermiso } = require('./src/utils/p
 const { restoreData } = require('./src/utils/restore')({ db, encryptSmtp });
 
 const APP_NAME     = process.env.APP_NAME || 'Nómina';
-const BASE_URL     = process.env.BASE_URL || `http://localhost:${process.env.PORT || 3000}`;
+const COMPANY_DOMAIN = process.env.COMPANY_DOMAIN || 'localhost';
+const BASE_URL     = process.env.BASE_URL || (COMPANY_DOMAIN !== 'localhost' ? `https://${COMPANY_DOMAIN}/nomina` : `http://localhost:${process.env.PORT || 3000}`);
 const enviarCorreo = require('./src/utils/email')({ getConfig, nodemailer, escapeHtml, BASE_URL, APP_NAME });
 const PORT         = parseInt(process.env.PORT || '3000', 10);
 const CORS_ORIGIN  = process.env.CORS_ORIGIN || '';

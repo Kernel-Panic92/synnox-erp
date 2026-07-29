@@ -8,9 +8,11 @@ function canApprove(req) {
   return req.user.rol === 'admin' || req.user.rol === 'gerente';
 }
 
+const LAUNCHER_URL = process.env.LAUNCHER_URL || 'http://localhost:3002';
+
 async function getUserById(id) {
   try {
-    const res = await fetch(`http://localhost:3002/api/admin/usuarios`, {
+    const res = await fetch(`${LAUNCHER_URL}/api/admin/usuarios`, {
       headers: { 'Authorization': `Bearer ${req?.headers?.authorization?.split(' ')[1] || ''}` }
     });
     if (!res.ok) return null;

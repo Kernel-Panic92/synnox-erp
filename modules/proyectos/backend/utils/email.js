@@ -2,7 +2,8 @@ import nodemailer from 'nodemailer';
 
 const LAUNCHER_URL = process.env.LAUNCHER_URL || 'http://localhost:3002';
 const APP_NAME = process.env.APP_NAME || 'SynnoxERP Proyectos';
-const BASE_URL = process.env.BASE_URL || 'http://localhost:3101';
+const _domain = process.env.COMPANY_DOMAIN || 'localhost';
+const BASE_URL = process.env.BASE_URL || (_domain !== 'localhost' ? `https://${_domain}/proyectos` : 'http://localhost:3101');
 
 let _smtpConfig = null;
 let _smtpConfigTs = 0;

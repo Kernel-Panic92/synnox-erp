@@ -3,6 +3,9 @@ const nodemailer = require('nodemailer');
 const crypto     = require('crypto');
 const db        = require('../db');
 
+const _domain = process.env.COMPANY_DOMAIN || 'localhost';
+const APP_URL = process.env.APP_URL || (_domain !== 'localhost' ? `https://${_domain}/proveedores` : `http://localhost:${process.env.PORT || 3100}`);
+
 let transporter = null;
 let cachedConfig = null;
 
@@ -84,8 +87,13 @@ async function getFromAddress() {
 }
 
 function getBaseUrl(reqHost) {
-  const proto = process.env.NODE_ENV === 'production' ? 'https' : 'http';
-  return `${proto}://${reqHost || `localhost:${process.env.PORT || 3100}`}`;
+  if (reqHost) {
+    const proto = process.env.NODE_ENV === 'production' ? 'https' : 'http';
+    return `${proto}://${reqHost}`;
+  }
+  const domain = process.env.COMPANY_DOMAIN || 'localhost';
+  if (domain !== 'localhost') return `https://${domain}/proveedores`;
+  return `http://localhost:${process.env.PORT || 3100}`;
 }
 
 async function enviar({ para, asunto, html, text }) {
@@ -340,7 +348,7 @@ async function enviarNotificacionFactura({ para, tipo, factura, usuario, comenta
 
               <!-- CTA -->
               <div style="text-align:center;margin-top:24px">
-                <a href="${process.env.APP_URL || 'http://localhost:3100'}" style="display:inline-block;background:${c.accent};color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:12px 28px;border-radius:8px">
+                <a href="${APP_URL}" style="display:inline-block;background:${c.accent};color:#ffffff;text-decoration:none;font-size:13px;font-weight:600;padding:12px 28px;border-radius:8px">
                   Ver en ${empresaNombre}
                 </a>
               </div>
@@ -372,7 +380,7 @@ Valor: ${fmt(factura.valor_total || factura.valor)}
 ${factura.proveedor ? `Proveedor: ${factura.proveedor}` : ''}
 ${comentario ? `\nComentario: ${comentario}` : ''}
 
-Ver en ${empresaNombre}: ${process.env.APP_URL || 'http://localhost:3100'}`,
+Ver en ${empresaNombre}: ${APP_URL}`,
   });
 }
 

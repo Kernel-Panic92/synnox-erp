@@ -85,6 +85,14 @@ const INSTALL_DIR = process.env.INSTALL_DIR || path.resolve(__dirname, '..');
 
 const PORT = parseInt(process.env.PORT || '3002', 10);
 const JWT_SECRET = process.env.JWT_SECRET;
+
+// Base URL for emails and external links
+// In production (COMPANY_DOMAIN set), uses HTTPS on standard port (no port needed)
+// In development (COMPANY_DOMAIN=localhost), uses HTTP on PORT
+function getBaseUrl() {
+  if (COMPANY_DOMAIN !== 'localhost') return `https://${COMPANY_DOMAIN}`;
+  return `http://localhost:${PORT}`;
+}
 if (!JWT_SECRET) {
   console.error('ERROR: JWT_SECRET no está configurado. Establece la variable de entorno JWT_SECRET.');
   process.exit(1);
@@ -841,22 +849,6 @@ app.post('/api/admin/sesiones/:id/kill', verificarToken, soloAdmin, (req, res) =
 });
 
 // ── Password recovery ──
-function getDominioYLauncherPort() {
-  const configPath = path.join(INSTALL_DIR, 'config.env');
-  let dominio = COMPANY_DOMAIN;
-  let launcherPort = String(PORT);
-  try {
-    if (fs.existsSync(configPath)) {
-      const raw = fs.readFileSync(configPath, 'utf8');
-      const dm = raw.match(/^DOMAIN=(.+)$/m);
-      if (dm) dominio = dm[1].trim();
-      const lp = raw.match(/^LAUNCHER_PORT=(.+)$/m);
-      if (lp) launcherPort = lp[1].trim();
-    }
-  } catch {}
-  return { dominio, launcherPort };
-}
-
 app.post('/api/auth/forgot', loginRateLimit, (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email requerido' });
@@ -870,12 +862,7 @@ app.post('/api/auth/forgot', loginRateLimit, (req, res) => {
   const token = crypto.randomBytes(32).toString('hex');
   const expiresAt = new Date(Date.now() + 3600000).toISOString().replace('T', ' ').split('.')[0];
   db.prepare('INSERT INTO reset_tokens (email, token, expires_at) VALUES (?, ?, ?)').run(user.email, token, expiresAt);
-  const { dominio } = getDominioYLauncherPort();
-  const mode = (() => { try { const r = fs.readFileSync(path.join(INSTALL_DIR, 'config.env'), 'utf8'); const m = r.match(/^MODE=(.+)$/m); return m?.[1]?.trim() || 'test'; } catch { return 'test'; } })();
-  // In prod, launcher is behind nginx on 9443 (or 443 if configured); use HTTPS
-  const launcherPort = mode === 'prod' ? '9443' : String(PORT);
-  const protocol = mode === 'prod' ? 'https' : 'http';
-  const resetUrl = `${protocol}://${dominio}:${launcherPort}/reset?token=${token}`;
+  const resetUrl = `${getBaseUrl()}/reset?token=${token}`;
   if (mail.isConfigured()) {
     mail.sendResetEmail(user.email, resetUrl, user.nombre).catch(e => console.error('[MAIL] sendResetEmail error:', e.message));
     forgotCooldowns[emailNorm] = Date.now();
@@ -1042,11 +1029,7 @@ app.post('/api/admin/usuarios', verificarToken, soloAdmin, async (req, res) => {
         const token = crypto.randomBytes(32).toString('hex');
         const expiresAt = new Date(Date.now() + 7 * 24 * 3600000).toISOString().replace('T', ' ').split('.')[0];
         db.prepare('INSERT INTO reset_tokens (email, token, expires_at) VALUES (?, ?, ?)').run(email.toLowerCase().trim(), token, expiresAt);
-        const { dominio } = getDominioYLauncherPort();
-        const mode = (() => { try { const r = fs.readFileSync(path.join(INSTALL_DIR, 'config.env'), 'utf8'); const m = r.match(/^MODE=(.+)$/m); return m?.[1]?.trim() || 'test'; } catch { return 'test'; } })();
-        const launcherPort = mode === 'prod' ? '9443' : String(PORT);
-        const protocol = mode === 'prod' ? 'https' : 'http';
-        const setupUrl = `${protocol}://${dominio}:${launcherPort}/reset?token=${token}`;
+        const setupUrl = `${getBaseUrl()}/reset?token=${token}`;
         await mail.sendWelcomeEmail(email.toLowerCase().trim(), setupUrl, nombre, userRol);
         welcomeSent = true;
       } catch (e) {
@@ -1097,11 +1080,7 @@ app.post('/api/admin/usuarios/:id/reset-password', verificarToken, soloAdmin, as
     const token = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + 3600000).toISOString().replace('T', ' ').split('.')[0];
     db.prepare('INSERT INTO reset_tokens (email, token, expires_at) VALUES (?, ?, ?)').run(user.email, token, expiresAt);
-    const { dominio } = getDominioYLauncherPort();
-    const mode = (() => { try { const r = fs.readFileSync(path.join(INSTALL_DIR, 'config.env'), 'utf8'); const m = r.match(/^MODE=(.+)$/m); return m?.[1]?.trim() || 'test'; } catch { return 'test'; } })();
-    const launcherPort = mode === 'prod' ? '9443' : String(PORT);
-    const protocol = mode === 'prod' ? 'https' : 'http';
-    const resetUrl = `${protocol}://${dominio}:${launcherPort}/reset?token=${token}`;
+    const resetUrl = `${getBaseUrl()}/reset?token=${token}`;
     if (mail.isConfigured()) {
       mail.sendResetEmail(user.email, resetUrl, user.nombre).catch(e => console.error('[MAIL] sendResetEmail error:', e.message));
       res.json({ ok: true, message: 'Email de recuperación enviado a ' + user.email });
