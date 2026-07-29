@@ -17,6 +17,7 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
       try {
         const payload = jwt.verify(token, JWT_SECRET);
         if (!payload || !payload.email) return res.status(401).json({ error: 'Token inválido' });
+        console.log(`[nomina:auth] OK — email: ${payload.email}, rol: ${payload.rol}, modulos: ${JSON.stringify(payload.modulos)}, seq: ${payload.seq}`);
         const payloadNombre = payload.nombre || payload.email.split('@')[0];
         const payloadRol = ['admin','rrhh','gerencia','operador','consulta'].includes(payload.rol) ? payload.rol : 'operador';
         let user = db.prepare('SELECT * FROM usuarios WHERE email = ? AND activo = 1').get(payload.email);
@@ -29,6 +30,7 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
           user = { ...user, nombre: payloadNombre, rol: payloadRol };
         }
         const sesionValida = await verifySessionValid(payload);
+        console.log(`[nomina:auth] sesionValida: ${sesionValida}, payload.seq: ${payload.seq}`);
         if (!sesionValida) return res.status(401).json({ error: 'Sesión invalidada. Inicia sesión nuevamente.' });
         if (rolesPermitidos.length && !rolesPermitidos.includes(user.rol))
           return res.status(403).json({ error: 'Sin permisos para esta acción' });
@@ -39,6 +41,7 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
         req.usuario.nominaPermisos = modPermisos.nomina || [];
         next();
       } catch (err) {
+        console.error(`[nomina:auth] FALLÓ — ${err.message}, token length: ${token?.length}, secret set: ${!!JWT_SECRET}`);
         return res.status(401).json({ error: 'Token inválido o expirado' });
       }
     };
@@ -85,9 +88,12 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
         if (token) {
           const payload = jwt.verify(token, JWT_SECRET);
           const modulos = payload.modulos || [];
+          console.log(`[nomina:requireModule] modulos: ${JSON.stringify(modulos)}, buscando: ${moduleId}, includes: ${modulos.includes(moduleId)}`);
           if (modulos.includes(moduleId)) return next();
         }
-      } catch {}
+      } catch (err) {
+        console.error(`[nomina:requireModule] Error: ${err.message}`);
+      }
       res.status(403).json({ error: `No tienes acceso al módulo ${moduleId}` });
     };
   }
