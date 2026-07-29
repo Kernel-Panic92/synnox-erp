@@ -44,7 +44,7 @@ async function cargarTareas() {
       ${t.estado === 'revision' && (usuario?.rol === 'admin' || usuario?.rol === 'gerente') ? `<button class="btn btn-xs btn-success" onclick="aprobarTarea(${t.id})" title="Aprobar">&#10003;</button>` : ''}
       ${t.estado === 'revision' && (usuario?.rol === 'admin' || usuario?.rol === 'gerente') ? `<button class="btn btn-xs btn-danger" onclick="rechazarTarea(${t.id})" title="Rechazar">&#10007;</button>` : ''}
       ${t.estado === 'revision' && usuario?.rol !== 'admin' && usuario?.rol !== 'gerente' ? `<span class="badge badge-warning">Pend. aprobación</span>` : ''}
-      ${t.estado !== 'completada' && t.estado !== 'revision' ? `<button class="btn btn-xs btn-success" onclick="completarTareaRapida(${t.id})" title="Marcar completada">&#10003;</button>` : ''}
+      ${t.estado !== 'completada' && t.estado !== 'revision' && (usuario?.rol === 'admin' || usuario?.rol === 'gerente') ? `<button class="btn btn-xs btn-success" onclick="completarTareaRapida(${t.id})" title="Marcar completada">&#10003;</button>` : ''}
       ${tienePermiso('editar_tarea') ? `<button class="btn btn-xs btn-secondary" onclick="abrirModalTarea(${t.id})" title="Editar">&#9998;</button>` : ''}
       ${tienePermiso('eliminar_tarea') ? `<button class="btn btn-xs btn-danger" onclick="eliminarTarea(${t.id})" title="Eliminar">&#10005;</button>` : ''}
     </td>
@@ -208,7 +208,7 @@ async function abrirModalTarea(id) {
         <option value="pendiente" ${t?.estado === 'pendiente' ? 'selected' : ''}>Pendiente</option>
         <option value="en_progreso" ${t?.estado === 'en_progreso' ? 'selected' : ''}>En Progreso</option>
         <option value="revision" ${t?.estado === 'revision' ? 'selected' : ''}>Revision</option>
-        <option value="completada" ${t?.estado === 'completada' ? 'selected' : ''}>Completada</option>
+        ${(usuario?.rol === 'admin' || usuario?.rol === 'gerente') ? `<option value="completada" ${t?.estado === 'completada' ? 'selected' : ''}>Completada</option>` : ''}
       </select></div>
       <div class="form-group"><label>Asignado a</label>${selectBuscador('tarea-asignado', _todosUsuarios, id ? t?.asignado_a : usuario?.id, 'Buscar usuario...')}</div>
     </div>

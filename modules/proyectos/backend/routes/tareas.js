@@ -95,6 +95,13 @@ router.put('/reordenar', requirePermiso('editar_tarea', 'proyectos'), async (req
   try {
     const { tarea_id, columna, orden } = req.body;
     if (!tarea_id || !columna) return res.status(400).json({ error: 'tarea_id y columna requeridos' });
+
+    // Solo admin/gerente pueden mover a completada
+    const esAdminGerente = req.user?.rol === 'admin' || req.user?.rol === 'gerente';
+    if (columna === 'completada' && !esAdminGerente) {
+      return res.status(403).json({ error: 'Solo admin/gerente pueden marcar tareas como completadas' });
+    }
+
     const est = COLUMNA_A_ESTADO[columna] || 'pendiente';
     const resetAprobacion = columna !== 'completada' ? `, estado_aprobacion = 'pendiente', aprobado_por = NULL, aprobado_en = NULL, motivo_rechazo = NULL` : '';
     const result = await pool.query(
@@ -112,6 +119,13 @@ router.put('/reordenar', requirePermiso('editar_tarea', 'proyectos'), async (req
 router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res) => {
   try {
     const { titulo, descripcion, tipo, prioridad, estado, columna, asignado_a, fecha_limite, estimacion_horas, horas_invertidas } = req.body;
+
+    // Solo admin/gerente pueden mover a completada
+    const esAdminGerente = req.user?.rol === 'admin' || req.user?.rol === 'gerente';
+    if ((estado === 'completada' || columna === 'completada') && !esAdminGerente) {
+      return res.status(403).json({ error: 'Solo admin/gerente pueden marcar tareas como completadas' });
+    }
+
     const updates = [];
     const params = [];
     let idx = 1;

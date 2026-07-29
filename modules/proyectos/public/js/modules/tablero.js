@@ -62,9 +62,15 @@ async function soltarTarea(event, columnaDestino) {
   const tareaId = parseInt(event.dataTransfer.getData('text/plain'));
   if (!tareaId || isNaN(tareaId)) return;
 
+  // Solo admin/gerente pueden mover a completada, y solo desde revision
+  if (columnaDestino === 'completada' && (usuario?.rol !== 'admin' && usuario?.rol !== 'gerente')) {
+    toast('Solo admin/gerente pueden marcar como completada', 'error');
+    return;
+  }
+
   try {
     await api('/tareas/reordenar', { method: 'PUT', body: JSON.stringify({ tarea_id: tareaId, columna: columnaDestino, orden: 0 }) });
-    toast('Tarea movida a ' + _columnas.find(c => c.id === columnaDestino)?.label || columnaDestino, 'success');
+    toast('Tarea movida a ' + (_columnas.find(c => c.id === columnaDestino)?.label || columnaDestino), 'success');
     cargarTablero();
   } catch (err) { toast(err.message, 'error'); }
 }
