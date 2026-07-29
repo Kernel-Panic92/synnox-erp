@@ -1421,7 +1421,6 @@ function showAdminTab(tab) {
    else if (tab === 'mcp') { loadMcpConfig(); loadMcpUrl(); }
    else if (tab === 'smtp') loadSmtpConfig();
    else if (tab === 'mapas') loadGmapsKeyStatus();
-   else if (tab === 'apariencia') loadGradConfig();
    else if (tab === 'seguridad') { loadRateLimitConfig(); loadSshConfig(); loadLoginLogs(); }
    else if (tab === 'auditoria') loadAuditoria();
    else if (tab === 'telemetria') loadTelemetria();
@@ -1881,122 +1880,6 @@ async function loadTelemetriaEventos() {
       </tr>`;
     }).join('') || '<tr><td colspan="4" style="color:var(--muted);text-align:center;">Sin eventos</td></tr>';
   } catch (e) {}
-}
-
-// ── Gradient config ──
-const GRAD_DEFAULTS = { c1: [230,126,34], c2: [247,148,79], c3: [196,98,16] };
-let gradColors = {};
-
-function gradBody(c1, c2) {
-  return 'radial-gradient(ellipse at 20% 50%, rgba(' + c1.join(',') + ',0.06) 0%, transparent 60%),' +
-         'radial-gradient(ellipse at 80% 20%, rgba(' + c2.join(',') + ',0.05) 0%, transparent 50%),' +
-         'var(--bg)';
-}
-
-function gradLogin(c1, c2, c3) {
-  return 'radial-gradient(ellipse at 20% 30%, rgba(' + c1.join(',') + ',0.10) 0%, transparent 50%),' +
-         'radial-gradient(ellipse at 80% 70%, rgba(' + c2.join(',') + ',0.07) 0%, transparent 40%),' +
-         'radial-gradient(ellipse at 50% 0%, rgba(' + c3.join(',') + ',0.05) 0%, transparent 30%),' +
-         'linear-gradient(160deg, #1a1615 0%, #12100f 100%)';
-}
-
-function gradPreview(c1, c2) {
-  return 'linear-gradient(135deg, rgba(' + c1.join(',') + ',0.3), rgba(' + c2.join(',') + ',0.2))';
-}
-
-function applyGradients(c1, c2, c3) {
-  document.body.style.background = gradBody(c1, c2);
-  var loginEl = document.getElementById('login-screen');
-  if (loginEl) loginEl.style.background = gradLogin(c1, c2, c3);
-  var previewEl = document.getElementById('gradient-preview');
-  if (previewEl) previewEl.style.background = gradPreview(c1, c2);
-}
-
-function updateSliderVals(c1, c2, c3) {
-  var names = ['c1','c2','c3'], vals = [c1,c2,c3], chs = ['r','g','b'];
-  for (var i = 0; i < 3; i++)
-    for (var j = 0; j < 3; j++) {
-      var el = document.getElementById('grad-' + names[i] + '-' + chs[j]);
-      if (el) el.value = vals[i][j];
-      var vel = document.getElementById('grad-' + names[i] + '-' + chs[j] + 'v');
-      if (vel) vel.textContent = vals[i][j];
-    }
-}
-
-function readSliders() {
-  return [
-    [+document.getElementById('grad-c1-r').value, +document.getElementById('grad-c1-g').value, +document.getElementById('grad-c1-b').value],
-    [+document.getElementById('grad-c2-r').value, +document.getElementById('grad-c2-g').value, +document.getElementById('grad-c2-b').value],
-    [+document.getElementById('grad-c3-r').value, +document.getElementById('grad-c3-g').value, +document.getElementById('grad-c3-b').value]
-  ];
-}
-
-function previewGrad() {
-  var c = readSliders();
-  gradColors = { c1: c[0], c2: c[1], c3: c[2] };
-  updateSliderVals(c[0], c[1], c[2]);
-  applyGradients(c[0], c[1], c[2]);
-  localStorage.setItem('app_grad', JSON.stringify({ c1: c[0], c2: c[1], c3: c[2] }));
-}
-
-async function loadGradConfig() {
-  var c1, c2, c3;
-  try {
-    var res = await fetch('/api/config');
-    if (res.ok) {
-      var data = await res.json(), cfg = data.config || {};
-      if (cfg.grad_c1) c1 = cfg.grad_c1.split(',').map(Number);
-      if (cfg.grad_c2) c2 = cfg.grad_c2.split(',').map(Number);
-      if (cfg.grad_c3) c3 = cfg.grad_c3.split(',').map(Number);
-    }
-  } catch (e) { console.error('grad fetch fail', e); }
-  if (!c1) {
-    try {
-      var saved = localStorage.getItem('app_grad');
-      if (saved) { var p = JSON.parse(saved); if (p.c1) { c1 = p.c1; c2 = p.c2; c3 = p.c3; } }
-    } catch (e) {}
-  }
-  if (!c1) { c1 = GRAD_DEFAULTS.c1; c2 = GRAD_DEFAULTS.c2; c3 = GRAD_DEFAULTS.c3; }
-  gradColors = { c1: c1, c2: c2, c3: c3 };
-  updateSliderVals(c1, c2, c3);
-  applyGradients(c1, c2, c3);
-}
-
-async function saveGradConfig() {
-  var btn = document.querySelector('#tab-apariencia .btn');
-  if (!btn) return;
-  btn.textContent = 'Guardando...';
-  btn.disabled = true;
-  try {
-    var c = readSliders(), body = {
-      grad_c1: c[0].join(','),
-      grad_c2: c[1].join(','),
-      grad_c3: c[2].join(',')
-    };
-    var res = await fetch('/api/admin/config', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
-      body: JSON.stringify(body)
-    });
-    var data = await res.json();
-    document.getElementById('grad-result').innerHTML = data.ok
-      ? '<span style="color:var(--success);">\u2705 Colores guardados</span>'
-      : '<span style="color:var(--danger);">\u274c Error al guardar</span>';
-    if (data.ok) localStorage.setItem('app_grad', JSON.stringify({ c1: c[0], c2: c[1], c3: c[2] }));
-  } catch (e) {
-    document.getElementById('grad-result').innerHTML = '<span style="color:var(--danger);">\u274c ' + e.message + '</span>';
-  } finally {
-    btn.textContent = '\uD83D\uDCBE Guardar colores';
-    btn.disabled = false;
-  }
-}
-
-function resetGradConfig() {
-  var c1 = GRAD_DEFAULTS.c1, c2 = GRAD_DEFAULTS.c2, c3 = GRAD_DEFAULTS.c3;
-  gradColors = { c1: c1, c2: c2, c3: c3 };
-  updateSliderVals(c1, c2, c3);
-  applyGradients(c1, c2, c3);
-  document.getElementById('grad-result').innerHTML = '<span style="color:var(--muted);">\u21ba Colores restaurados (sin guardar)</span>';
 }
 
 // ── Session check + refresh ──

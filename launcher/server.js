@@ -628,14 +628,14 @@ app.get('/api/shell/config', (req, res) => {
 
 // ── Global config (gradients, etc.) ──
 app.get('/api/config', (req, res) => {
-  const rows = db.prepare("SELECT key, value FROM config WHERE key LIKE 'grad_%' OR key LIKE 'rate_limit_%' ORDER BY key").all();
+  const rows = db.prepare("SELECT key, value FROM config WHERE key LIKE 'rate_limit_%' ORDER BY key").all();
   const cfg = {};
   for (const r of rows) cfg[r.key] = r.value;
   res.json({ config: cfg });
 });
 
 app.put('/api/admin/config', verificarToken, soloAdmin, (req, res) => {
-  const allowed = ['grad_c1','grad_c2','grad_c3','rate_limit_max','rate_limit_window','ssh_host','ssh_user'];
+  const allowed = ['rate_limit_max','rate_limit_window','ssh_host','ssh_user'];
   const upsert = db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)');
   for (const [k, v] of Object.entries(req.body)) {
     if (allowed.includes(k)) upsert.run(k, String(v ?? ''));
@@ -658,9 +658,9 @@ app.post('/api/admin/config/test-ssh', verificarToken, soloAdmin, (req, res) => 
   }
 });
 
-// Admin GET: returns allowed config keys (grad + rate_limit + ssh)
+// Admin GET: returns allowed config keys (rate_limit + ssh)
 app.get('/api/admin/config', verificarToken, soloAdmin, (req, res) => {
-  const allowed = ['grad_c1','grad_c2','grad_c3','rate_limit_max','rate_limit_window','ssh_host','ssh_user'];
+  const allowed = ['rate_limit_max','rate_limit_window','ssh_host','ssh_user'];
   const placeholders = allowed.map(function() { return '?'; }).join(',');
   const rows = db.prepare("SELECT key, value FROM config WHERE key IN (" + placeholders + ")").all(...allowed);
   const cfg = {};

@@ -365,7 +365,6 @@
         <div class="nav-item" data-page="mcp-modules" onclick="showAdminTab('mcp-modules')"><span class="icon">🔌</span> Servicios MCP</div>
         <div class="nav-item" data-page="smtp" onclick="showAdminTab('smtp')"><span class="icon">📧</span> SMTP</div>
         <div class="nav-item" data-page="mapas" onclick="showAdminTab('mapas')"><span class="icon">🗺️</span> Mapas</div>
-        <div class="nav-item" data-page="apariencia" onclick="showAdminTab('apariencia')"><span class="icon">🎨</span> Apariencia</div>
       </div>
       <div class="sidebar-section">
         <div class="sidebar-section-title">Operaciones</div>
@@ -565,71 +564,6 @@
         <button class="btn" onclick="guardarGmapsKey()">💾 Guardar</button>
         <button class="btn btn-sm btn-danger" onclick="eliminarGmapsKey()">🗑️ Eliminar</button>
       </div>
-    </div>
-  </div>
-  <div class="tab-content" id="tab-apariencia">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
-      <div style="font-size:var(--fs);font-weight:600;">Colores de acento</div>
-    </div>
-    <div class="perm-rol-section">
-      <div class="perm-rol-titulo">Gradientes de fondo</div>
-      <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">Ajusta los colores de los degradados en toda la interfaz. Los cambios se ven en vivo.</p>
-      <div id="gradient-preview" style="height:60px;border-radius:10px;border:1px solid var(--border);margin-bottom:20px;background:linear-gradient(135deg,rgba(var(--grad-1),0.3),rgba(var(--grad-2),0.2));"></div>
-      <label>Color primario</label>
-      <div class="rgb-slider">
-        <span style="color:var(--danger);font-weight:700;">R</span>
-        <input type="range" id="grad-c1-r" min="0" max="255" value="230" oninput="previewGrad()">
-        <span class="rgb-val" id="grad-c1-rv">230</span>
-      </div>
-      <div class="rgb-slider">
-        <span style="color:var(--success);font-weight:700;">G</span>
-        <input type="range" id="grad-c1-g" min="0" max="255" value="126" oninput="previewGrad()">
-        <span class="rgb-val" id="grad-c1-gv">126</span>
-      </div>
-      <div class="rgb-slider">
-        <span style="color:var(--accent);font-weight:700;">B</span>
-        <input type="range" id="grad-c1-b" min="0" max="255" value="34" oninput="previewGrad()">
-        <span class="rgb-val" id="grad-c1-bv">34</span>
-      </div>
-      <div style="height:1px;background:var(--border);margin:12px 0;"></div>
-      <label>Color secundario</label>
-      <div class="rgb-slider">
-        <span style="color:var(--danger);font-weight:700;">R</span>
-        <input type="range" id="grad-c2-r" min="0" max="255" value="247" oninput="previewGrad()">
-        <span class="rgb-val" id="grad-c2-rv">247</span>
-      </div>
-      <div class="rgb-slider">
-        <span style="color:var(--success);font-weight:700;">G</span>
-        <input type="range" id="grad-c2-g" min="0" max="255" value="148" oninput="previewGrad()">
-        <span class="rgb-val" id="grad-c2-gv">148</span>
-      </div>
-      <div class="rgb-slider">
-        <span style="color:var(--accent);font-weight:700;">B</span>
-        <input type="range" id="grad-c2-b" min="0" max="255" value="79" oninput="previewGrad()">
-        <span class="rgb-val" id="grad-c2-bv">79</span>
-      </div>
-      <div style="height:1px;background:var(--border);margin:12px 0;"></div>
-      <label>Color terciario</label>
-      <div class="rgb-slider">
-        <span style="color:var(--danger);font-weight:700;">R</span>
-        <input type="range" id="grad-c3-r" min="0" max="255" value="196" oninput="previewGrad()">
-        <span class="rgb-val" id="grad-c3-rv">196</span>
-      </div>
-      <div class="rgb-slider">
-        <span style="color:var(--success);font-weight:700;">G</span>
-        <input type="range" id="grad-c3-g" min="0" max="255" value="98" oninput="previewGrad()">
-        <span class="rgb-val" id="grad-c3-gv">98</span>
-      </div>
-      <div class="rgb-slider">
-        <span style="color:var(--accent);font-weight:700;">B</span>
-        <input type="range" id="grad-c3-b" min="0" max="255" value="16" oninput="previewGrad()">
-        <span class="rgb-val" id="grad-c3-bv">16</span>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:16px;">
-        <button class="btn" onclick="saveGradConfig()">💾 Guardar colores</button>
-        <button class="btn btn-sm" onclick="resetGradConfig()" style="background:var(--surface2);color:var(--text);">↺ Restaurar</button>
-      </div>
-      <div id="grad-result" style="margin-top:12px;"></div>
     </div>
   </div>
   <div class="tab-content" id="tab-seguridad">
