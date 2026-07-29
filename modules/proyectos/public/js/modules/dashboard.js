@@ -14,12 +14,12 @@ async function cargarDashboard() {
     const pendientesAprob = parseInt(aprobacion.pendientes) || 0;
 
     document.getElementById('dash-stats').innerHTML = `
-      <div class="stat-card"><div class="stat-label">Total Tareas</div><div class="stat-value">${total}</div></div>
-      <div class="stat-card"><div class="stat-label">Pendientes</div><div class="stat-value" style="color:var(--warning)">${pendiente}</div></div>
-      <div class="stat-card"><div class="stat-label">En Progreso</div><div class="stat-value" style="color:var(--accent)">${enProgreso}</div></div>
-      <div class="stat-card"><div class="stat-label">En Revision</div><div class="stat-value" style="color:var(--accent2)">${revision}</div></div>
-      <div class="stat-card"><div class="stat-label">Pend. Aprobacion</div><div class="stat-value" style="color:${pendientesAprob > 0 ? 'var(--warning)' : 'var(--muted)'}">${pendientesAprob}</div></div>
-      <div class="stat-card"><div class="stat-label">Completadas</div><div class="stat-value" style="color:var(--success)">${completada}</div></div>
+      <div class="stat-card" style="cursor:pointer" onclick="verTareasEstado('')"><div class="stat-label">Total Tareas</div><div class="stat-value">${total}</div></div>
+      <div class="stat-card" style="cursor:pointer" onclick="verTareasEstado('pendiente')"><div class="stat-label">Pendientes</div><div class="stat-value" style="color:var(--warning)">${pendiente}</div></div>
+      <div class="stat-card" style="cursor:pointer" onclick="verTareasEstado('en_progreso')"><div class="stat-label">En Progreso</div><div class="stat-value" style="color:var(--accent)">${enProgreso}</div></div>
+      <div class="stat-card" style="cursor:pointer" onclick="verTareasEstado('revision')"><div class="stat-label">En Revision</div><div class="stat-value" style="color:var(--accent2)">${revision}</div></div>
+      <div class="stat-card" style="cursor:pointer" onclick="verTareasEstado('revision')"><div class="stat-label">Pend. Aprobacion</div><div class="stat-value" style="color:${pendientesAprob > 0 ? 'var(--warning)' : 'var(--muted)'}">${pendientesAprob}</div></div>
+      <div class="stat-card" style="cursor:pointer" onclick="verTareasEstado('completada')"><div class="stat-label">Completadas</div><div class="stat-value" style="color:var(--success)">${completada}</div></div>
     `;
 
     const canvas = document.getElementById('chart-estados');
@@ -123,4 +123,12 @@ async function cargarDashboard() {
   } catch (err) {
     document.getElementById('dash-stats').innerHTML = '<div class="card" style="grid-column:1/-1;text-align:center;color:var(--muted);padding:40px">Error al cargar dashboard</div>';
   }
+}
+
+function verTareasEstado(estado) {
+  navigate('tareas');
+  setTimeout(() => {
+    const sel = document.getElementById('filtro-estado');
+    if (sel) { sel.value = estado; cargarTareas(); }
+  }, 100);
 }
