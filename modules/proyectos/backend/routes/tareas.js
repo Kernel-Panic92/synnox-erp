@@ -1,5 +1,6 @@
 import express from 'express';
 import pool from '../config/db.js';
+import { requirePermiso } from '../../../../framework/auth.mjs';
 
 const router = express.Router();
 
@@ -10,7 +11,7 @@ const COLUMNA_A_ESTADO = {
   completada: 'completada'
 };
 
-router.get('/', async (req, res) => {
+router.get('/', requirePermiso('ver', 'proyectos'), async (req, res) => {
   try {
     const { proyecto_id, estado, asignado_a, prioridad, columna, q, page, limit } = req.query;
     const params = [];
@@ -49,7 +50,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', requirePermiso('ver', 'proyectos'), async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT t.*, p.nombre AS proyecto_nombre
@@ -65,7 +66,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermiso('crear_tarea', 'proyectos'), async (req, res) => {
   try {
     const { proyecto_id, titulo, descripcion, tipo, prioridad, asignado_a, reportero, fecha_limite, estimacion_horas, columna } = req.body;
     if (!titulo) return res.status(400).json({ error: 'El título es requerido' });
@@ -82,7 +83,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/reordenar', async (req, res) => {
+router.put('/reordenar', requirePermiso('editar_tarea', 'proyectos'), async (req, res) => {
   try {
     const { tarea_id, columna, orden } = req.body;
     if (!tarea_id || !columna) return res.status(400).json({ error: 'tarea_id y columna requeridos' });
@@ -100,7 +101,7 @@ router.put('/reordenar', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res) => {
   try {
     const { titulo, descripcion, tipo, prioridad, estado, columna, asignado_a, fecha_limite, estimacion_horas, horas_invertidas } = req.body;
     const updates = [];
@@ -151,7 +152,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermiso('eliminar_tarea', 'proyectos'), async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM projects.tareas WHERE id = $1 RETURNING id', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Tarea no encontrada' });

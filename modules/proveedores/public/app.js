@@ -8,15 +8,15 @@ const S={
 };
 const NAV=[
   {id:'dashboard',l:'Dashboard',i:'📊',s:'p'},
-  {id:'facturas',l:'Facturas',i:'📄',s:'p'},
-  {id:'pendientes',l:'Pendientes',i:'⏰',s:'p'},
-  {id:'porpagar',l:'Por Pagar',i:'💳',s:'f',roles:['admin','tesorero']},
-  {id:'causacion',l:'Causación',i:'📥',s:'f',roles:['admin','contador','tesorero']},
-  {id:'categorias',l:'Categorías',i:'🏷️',s:'c',roles:['admin','contador']},
-  {id:'centros',l:'Centros',i:'🗺️',s:'c',roles:['admin','contador','tesorero']},
-  {id:'configuracion',l:'Configuración',i:'⚙️',s:'c',roles:['admin']},
-  {id:'backup',l:'Backup',i:'💾',s:'c',roles:['admin']},
-  {id:'audit',l:'Auditoría',i:'🔒',s:'c',roles:['admin','auditor']}
+  {id:'facturas',l:'Facturas',i:'📄',s:'p',perm:'ver'},
+  {id:'pendientes',l:'Pendientes',i:'⏰',s:'p',perm:'ver'},
+  {id:'porpagar',l:'Por Pagar',i:'💳',s:'f',perm:'pagar'},
+  {id:'causacion',l:'Causación',i:'📥',s:'f',perm:'causar'},
+  {id:'categorias',l:'Categorías',i:'🏷️',s:'c',perm:'editar'},
+  {id:'centros',l:'Centros',i:'🗺️',s:'c',perm:'ver'},
+  {id:'configuracion',l:'Configuración',i:'⚙️',s:'c',perm:'configurar'},
+  {id:'backup',l:'Backup',i:'💾',s:'c',perm:'configurar'},
+  {id:'audit',l:'Auditoría',i:'🔒',s:'c',perm:'auditar'}
 ];
 const SECS=[{id:'p',l:'Principal'},{id:'f',l:'Flujo'},{id:'c',l:'Config'}];
 

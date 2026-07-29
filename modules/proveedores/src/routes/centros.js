@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const db = require('../db');
-const { authMiddleware, requireRol } = require('../middleware/auth');
+const { authMiddleware, requirePermiso } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
@@ -34,7 +34,7 @@ router.get('/:id', async (req, res) => {
 
 // ─── POST /api/centros/sync ──────────────────────────────────────────────
 // Sincroniza centros desde el launcher (fuente única de verdad)
-router.post('/sync', requireRol('admin'), async (req, res) => {
+router.post('/sync', requirePermiso('configurar'), async (req, res) => {
   try {
     const token = req.headers.authorization?.replace('Bearer ', '');
     const response = await fetch(`${LAUNCHER_URL}/api/centros`, {
@@ -81,17 +81,17 @@ router.post('/sync', requireRol('admin'), async (req, res) => {
 
 // ─── POST /api/centros ────────────────────────────────────────────────────
 // CRUD deshabilitado — los centros se gestionan desde el Launcher
-router.post('/', requireRol('admin'), async (req, res) => {
+router.post('/', requirePermiso('crear'), async (req, res) => {
   res.status(400).json({ error: 'Los centros se gestionan desde el panel de administración del Launcher' });
 });
 
 // ─── PUT /api/centros/:id ─────────────────────────────────────────────────
-router.put('/:id', requireRol('admin'), async (req, res) => {
+router.put('/:id', requirePermiso('editar'), async (req, res) => {
   res.status(400).json({ error: 'Los centros se gestionan desde el panel de administración del Launcher' });
 });
 
 // ─── DELETE /api/centros/:id ───────────────────────────────────────────────
-router.delete('/:id', requireRol('admin'), async (req, res) => {
+router.delete('/:id', requirePermiso('eliminar'), async (req, res) => {
   res.status(400).json({ error: 'Los centros se gestionan desde el panel de administración del Launcher' });
 });
 

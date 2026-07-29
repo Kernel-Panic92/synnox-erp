@@ -1,8 +1,10 @@
 import express from 'express';
 import pool from '../config/db.js';
 import ExcelJS from 'exceljs';
+import { requirePermiso } from '../../../../framework/auth.mjs';
 
 const router = express.Router();
+const MODULE = 'logistica';
 
 function paginar(q, page, limit, sort, order, mapRow) {
   const offset = (page - 1) * limit;
@@ -27,7 +29,7 @@ async function ejecutarReporte(q, params, page, limit, sort, order, mapRow) {
 }
 
 // ── Reporte de Rutas ──
-router.get('/rutas', async (req, res) => {
+router.get('/rutas', requirePermiso('ver', MODULE), async (req, res) => {
   try {
     const { fechaDesde, fechaHasta, sede, estado, page = 1, limit = 50, sort = 'r.fecha', order = 'DESC' } = req.query;
     let sql = `SELECT r.id, r.nombre, r.fecha, v.placa, v.alias as vehiculo_alias, r.sede,
@@ -62,7 +64,7 @@ router.get('/rutas', async (req, res) => {
 });
 
 // ── Reporte de Pedidos ──
-router.get('/pedidos', async (req, res) => {
+router.get('/pedidos', requirePermiso('ver', MODULE), async (req, res) => {
   try {
     const { fechaDesde, fechaHasta, estado, ciudad, page = 1, limit = 50, sort = 'p.created_at', order = 'DESC' } = req.query;
     let sql = `SELECT p.id, p.numero_factura, p.cliente_nombre, p.direccion, p.ciudad, p.estado,
@@ -98,7 +100,7 @@ router.get('/pedidos', async (req, res) => {
 });
 
 // ── Reporte de Vehículos ──
-router.get('/vehiculos', async (req, res) => {
+router.get('/vehiculos', requirePermiso('ver', MODULE), async (req, res) => {
   try {
     const { estado, sede, page = 1, limit = 50, sort = 'v.placa', order = 'ASC' } = req.query;
     let sql = `SELECT v.id, v.placa, v.alias, v.estado, v.sede,
@@ -131,7 +133,7 @@ router.get('/vehiculos', async (req, res) => {
 });
 
 // ── Reporte de Eficiencia ──
-router.get('/eficiencia', async (req, res) => {
+router.get('/eficiencia', requirePermiso('ver', MODULE), async (req, res) => {
   try {
     const { fechaDesde, fechaHasta, vehiculoId, page = 1, limit = 50, sort = 'h.fecha', order = 'DESC' } = req.query;
     let sql = `SELECT h.*, v.placa, v.alias as vehiculo_alias
@@ -164,7 +166,7 @@ router.get('/eficiencia', async (req, res) => {
 });
 
 // ── Exportar reporte a Excel ──
-router.post('/exportar', async (req, res) => {
+router.post('/exportar', requirePermiso('exportar', MODULE), async (req, res) => {
   try {
     const { tipo, fechaDesde, fechaHasta, sede, estado, ciudad, vehiculoId } = req.body;
     let rows, summary, columns, filename, sheetName;

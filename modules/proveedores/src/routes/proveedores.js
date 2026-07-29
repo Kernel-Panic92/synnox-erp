@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const db = require('../db');
-const { authMiddleware, requireRol } = require('../middleware/auth');
+const { authMiddleware, requirePermiso } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
@@ -46,7 +46,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/proveedores
-router.post('/', requireRol('admin', 'contador'), async (req, res) => {
+router.post('/', requirePermiso('crear'), async (req, res) => {
   const { nit, nombre, email_facturacion, telefono, direccion, categoria_default_id } = req.body;
   if (!nit?.trim() || !nombre?.trim()) {
     return res.status(400).json({ error: 'NIT y nombre son requeridos' });
@@ -66,7 +66,7 @@ router.post('/', requireRol('admin', 'contador'), async (req, res) => {
 });
 
 // PUT /api/proveedores/:id
-router.put('/:id', requireRol('admin', 'contador'), async (req, res) => {
+router.put('/:id', requirePermiso('editar'), async (req, res) => {
   const { nit, nombre, email_facturacion, telefono, direccion, activo, categoria_default_id } = req.body;
   if (!nit?.trim() || !nombre?.trim()) {
     return res.status(400).json({ error: 'NIT y nombre son requeridos' });
@@ -89,7 +89,7 @@ router.put('/:id', requireRol('admin', 'contador'), async (req, res) => {
 });
 
 // DELETE /api/proveedores/:id (soft)
-router.delete('/:id', requireRol('admin'), async (req, res) => {
+router.delete('/:id', requirePermiso('eliminar'), async (req, res) => {
   try {
     await db.query('UPDATE proveedores SET activo=FALSE WHERE id=$1', [req.params.id]);
     res.json({ ok: true });

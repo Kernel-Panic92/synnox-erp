@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const db = require('../db');
-const { authMiddleware, requireRol } = require('../middleware/auth');
+const { authMiddleware, requirePermiso } = require('../middleware/auth');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -55,7 +55,7 @@ const logoUpload = multer({
   }
 });
 
-router.post('/logo', requireRol('admin'), logoUpload.single('logo'), async (req, res) => {
+router.post('/logo', requirePermiso('configurar'), logoUpload.single('logo'), async (req, res) => {
   if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
 
   const logoDir = path.join(process.cwd(), 'public', 'logos');
@@ -77,7 +77,7 @@ router.post('/logo', requireRol('admin'), logoUpload.single('logo'), async (req,
 });
 
 // ─── GET /api/configuracion ─────────────────────────────────────────────────
-router.get('/', requireRol('admin', 'contador'), async (req, res) => {
+router.get('/', requirePermiso('ver'), async (req, res) => {
   try {
     const { rows } = await db.query('SELECT clave, valor, descripcion, actualizado_en FROM configuracion ORDER BY clave');
     
@@ -97,7 +97,7 @@ router.get('/', requireRol('admin', 'contador'), async (req, res) => {
 });
 
 // ─── PUT /api/configuracion ─────────────────────────────────────────────────
-router.put('/', requireRol('admin'), async (req, res) => {
+router.put('/', requirePermiso('configurar'), async (req, res) => {
   const entries = req.body;
   
   if (!entries || typeof entries !== 'object') {
@@ -150,7 +150,7 @@ router.put('/', requireRol('admin'), async (req, res) => {
 });
 
 // ─── GET /api/configuracion/imap/test ───────────────────────────────────────
-router.get('/imap/test', requireRol('admin'), async (req, res) => {
+router.get('/imap/test', requirePermiso('configurar'), async (req, res) => {
   const { ImapFlow } = require('imapflow');
   
   const host = req.query.host;
@@ -183,7 +183,7 @@ router.get('/imap/test', requireRol('admin'), async (req, res) => {
 });
 
 // ─── GET /api/configuracion/smtp/test ───────────────────────────────────────
-router.get('/smtp/test', requireRol('admin'), async (req, res) => {
+router.get('/smtp/test', requirePermiso('configurar'), async (req, res) => {
   const nodemailer = require('nodemailer');
 
   // Inherit mode: fetch from launcher
@@ -261,7 +261,7 @@ router.get('/smtp/test', requireRol('admin'), async (req, res) => {
 });
 
 // ─── GET /api/configuracion/horas ───────────────────────────────────────────
-router.get('/horas', requireRol('admin', 'contador', 'tesorero'), async (req, res) => {
+router.get('/horas', requirePermiso('ver'), async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT clave, valor FROM configuracion 
@@ -281,7 +281,7 @@ router.get('/horas', requireRol('admin', 'contador', 'tesorero'), async (req, re
 });
 
 // ─── PUT /api/configuracion/horas ───────────────────────────────────────────
-router.put('/horas', requireRol('admin', 'contador'), async (req, res) => {
+router.put('/horas', requirePermiso('configurar'), async (req, res) => {
   const { horas_limite_revision, horas_escalacion_nivel2, horas_dian_tacita } = req.body;
   
   const client = await db.getClient();
@@ -318,7 +318,7 @@ router.put('/horas', requireRol('admin', 'contador'), async (req, res) => {
 const { execSync, spawnSync } = require('child_process');
 
 // ─── SEGURIDAD ───────────────────────────────────────────────────────────────
-router.get('/seguridad', requireRol('admin'), async (req, res) => {
+router.get('/seguridad', requirePermiso('ver'), async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT clave, valor FROM configuracion 
@@ -345,7 +345,7 @@ router.get('/seguridad', requireRol('admin'), async (req, res) => {
   }
 });
 
-router.put('/seguridad', requireRol('admin'), async (req, res) => {
+router.put('/seguridad', requirePermiso('configurar'), async (req, res) => {
   let { rate_limit_window, rate_limit_max, fail2ban_enabled, fail2ban_bantime, fail2ban_findtime, fail2ban_maxretry } = req.body;
   
   // Validar valores numéricos
@@ -407,7 +407,7 @@ EOF`, { stdio: 'pipe' });
   }
 });
 
-router.post('/seguridad/fail2ban/action', requireRol('admin'), async (req, res) => {
+router.post('/seguridad/fail2ban/action', requirePermiso('configurar'), async (req, res) => {
   const { action } = req.body;
   
   if (!['start', 'stop', 'restart', 'reload'].includes(action)) {
@@ -423,7 +423,7 @@ router.post('/seguridad/fail2ban/action', requireRol('admin'), async (req, res) 
 });
 
 // ─── BACKUPS AUTOMÁTICOS ───────────────────────────────────────────────────
-router.get('/backups-auto', requireRol('admin'), async (req, res) => {
+router.get('/backups-auto', requirePermiso('ver'), async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT clave, valor FROM configuracion 
@@ -463,7 +463,7 @@ router.get('/backups-auto', requireRol('admin'), async (req, res) => {
   }
 });
 
-router.put('/backups-auto', requireRol('admin'), async (req, res) => {
+router.put('/backups-auto', requirePermiso('configurar'), async (req, res) => {
   let { backup_auto_enabled, backup_auto_cron, backup_auto_path, backup_auto_retention, backup_auto_type, backup_auto_host, backup_auto_user, backup_auto_pass } = req.body;
   
   // Validar y sanitizar expresión cron
@@ -522,7 +522,7 @@ router.put('/backups-auto', requireRol('admin'), async (req, res) => {
   }
 });
 
-router.post('/backups-auto/test', requireRol('admin'), async (req, res) => {
+router.post('/backups-auto/test', requirePermiso('configurar'), async (req, res) => {
   let { path: backupPath, type, host, user, pass } = req.body;
   
   fs.appendFileSync(path.join(APP_DIR, 'logs', 'error.log'), `[${new Date().toISOString()}] SMB test: ${JSON.stringify(req.body)}\n`);
@@ -568,23 +568,23 @@ router.post('/backups-auto/test', requireRol('admin'), async (req, res) => {
   }
 });
 
-router.post('/backups-auto/now', requireRol('admin'), (req, res) => {
+router.post('/backups-auto/now', requirePermiso('configurar'), (req, res) => {
   // Delegar al endpoint de backup existente
   res.redirect(307, '/api/backup?action=generate&tipo=completo');
 });
 
 // GET /api/backups-auto/progreso — polling de progreso del backup
-router.get('/backups-auto/progreso', requireRol('admin'), (req, res) => {
+router.get('/backups-auto/progreso', requirePermiso('ver'), (req, res) => {
   res.redirect(307, '/api/backup/progreso');
 });
 
 // GET /api/backups-auto/lista — lista backups locales
-router.get('/backups-auto/lista', requireRol('admin'), (req, res) => {
+router.get('/backups-auto/lista', requirePermiso('ver'), (req, res) => {
   res.redirect(307, '/api/backup/lista');
 });
 
 // ─── TAREAS CRON ────────────────────────────────────────────────────────────
-router.get('/cron', requireRol('admin'), async (req, res) => {
+router.get('/cron', requirePermiso('ver'), async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT clave, valor FROM configuracion 
@@ -607,7 +607,7 @@ router.get('/cron', requireRol('admin'), async (req, res) => {
   }
 });
 
-router.put('/cron', requireRol('admin'), async (req, res) => {
+router.put('/cron', requirePermiso('configurar'), async (req, res) => {
   let { cron_imap, cron_escalaciones, cron_dian, cron_notificaciones } = req.body;
   
   // Validar expresiones cron
@@ -657,7 +657,7 @@ router.put('/cron', requireRol('admin'), async (req, res) => {
   }
 });
 
-router.get('/cron/logs', requireRol('admin'), (req, res) => {
+router.get('/cron/logs', requirePermiso('ver'), (req, res) => {
   const logPath = path.join(APP_DIR, 'logs', 'cron.log');
   try {
     if (fs.existsSync(logPath)) {

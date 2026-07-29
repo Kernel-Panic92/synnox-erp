@@ -45,8 +45,8 @@ async function cargarProyectos() {
             ${p.estado !== 'completado' && (p.estado_aprobacion !== 'aprobada') && ['admin','gerente'].includes(usuario?.rol) ? `<button class="btn btn-xs btn-success" onclick="event.stopPropagation();aprobarProyecto(${p.id})">Aprobar</button>` : ''}
             ${p.estado_aprobacion === 'aprobada' && ['admin','gerente'].includes(usuario?.rol) ? `<button class="btn btn-xs btn-danger" onclick="event.stopPropagation();rechazarProyecto(${p.id})">Desaprobar</button>` : ''}
             ${p.estado_aprobacion === 'aprobada' && ['admin','gerente'].includes(usuario?.rol) ? `<button class="btn btn-xs btn-warning" onclick="event.stopPropagation();cerrarProyecto(${p.id})">Cerrar</button>` : ''}
-            <button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();abrirModalProyecto(${p.id})">Editar</button>
-            <button class="btn btn-xs btn-danger" onclick="event.stopPropagation();eliminarProyecto(${p.id})">Eliminar</button>
+            ${tienePermiso('editar') ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();abrirModalProyecto(${p.id})">Editar</button>` : ''}
+            ${tienePermiso('eliminar') ? `<button class="btn btn-xs btn-danger" onclick="event.stopPropagation();eliminarProyecto(${p.id})">Eliminar</button>` : ''}
           </div>
         </div>
       `;

@@ -201,7 +201,7 @@ app.use('/api', require('./src/routes/telemetry')({ db, parseCookies, middleware
 // ─────────────────────────────────────────────
 // CONSULTA — endpoint REST para chat web/móvil
 // ─────────────────────────────────────────────
-app.use('/api', require('./src/routes/consulta')({ db }));
+app.use('/api', todosRoles, require('./src/routes/consulta')({ db }));
 
 // ─────────────────────────────────────────────
 // MCP — Model Context Protocol (para LLMs)

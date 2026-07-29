@@ -57,10 +57,17 @@ function showApp(){
   goTo(v);
 }
 
+function tienePermisoProveedor(perm) {
+  if (!S.usuario) return false;
+  if (S.usuario.rol === 'admin') return true;
+  const permisos = S.usuario.modulos_permisos?.proveedores || [];
+  return permisos.includes(perm);
+}
+
 function buildNav(){
   let h='';
   for(const sec of SECS){
-    const items=NAV.filter(n=>n.s===sec.id&&(!n.roles||n.roles.includes(S.usuario?.rol)));
+    const items=NAV.filter(n=>n.s===sec.id&&(!n.perm||tienePermisoProveedor(n.perm)));
     if(!items.length)continue;
     h+=`<div style="font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;padding:10px 24px 4px;margin-top:4px">${sec.l}</div>`;
     for(const n of items)h+=`<div class="nav-item" id="nv-${n.id}" onclick="goNav('${n.id}')">${n.i}<span style="flex:1">${n.l}</span>${n.badge?`<span class="badge" style="font-size:10px;padding:2px 6px;background:${n.w?'rgba(251,191,36,.15)':'rgba(79,142,247,.15)'};color:${n.w?'var(--warning)':'var(--accent)'}" id="nb-${n.badge}">0</span>`:''}</div>`;

@@ -1,11 +1,11 @@
 const router = require('express').Router();
 const db = require('../db');
-const { authMiddleware, requireRol } = require('../middleware/auth');
+const { authMiddleware, requirePermiso } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
 // ─── GET /api/audit/accesos ────────────────────────────────────────────────
-router.get('/accesos', requireRol('admin', 'auditor'), async (req, res) => {
+router.get('/accesos', requirePermiso('auditar'), async (req, res) => {
   const { page = 1, limit = 50, usuario_id, exito, desde, hasta } = req.query;
   const offset = (parseInt(page) - 1) * parseInt(limit);
   const params = [];
@@ -56,7 +56,7 @@ router.get('/accesos', requireRol('admin', 'auditor'), async (req, res) => {
 });
 
 // ─── GET /api/audit/eventos ────────────────────────────────────────────────
-router.get('/eventos', requireRol('admin', 'auditor'), async (req, res) => {
+router.get('/eventos', requirePermiso('auditar'), async (req, res) => {
   const { page = 1, limit = 50, tipo, usuario_id, factura_id } = req.query;
   const offset = (parseInt(page) - 1) * parseInt(limit);
   const params = [];
@@ -105,7 +105,7 @@ router.get('/eventos', requireRol('admin', 'auditor'), async (req, res) => {
 });
 
 // ─── GET /api/audit/estadisticas ───────────────────────────────────────────
-router.get('/estadisticas', requireRol('admin', 'auditor'), async (req, res) => {
+router.get('/estadisticas', requirePermiso('auditar'), async (req, res) => {
   try {
     const hoy = new Date().toISOString().split('T')[0];
     const hace7 = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];

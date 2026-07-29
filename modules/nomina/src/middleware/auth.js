@@ -55,9 +55,10 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
   function requierePermiso(permiso) {
     return (req, res, next) => {
       if (!req.usuario) return res.status(401).json({ error: 'No autenticado' });
-      const tiene = db.prepare('SELECT 1 FROM permisos_roles WHERE rol = ? AND permiso = ?').get(req.usuario.rol, permiso);
-      if (!tiene) return res.status(403).json({ error: 'Permiso denegado: ' + permiso });
-      next();
+      if (req.usuario.rol === 'admin') return next();
+      const nominaPerms = req.usuario.nominaPermisos || [];
+      if (nominaPerms.includes(permiso)) return next();
+      return res.status(403).json({ error: 'Permiso denegado: ' + permiso });
     };
   }
 

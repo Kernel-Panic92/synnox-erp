@@ -1,6 +1,6 @@
 const router = require('express').Router();
 const db = require('../db');
-const { authMiddleware, requireRol } = require('../middleware/auth');
+const { authMiddleware, requirePermiso } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
@@ -46,7 +46,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/areas
-router.post('/', requireRol('admin'), async (req, res) => {
+router.post('/', requirePermiso('crear'), async (req, res) => {
   const { nombre, jefe_id, email } = req.body;
   if (!nombre?.trim()) return res.status(400).json({ error: 'Nombre requerido' });
 
@@ -64,7 +64,7 @@ router.post('/', requireRol('admin'), async (req, res) => {
 });
 
 // PUT /api/areas/:id
-router.put('/:id', requireRol('admin'), async (req, res) => {
+router.put('/:id', requirePermiso('editar'), async (req, res) => {
   const { nombre, jefe_id, email, activo } = req.body;
   if (!nombre?.trim()) return res.status(400).json({ error: 'Nombre requerido' });
 
@@ -83,7 +83,7 @@ router.put('/:id', requireRol('admin'), async (req, res) => {
 });
 
 // DELETE /api/areas/:id (soft delete)
-router.delete('/:id', requireRol('admin'), async (req, res) => {
+router.delete('/:id', requirePermiso('eliminar'), async (req, res) => {
   try {
     await db.query('UPDATE areas SET activo=FALSE WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
