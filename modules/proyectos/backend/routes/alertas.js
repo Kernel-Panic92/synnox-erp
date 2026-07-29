@@ -1,11 +1,19 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { enviarCorreo, templateAlertaVencimiento, templateResumenSemanal } from '../utils/email.js';
+import { requirePermiso } from '../../../../framework/auth.mjs';
 
 const router = express.Router();
 
+function soloAdminGerente(req, res, next) {
+  if (req.user?.rol !== 'admin' && req.user?.rol !== 'gerente') {
+    return res.status(403).json({ error: 'Solo administradores y gerentes pueden realizar esta acción' });
+  }
+  next();
+}
+
 // ─── Alertas de vencimiento (tareas sin avance próximas a vencer) ───
-router.get('/alertas/vencimiento', async (req, res) => {
+router.get('/alertas/vencimiento', requirePermiso('ver', 'proyectos'), async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT t.*, p.nombre AS proyecto_nombre, u.email AS asignado_email, u.nombre AS asignado_nombre
@@ -25,7 +33,7 @@ router.get('/alertas/vencimiento', async (req, res) => {
 });
 
 // ─── Enviar alertas de vencimiento por email ───
-router.post('/alertas/vencimiento/enviar', async (req, res) => {
+router.post('/alertas/vencimiento/enviar', requirePermiso('configurar', 'proyectos'), soloAdminGerente, async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT t.*, p.nombre AS proyecto_nombre, u.email AS asignado_email, u.nombre AS asignado_nombre
@@ -104,7 +112,7 @@ router.post('/alertas/vencimiento/enviar', async (req, res) => {
 });
 
 // ─── Resumen semanal ───
-router.get('/alertas/resumen', async (req, res) => {
+router.get('/alertas/resumen', requirePermiso('ver', 'proyectos'), async (req, res) => {
   try {
     const stats = await pool.query(
       `SELECT estado, COUNT(*) FROM projects.tareas GROUP BY estado`
@@ -129,7 +137,7 @@ router.get('/alertas/resumen', async (req, res) => {
 });
 
 // ─── Enviar resumen semanal por email ───
-router.post('/alertas/resumen/enviar', async (req, res) => {
+router.post('/alertas/resumen/enviar', requirePermiso('configurar', 'proyectos'), soloAdminGerente, async (req, res) => {
   try {
     const statsResult = await pool.query(
       `SELECT estado, COUNT(*) FROM projects.tareas GROUP BY estado`

@@ -1,9 +1,10 @@
 import express from 'express';
 import pool from '../config/db.js';
+import { requirePermiso } from '../../../../framework/auth.mjs';
 
 const router = express.Router();
 
-router.get('/:id/comentarios', async (req, res) => {
+router.get('/:id/comentarios', requirePermiso('ver', 'proyectos'), async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT c.* FROM projects.comentarios c
@@ -17,7 +18,7 @@ router.get('/:id/comentarios', async (req, res) => {
   }
 });
 
-router.post('/:id/comentarios', async (req, res) => {
+router.post('/:id/comentarios', requirePermiso('comentar', 'proyectos'), async (req, res) => {
   try {
     const { contenido } = req.body;
     if (!contenido) return res.status(400).json({ error: 'El contenido es requerido' });

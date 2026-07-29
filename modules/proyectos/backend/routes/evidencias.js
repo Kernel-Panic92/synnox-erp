@@ -4,6 +4,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import pool from '../config/db.js';
+import { requirePermiso } from '../../../../framework/auth.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -37,7 +38,7 @@ const upload = multer({
 
 const router = express.Router();
 
-router.get('/:id/evidencias', async (req, res) => {
+router.get('/:id/evidencias', requirePermiso('ver', 'proyectos'), async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT * FROM projects.evidencias WHERE tarea_id = $1 ORDER BY created_at DESC',
@@ -49,7 +50,7 @@ router.get('/:id/evidencias', async (req, res) => {
   }
 });
 
-router.post('/:id/evidencias', upload.single('archivo'), async (req, res) => {
+router.post('/:id/evidencias', requirePermiso('comentar', 'proyectos'), upload.single('archivo'), async (req, res) => {
   try {
     const tareaId = req.params.id;
     const tarea = await pool.query('SELECT id FROM projects.tareas WHERE id = $1', [tareaId]);
@@ -77,7 +78,7 @@ router.post('/:id/evidencias', upload.single('archivo'), async (req, res) => {
   }
 });
 
-router.delete('/evidencias/:id', async (req, res) => {
+router.delete('/evidencias/:id', requirePermiso('eliminar_tarea', 'proyectos'), async (req, res) => {
   try {
     const result = await pool.query(
       'SELECT archivo_path FROM projects.evidencias WHERE id = $1',

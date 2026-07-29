@@ -57,6 +57,13 @@ function nombreUsuario(id) {
   return _nombresUsuarios[id] || ('#' + id);
 }
 
+function tienePermiso(perm) {
+  if (!usuario) return false;
+  if (usuario.rol === 'admin') return true;
+  const permisos = usuario.modulos_permisos?.proyectos || [];
+  return permisos.includes(perm);
+}
+
 function selectUsuarios(selectedId) {
   return '<option value="">Sin asignar</option>' +
     _todosUsuarios.map(u => `<option value="${u.id}" ${u.id == selectedId ? 'selected' : ''}>${esc(u.nombre)} (${esc(u.email)})</option>`).join('');
@@ -157,6 +164,14 @@ async function init() {
     const footerRole = document.getElementById('sidebar-user-role');
     if (footerRole && data.rol) footerRole.textContent = data.rol === 'admin' ? 'Administrador' : data.rol === 'gerente' ? 'Gerente' : (data.perfil_nombre || data.rol);
     await cargarTodosLosUsuarios();
+    if (!tienePermiso('crear')) {
+      const btnNuevo = document.querySelector('#page-proyectos .btn-primary');
+      if (btnNuevo) btnNuevo.style.display = 'none';
+    }
+    if (!tienePermiso('crear_tarea')) {
+      const btnNuevaTarea = document.querySelector('#page-tareas .btn-primary');
+      if (btnNuevaTarea) btnNuevaTarea.style.display = 'none';
+    }
     mostrarAppInterno();
   } catch (e) {
     document.getElementById('app-screen').style.display = 'none';

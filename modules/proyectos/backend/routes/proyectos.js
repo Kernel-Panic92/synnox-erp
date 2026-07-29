@@ -1,9 +1,10 @@
 import express from 'express';
 import pool from '../config/db.js';
+import { requirePermiso } from '../../../../framework/auth.mjs';
 
 const router = express.Router();
 
-router.get('/', async (req, res) => {
+router.get('/', requirePermiso('ver', 'proyectos'), async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT p.*,
@@ -23,7 +24,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-router.get('/:id', async (req, res) => {
+router.get('/:id', requirePermiso('ver', 'proyectos'), async (req, res) => {
   try {
     const result = await pool.query(
       `SELECT p.*,
@@ -45,7 +46,7 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
   try {
     const { nombre, descripcion, fecha_limite, centro_id } = req.body;
     if (!nombre) return res.status(400).json({ error: 'El nombre es requerido' });
@@ -60,7 +61,7 @@ router.post('/', async (req, res) => {
   }
 });
 
-router.put('/:id', async (req, res) => {
+router.put('/:id', requirePermiso('editar', 'proyectos'), async (req, res) => {
   try {
     const { nombre, descripcion, estado, fecha_limite, centro_id } = req.body;
     const result = await pool.query(
@@ -81,7 +82,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-router.delete('/:id', async (req, res) => {
+router.delete('/:id', requirePermiso('eliminar', 'proyectos'), async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM projects.proyectos WHERE id = $1 RETURNING id', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Proyecto no encontrado' });
