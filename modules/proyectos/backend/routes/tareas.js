@@ -96,10 +96,19 @@ router.put('/reordenar', requirePermiso('editar_tarea', 'proyectos'), async (req
     const { tarea_id, columna, orden } = req.body;
     if (!tarea_id || !columna) return res.status(400).json({ error: 'tarea_id y columna requeridos' });
 
-    // Solo admin/gerente pueden mover a completada
     const esAdminGerente = req.user?.rol === 'admin' || req.user?.rol === 'gerente';
+
+    // Solo admin/gerente pueden mover a completada
     if (columna === 'completada' && !esAdminGerente) {
       return res.status(403).json({ error: 'Solo admin/gerente pueden marcar tareas como completadas' });
+    }
+
+    // Operadores no pueden mover tareas en estado revision
+    if (!esAdminGerente) {
+      const check = await pool.query('SELECT estado FROM projects.tareas WHERE id = $1', [tarea_id]);
+      if (check.rows.length > 0 && check.rows[0].estado === 'revision') {
+        return res.status(403).json({ error: 'No se pueden mover tareas en estado de revisión' });
+      }
     }
 
     const est = COLUMNA_A_ESTADO[columna] || 'pendiente';
@@ -120,10 +129,19 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
   try {
     const { titulo, descripcion, tipo, prioridad, estado, columna, asignado_a, fecha_limite, estimacion_horas, horas_invertidas } = req.body;
 
-    // Solo admin/gerente pueden mover a completada
     const esAdminGerente = req.user?.rol === 'admin' || req.user?.rol === 'gerente';
+
+    // Solo admin/gerente pueden mover a completada
     if ((estado === 'completada' || columna === 'completada') && !esAdminGerente) {
       return res.status(403).json({ error: 'Solo admin/gerente pueden marcar tareas como completadas' });
+    }
+
+    // Operadores no pueden editar tareas en estado revision
+    if (!esAdminGerente) {
+      const check = await pool.query('SELECT estado FROM projects.tareas WHERE id = $1', [req.params.id]);
+      if (check.rows.length > 0 && check.rows[0].estado === 'revision') {
+        return res.status(403).json({ error: 'No se pueden editar tareas en estado de revisión' });
+      }
     }
 
     const updates = [];

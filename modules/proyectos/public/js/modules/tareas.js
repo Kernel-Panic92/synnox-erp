@@ -45,8 +45,8 @@ async function cargarTareas() {
       ${t.estado === 'revision' && (usuario?.rol === 'admin' || usuario?.rol === 'gerente') ? `<button class="btn btn-xs btn-danger" onclick="rechazarTarea(${t.id})" title="Rechazar">&#10007;</button>` : ''}
       ${t.estado === 'revision' && usuario?.rol !== 'admin' && usuario?.rol !== 'gerente' ? `<span class="badge badge-warning">Pend. aprobación</span>` : ''}
       ${t.estado !== 'completada' && t.estado !== 'revision' && (usuario?.rol === 'admin' || usuario?.rol === 'gerente') ? `<button class="btn btn-xs btn-success" onclick="completarTareaRapida(${t.id})" title="Marcar completada">&#10003;</button>` : ''}
-      ${tienePermiso('editar_tarea') ? `<button class="btn btn-xs btn-secondary" onclick="abrirModalTarea(${t.id})" title="Editar">&#9998;</button>` : ''}
-      ${tienePermiso('eliminar_tarea') ? `<button class="btn btn-xs btn-danger" onclick="eliminarTarea(${t.id})" title="Eliminar">&#10005;</button>` : ''}
+      ${tienePermiso('editar_tarea') && (t.estado !== 'revision' || (usuario?.rol === 'admin' || usuario?.rol === 'gerente')) ? `<button class="btn btn-xs btn-secondary" onclick="abrirModalTarea(${t.id})" title="Editar">&#9998;</button>` : ''}
+      ${tienePermiso('eliminar_tarea') && (t.estado !== 'revision' || (usuario?.rol === 'admin' || usuario?.rol === 'gerente')) ? `<button class="btn btn-xs btn-danger" onclick="eliminarTarea(${t.id})" title="Eliminar">&#10005;</button>` : ''}
     </td>
       </tr>
     `).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">No se encontraron tareas</td></tr>';
