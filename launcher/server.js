@@ -1842,14 +1842,14 @@ app.get('/api/admin/health', verificarToken, soloAdmin, async (req, res) => {
       try {
         const r = await fetch(moduleUrl + '/api/health', {
           method: 'GET',
-          signal: AbortSignal.timeout(3000),
+          signal: AbortSignal.timeout(1500),
         });
         if (r.ok) return { id: m.id, nombre: m.nombre, estado: 'online', status: r.status };
       } catch {}
       try {
         const r = await fetch(moduleUrl + '/health', {
           method: 'GET',
-          signal: AbortSignal.timeout(3000),
+          signal: AbortSignal.timeout(1500),
         });
         if (r.ok) return { id: m.id, nombre: m.nombre, estado: 'online', status: r.status };
       } catch {}
@@ -1862,7 +1862,7 @@ app.get('/api/admin/health', verificarToken, soloAdmin, async (req, res) => {
         const r = await fetch(mcpUrl(m), {
           method: 'POST', headers,
           body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }),
-          signal: AbortSignal.timeout(3000),
+          signal: AbortSignal.timeout(1500),
         });
         if (r.ok) return { id: m.id, nombre: m.nombre, estado: 'online', status: r.status };
       }

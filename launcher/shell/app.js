@@ -5,6 +5,18 @@ let _serverStatsTimer = null;
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s||'')); return d.innerHTML; }
 
+// Widget cache helpers
+function cacheGet(key, ttlMs) {
+  try {
+    const c = JSON.parse(localStorage.getItem('w_' + key) || 'null');
+    if (c && Date.now() - c.ts < ttlMs) return c.data;
+  } catch {}
+  return null;
+}
+function cacheSet(key, data) {
+  try { localStorage.setItem('w_' + key, JSON.stringify({ data, ts: Date.now() })); } catch {}
+}
+
 function confirmModal(msg, title = 'Confirmar', type = 'delete') {
   const types = {
     delete:  { icon: '🗑️', bg: 'rgba(239,68,68,0.1)',  btn: 'btn-danger' },
@@ -172,18 +184,12 @@ const SUBMODULOS = [
   { id: 'kanban', mod: 'proyectos', nombre: 'Tablero', icon: '📋', ruta: '/proyectos/' },
 ];
 
-async function showLauncher() {
-  document.getElementById('launcher-user').innerHTML = esc(user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
-  document.getElementById('launcher-role').textContent = user?.perfil_nombre || user?.rol || '';
-
-  const grid = document.getElementById('module-grid');
+function renderModulos(grid, mods) {
+  if (!mods) mods = modulosCache;
   grid.innerHTML = '';
-
-  await loadModulosDinamicos();
-
   const modulosDisponibles = (user?.rol === 'admin'
-    ? modulosCache
-    : modulosCache.filter(m => user?.modulos?.includes(m.id))
+    ? mods
+    : mods.filter(m => user?.modulos?.includes(m.id))
   ).map(m => ({
     id: m.id,
     nombre: m.nombre,
@@ -191,11 +197,8 @@ async function showLauncher() {
     desc: m.descripcion || '',
     ruta: m.proxy_prefix || (m.url ? new URL(m.url).pathname : '/' + m.id + '/'),
   }));
-
-  // Sort by usage frequency (most visited first)
   const usage = JSON.parse(localStorage.getItem('module_usage') || '{}');
   modulosDisponibles.sort((a, b) => (usage[b.id] || 0) - (usage[a.id] || 0));
-
   for (const mod of modulosDisponibles) {
     const card = document.createElement('a');
     card.className = 'card';
@@ -203,7 +206,6 @@ async function showLauncher() {
     card.rel = 'noopener';
     card.onclick = () => {
       trackModuleVisit(mod.id);
-      // Also track submodule if hash is present
       const hash = window.location.hash?.replace('#', '');
       if (hash) trackModuleVisit(hash);
     };
@@ -215,7 +217,6 @@ async function showLauncher() {
     `;
     grid.appendChild(card);
   }
-
   if (user?.rol === 'admin') {
     const adminCard = document.createElement('div');
     adminCard.className = 'card';
@@ -227,6 +228,15 @@ async function showLauncher() {
     `;
     grid.appendChild(adminCard);
   }
+}
+
+async function showLauncher() {
+  document.getElementById('launcher-user').innerHTML = esc(user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
+  document.getElementById('launcher-role').textContent = user?.perfil_nombre || user?.rol || '';
+
+  const grid = document.getElementById('module-grid');
+  renderModulos(grid);
+  loadModulosDinamicos().then(() => renderModulos(grid));
 
   // Admin-only widgets
   if (user?.rol === 'admin') {
@@ -417,15 +427,19 @@ async function cargarAlerts() {
   if (!w) return;
   try {
     const alerts = [];
-    const diskRes = await fetch('/api/admin/server/stats', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null);
-    if (diskRes?.disk) {
-      const pct = parseInt(diskRes.disk.usePct);
+    const [diskRes, healthRes] = await Promise.allSettled([
+      fetch('/api/admin/server/stats', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
+      fetch('/api/admin/health', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null)
+    ]);
+    const disk = diskRes.status === 'fulfilled' ? diskRes.value : null;
+    const health = healthRes.status === 'fulfilled' ? healthRes.value : null;
+    if (disk?.disk) {
+      const pct = parseInt(disk.disk.usePct);
       if (pct > 90) alerts.push({ level: 'danger', icon: '🔴', text: `Disco al ${pct}% — espacio crítico` });
       else if (pct > 80) alerts.push({ level: 'warning', icon: '🟡', text: `Disco al ${pct}% — considerar limpiar` });
     }
-    const healthRes = await fetch('/api/admin/health', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null);
-    if (Array.isArray(healthRes)) {
-      for (const m of healthRes) {
+    if (Array.isArray(health)) {
+      for (const m of health) {
         if (m.estado !== 'online') alerts.push({ level: 'danger', icon: '🔴', text: `Módulo ${m.nombre}: ${m.estado}${m.error ? ' — ' + m.error : ''}` });
       }
     }
@@ -495,10 +509,15 @@ async function cargarActivity() {
   const w = document.getElementById('activity-widget');
   if (!w) return;
   try {
-    const res = await fetch('/api/admin/login-logs', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
-    if (!res.ok) { w.style.display = 'none'; return; }
-    const data = await res.json();
-    const logs = data.logs || data.rows || data || [];
+    const cached = cacheGet('activity', 60000);
+    let logs = cached;
+    if (!logs) {
+      const res = await fetch('/api/admin/login-logs', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+      if (!res.ok) { w.style.display = 'none'; return; }
+      const data = await res.json();
+      logs = data.logs || data.rows || data || [];
+      if (logs.length) cacheSet('activity', logs);
+    }
     if (!logs.length) { w.style.display = 'none'; return; }
     w.style.display = 'block';
     w.innerHTML = `
@@ -522,9 +541,14 @@ async function cargarCommits() {
   const w = document.getElementById('commits-widget');
   if (!w) return;
   try {
-    const res = await fetch('/api/admin/commits?limit=8', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
-    if (!res.ok) { w.style.display = 'none'; return; }
-    const data = await res.json();
+    const cached = cacheGet('commits', 120000);
+    let data = cached;
+    if (!data) {
+      const res = await fetch('/api/admin/commits?limit=8', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+      if (!res.ok) { w.style.display = 'none'; return; }
+      data = await res.json();
+      if (data.ok) cacheSet('commits', data);
+    }
     if (!data.ok || !data.commits?.length) { w.style.display = 'none'; return; }
     w.style.display = 'block';
     w.innerHTML = `
@@ -549,9 +573,14 @@ async function cargarServerStats() {
   if (!w) return;
   clearTimeout(_serverStatsTimer);
   try {
-    const res = await fetch('/api/admin/server/stats', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
-    if (!res.ok) { w.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar stats</div>'; _serverStatsTimer = setTimeout(() => { if (document.getElementById('launcher-screen').style.display !== 'none') cargarServerStats(); }, 30000); return; }
-    const s = await res.json();
+    const cached = cacheGet('serverStats', 60000);
+    let s = cached;
+    if (!s) {
+      const res = await fetch('/api/admin/server/stats', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+      if (!res.ok) { w.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar stats</div>'; _serverStatsTimer = setTimeout(() => { if (document.getElementById('launcher-screen').style.display !== 'none') cargarServerStats(); }, 30000); return; }
+      s = await res.json();
+      cacheSet('serverStats', s);
+    }
     const memPct = s.memory ? ((s.memory.used / s.memory.total) * 100).toFixed(1) : '—';
     const memUsed = s.memory ? (s.memory.used / 1073741824).toFixed(1) : '—';
     const memTotal = s.memory ? (s.memory.total / 1073741824).toFixed(1) : '—';
