@@ -4,7 +4,7 @@ const path    = require('path');
 const fs      = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const db      = require('../db');
-const { authMiddleware, requireRol } = require('../middleware/auth');
+const { authMiddleware, requirePermiso } = require('../middleware/auth');
 
 function sanitizePath(input, base) {
   const resolved = path.resolve(base, input);
@@ -82,7 +82,7 @@ function construirFiltroCategorias(usuario) {
 }
 
 // GET /api/facturas/badge-stats
-router.get('/badge-stats', requireRol('admin','contador','tesorero','comprador','auditor'), async (req, res) => {
+router.get('/badge-stats', requirePermiso('ver'), async (req, res) => {
   try {
     const totalRes = await db.query('SELECT COUNT(*) as total FROM facturas');
     
@@ -106,7 +106,7 @@ router.get('/badge-stats', requireRol('admin','contador','tesorero','comprador',
 });
 
 // GET /api/facturas/pendientes
-router.get('/pendientes', requireRol('admin','contador','tesorero','comprador','auditor'), async (req, res) => {
+router.get('/pendientes', requirePermiso('ver'), async (req, res) => {
   try {
     const hoy = new Date();
     const en3dias = new Date(hoy.getTime() + 3 * 24 * 60 * 60 * 1000);
@@ -161,7 +161,7 @@ router.get('/pendientes', requireRol('admin','contador','tesorero','comprador','
 });
 
 // ─── GET /api/facturas ────────────────────────────────────────────────────────
-router.get('/', requireRol('admin','contador','tesorero','comprador','auditor'), async (req, res) => {
+router.get('/', requirePermiso('ver'), async (req, res) => {
   const { 
     estado, area_id, categoria_id, proveedor_id,
     numero, nit_emisor, fecha_desde, fecha_hasta,
@@ -278,7 +278,7 @@ router.get('/', requireRol('admin','contador','tesorero','comprador','auditor'),
 });
 
 // ─── GET /api/facturas/:id ────────────────────────────────────────────────────
-router.get('/:id', requireRol('admin','contador','tesorero','comprador','auditor'), async (req, res) => {
+router.get('/:id', requirePermiso('ver'), async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT f.*,
@@ -315,7 +315,7 @@ router.get('/:id', requireRol('admin','contador','tesorero','comprador','auditor
 });
 
 // ─── POST /api/facturas ───────────────────────────────────────────────────────
-router.post('/', requireRol('admin','contador','comprador'), upload.fields([{ name:'pdf', maxCount:1 }, { name:'xml', maxCount:1 }]), async (req, res) => {
+router.post('/', requirePermiso('crear'), upload.fields([{ name:'pdf', maxCount:1 }, { name:'xml', maxCount:1 }]), async (req, res) => {
   const {
     numero_factura, proveedor_id, categoria_id, area_responsable_id,
     valor, valor_iva, valor_total, limite_pago, observaciones,
@@ -370,7 +370,7 @@ router.post('/', requireRol('admin','contador','comprador'), upload.fields([{ na
 });
 
 // PATCH /api/facturas/:id/categoria - cambiar categoría y guardar preferencia
-router.patch('/:id/categoria', requireRol('admin','contador'), async (req, res) => {
+router.patch('/:id/categoria', requirePermiso('editar'), async (req, res) => {
   const { categoria_id } = req.body;
   const client = await db.getClient();
   try {
@@ -423,7 +423,7 @@ router.patch('/:id/categoria', requireRol('admin','contador'), async (req, res) 
 });
 
 // ─── PATCH /api/facturas/:id/asignar ─────────────────────────────────────────
-router.patch('/:id/asignar', requireRol('admin','contador'), async (req, res) => {
+router.patch('/:id/asignar', requirePermiso('editar'), async (req, res) => {
   const { area_responsable_id, asignado_a_id } = req.body;
   const client = await db.getClient();
   try {
@@ -449,7 +449,7 @@ router.patch('/:id/asignar', requireRol('admin','contador'), async (req, res) =>
 });
 
 // ─── PATCH /api/facturas/:id/centro-costos ────────────────────────────────────
-router.patch('/:id/centro-costos', requireRol('admin','contador'), async (req, res) => {
+router.patch('/:id/centro-costos', requirePermiso('editar'), async (req, res) => {
   const { centro_costos, observaciones } = req.body;
   if (!centro_costos?.trim()) return res.status(400).json({ error: 'Centro de costos requerido' });
 
@@ -476,7 +476,7 @@ router.patch('/:id/centro-costos', requireRol('admin','contador'), async (req, r
 });
 
 // ─── PATCH /api/facturas/:id/aprobar ─────────────────────────────────────────
-router.patch('/:id/aprobar', requireRol('admin','contador'), async (req, res) => {
+router.patch('/:id/aprobar', requirePermiso('aprobar'), async (req, res) => {
   const { 
     centro_operacion_id, area_responsable_id, centro_costos, descripcion_gasto, referencia, comentario 
   } = req.body;
@@ -525,7 +525,7 @@ router.patch('/:id/aprobar', requireRol('admin','contador'), async (req, res) =>
 });
 
 // ─── PATCH /api/facturas/:id/rechazar ─────────────────────────────────────────
-router.patch('/:id/rechazar', requireRol('admin','contador'), async (req, res) => {
+router.patch('/:id/rechazar', requirePermiso('rechazar'), async (req, res) => {
   const { motivo } = req.body;
   if (!motivo?.trim()) return res.status(400).json({ error: 'Motivo de rechazo requerido' });
 
@@ -551,7 +551,7 @@ router.patch('/:id/rechazar', requireRol('admin','contador'), async (req, res) =
 });
 
 // ─── PATCH /api/facturas/:id/causar ───────────────────────────────────────────
-router.patch('/:id/causar', requireRol('admin','contador','tesorero'), async (req, res) => {
+router.patch('/:id/causar', requirePermiso('causar'), async (req, res) => {
   const { comentario } = req.body;
   const client = await db.getClient();
   try {
@@ -575,7 +575,7 @@ router.patch('/:id/causar', requireRol('admin','contador','tesorero'), async (re
 });
 
 // ─── PATCH /api/facturas/:id/pagar ────────────────────────────────────────────
-router.patch('/:id/pagar', requireRol('admin','tesorero'), async (req, res) => {
+router.patch('/:id/pagar', requirePermiso('pagar'), async (req, res) => {
   const client = await db.getClient();
   try {
     await client.query('BEGIN');
@@ -598,7 +598,7 @@ router.patch('/:id/pagar', requireRol('admin','tesorero'), async (req, res) => {
 });
 
 // ─── POST /api/facturas/:id/soporte-pago ───────────────────────────────────
-router.post('/:id/soporte-pago', requireRol('admin','tesorero'), uploadSoporte.single('soporte'), async (req, res) => {
+router.post('/:id/soporte-pago', requirePermiso('editar'), uploadSoporte.single('soporte'), async (req, res) => {
   if (!req.file) {
     return res.status(400).json({ error: 'Archivo requerido' });
   }
@@ -646,7 +646,7 @@ router.post('/:id/soporte-pago', requireRol('admin','tesorero'), uploadSoporte.s
 });
 
 // ─── GET /api/facturas/:id/soporte-pago ────────────────────────────────────
-router.get('/:id/soporte-pago', requireRol('admin','tesorero'), async (req, res) => {
+router.get('/:id/soporte-pago', requirePermiso('ver'), async (req, res) => {
   const { rows } = await db.query(
     'SELECT soporte_pago, soporte_pago_nombre FROM facturas WHERE id=$1',
     [req.params.id]
@@ -664,7 +664,7 @@ router.get('/:id/soporte-pago', requireRol('admin','tesorero'), async (req, res)
 });
 
 // ─── GET /api/facturas/:id/pdf ─────────────────────────────────────────────────
-router.get('/:id/pdf', requireRol('admin','contador','tesorero','comprador','auditor'), async (req, res) => {
+router.get('/:id/pdf', requirePermiso('ver'), async (req, res) => {
   try {
     const { rows } = await db.query('SELECT archivo_pdf FROM facturas WHERE id=$1', [req.params.id]);
     if (!rows[0]?.archivo_pdf) return res.status(404).json({ error: 'PDF no disponible' });
@@ -681,7 +681,7 @@ router.get('/:id/pdf', requireRol('admin','contador','tesorero','comprador','aud
 });
 
 // ─── GET /api/facturas/:id/xml ─────────────────────────────────────────────────
-router.get('/:id/xml', requireRol('admin','contador','tesorero','comprador','auditor'), async (req, res) => {
+router.get('/:id/xml', requirePermiso('ver'), async (req, res) => {
   try {
     const { rows } = await db.query('SELECT archivo_xml FROM facturas WHERE id=$1', [req.params.id]);
     if (!rows[0]?.archivo_xml) return res.status(404).json({ error: 'XML no disponible' });
@@ -698,7 +698,7 @@ router.get('/:id/xml', requireRol('admin','contador','tesorero','comprador','aud
 });
 
 // ─── GET /api/facturas/:id/acuse ─────────────────────────────────────────────
-router.get('/:id/acuse', requireRol('admin','contador','tesorero','comprador','auditor'), async (req, res) => {
+router.get('/:id/acuse', requirePermiso('ver'), async (req, res) => {
   try {
     const { rows } = await db.query('SELECT archivo_acuse FROM facturas WHERE id=$1', [req.params.id]);
     if (!rows[0]?.archivo_acuse) return res.status(404).json({ error: 'Acuse no disponible' });
@@ -715,7 +715,7 @@ router.get('/:id/acuse', requireRol('admin','contador','tesorero','comprador','a
 });
 
 // ─── GET /api/facturas/acuses-huerfanos ──────────────────────────────────────
-router.get('/acuses-huerfanos', requireRol('admin'), async (req, res) => {
+router.get('/acuses-huerfanos', requirePermiso('ver'), async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT id, numero_factura, nombre_emisor, archivo_acuse 
@@ -739,7 +739,7 @@ function limpiarSoporte(ruta) {
   if (ruta) { const p = path.join(UPLOAD_DIR, 'soportes', ruta); if (fs.existsSync(p)) fs.unlinkSync(p); }
 }
 
-router.delete('/:id', requireRol('admin'), async (req, res) => {
+router.delete('/:id', requirePermiso('eliminar'), async (req, res) => {
   const client = await db.getClient();
   try {
     const { rows: old } = await client.query(
@@ -772,7 +772,7 @@ router.delete('/:id', requireRol('admin'), async (req, res) => {
 });
 
 // ─── POST /api/facturas/borrar (bulk delete) ─────────────────────────────────
-router.post('/borrar', requireRol('admin'), async (req, res) => {
+router.post('/borrar', requirePermiso('eliminar'), async (req, res) => {
   const { ids, filters } = req.body;
   
   let query = 'SELECT id, archivo_pdf, archivo_xml, archivo_acuse, soporte_pago FROM facturas WHERE 1=1';

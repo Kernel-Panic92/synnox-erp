@@ -1,12 +1,12 @@
 const router = require('express').Router();
 const db = require('../db');
-const { authMiddleware, requireRol } = require('../middleware/auth');
+const { authMiddleware, requirePermiso } = require('../middleware/auth');
 
 router.use(authMiddleware);
 
 // ─── GET /api/categorias/todas (incluye inactivas) ────────────────────────
 // Must be BEFORE /:id to avoid Express matching /todas as an ID
-router.get('/todas', requireRol('admin'), async (req, res) => {
+router.get('/todas', requirePermiso('ver'), async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT * FROM categorias_compra ORDER BY nombre`
@@ -30,7 +30,7 @@ router.get('/', async (req, res) => {
 });
 
 // ─── GET /api/categorias/todas (incluye inactivas) ────────────────────────
-router.get('/todas', requireRol('admin'), async (req, res) => {
+router.get('/todas', requirePermiso('ver'), async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT * FROM categorias_compra ORDER BY nombre`
@@ -56,7 +56,7 @@ router.get('/:id', async (req, res) => {
 });
 
 // POST /api/categorias
-router.post('/', requireRol('admin', 'contador'), async (req, res) => {
+router.post('/', requirePermiso('crear'), async (req, res) => {
   const { nombre, descripcion, color, pasos } = req.body;
   if (!nombre?.trim()) return res.status(400).json({ error: 'Nombre requerido' });
   if (!Array.isArray(pasos) || pasos.length === 0) {
@@ -77,7 +77,7 @@ router.post('/', requireRol('admin', 'contador'), async (req, res) => {
 });
 
 // PUT /api/categorias/:id
-router.put('/:id', requireRol('admin', 'contador'), async (req, res) => {
+router.put('/:id', requirePermiso('editar'), async (req, res) => {
   const { nombre, descripcion, color, pasos } = req.body;
   if (!nombre?.trim()) return res.status(400).json({ error: 'Nombre requerido' });
 
@@ -99,7 +99,7 @@ router.put('/:id', requireRol('admin', 'contador'), async (req, res) => {
 });
 
 // DELETE /api/categorias/:id (soft delete)
-router.delete('/:id', requireRol('admin'), async (req, res) => {
+router.delete('/:id', requirePermiso('eliminar'), async (req, res) => {
   try {
     await db.query('UPDATE categorias_compra SET activo=FALSE WHERE id=$1', [req.params.id]);
     res.json({ ok: true });
@@ -109,7 +109,7 @@ router.delete('/:id', requireRol('admin'), async (req, res) => {
 });
 
 // ─── GET /api/categorias/todas (incluye inactivas) ────────────────────────
-router.get('/todas', requireRol('admin'), async (req, res) => {
+router.get('/todas', requirePermiso('ver'), async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT * FROM categorias_compra ORDER BY nombre`
@@ -121,7 +121,7 @@ router.get('/todas', requireRol('admin'), async (req, res) => {
 });
 
 // ─── GET /api/categorias/usuario/:usuarioId ───────────────────────────────
-router.get('/usuario/:usuarioId', requireRol('admin'), async (req, res) => {
+router.get('/usuario/:usuarioId', requirePermiso('ver'), async (req, res) => {
   try {
     const { rows } = await db.query(
       `SELECT categoria_id FROM categorias_usuario WHERE usuario_id = $1`,
@@ -134,7 +134,7 @@ router.get('/usuario/:usuarioId', requireRol('admin'), async (req, res) => {
 });
 
 // ─── PUT /api/categorias/usuario/:usuarioId ───────────────────────────────
-router.put('/usuario/:usuarioId', requireRol('admin'), async (req, res) => {
+router.put('/usuario/:usuarioId', requirePermiso('configurar'), async (req, res) => {
   const { categoria_ids } = req.body;
   
   if (!Array.isArray(categoria_ids)) {

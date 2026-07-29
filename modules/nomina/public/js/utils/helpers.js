@@ -212,7 +212,8 @@ function soyOperador() {
 }
 
 function hasPerm(perm) {
-  return sesion?.usuario?.permisos?.includes(perm) || false;
+  if (sesion?.usuario?.rol === 'admin') return true;
+  return sesion?.usuario?.modulos_permisos?.nomina?.includes(perm) || false;
 }
 
 // File helpers

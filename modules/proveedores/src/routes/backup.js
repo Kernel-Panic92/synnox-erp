@@ -15,7 +15,7 @@ const { execSync } = require('child_process');
 const multer = require('multer');
 const AdmZip = require('adm-zip');
 const db     = require('../db');
-const { authMiddleware, requireRol } = require('../middleware/auth');
+const { authMiddleware, requirePermiso } = require('../middleware/auth');
 
 function sanitizePath(input, base) {
   const resolved = path.resolve(base, input);
@@ -27,7 +27,7 @@ function sanitizePath(input, base) {
 }
 
 router.use(authMiddleware);
-const soloAdmin = requireRol('admin');
+const soloAdmin = requirePermiso('configurar');
 
 const upload = multer({
   storage: multer.diskStorage({

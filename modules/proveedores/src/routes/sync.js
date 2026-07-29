@@ -1,5 +1,5 @@
 const router = require('express').Router();
-const { authMiddleware, requireRol } = require('../middleware/auth');
+const { authMiddleware, requirePermiso } = require('../middleware/auth');
 const syncState = require('../services/sync-state');
 
 router.use(authMiddleware);
@@ -42,7 +42,7 @@ router.get('/status', async (req, res) => {
   });
 });
 
-router.post('/', requireRol('admin', 'contador'), (req, res) => {
+router.post('/', requirePermiso('configurar'), (req, res) => {
   if (syncState.obtenerEstado().sincronizando) {
     return res.status(409).json({ error: 'Ya hay una sincronización en progreso' });
   }
@@ -64,7 +64,7 @@ router.post('/', requireRol('admin', 'contador'), (req, res) => {
 });
 
 // Process only (no IMAP download)
-router.post('/process', requireRol('admin'), async (req, res) => {
+router.post('/process', requirePermiso('configurar'), async (req, res) => {
   try {
     const imapService = require('../services/imap.service');
     if (imapService.processDownloadedEmails) {
@@ -79,7 +79,7 @@ router.post('/process', requireRol('admin'), async (req, res) => {
 });
 
 // Reset sync state (for stuck syncs)
-router.post('/reset', requireRol('admin'), (req, res) => {
+router.post('/reset', requirePermiso('configurar'), (req, res) => {
   syncState.reset();
   res.json({ ok: true, mensaje: 'Estado de sincronización reiniciado' });
 });

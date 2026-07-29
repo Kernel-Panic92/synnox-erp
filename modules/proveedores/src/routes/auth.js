@@ -34,7 +34,7 @@ router.get('/me', authMiddleware, async (req, res) => {
       user.nombre = req.usuario.nombre;
       user.rol = updateRol;
     }
-    res.json({ ...user, perfil_nombre: req.usuario.perfil_nombre || null });
+    res.json({ ...user, perfil_nombre: req.usuario.perfil_nombre || null, modulos_permisos: req.usuario.modulos_permisos || {} });
   } catch (err) {
     console.error('[auth/me]', err);
     res.status(500).json({ error: 'Error interno' });
