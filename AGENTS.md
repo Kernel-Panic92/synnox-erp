@@ -1,8 +1,87 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (28 Jul 2026 — sesión 24)
+## Estado (29 Jul 2026 — sesión 25)
 
-### Cambios Sesión 24 — Fix seguridad, URLs email, cleanup nómina
+### Cambios Sesión 25 — Seguridad, permisos, notificaciones, UX Proyectos
+
+#### Seguridad: Validación de roles y permisos granulares (Issues #77, #78, #79, #80)
+- **Proyectos**: `requirePermiso()` en todos los endpoints (ver, crear, editar, eliminar, crear_tarea, editar_tarea, eliminar_tarea, comentar, configurar, ver_reportes)
+- **Nómina**: `requierePermiso()` ahora lee `modulos_permisos.nomina` del JWT (antes usaba tabla local SQLite)
+- **Proveedores**: Reemplazado `requireRol()` hardcodeado (admin/contador/tesorero) por `requirePermiso()` del framework — 70 endpoints migrados
+- **Logística**: Endpoints de reportes ahora requieren permiso `ver`, exportar requiere `exportar`
+- **MCP**: Endpoints de proyectos y nómina ahora requieren autenticación
+- **Frontend**: Botones CRUD ocultos según permisos del JWT (`tienePermiso()`)
+
+#### Nuevo permiso `ver_propios` (Proyectos)
+- **Launcher**: Nuevo permiso `ver_propios` en módulo Proyectos
+- **Backend**: Si usuario tiene `ver_propios`, solo ve proyectos/tareas asignadas a él
+- **Frontend**: `tienePermiso('ver_propios')` controla filtrado en UI
+- **Admin/Gerente**: Ven todo (bypass por `requirePermiso`)
+
+#### Flujo de revisión obligatorio (Proyectos)
+- **Solo admin/gerente** pueden marcar tareas como completadas
+- Botón "completar rápida" oculto para operadores
+- Drag & drop restringido: completada solo para admin/gerente
+- Dropdown de edición: opción completada solo para admin/gerente
+- Backend valida transiciones en `PUT /:id` y `PUT /reordenar`
+- **Tareas en revisión bloqueadas**: operadores no pueden editar ni mover tareas en estado `revision`
+- Flujo obligatorio: `en_progreso → revision → (aprobación) → completada`
+
+#### Fix URLs email (Issue #69)
+- Renombrada `getBaseUrl()` OAuth a `getMcpBaseUrl()` para no sobreescribir la de emails
+- Emails ahora usan `https://COMPANY_DOMAIN` sin puerto
+
+#### Fix dashboard tareas por operador
+- Dashboard filtra por `asignado_a` cuando usuario tiene `ver_propios`
+- GET /tareas y GET /tareas/:id filtran por asignado_a
+
+#### Campo `asignado_a` en proyectos
+- Migración: columna `asignado_a` en tabla `projects.proyectos`
+- Backend: POST y PUT manejan `asignado_a`
+- Frontend: dropdown de asignación en formulario de proyectos
+- Frontend: muestra usuario asignado en tarjeta del proyecto
+
+#### UI Proyectos
+- Filtro de búsqueda en tabla de proyectos (nombre, descripción, asignado)
+- Botones de acción standardizados a solo iconos (✓ ✗ 📌 ✎ ✕)
+- Click en card de proyecto → navega a tareas filtradas por ese proyecto
+- Click en stat-cards del dashboard → navega a tareas filtradas por estado
+
+#### Sistema de notificaciones global (Issue #81)
+- **Tabla**: `notificaciones` en SQLite (launcher) con índices
+- **API**: GET/PUT/DELETE notificaciones, conteo no leídas, crear (interno)
+- **UI**: Campana 🔔 con badge, dropdown con lista, auto-poll 60s
+- **Proyectos**: Notificaciones en tarea asignada, aprobada, rechazada
+- **Framework**: Funciones reutilizables (`initNotifications`, `toggleNotifDropdown`, etc.)
+- **CSS**: Estilos para campana, dropdown, items en `base.css`
+- **Auth**: Endpoints internos (localhost) sin auth para llamadas entre módulos
+
+#### Eliminados del admin
+- **Nginx**: Endpoint y UI eliminados (generador rompía HTTPS en producción)
+- **Apariencia**: Tab de gradientes eliminado, keys `grad_*` removidas de config
+
+#### Fix Issues cerrados
+- **#72**: Descripción de tarea editable inline + placeholder aclaratorio evidencias
+- **#73**: Z-index modal confirmación sobre modal detalle (framework-level)
+- **#76**: Widgets del launcher no bloquean sidebar + cache localStorage
+- **#77**: Validación de roles en todos los módulos
+- **#69**: URLs de email correctas (sin puerto 9443)
+
+### Pendientes nuevos
+- [ ] Integrar notificaciones con otros módulos (nómina, proveedores, logística)
+- [ ] Preferencias de notificaciones por usuario (desactivar tipos)
+- [ ] Limpieza automática de notificaciones antiguas (>30 días)
+
+### Pendientes anteriores (actualizados)
+- [ ] Observabilidad centralizada (tabla `auditoria_central`)
+- [ ] SSH `execSync` → `ssh2` (test-ssh)
+- [ ] CSP nonce en proveedores
+- [ ] Dividir `launcher/server.js` (~2800 líneas → routers separados)
+- [ ] ESLint + Prettier config
+- [ ] Limpiar `.env` legacy
+- [ ] Actualizar docs restantes
+
+### Convenciones del Framework (SEGUIR SIEMPRE)
 
 #### Fix seguridad: acceso no autorizado a módulos + UX sesión invalidada
 - **Logística**: `/api/auth/me`, `/api/dashboard/resumen`, `/api/rutas/diagnostico` ahora usan `protect`
