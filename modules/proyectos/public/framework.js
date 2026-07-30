@@ -367,7 +367,7 @@ function clearTableFilters(containerId) {
 
 // ── Notifications ──
 var _notifPollTimer = null;
-var _notifAPI = (window.location.pathname.match(/^\/(\w+)\//) || ['',''])[1] ? '' : '/api';
+var _notifAPI = '';
 
 function cargarNotificaciones() {
   var base = _notifAPI || '';
