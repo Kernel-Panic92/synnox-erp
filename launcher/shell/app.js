@@ -769,10 +769,7 @@ function renderUsersTable(users) {
         </td>
       </tr>
     `).join('');
-    initTableFilters('users-table', { searchId: 'fil-usuarios-q', statusId: 'fil-usuarios-rol', statusKey: 'rol', countId: 'usuarios-count', searchCols: [1, 2] });
-  } catch (e) {
-    toast(e.message, 'error');
-  }
+  initTableFilters('users-table', { searchId: 'fil-usuarios-q', statusId: 'fil-usuarios-rol', statusKey: 'rol', countId: 'usuarios-count', searchCols: [1, 2] });
 }
 
 let cachedModulos = [];
