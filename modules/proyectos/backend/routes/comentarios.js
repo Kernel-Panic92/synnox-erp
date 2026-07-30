@@ -37,16 +37,18 @@ router.post('/:id/comentarios', requirePermiso('comentar', 'proyectos'), async (
 
     // Notificar al asignado de la tarea (si no es el mismo que comenta)
     if (tarea.asignado_a && tarea.asignado_a !== usuario_id) {
-      notificar({
-        usuario_id: tarea.asignado_a,
-        tipo: 'comentario',
-        titulo: 'Nuevo comentario',
-        mensaje: `${req.user.nombre} comentó en "${tarea.titulo}"`,
-        url: '/proyectos/#tareas',
-        email: tarea.asignado_email,
-        emailAsunto: `[Proyectos] Nuevo comentario en: ${tarea.titulo}`,
-        emailHtml: templateNuevoComentario({ tarea, comentario: result.rows[0], autor: req.user.nombre })
-      });
+      try {
+        notificar({
+          usuario_id: tarea.asignado_a,
+          tipo: 'comentario',
+          titulo: 'Nuevo comentario',
+          mensaje: `${req.user.nombre} comentó en "${tarea.titulo}"`,
+          url: '/proyectos/#tareas',
+          email: tarea.asignado_email,
+          emailAsunto: `[Proyectos] Nuevo comentario en: ${tarea.titulo}`,
+          emailHtml: templateNuevoComentario({ tarea, comentario: result.rows[0], autor: req.user.nombre })
+        });
+      } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
     res.status(201).json({ exitosa: true, comentario: result.rows[0] });

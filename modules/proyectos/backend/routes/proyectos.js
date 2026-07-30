@@ -100,19 +100,21 @@ router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
 
     // Notificar al asignado
     if (asignado_a) {
-      const proyecto = await getProyectoCompleto(pool, result.rows[0].id);
-      if (proyecto) {
-        notificar({
-          usuario_id: asignado_a,
-          tipo: 'proyecto_asignado',
-          titulo: 'Proyecto asignado',
-          mensaje: `Se te asignó el proyecto "${nombre}"`,
-          url: '/proyectos/#proyectos',
-          email: proyecto.asignado_email,
-          emailAsunto: `[Proyectos] Proyecto asignado: ${nombre}`,
-          emailHtml: templateProyectoAsignado({ proyecto, asignador: req.user.nombre })
-        });
-      }
+      try {
+        const proyecto = await getProyectoCompleto(pool, result.rows[0].id);
+        if (proyecto) {
+          notificar({
+            usuario_id: asignado_a,
+            tipo: 'proyecto_asignado',
+            titulo: 'Proyecto asignado',
+            mensaje: `Se te asignó el proyecto "${nombre}"`,
+            url: '/proyectos/#proyectos',
+            email: proyecto.asignado_email,
+            emailAsunto: `[Proyectos] Proyecto asignado: ${nombre}`,
+            emailHtml: templateProyectoAsignado({ proyecto, asignador: req.user.nombre })
+          });
+        }
+      } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
     res.status(201).json({ exitosa: true, proyecto: result.rows[0] });
@@ -147,31 +149,35 @@ router.put('/:id', requirePermiso('editar', 'proyectos'), async (req, res) => {
 
     // Notificar re-asignación
     if (asignado_a !== undefined && asignado_a && asignado_a !== oldAsignado) {
-      const proyecto = await getProyectoCompleto(pool, req.params.id);
-      if (proyecto) {
-        notificar({
-          usuario_id: asignado_a,
-          tipo: 'proyecto_asignado',
-          titulo: 'Proyecto re-asignado',
-          mensaje: `Se te re-asignó el proyecto "${proyectoNombre}"`,
-          url: '/proyectos/#proyectos',
-          email: proyecto.asignado_email,
-          emailAsunto: `[Proyectos] Proyecto re-asignado: ${proyectoNombre}`,
-          emailHtml: templateProyectoAsignado({ proyecto, asignador: req.user.nombre })
-        });
-      }
+      try {
+        const proyecto = await getProyectoCompleto(pool, req.params.id);
+        if (proyecto) {
+          notificar({
+            usuario_id: asignado_a,
+            tipo: 'proyecto_asignado',
+            titulo: 'Proyecto re-asignado',
+            mensaje: `Se te re-asignó el proyecto "${proyectoNombre}"`,
+            url: '/proyectos/#proyectos',
+            email: proyecto.asignado_email,
+            emailAsunto: `[Proyectos] Proyecto re-asignado: ${proyectoNombre}`,
+            emailHtml: templateProyectoAsignado({ proyecto, asignador: req.user.nombre })
+          });
+        }
+      } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
     // Notificar cambio de estado
     const newEstado = estado || oldEstado;
     if (newEstado && oldEstado !== newEstado && oldAsignado) {
-      notificar({
-        usuario_id: oldAsignado,
-        tipo: 'cambio_estado',
-        titulo: 'Estado de proyecto cambiado',
-        mensaje: `"${proyectoNombre}" cambió de ${oldEstado} a ${newEstado}`,
-        url: '/proyectos/#proyectos'
-      });
+      try {
+        notificar({
+          usuario_id: oldAsignado,
+          tipo: 'cambio_estado',
+          titulo: 'Estado de proyecto cambiado',
+          mensaje: `"${proyectoNombre}" cambió de ${oldEstado} a ${newEstado}`,
+          url: '/proyectos/#proyectos'
+        });
+      } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
     res.json({ exitosa: true, proyecto: result.rows[0] });

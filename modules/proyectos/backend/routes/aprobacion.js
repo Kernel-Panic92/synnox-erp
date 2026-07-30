@@ -51,16 +51,18 @@ router.put('/tareas/:id/aprobar', async (req, res) => {
 
     // Notificar al asignado (in-app + email)
     if (tarea.asignado_a) {
-      notificar({
-        usuario_id: tarea.asignado_a,
-        tipo: 'proyecto_aprobado',
-        titulo: 'Tarea aprobada',
-        mensaje: `Tu tarea "${tarea.titulo}" fue aprobada por ${req.user.nombre}`,
-        url: '/proyectos/#tareas',
-        email: tareaFull.asignado_email,
-        emailAsunto: `✅ Tarea aprobada: ${tareaFull.titulo}`,
-        emailHtml: templateAprobacionTarea({ tarea: tareaFull, accion: 'aprobada', aprobador: req.user.nombre })
-      });
+      try {
+        notificar({
+          usuario_id: tarea.asignado_a,
+          tipo: 'proyecto_aprobado',
+          titulo: 'Tarea aprobada',
+          mensaje: `Tu tarea "${tarea.titulo}" fue aprobada por ${req.user.nombre}`,
+          url: '/proyectos/#tareas',
+          email: tareaFull.asignado_email,
+          emailAsunto: `✅ Tarea aprobada: ${tareaFull.titulo}`,
+          emailHtml: templateAprobacionTarea({ tarea: tareaFull, accion: 'aprobada', aprobador: req.user.nombre })
+        });
+      } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
     res.json({ exitosa: true, tarea });
@@ -102,16 +104,18 @@ router.put('/tareas/:id/rechazar', async (req, res) => {
 
     // Notificar al asignado (in-app + email)
     if (tarea.asignado_a) {
-      notificar({
-        usuario_id: tarea.asignado_a,
-        tipo: 'proyecto_rechazado',
-        titulo: 'Tarea rechazada',
-        mensaje: `Tu tarea "${tarea.titulo}" fue rechazada: ${motivo}`,
-        url: '/proyectos/#tareas',
-        email: tareaFull.asignado_email,
-        emailAsunto: `❌ Tarea rechazada: ${tareaFull.titulo}`,
-        emailHtml: templateAprobacionTarea({ tarea: tareaFull, accion: 'rechazada', motivo, aprobador: req.user.nombre })
-      });
+      try {
+        notificar({
+          usuario_id: tarea.asignado_a,
+          tipo: 'proyecto_rechazado',
+          titulo: 'Tarea rechazada',
+          mensaje: `Tu tarea "${tarea.titulo}" fue rechazada: ${motivo}`,
+          url: '/proyectos/#tareas',
+          email: tareaFull.asignado_email,
+          emailAsunto: `❌ Tarea rechazada: ${tareaFull.titulo}`,
+          emailHtml: templateAprobacionTarea({ tarea: tareaFull, accion: 'rechazada', motivo, aprobador: req.user.nombre })
+        });
+      } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
     res.json({ exitosa: true, tarea });
@@ -139,19 +143,21 @@ router.put('/proyectos/:id/aprobar', async (req, res) => {
 
     // Notificar al asignado del proyecto (in-app + email)
     if (proyecto.asignado_a) {
-      const proyectoFull = await getProyectoCompleto(pool, req.params.id);
-      if (proyectoFull) {
-        notificar({
-          usuario_id: proyecto.asignado_a,
-          tipo: 'proyecto_aprobado',
-          titulo: 'Proyecto aprobado',
-          mensaje: `Tu proyecto "${proyecto.nombre}" fue aprobado por ${req.user.nombre}`,
-          url: '/proyectos/#proyectos',
-          email: proyectoFull.asignado_email,
-          emailAsunto: `✅ Proyecto aprobado: ${proyecto.nombre}`,
-          emailHtml: templateAprobacionProyecto({ proyecto, accion: 'aprobada', aprobador: req.user.nombre })
-        });
-      }
+      try {
+        const proyectoFull = await getProyectoCompleto(pool, req.params.id);
+        if (proyectoFull) {
+          notificar({
+            usuario_id: proyecto.asignado_a,
+            tipo: 'proyecto_aprobado',
+            titulo: 'Proyecto aprobado',
+            mensaje: `Tu proyecto "${proyecto.nombre}" fue aprobado por ${req.user.nombre}`,
+            url: '/proyectos/#proyectos',
+            email: proyectoFull.asignado_email,
+            emailAsunto: `✅ Proyecto aprobado: ${proyecto.nombre}`,
+            emailHtml: templateAprobacionProyecto({ proyecto, accion: 'aprobada', aprobador: req.user.nombre })
+          });
+        }
+      } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
     res.json({ exitosa: true, proyecto });
@@ -178,19 +184,21 @@ router.put('/proyectos/:id/rechazar', async (req, res) => {
 
     // Notificar al asignado del proyecto (in-app + email)
     if (proyecto.asignado_a) {
-      const proyectoFull = await getProyectoCompleto(pool, req.params.id);
-      if (proyectoFull) {
-        notificar({
-          usuario_id: proyecto.asignado_a,
-          tipo: 'proyecto_rechazado',
-          titulo: 'Proyecto rechazado',
-          mensaje: `Tu proyecto "${proyecto.nombre}" fue rechazado por ${req.user.nombre}`,
-          url: '/proyectos/#proyectos',
-          email: proyectoFull.asignado_email,
-          emailAsunto: `❌ Proyecto rechazado: ${proyecto.nombre}`,
-          emailHtml: templateAprobacionProyecto({ proyecto, accion: 'rechazada', aprobador: req.user.nombre })
-        });
-      }
+      try {
+        const proyectoFull = await getProyectoCompleto(pool, req.params.id);
+        if (proyectoFull) {
+          notificar({
+            usuario_id: proyecto.asignado_a,
+            tipo: 'proyecto_rechazado',
+            titulo: 'Proyecto rechazado',
+            mensaje: `Tu proyecto "${proyecto.nombre}" fue rechazado por ${req.user.nombre}`,
+            url: '/proyectos/#proyectos',
+            email: proyectoFull.asignado_email,
+            emailAsunto: `❌ Proyecto rechazado: ${proyecto.nombre}`,
+            emailHtml: templateAprobacionProyecto({ proyecto, accion: 'rechazada', aprobador: req.user.nombre })
+          });
+        }
+      } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
     res.json({ exitosa: true, proyecto });

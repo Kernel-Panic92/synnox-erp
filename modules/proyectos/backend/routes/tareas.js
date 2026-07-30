@@ -89,19 +89,21 @@ router.post('/', requirePermiso('crear_tarea', 'proyectos'), async (req, res) =>
 
     // Notificar al asignado (in-app + email)
     if (asignado_a) {
-      const tarea = await getTareaCompleta(pool, result.rows[0].id);
-      if (tarea) {
-        notificar({
-          usuario_id: asignado_a,
-          tipo: 'tarea_asignada',
-          titulo: 'Tarea asignada',
-          mensaje: `Se te asignó la tarea "${titulo}"`,
-          url: '/proyectos/#tareas',
-          email: tarea.asignado_email,
-          emailAsunto: `[Proyectos] Tarea asignada: ${titulo}`,
-          emailHtml: templateTareaAsignada({ tarea, asignador: req.user.nombre })
-        });
-      }
+      try {
+        const tarea = await getTareaCompleta(pool, result.rows[0].id);
+        if (tarea) {
+          notificar({
+            usuario_id: asignado_a,
+            tipo: 'tarea_asignada',
+            titulo: 'Tarea asignada',
+            mensaje: `Se te asignó la tarea "${titulo}"`,
+            url: '/proyectos/#tareas',
+            email: tarea.asignado_email,
+            emailAsunto: `[Proyectos] Tarea asignada: ${titulo}`,
+            emailHtml: templateTareaAsignada({ tarea, asignador: req.user.nombre })
+          });
+        }
+      } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
     res.status(201).json({ exitosa: true, tarea: result.rows[0] });
@@ -144,16 +146,18 @@ router.put('/reordenar', requirePermiso('editar_tarea', 'proyectos'), async (req
 
     // Notificar cambio de estado (solo si realmente cambió)
     if (asignado && estadoAnterior !== est) {
-      const tarea = await getTareaCompleta(pool, tarea_id);
-      if (tarea) {
-        notificar({
-          usuario_id: asignado,
-          tipo: 'cambio_estado',
-          titulo: 'Tarea movida',
-          mensaje: `"${tarea.titulo}" movida a ${est.replace('_', ' ')}`,
-          url: '/proyectos/#tablero'
-        });
-      }
+      try {
+        const tarea = await getTareaCompleta(pool, tarea_id);
+        if (tarea) {
+          notificar({
+            usuario_id: asignado,
+            tipo: 'cambio_estado',
+            titulo: 'Tarea movida',
+            mensaje: `"${tarea.titulo}" movida a ${est.replace('_', ' ')}`,
+            url: '/proyectos/#tablero'
+          });
+        }
+      } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
     res.json({ exitosa: true, tarea: result.rows[0] });
@@ -232,31 +236,35 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
 
     // Notificar re-asignación
     if (asignado_a !== undefined && asignado_a && asignado_a !== oldAsignado) {
-      const tarea = await getTareaCompleta(pool, req.params.id);
-      if (tarea) {
-        notificar({
-          usuario_id: asignado_a,
-          tipo: 'tarea_asignada',
-          titulo: 'Tarea re-asignada',
-          mensaje: `Se te re-asignó la tarea "${tareaTitulo}"`,
-          url: '/proyectos/#tareas',
-          email: tarea.asignado_email,
-          emailAsunto: `[Proyectos] Tarea re-asignada: ${tareaTitulo}`,
-          emailHtml: templateTareaAsignada({ tarea, asignador: req.user.nombre })
-        });
-      }
+      try {
+        const tarea = await getTareaCompleta(pool, req.params.id);
+        if (tarea) {
+          notificar({
+            usuario_id: asignado_a,
+            tipo: 'tarea_asignada',
+            titulo: 'Tarea re-asignada',
+            mensaje: `Se te re-asignó la tarea "${tareaTitulo}"`,
+            url: '/proyectos/#tareas',
+            email: tarea.asignado_email,
+            emailAsunto: `[Proyectos] Tarea re-asignada: ${tareaTitulo}`,
+            emailHtml: templateTareaAsignada({ tarea, asignador: req.user.nombre })
+          });
+        }
+      } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
     // Notificar cambio de estado
     const newEstado = columna ? (COLUMNA_A_ESTADO[columna] || oldEstado) : (estado || oldEstado);
     if (newEstado && oldEstado !== newEstado && oldAsignado) {
-      notificar({
-        usuario_id: oldAsignado,
-        tipo: 'cambio_estado',
-        titulo: 'Estado de tarea cambiado',
-        mensaje: `"${tareaTitulo}" cambió de ${oldEstado.replace('_', ' ')} a ${newEstado.replace('_', ' ')}`,
-        url: '/proyectos/#tareas'
-      });
+      try {
+        notificar({
+          usuario_id: oldAsignado,
+          tipo: 'cambio_estado',
+          titulo: 'Estado de tarea cambiado',
+          mensaje: `"${tareaTitulo}" cambió de ${oldEstado.replace('_', ' ')} a ${newEstado.replace('_', ' ')}`,
+          url: '/proyectos/#tareas'
+        });
+      } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
     res.json({ exitosa: true, tarea: tareaActualizada });
