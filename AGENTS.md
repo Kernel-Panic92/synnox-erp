@@ -1,64 +1,67 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (30 Jul 2026 — sesión 27)
+## Estado (30 Jul 2026 — sesión 28)
 
-### Cambios Sesión 27 — Seguridad notificaciones, rendimiento launcher
+### Cambios Sesión 28 — Rendimiento, telemetría, cache
 
-#### Seguridad: endpoint POST /api/notificaciones/crear
-- **INTERNAL_API_TOKEN**: Nuevo token interno obligatorio en producción (`process.exit(1)` si falta)
-- **Validación con timingSafeEqual**: Comparación de token en tiempo constante (previene timing attacks)
-- **Auth interna**: Todas las llamadas desde módulos requieren header `X-Internal-Token`
-- **Auth externa**: Solo admin puede crear notificaciones (verifica `decoded.rol === 'admin'`)
-- **Validaciones**: usuario_id debe existir y estar activo; longitudes máximas (modulo≤30, tipo≤50, titulo≤200, mensaje≤500, url≤300)
-- **Idempotency_key**: Columna nueva UNIQUE en tabla notificaciones; previene duplicados en reintentos
-- **Logs seguros**: No se imprime body completo, solo internal/tipo/usuario_id
+#### Eliminación de telemetría (-438 líneas)
+- Removido `telemetry.js` de launcher shell y 5 módulos
+- Eliminados 6 endpoints de telemetría del launcher server.js
+- Eliminada pestaña Telemetría del admin sidebar y UI
+- Nómina `telemetry.js` → no-op
+- **Mantiene** sesiones_activas y endpoints de sesiones (sin heartbeats nuevos)
 
-#### Retención correcta de notificaciones
-- Eliminada sentencia DELETE global que borraba todo excepto últimas 200
-- Nueva limpieza por fecha: `DELETE WHERE created_at < datetime('now', '-30 days')`
-- Ejecución al startup + intervalo cada 24h
-- Nuevo índice: `idx_notif_fecha ON notificaciones(usuario_id, created_at DESC)`
-- Notificaciones no leídas recientes nunca se eliminan por volumen
+#### Cache de usuarios con sessionStorage
+- `loadUsers()` cachea resultado en sessionStorage (TTL 2 minutos)
+- Al navegar Admin → Home → Admin, reusa cache (sin fetch al server)
+- Mutaciones (save/delete/reactivate/import CSV) fuerzan refresh con `invalidateUsersCache() + loadUsers(true)`
+- `renderUsersTable()` extraído como función separada
 
-#### Helper reutilizable: framework/notify.js (CJS)
-- Función `notificarInterna({ usuario_id, modulo, tipo, titulo, mensaje, url, evento_id })`
-- Siempre retorna `{ ok, id?, error? }` — nunca lanza excepciones
-- Timeout 5s por intento, 1 reintento en errores transitorios (5xx/network)
-- No reintenta en 4xx (token inválido, validación fallida)
-- `evento_id` opcional: si se provee, se usa como idempotency key
-- Configuración via `LAUNCHER_URL` e `INTERNAL_API_TOKEN` del entorno
+#### Endpoints async (eliminación de bloqueos del event loop)
+- `/api/admin/commits`: `execFileSync` → `execFileAsync` (5s timeout)
+- `/api/admin/updater/status`: `execSync` → `execFileAsync` (5s timeout)
+- `/api/admin/updater/check`: `execSync` → `execFileAsync` (30s timeout)
+- `/api/admin/config/test-ssh`: `execFileSync` → `execFileAsync` (15s timeout)
+- `/api/track` POST: `writeFileSync` → `writeFile` async
 
-#### Migración de módulos al helper
-- **Nómina**: Reemplazado `crearNotificacion()` local por `notificarInterna()` con `evento_id` determinista
-- **Proveedores**: Reemplazado fetch inline por `notificarInterna()`
-- **Logística**: Reemplazado fetch inline por `notificarInterna()` (import CJS via createRequire)
-- **Proyectos**: Reemplazado fetch en `notify.js` por `notificarInterna()` (import CJS via createRequire)
+#### Logout no-bloqueante
+- `show('login-screen')` inmediato — no espera al server
+- `fetch('/api/auth/logout')` es fire-and-forget
+- Elimina freeze al hacer logout
 
-#### Rendimiento: execSync → execFile async
-- `GET /api/admin/server/stats`: Reemplazado `execSync('df -h / | tail -1')` por `execFileAsync('df', ['-h', '/'], { timeout: 3000 })`
-- Ya no bloquea el event loop de Node
-- Fallback `disk: null` si falla (frontend ya lo maneja)
+#### Prefetch de módulos
+- `<link rel="prefetch">` en launcher para JS pesados de los 4 módulos
+- El browser descarga assets de módulos en segundo plano
 
-#### Optimización de polling en launcher
-- **_serverStatsInFlight**: Evita solicitudes solapadas de server stats
-- **_notifInFlight**: Evita solicitudes solapadas de notificaciones
-- **visibilitychange**: Listener instalado una sola vez (guard `_visibilityListenerInstalled`)
-- **Pausa automática**: Polling se pausa cuando `document.visibilityState !== 'visible'`
-- **Al volver visible**: Ejecuta notificaciones y versión inmediatamente
-- **Version check**: Solo ejecuta si hay sesión activa (`jwtToken` existe)
-- **Intervalo versión**: 30s (antes 15s)
-- **Cleanup en logout()**: Limpia `_notifPollTimer`, `_versionCheckTimer`, `_serverStatsTimer`
-- **Click-outside**: Listener instalado una sola vez (guard `_clickOutsideListenerInstalled`)
+#### fetchAuth() helper
+- Wrapper con `AbortSignal.timeout(15s)` por defecto y header Authorization
+- AbortController para widgets del launcher — cancela fetches al navegar a admin
 
-### Pendientes nuevos
+#### Fix catch without try
+- `renderUsersTable()` tenía `catch` sin `try` (error de refactor)
+
+### Issues conocidos (pendientes)
+
+#### NS_BINDING_ABORTED en Firefox
+- Firefox cancela requests fetch cuando:
+  - Se navega a otra página antes de que termine el fetch
+  - Hay demasiadas conexiones simultáneas HTTP/2
+  - El server tarda en responder y el browser hace timeout interno
+- **Causa raíz**: Módulos pesados (137-240KB JS sin minificar, 15-18 scripts cada uno)
+- **Mitigación**: Prefetch implementado, pero no resuelve el problema de raíz
+- **Fix real**: Bundling de módulos (webpack/vite) — cambio de arquitectura grande
+
+#### Lag general del sistema
+- **Módulos lentos al abrir**: 5-8 segundos por la cantidad de scripts JS sin minificar
+- **Launcher lento al cargar widgets**: Múltiples fetches simultáneos compiten por HTTP/2
+- **Causa raíz**: Sin bundling, sin minificación, sin code splitting
+- **Mitigación aplicada**: AbortController al navegar a admin, prefetch, cache
+- **Pendiente**: Evaluar bundling con webpack/vite para módulos
+
+#### Otros pendientes
 - [ ] Integrar notificaciones con cron jobs (vencimientos, recordatorios)
 - [ ] Preferencias de notificaciones por usuario
-- [ ] Actualizar docs restantes
-
-### Pendientes anteriores (actualizados)
 - [ ] Observabilidad centralizada (tabla `auditoria_central`)
-- [ ] SSH `execSync` → `ssh2` (test-ssh)
-- [ ] CSP nonce en proveedores
 - [ ] Dividir `launcher/server.js` (~2800 líneas → routers separados)
 - [ ] ESLint + Prettier config
 - [ ] Limpiar `.env` legacy
