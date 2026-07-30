@@ -569,7 +569,7 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
   if (!email || !password) return res.status(400).json({ error: 'Campos requeridos' });
   try {
     const user = db.prepare('SELECT * FROM usuarios WHERE email = ? AND activo = 1').get(email.toLowerCase().trim());
-    if (!user || !bcrypt.compareSync(password, user.password_hash)) {
+    if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       if (req._loginRateLimitKey) loginAttempts[req._loginRateLimitKey].push(req._loginRateLimitNow);
       logLoginAttempt(req.ip, email, false);
       return res.status(401).json({ error: 'Credenciales inválidas' });

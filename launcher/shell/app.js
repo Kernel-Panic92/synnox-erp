@@ -9,6 +9,14 @@ let _versionCheckTimer = null;
 let _visibilityListenerInstalled = false;
 let _clickOutsideListenerInstalled = false;
 
+function fetchAuth(url, opts = {}) {
+  return fetch(url, {
+    signal: opts.signal || AbortSignal.timeout(opts.timeout || 10000),
+    ...opts,
+    headers: { 'Authorization': 'Bearer ' + jwtToken, ...opts.headers }
+  });
+}
+
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s||'')); return d.innerHTML; }
 
 // Widget cache helpers
@@ -509,7 +517,7 @@ async function cargarActivity() {
     const cached = cacheGet('activity', 60000);
     let logs = cached;
     if (!logs) {
-      const res = await fetch('/api/admin/login-logs', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+      const res = await fetchAuth('/api/admin/login-logs');
       if (!res.ok) { w.style.display = 'none'; return; }
       const data = await res.json();
       logs = data.logs || data.rows || data || [];
@@ -541,7 +549,7 @@ async function cargarCommits() {
     const cached = cacheGet('commits', 120000);
     let data = cached;
     if (!data) {
-      const res = await fetch('/api/admin/commits?limit=8', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+      const res = await fetchAuth('/api/admin/commits?limit=8');
       if (!res.ok) { w.style.display = 'none'; return; }
       data = await res.json();
       if (data.ok) cacheSet('commits', data);
@@ -575,7 +583,7 @@ async function cargarServerStats() {
     const cached = cacheGet('serverStats', 60000);
     let s = cached;
     if (!s) {
-      const res = await fetch('/api/admin/server/stats', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+      const res = await fetchAuth('/api/admin/server/stats');
       if (!res.ok) { w.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar stats</div>'; _serverStatsTimer = setTimeout(() => { if (document.getElementById('launcher-screen').style.display !== 'none') cargarServerStats(); }, 30000); return; }
       s = await res.json();
       cacheSet('serverStats', s);
@@ -643,7 +651,7 @@ async function cargarModuleStatus() {
     const cached = cacheGet('moduleStatus', 30000);
     let mods = cached;
     if (!mods) {
-      const res = await fetch('/api/admin/health', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+      const res = await fetchAuth('/api/admin/health');
       if (!res.ok) { w.style.display = 'none'; return; }
       mods = await res.json();
       cacheSet('moduleStatus', mods);
@@ -709,10 +717,10 @@ function showAdmin() {
 }
 
 async function loadUsers() {
+  const tbody = document.querySelector('#users-table tbody');
+  tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px;">Cargando...</td></tr>';
   try {
-    const res = await fetch('/api/admin/usuarios', {
-      headers: { 'Authorization': 'Bearer ' + jwtToken }
-    });
+    const res = await fetchAuth('/api/admin/usuarios');
     if (!res.ok) throw new Error('Error al cargar usuarios');
     const users = await res.json();
     const tbody = document.querySelector('#users-table tbody');
@@ -1083,9 +1091,7 @@ async function doImportCsv() {
 // ── Módulos ──
 async function loadModulos() {
   try {
-    const res = await fetch('/api/admin/modulos', {
-      headers: { 'Authorization': 'Bearer ' + jwtToken }
-    });
+    const res = await fetchAuth('/api/admin/modulos');
     if (!res.ok) throw new Error('Error al cargar módulos');
     const modulos = await res.json();
     const tbody = document.querySelector('#modulos-table tbody');
@@ -1793,7 +1799,7 @@ async function testSshConnection() {
 
 async function loadLoginLogs() {
   try {
-    var res = await fetch('/api/admin/login-logs', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    var res = await fetchAuth('/api/admin/login-logs');
     if (!res.ok) return;
     var data = await res.json();
     var tbody = document.querySelector('#login-logs-table tbody');
@@ -1978,18 +1984,16 @@ async function loadTelemetriaEventos() {
 
 // ── Session check + refresh ──
 (async () => {
-  try { const r = await fetch('/api/version'); const d = await r.json(); launcherVersion = d.version || ''; } catch {}
+  try { const r = await fetch('/api/version', { signal: AbortSignal.timeout(5000) }); const d = await r.json(); launcherVersion = d.version || ''; } catch {}
   if (jwtToken) {
     try {
       // Refresh token silently to extend session
-      const refreshRes = await fetch('/api/auth/refresh', { method: 'POST', headers: { 'Authorization': 'Bearer ' + jwtToken } });
+      const refreshRes = await fetch('/api/auth/refresh', { method: 'POST', signal: AbortSignal.timeout(5000), headers: { 'Authorization': 'Bearer ' + jwtToken } });
       if (refreshRes.ok) {
         const refreshData = await refreshRes.json();
         if (refreshData.jwt) { jwtToken = refreshData.jwt; localStorage.setItem('platform_jwt', jwtToken); }
       }
-      const res = await fetch('/api/auth/me', {
-        headers: { 'Authorization': 'Bearer ' + jwtToken }
-      });
+      const res = await fetch('/api/auth/me', { signal: AbortSignal.timeout(5000), headers: { 'Authorization': 'Bearer ' + jwtToken } });
       if (res.ok) {
         const data = await res.json();
         user = data;
@@ -2014,6 +2018,17 @@ async function loadTelemetriaEventos() {
     document.getElementById('reset-modal').style.display = 'block';
   }
 })();
+
+// ── Safety net: hide loading screen after 8s if stuck ──
+setTimeout(() => {
+  const ls = document.getElementById('loading-screen');
+  if (ls && ls.style.display !== 'none') {
+    ls.style.display = 'none';
+    if (!document.getElementById('login-screen').style.display || document.getElementById('login-screen').style.display === 'none') {
+      show('login-screen');
+    }
+  }
+}, 8000);
 
 // ── Auto-refresh token (sliding session) ──
 setInterval(async () => {
@@ -2335,8 +2350,9 @@ async function importarConfig() {
 // ── Perfiles ──
 async function loadPerfiles() {
   const tbody = document.querySelector('#perfiles-table tbody');
+  tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:24px;">Cargando...</td></tr>';
   try {
-    const res = await fetch('/api/admin/perfiles', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const res = await fetchAuth('/api/admin/perfiles');
     const perfiles = await res.json();
     tbody.innerHTML = perfiles.map(p => `
       <tr>
@@ -2515,7 +2531,7 @@ function updatePermCount(moduloId) {
 // ── Centros de operación ──
 async function loadCentros() {
   try {
-    const res = await fetch('/api/admin/centros', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const res = await fetchAuth('/api/admin/centros');
     if (!res.ok) throw new Error('Error');
     const centros = await res.json();
     const tbody = document.querySelector('#centros-table tbody');
