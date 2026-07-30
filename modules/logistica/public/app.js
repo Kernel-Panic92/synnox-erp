@@ -136,6 +136,7 @@ async function init() {
     renderSidebar(data);
     cargarVersion();
     cargarDashboard();
+    initNotifications(60000);
   } catch (e) {
     document.getElementById('app-screen').style.display = 'none';
     const isModuleDenied = e.message?.includes('acceso al módulo') || e.message?.includes('Acceso denegado');
@@ -2885,6 +2886,74 @@ async function exportarReporte() {
     a.remove();
     mostrarAlerta('Excel descargado', 'success');
   } catch (e) { mostrarAlerta(e.message, 'error'); }
+}
+
+// ── Notifications ──
+let _notifPollTimer = null;
+
+function cargarNotificaciones() {
+  return fetch('/api/notificaciones/no-leidas')
+    .then(r => r.ok ? r.json() : null)
+    .then(d => { if (d) { const b = document.getElementById('notif-count'); if (b) b.textContent = d.count > 0 ? (d.count > 99 ? '99+' : d.count) : ''; } })
+    .catch(() => {});
+}
+
+function toggleNotifDropdown() {
+  const dd = document.getElementById('notif-dropdown');
+  if (!dd) return;
+  dd.classList.toggle('show');
+  if (dd.classList.contains('show')) {
+    fetch('/api/notificaciones')
+      .then(r => r.ok ? r.json() : null)
+      .then(d => {
+        if (!d) return;
+        const notifs = d.notificaciones || [];
+        const list = dd.querySelector('.notif-list');
+        if (!notifs.length) { list.innerHTML = '<div class="notif-empty">Sin notificaciones</div>'; return; }
+        const icons = { pedido_nuevo: '📦', ruta_asignada: '🛣️', entrega_completada: '✅' };
+        list.innerHTML = notifs.map(n => {
+          const timeAgo = timeSinceNotif(new Date(n.created_at));
+          return `<div class="notif-item${n.leida ? '' : ' unread'}" onclick="marcarNotifLeida(${n.id}, '${n.url || ''}')">
+            <div class="notif-icon">${icons[n.tipo] || '🔔'}</div>
+            <div class="notif-content"><div class="notif-title">${esc(n.titulo)}</div>
+            <div class="notif-msg">${esc(n.mensaje)}</div>
+            <div class="notif-time">${timeAgo}</div></div></div>`;
+        }).join('');
+      }).catch(() => {});
+  }
+}
+
+function marcarNotifLeida(id, url) {
+  fetch('/api/notificaciones/' + id + '/leer', { method: 'PUT' })
+    .then(() => { cargarNotificaciones(); if (url) window.location.href = url; document.getElementById('notif-dropdown')?.classList.remove('show'); })
+    .catch(() => {});
+}
+
+function marcarTodasLeidas() {
+  fetch('/api/notificaciones/leer-todas', { method: 'PUT' })
+    .then(() => { cargarNotificaciones(); document.getElementById('notif-dropdown')?.classList.remove('show'); })
+    .catch(() => {});
+}
+
+function timeSinceNotif(date) {
+  const s = Math.floor((new Date() - date) / 1000);
+  if (s < 60) return 'Ahora';
+  const m = Math.floor(s / 60);
+  if (m < 60) return m + ' min';
+  const h = Math.floor(m / 60);
+  if (h < 24) return h + ' h';
+  return Math.floor(h / 24) + ' d';
+}
+
+function initNotifications(pollMs) {
+  cargarNotificaciones();
+  if (_notifPollTimer) clearInterval(_notifPollTimer);
+  _notifPollTimer = setInterval(cargarNotificaciones, pollMs || 60000);
+  document.addEventListener('click', e => {
+    const dd = document.getElementById('notif-dropdown');
+    const bell = document.querySelector('.notif-bell');
+    if (dd && !dd.contains(e.target) && !bell?.contains(e.target)) dd.classList.remove('show');
+  });
 }
 
 init();
