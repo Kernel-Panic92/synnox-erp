@@ -439,3 +439,8 @@ function initNotifications(pollMs) {
     if (dd && !dd.contains(e.target) && !bell?.contains(e.target)) dd.classList.remove('show');
   });
 }
+
+function injectNotificationBell(headerEl) {
+  if (!headerEl || document.querySelector('.notif-bell')) return;
+  headerEl.innerHTML = '<div class="notif-bell" onclick="toggleNotifDropdown()">🔔<span class="notif-badge" id="notif-count"></span><div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div></div>';
+}
