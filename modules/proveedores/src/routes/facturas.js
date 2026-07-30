@@ -5,6 +5,7 @@ const fs      = require('fs');
 const { v4: uuidv4 } = require('uuid');
 const db      = require('../db');
 const { authMiddleware, requirePermiso } = require('../middleware/auth');
+const { notificarInterna } = require('../../../../framework/notify');
 
 function sanitizePath(input, base) {
   const resolved = path.resolve(base, input);
@@ -365,11 +366,8 @@ router.post('/', requirePermiso('crear'), upload.fields([{ name:'pdf', maxCount:
     try {
       const admins = await db.query("SELECT id FROM usuarios WHERE rol IN ('admin','contador') AND activo = true AND id != $1", [req.usuario.id]);
       for (const u of admins.rows) {
-        await fetch('http://127.0.0.1:3002/api/notificaciones/crear', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ usuario_id: u.id, modulo: 'proveedores', tipo: 'factura_nueva', titulo: 'Factura nueva', mensaje: `Factura #${numero_factura.trim()} por $${parseFloat(valor_total || 0).toLocaleString()}`, url: '/proveedores/#facturas' })
-        });
+        void notificarInterna({ usuario_id: u.id, modulo: 'proveedores', tipo: 'factura_nueva', titulo: 'Factura nueva', mensaje: `Factura #${numero_factura.trim()} por $${parseFloat(valor_total || 0).toLocaleString()}`, url: '/proveedores/#facturas', evento_id: `proveedores-factura-${rows[0].id}-${u.id}` })
+          .then(r => { if (!r.ok) console.warn('[notif] fallo:', r.error); });
       }
     } catch {}
 

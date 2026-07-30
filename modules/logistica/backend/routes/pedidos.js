@@ -1,6 +1,9 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { notificarInterna } = require('../../../../framework/notify');
 const MODULE = 'logistica';
 
 const router = express.Router();
@@ -68,15 +71,12 @@ router.post('/', requirePermiso('crear', MODULE), async (req, res) => {
       [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado || 'pendiente', sede || null, latitud || null, longitud || null, vehiculo_id || null]
     );
     res.status(201).json({ exitosa: true, pedido: result.rows[0] });
-    // Notificación in-admin
+    // Notificación in-app
     try {
       const admins = await pool.query("SELECT id FROM launcher.usuarios WHERE rol = 'admin' AND activo = 1");
       for (const u of admins.rows) {
-        await fetch('http://127.0.0.1:3002/api/notificaciones/crear', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ usuario_id: u.id, modulo: 'logistica', tipo: 'pedido_nuevo', titulo: 'Pedido nuevo', mensaje: `Pedido #${numero_factura} — ${cliente_nombre || '—'}`, url: '/logistica/#pedidos' })
-        });
+        void notificarInterna({ usuario_id: u.id, modulo: 'logistica', tipo: 'pedido_nuevo', titulo: 'Pedido nuevo', mensaje: `Pedido #${numero_factura} — ${cliente_nombre || '—'}`, url: '/logistica/#pedidos', evento_id: `logistica-pedido-${result.rows[0].id}-${u.id}` })
+          .then(r => { if (!r.ok) console.warn('[notif] fallo:', r.error); });
       }
     } catch {}
   } catch (err) {

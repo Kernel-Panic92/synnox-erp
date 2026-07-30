@@ -2,6 +2,12 @@ let jwtToken = localStorage.getItem('platform_jwt');
 let user = null;
 const INSTALL_DIR = window.INSTALL_DIR || '';
 let _serverStatsTimer = null;
+let _serverStatsInFlight = false;
+let _notifPollTimer = null;
+let _notifInFlight = false;
+let _versionCheckTimer = null;
+let _visibilityListenerInstalled = false;
+let _clickOutsideListenerInstalled = false;
 
 function esc(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s||'')); return d.innerHTML; }
 
@@ -256,6 +262,7 @@ async function showLauncher() {
     }
   }
   initNotifPolling();
+  initVersionCheck();
   show('launcher-screen');
 }
 
@@ -560,7 +567,9 @@ async function cargarCommits() {
 
 async function cargarServerStats() {
   const w = document.getElementById('server-stats-widget');
-  if (!w) return;
+  if (!w || _serverStatsInFlight) return;
+  if (document.visibilityState !== 'visible') { _serverStatsTimer = setTimeout(() => { if (document.getElementById('launcher-screen').style.display !== 'none') cargarServerStats(); }, 30000); return; }
+  _serverStatsInFlight = true;
   clearTimeout(_serverStatsTimer);
   try {
     const cached = cacheGet('serverStats', 60000);
@@ -607,6 +616,7 @@ async function cargarServerStats() {
       </div>`;
     _serverStatsTimer = setTimeout(() => { if (document.getElementById('launcher-screen').style.display !== 'none') cargarServerStats(); }, 30000);
   } catch { w.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar stats</div>'; _serverStatsTimer = setTimeout(() => { if (document.getElementById('launcher-screen').style.display !== 'none') cargarServerStats(); }, 30000); }
+  finally { _serverStatsInFlight = false; }
 }
 
 function logout() {
@@ -614,6 +624,10 @@ function logout() {
   localStorage.removeItem('synnox_theme');
   jwtToken = null;
   user = null;
+  _ver = null;
+  if (_notifPollTimer) { clearInterval(_notifPollTimer); _notifPollTimer = null; }
+  if (_versionCheckTimer) { clearInterval(_versionCheckTimer); _versionCheckTimer = null; }
+  if (_serverStatsTimer) { clearTimeout(_serverStatsTimer); _serverStatsTimer = null; }
   fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
     show('login-screen');
     document.getElementById('login-user').value = '';
@@ -2101,36 +2115,61 @@ function timeSinceNotif(date) {
 function initNotifPolling() {
   cargarNotificaciones();
   if (_notifPollTimer) clearInterval(_notifPollTimer);
-  _notifPollTimer = setInterval(cargarNotificaciones, 60000);
-  document.addEventListener('click', function(e) {
-    var dd = document.getElementById('notif-dropdown');
-    var bell = document.querySelector('.notif-bell');
-    if (dd && !dd.contains(e.target) && !bell?.contains(e.target)) dd.classList.remove('show');
-  });
+  _notifPollTimer = setInterval(pollNotificaciones, 60000);
+
+  // Listener de visibility — solo instalar una vez
+  if (!_visibilityListenerInstalled) {
+    _visibilityListenerInstalled = true;
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        pollNotificaciones();
+        checkVersion();
+      }
+    });
+  }
+
+  // Click-outside — solo una vez
+  if (!_clickOutsideListenerInstalled) {
+    _clickOutsideListenerInstalled = true;
+    document.addEventListener('click', function(e) {
+      var dd = document.getElementById('notif-dropdown');
+      var bell = document.querySelector('.notif-bell');
+      if (dd && !dd.contains(e.target) && !bell?.contains(e.target)) dd.classList.remove('show');
+    });
+  }
+}
+
+function pollNotificaciones() {
+  if (_notifInFlight || document.visibilityState !== 'visible') return;
+  _notifInFlight = true;
+  cargarNotificaciones().finally(() => { _notifInFlight = false; });
 }
 
 // ── Auto-reload on server restart ──
-(function() {
-  var ver = null;
-  var banner = null;
-  function checkVersion() {
-    fetch('/api/version', { cache: 'no-store' }).then(function(r){ return r.json(); }).then(function(d){
-      if (d.v) {
-        if (ver === null) { ver = d.v; return; }
-        if (d.v !== ver) {
-          if (!banner) {
-            banner = document.createElement('div');
-            banner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9999;background:var(--surface2);border-top:2px solid var(--accent);padding:14px 20px;text-align:center;font-size:14px;animation:slideUp 0.3s ease;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;';
-            banner.innerHTML = '<span style="color:var(--text);">\uD83D\uDD04 Nueva versi\u00f3n disponible</span><button onclick="location.reload()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 20px;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;">Recargar ahora</button><span onclick="this.parentElement.style.display=\'none\'" style="color:var(--muted);font-size:20px;cursor:pointer;line-height:1;">\u00d7</span>';
-            document.body.appendChild(banner);
-          }
+var _ver = null;
+var _verBanner = null;
+function checkVersion() {
+  if (!jwtToken) return; // Sin sesión, no checkear
+  if (document.visibilityState !== 'visible') return;
+  fetch('/api/version', { cache: 'no-store' }).then(function(r){ return r.json(); }).then(function(d){
+    if (d.v) {
+      if (_ver === null) { _ver = d.v; return; }
+      if (d.v !== _ver) {
+        if (!_verBanner) {
+          _verBanner = document.createElement('div');
+          _verBanner.style.cssText = 'position:fixed;bottom:0;left:0;right:0;z-index:9999;background:var(--surface2);border-top:2px solid var(--accent);padding:14px 20px;text-align:center;font-size:14px;animation:slideUp 0.3s ease;display:flex;align-items:center;justify-content:center;gap:12px;flex-wrap:wrap;';
+          _verBanner.innerHTML = '<span style="color:var(--text);">\uD83D\uDD04 Nueva versi\u00f3n disponible</span><button onclick="location.reload()" style="background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 20px;font-family:var(--font);font-size:13px;font-weight:600;cursor:pointer;">Recargar ahora</button><span onclick="this.parentElement.style.display=\'none\'" style="color:var(--muted);font-size:20px;cursor:pointer;line-height:1;">\u00d7</span>';
+          document.body.appendChild(_verBanner);
         }
       }
-    }).catch(function(){});
-  }
+    }
+  }).catch(function(){});
+}
+function initVersionCheck() {
   checkVersion();
-  setInterval(checkVersion, 15000);
-})();
+  if (_versionCheckTimer) clearInterval(_versionCheckTimer);
+  _versionCheckTimer = setInterval(checkVersion, 30000);
+}
 
 // ── MCP Modules management (generic) ──
 async function loadMcpModulesStatus() {

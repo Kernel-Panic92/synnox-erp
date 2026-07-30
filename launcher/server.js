@@ -6,7 +6,9 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs');
 const crypto = require('crypto');
-const { execSync, execFileSync } = require('child_process');
+const { execSync, execFileSync, execFile } = require('child_process');
+const { promisify } = require('util');
+const execFileAsync = promisify(execFile);
 const mail = require('./mail');
 const rateLimit = require('express-rate-limit');
 const { verificarToken, soloAdmin, parseCookies, firmarToken } = require('./middleware/auth');
@@ -19,6 +21,29 @@ const publicLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHea
 const app = express();
 app.set('trust proxy', 1);
 app.use(express.json());
+
+// ── INTERNAL_API_TOKEN enforcement ──
+const INTERNAL_API_TOKEN = process.env.INTERNAL_API_TOKEN;
+if (!INTERNAL_API_TOKEN) {
+  if (process.env.NODE_ENV === 'production') {
+    console.error('[FATAL] INTERNAL_API_TOKEN no configurado en producción');
+    process.exit(1);
+  } else {
+    console.warn('[WARN] INTERNAL_API_TOKEN no configurado — notificaciones internas rechazadas');
+  }
+}
+
+function validarTokenInterno(req) {
+  if (!INTERNAL_API_TOKEN) return false;
+  const token = req.headers['x-internal-token'];
+  if (!token) return false;
+  try {
+    const a = Buffer.from(token, 'utf8');
+    const b = Buffer.from(INTERNAL_API_TOKEN, 'utf8');
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch { return false; }
+}
 
 function sanitizePath(input, base) {
   const resolved = path.resolve(base, input);
@@ -437,7 +462,19 @@ db.exec(`
 `);
 db.exec("CREATE INDEX IF NOT EXISTS idx_notif_usuario ON notificaciones(usuario_id)");
 db.exec("CREATE INDEX IF NOT EXISTS idx_notif_leida ON notificaciones(usuario_id, leida)");
-db.exec("DELETE FROM notificaciones WHERE id NOT IN (SELECT id FROM notificaciones ORDER BY id DESC LIMIT 200)");
+db.exec("CREATE INDEX IF NOT EXISTS idx_notif_fecha ON notificaciones(usuario_id, created_at DESC)");
+try { db.exec("ALTER TABLE notificaciones ADD COLUMN idempotency_key TEXT"); } catch {}
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_notif_idempotency ON notificaciones(idempotency_key) WHERE idempotency_key IS NOT NULL");
+
+// ── Limpieza de notificaciones >30 días ──
+function limpiarNotificaciones() {
+  try {
+    const r = db.prepare("DELETE FROM notificaciones WHERE created_at < datetime('now', '-30 days')").run();
+    if (r.changes) console.log(`[notif-cleanup] Eliminadas ${r.changes} notificaciones >30 días`);
+  } catch (e) { console.error('[notif-cleanup] Error:', e.message); }
+}
+limpiarNotificaciones();
+setInterval(limpiarNotificaciones, 24 * 60 * 60 * 1000);
 
 // Seed default permission configs for known modules
 const defaultPermisosConfig = {
@@ -1890,24 +1927,38 @@ app.delete('/api/notificaciones/:id', verificarToken, (req, res) => {
 
 app.post('/api/notificaciones/crear', (req, res) => {
   try {
-    // Bypass auth for internal requests (localhost)
-    const ip = req.ip || req.connection?.remoteAddress || '';
-    const isInternal = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip.includes('127.0.0.1');
-    console.log(`[notif-crear] ip=${ip} isInternal=${isInternal} body=`, JSON.stringify(req.body).substring(0, 200));
-    if (!isInternal) {
-      // External requests need auth
+    const isInternal = validarTokenInterno(req);
+    if (isInternal) {
+      // Internal request — authenticated via X-Internal-Token
+    } else {
+      // External request — require admin JWT
       const token = req.headers.authorization?.replace('Bearer ', '') || req.cookies?.launcher_jwt;
       if (!token) return res.status(401).json({ error: 'No autenticado' });
       try {
-        const jwt = require('jsonwebtoken');
-        jwt.verify(token, process.env.JWT_SECRET);
+        const decoded = jwt.verify(token, process.env.JWT_SECRET);
+        if (decoded.rol !== 'admin') return res.status(403).json({ error: 'Solo admin puede crear notificaciones' });
       } catch { return res.status(401).json({ error: 'Token inválido' }); }
     }
-    const { usuario_id, modulo, tipo, titulo, mensaje, url } = req.body;
+
+    const { usuario_id, modulo, tipo, titulo, mensaje, url, idempotency_key } = req.body;
     if (!usuario_id || !modulo || !tipo || !titulo || !mensaje) {
       return res.status(400).json({ error: 'Faltan campos requeridos' });
     }
-    const result = db.prepare('INSERT INTO notificaciones (usuario_id, modulo, tipo, titulo, mensaje, url) VALUES (?, ?, ?, ?, ?, ?)').run(usuario_id, modulo, tipo, titulo, mensaje, url || null);
+    if (modulo.length > 30 || tipo.length > 50 || titulo.length > 200 || mensaje.length > 500 || (url && url.length > 300)) {
+      return res.status(400).json({ error: 'Campos exceden longitud máxima' });
+    }
+    const usuarioExiste = db.prepare('SELECT id FROM usuarios WHERE id = ? AND activo = 1').get(usuario_id);
+    if (!usuarioExiste) return res.status(400).json({ error: 'Usuario destino no existe o está inactivo' });
+
+    console.log(`[notif-crear] internal=${isInternal} tipo=${tipo} usuario_id=${usuario_id}`);
+
+    if (idempotency_key) {
+      const existente = db.prepare('SELECT id FROM notificaciones WHERE idempotency_key = ?').get(idempotency_key);
+      if (existente) return res.json({ ok: true, id: existente.id, duplicada: true });
+    }
+
+    const result = db.prepare('INSERT INTO notificaciones (usuario_id, modulo, tipo, titulo, mensaje, url, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?)')
+      .run(usuario_id, modulo, tipo, titulo, mensaje, url || null, idempotency_key || null);
     res.json({ ok: true, id: result.lastInsertRowid });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
@@ -2595,14 +2646,18 @@ app.get('/api/admin/mcp-modules/:id/logs', verificarToken, soloAdmin, async (req
 // ── Server Stats ──
 const os = require('os');
 
-app.get('/api/admin/server/stats', verificarToken, soloAdmin, (req, res) => {
+app.get('/api/admin/server/stats', verificarToken, soloAdmin, async (req, res) => {
   try {
     const cpus = os.cpus();
     const loadAvg = os.loadavg();
     const totalMem = os.totalmem();
     const freeMem = os.freemem();
-    let disk = '';
-    try { disk = execSync('df -h / | tail -1', { stdio: 'pipe', timeout: 3000 }).toString().trim().split(/\s+/); } catch {}
+    let disk = null;
+    try {
+      const { stdout } = await execFileAsync('df', ['-h', '/'], { timeout: 3000 });
+      const parts = stdout.trim().split('\n').pop().split(/\s+/);
+      if (parts.length >= 6) disk = { size: parts[1], used: parts[2], avail: parts[3], usePct: parts[4], mount: parts[5] };
+    } catch {}
     res.json({
       hostname: os.hostname(),
       platform: os.platform(),
@@ -2611,7 +2666,7 @@ app.get('/api/admin/server/stats', verificarToken, soloAdmin, (req, res) => {
       cpuModel: cpus[0]?.model || '',
       cpuLoad: loadAvg,
       memory: { total: totalMem, free: freeMem, used: totalMem - freeMem },
-      disk: disk.length >= 6 ? { size: disk[1], used: disk[2], avail: disk[3], usePct: disk[4], mount: disk[5] } : null,
+      disk,
       node: process.version
     });
   } catch (err) { res.status(500).json({ error: err.message }); }
