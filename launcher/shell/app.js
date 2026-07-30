@@ -243,27 +243,16 @@ async function showLauncher() {
     cargarServerStats();
     cargarCommits();
     cargarQuickActions();
-    cargarModuleSummary();
-    cargarPendingTasks();
-    cargarAlerts();
-    cargarUpcoming();
-    cargarWeather();
+    cargarModuleStatus();
+    cargarNotificacionesWidget();
     cargarActivity();
   } else {
     document.getElementById('server-stats-widget').style.display = 'none';
-    // Gerente: ver modulos, tareas pendientes, alertas, upcoming
     if (user?.rol === 'gerente') {
       cargarQuickActions();
-      cargarModuleSummary();
-      cargarPendingTasks();
-      cargarAlerts();
-      cargarUpcoming();
+      cargarNotificacionesWidget();
     } else {
-      // Operador: modulos y quick actions (sin acceso a tareas de otros módulos)
       cargarQuickActions();
-      document.getElementById('module-summary-widget').style.display = 'none';
-      document.getElementById('pending-tasks-widget').style.display = 'none';
-      document.getElementById('alerts-widget').style.display = 'none';
     }
   }
   initNotifPolling();
@@ -630,6 +619,67 @@ function logout() {
     document.getElementById('login-user').value = '';
     document.getElementById('login-pass').value = '';
   });
+}
+
+// ── Widget: Estado de módulos ──
+async function cargarModuleStatus() {
+  const w = document.getElementById('module-status-widget');
+  if (!w) return;
+  try {
+    const cached = cacheGet('moduleStatus', 30000);
+    let mods = cached;
+    if (!mods) {
+      const res = await fetch('/api/admin/health', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+      if (!res.ok) { w.style.display = 'none'; return; }
+      mods = await res.json();
+      cacheSet('moduleStatus', mods);
+    }
+    if (!Array.isArray(mods) || !mods.length) { w.style.display = 'none'; return; }
+    w.style.display = 'block';
+    w.innerHTML = `
+      <h2 style="margin-bottom:12px;">📊 Estado de Módulos</h2>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:10px;">
+        ${mods.map(m => {
+          const online = m.estado === 'online';
+          return `<div style="padding:12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);">
+            <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+              <span style="width:8px;height:8px;border-radius:50%;background:${online ? 'var(--success)' : 'var(--danger)'};"></span>
+              <strong style="font-size:13px;">${esc(m.nombre)}</strong>
+            </div>
+            <div style="font-size:11px;color:var(--muted);">${online ? 'Online' : 'Offline'}${m.error ? ' — ' + esc(m.error) : ''}</div>
+          </div>`;
+        }).join('')}
+      </div>`;
+  } catch { w.style.display = 'none'; }
+}
+
+// ── Widget: Notificaciones recientes ──
+async function cargarNotificacionesWidget() {
+  const w = document.getElementById('notif-widget');
+  if (!w) return;
+  try {
+    const res = await fetch('/api/notificaciones', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) { w.style.display = 'none'; return; }
+    const { notificaciones } = await res.json();
+    if (!notificaciones?.length) { w.style.display = 'none'; return; }
+    const icons = { tarea_asignada: '📋', tarea_vencida: '⏰', proyecto_aprobado: '✅', proyecto_rechazado: '❌', comentario: '💬', factura_nueva: '📄', factura_vencida: '⚠️', ruta_asignada: '🛣️', backup: '💾', sistema: '⚙️' };
+    w.style.display = 'block';
+    w.innerHTML = `
+      <h2 style="margin-bottom:12px;">🔔 Notificaciones</h2>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        ${notificaciones.slice(0, 5).map(n => {
+          const timeAgo = timeSinceNotif(new Date(n.created_at));
+          return `<div style="display:flex;align-items:center;gap:10px;padding:10px 14px;background:var(--surface);border:1px solid var(--border);border-radius:8px;${n.leida ? '' : 'border-left:3px solid var(--accent);'}">
+            <span style="font-size:18px;">${icons[n.tipo] || '🔔'}</span>
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:13px;font-weight:600;">${esc(n.titulo)}</div>
+              <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${esc(n.mensaje)}</div>
+            </div>
+            <span style="font-size:11px;color:var(--muted);white-space:nowrap;">${timeAgo}</span>
+          </div>`;
+        }).join('')}
+      </div>`;
+  } catch { w.style.display = 'none'; }
 }
 
 // ── Admin ──
