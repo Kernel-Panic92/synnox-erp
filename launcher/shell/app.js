@@ -635,19 +635,22 @@ async function cargarServerStats(sig) {
 }
 
 function logout() {
+  // Clear state immediately (non-blocking)
   localStorage.removeItem('platform_jwt');
   localStorage.removeItem('synnox_theme');
+  invalidateUsersCache();
   jwtToken = null;
   user = null;
   _ver = null;
   if (_notifPollTimer) { clearInterval(_notifPollTimer); _notifPollTimer = null; }
   if (_versionCheckTimer) { clearInterval(_versionCheckTimer); _versionCheckTimer = null; }
   if (_serverStatsTimer) { clearTimeout(_serverStatsTimer); _serverStatsTimer = null; }
-  fetch('/api/auth/logout', { method: 'POST' }).finally(() => {
-    show('login-screen');
-    document.getElementById('login-user').value = '';
-    document.getElementById('login-pass').value = '';
-  });
+  // Show login immediately — don't wait for server
+  show('login-screen');
+  document.getElementById('login-user').value = '';
+  document.getElementById('login-pass').value = '';
+  // Fire-and-forget logout to server
+  fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
 }
 
 // ── Widget: Estado de módulos ──
@@ -727,33 +730,36 @@ function showAdmin() {
 
 let _usersCache = null;
 let _usersCacheTime = 0;
+const USERS_CACHE_TTL = 120000; // 2 minutos
 
 function getUsersCache() {
-  if (_usersCache && (Date.now() - _usersCacheTime) < 30000) return _usersCache;
+  // Memory cache first
+  if (_usersCache && (Date.now() - _usersCacheTime) < USERS_CACHE_TTL) return _usersCache;
+  // sessionStorage fallback
   try {
-    const raw = sessionStorage.getItem('users_cache');
+    const raw = sessionStorage.getItem('synnox_users_cache');
     if (raw) {
-      const { data, ts } = JSON.parse(raw);
-      if (data && (Date.now() - ts) < 30000) {
-        _usersCache = data;
-        _usersCacheTime = ts;
-        return data;
+      const parsed = JSON.parse(raw);
+      if (parsed.data && parsed.ts && (Date.now() - parsed.ts) < USERS_CACHE_TTL) {
+        _usersCache = parsed.data;
+        _usersCacheTime = parsed.ts;
+        return parsed.data;
       }
     }
-  } catch {}
+  } catch (e) { sessionStorage.removeItem('synnox_users_cache'); }
   return null;
 }
 
 function setUsersCache(data) {
   _usersCache = data;
   _usersCacheTime = Date.now();
-  try { sessionStorage.setItem('users_cache', JSON.stringify({ data, ts: _usersCacheTime })); } catch {}
+  try { sessionStorage.setItem('synnox_users_cache', JSON.stringify({ data, ts: _usersCacheTime })); } catch {}
 }
 
 function invalidateUsersCache() {
   _usersCache = null;
   _usersCacheTime = 0;
-  try { sessionStorage.removeItem('users_cache'); } catch {}
+  try { sessionStorage.removeItem('synnox_users_cache'); } catch {}
 }
 
 async function loadUsers(force) {
