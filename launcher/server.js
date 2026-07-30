@@ -90,10 +90,11 @@ app.get('/api/track', (req, res) => {
   }
 });
 
-app.get('/api/admin/commits', verificarToken, soloAdmin, (req, res) => {
+app.get('/api/admin/commits', verificarToken, soloAdmin, async (req, res) => {
   try {
     const limit = String(Math.min(parseInt(req.query.limit) || 10, 50));
-    const log = execFileSync('git', ['log', `--oneline -${limit}`, '--format=%H|%s|%ai'], { cwd: LAUNCHER_DIR, stdio: 'pipe', encoding: 'utf8' }).stdout.trim();
+    const { stdout } = await execFileAsync('git', ['log', `--oneline -${limit}`, '--format=%H|%s|%ai'], { cwd: LAUNCHER_DIR, timeout: 5000 });
+    const log = stdout.trim();
     const commits = log.split('\n').filter(Boolean).map(line => {
       const [hash, message, date] = line.split('|');
       return { hash, message, date };
@@ -695,16 +696,14 @@ app.put('/api/admin/config', verificarToken, soloAdmin, (req, res) => {
   res.json({ ok: true });
 });
 
-app.post('/api/admin/config/test-ssh', verificarToken, soloAdmin, (req, res) => {
+app.post('/api/admin/config/test-ssh', verificarToken, soloAdmin, async (req, res) => {
   const { host, user } = req.body;
   if (!host) return res.json({ ok: false, error: 'Host requerido' });
-  // Validate host: only alphanumeric, dots, hyphens, underscores
   if (!/^[a-zA-Z0-9._-]+$/.test(host)) return res.json({ ok: false, error: 'Host inválido' });
-  // Validate user: only alphanumeric, hyphens, underscores
   if (user && !/^[a-zA-Z0-9_-]+$/.test(user)) return res.json({ ok: false, error: 'Usuario inválido' });
   try {
-    const out = execFileSync('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', (user || 'root') + '@' + host, 'pm2', '--version'], { stdio: 'pipe', timeout: 15000, encoding: 'utf8' }).stdout.trim();
-    res.json({ ok: true, version: out, message: 'Conexión SSH exitosa' });
+    const { stdout } = await execFileAsync('ssh', ['-o', 'StrictHostKeyChecking=no', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=5', (user || 'root') + '@' + host, 'pm2', '--version'], { timeout: 15000 });
+    res.json({ ok: true, version: stdout.trim(), message: 'Conexión SSH exitosa' });
   } catch (e) {
     res.json({ ok: false, error: 'No se pudo conectar vía SSH: ' + (e.message || 'error') });
   }
@@ -2348,20 +2347,22 @@ function getUpdaterLog() {
   try { return fs.readFileSync(UPDATER_LOG, 'utf8'); } catch { return ''; }
 }
 
-app.get('/api/admin/updater/status', verificarToken, soloAdmin, (req, res) => {
+app.get('/api/admin/updater/status', verificarToken, soloAdmin, async (req, res) => {
   try {
-    const branch = execSync('git rev-parse --abbrev-ref HEAD', { cwd: LAUNCHER_DIR }).toString().trim();
-    const currentCommit = execSync('git rev-parse --short HEAD', { cwd: LAUNCHER_DIR }).toString().trim();
-    res.json({ ok: true, branch, currentCommit });
+    const { stdout: branch } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { cwd: LAUNCHER_DIR, timeout: 5000 });
+    const { stdout: commit } = await execFileAsync('git', ['rev-parse', '--short', 'HEAD'], { cwd: LAUNCHER_DIR, timeout: 5000 });
+    res.json({ ok: true, branch: branch.trim(), currentCommit: commit.trim() });
   } catch (err) { res.json({ ok: false, error: err.message }); }
 });
 
-app.post('/api/admin/updater/check', verificarToken, soloAdmin, (req, res) => {
+app.post('/api/admin/updater/check', verificarToken, soloAdmin, async (req, res) => {
   try {
     logUpdater('Verificando actualizaciones...');
-    execSync('git fetch origin --prune', { cwd: LAUNCHER_DIR, stdio: 'pipe' });
-    const currentCommit = execSync('git rev-parse --short HEAD', { cwd: LAUNCHER_DIR }).toString().trim();
-    const remoteCommit = execSync('git rev-parse --short origin/main', { cwd: LAUNCHER_DIR }).toString().trim();
+    await execFileAsync('git', ['fetch', 'origin', '--prune'], { cwd: LAUNCHER_DIR, timeout: 30000 });
+    const { stdout: currentOut } = await execFileAsync('git', ['rev-parse', '--short', 'HEAD'], { cwd: LAUNCHER_DIR, timeout: 5000 });
+    const { stdout: remoteOut } = await execFileAsync('git', ['rev-parse', '--short', 'origin/main'], { cwd: LAUNCHER_DIR, timeout: 5000 });
+    const currentCommit = currentOut.trim();
+    const remoteCommit = remoteOut.trim();
     logUpdater(`Local: ${currentCommit} | Remote: ${remoteCommit}`);
     const behind = currentCommit !== remoteCommit ? 1 : 0;
     let changes = [];
