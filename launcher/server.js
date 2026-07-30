@@ -1853,7 +1853,7 @@ init();
 // ── API: Notificaciones ──
 app.get('/api/notificaciones', verificarToken, (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.usuario.id;
     const rows = db.prepare('SELECT * FROM notificaciones WHERE usuario_id = ? ORDER BY created_at DESC LIMIT 50').all(userId);
     res.json({ notificaciones: rows });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -1861,7 +1861,7 @@ app.get('/api/notificaciones', verificarToken, (req, res) => {
 
 app.get('/api/notificaciones/no-leidas', verificarToken, (req, res) => {
   try {
-    const userId = req.user.id;
+    const userId = req.usuario.id;
     const row = db.prepare('SELECT COUNT(*) as count FROM notificaciones WHERE usuario_id = ? AND leida = 0').get(userId);
     res.json({ count: row.count });
   } catch (err) { res.status(500).json({ error: err.message }); }
@@ -1869,21 +1869,21 @@ app.get('/api/notificaciones/no-leidas', verificarToken, (req, res) => {
 
 app.put('/api/notificaciones/:id/leer', verificarToken, (req, res) => {
   try {
-    db.prepare('UPDATE notificaciones SET leida = 1 WHERE id = ? AND usuario_id = ?').run(req.params.id, req.user.id);
+    db.prepare('UPDATE notificaciones SET leida = 1 WHERE id = ? AND usuario_id = ?').run(req.params.id, req.usuario.id);
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.put('/api/notificaciones/leer-todas', verificarToken, (req, res) => {
   try {
-    db.prepare('UPDATE notificaciones SET leida = 1 WHERE usuario_id = ? AND leida = 0').run(req.user.id);
+    db.prepare('UPDATE notificaciones SET leida = 1 WHERE usuario_id = ? AND leida = 0').run(req.usuario.id);
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
 app.delete('/api/notificaciones/:id', verificarToken, (req, res) => {
   try {
-    db.prepare('DELETE FROM notificaciones WHERE id = ? AND usuario_id = ?').run(req.params.id, req.user.id);
+    db.prepare('DELETE FROM notificaciones WHERE id = ? AND usuario_id = ?').run(req.params.id, req.usuario.id);
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
