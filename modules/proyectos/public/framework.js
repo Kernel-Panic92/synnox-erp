@@ -367,10 +367,10 @@ function clearTableFilters(containerId) {
 
 // ── Notifications ──
 var _notifPollTimer = null;
-var _notifAPI = '';
+var _notifAPI = '/api';
 
 function cargarNotificaciones() {
-  var base = _notifAPI || '';
+  var base = _notifAPI || '/api';
   return fetch(base + '/notificaciones/no-leidas', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} })
     .then(function(r) { return r.ok ? r.json() : null; })
     .then(function(d) { if (d) { var b = document.getElementById('notif-count'); if (b) b.textContent = d.count > 0 ? (d.count > 99 ? '99+' : d.count) : ''; } })
@@ -383,7 +383,7 @@ function toggleNotifDropdown() {
   var isOpen = dd.classList.contains('show');
   dd.classList.toggle('show');
   if (!isOpen) {
-    var base = _notifAPI || '';
+    var base = _notifAPI || '/api';
     fetch(base + '/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} })
       .then(function(r) { return r.ok ? r.json() : null; })
       .then(function(d) {
@@ -405,14 +405,14 @@ function toggleNotifDropdown() {
 }
 
 function marcarNotifLeida(id, url) {
-  var base = _notifAPI || '';
+  var base = _notifAPI || '/api';
   fetch(base + '/notificaciones/' + id + '/leer', { method: 'PUT', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} })
     .then(function() { cargarNotificaciones(); if (url) window.location.href = url; var dd = document.getElementById('notif-dropdown'); if (dd) dd.classList.remove('show'); })
     .catch(function() {});
 }
 
 function marcarTodasLeidas() {
-  var base = _notifAPI || '';
+  var base = _notifAPI || '/api';
   fetch(base + '/notificaciones/leer-todas', { method: 'PUT', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} })
     .then(function() { cargarNotificaciones(); var dd = document.getElementById('notif-dropdown'); if (dd) dd.classList.remove('show'); })
     .catch(function() {});
