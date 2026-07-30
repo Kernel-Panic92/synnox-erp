@@ -8,12 +8,14 @@ let _notifInFlight = false;
 let _versionCheckTimer = null;
 let _visibilityListenerInstalled = false;
 let _clickOutsideListenerInstalled = false;
+let _widgetAbort = null;
 
 function fetchAuth(url, opts = {}) {
+  const { timeout = 15000, ...rest } = opts;
   return fetch(url, {
-    signal: opts.signal || AbortSignal.timeout(opts.timeout || 10000),
-    ...opts,
-    headers: { 'Authorization': 'Bearer ' + jwtToken, ...opts.headers }
+    signal: rest.signal || AbortSignal.timeout(timeout),
+    ...rest,
+    headers: { 'Authorization': 'Bearer ' + jwtToken, ...(rest.headers || {}) }
   });
 }
 
@@ -245,6 +247,11 @@ function renderModulos(grid, mods) {
 }
 
 async function showLauncher() {
+  // Cancel any pending admin fetches
+  if (_widgetAbort) _widgetAbort.abort();
+  _widgetAbort = new AbortController();
+  const sig = _widgetAbort.signal;
+
   document.getElementById('launcher-user').innerHTML = esc(user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
   document.getElementById('launcher-role').textContent = user?.perfil_nombre || user?.rol || '';
 
@@ -254,19 +261,19 @@ async function showLauncher() {
 
   // Admin-only widgets
   if (user?.rol === 'admin') {
-    cargarServerStats();
-    cargarCommits();
-    cargarQuickActions();
-    cargarModuleStatus();
+    cargarServerStats(sig);
+    cargarCommits(sig);
+    cargarQuickActions(sig);
+    cargarModuleStatus(sig);
     cargarNotificacionesWidget();
-    cargarActivity();
+    cargarActivity(sig);
   } else {
     document.getElementById('server-stats-widget').style.display = 'none';
     if (user?.rol === 'gerente') {
-      cargarQuickActions();
+      cargarQuickActions(sig);
       cargarNotificacionesWidget();
     } else {
-      cargarQuickActions();
+      cargarQuickActions(sig);
     }
   }
   initNotifPolling();
@@ -510,14 +517,14 @@ function cargarWeather() {
   } else { w.style.display = 'none'; }
 }
 
-async function cargarActivity() {
+async function cargarActivity(sig) {
   const w = document.getElementById('activity-widget');
   if (!w) return;
   try {
     const cached = cacheGet('activity', 60000);
     let logs = cached;
     if (!logs) {
-      const res = await fetchAuth('/api/admin/login-logs');
+      const res = await fetchAuth('/api/admin/login-logs', { signal: sig || AbortSignal.timeout(15000) });
       if (!res.ok) { w.style.display = 'none'; return; }
       const data = await res.json();
       logs = data.logs || data.rows || data || [];
@@ -542,14 +549,14 @@ async function cargarActivity() {
   } catch { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
 }
 
-async function cargarCommits() {
+async function cargarCommits(sig) {
   const w = document.getElementById('commits-widget');
   if (!w) return;
   try {
     const cached = cacheGet('commits', 120000);
     let data = cached;
     if (!data) {
-      const res = await fetchAuth('/api/admin/commits?limit=8');
+      const res = await fetchAuth('/api/admin/commits?limit=8', { signal: sig || AbortSignal.timeout(15000) });
       if (!res.ok) { w.style.display = 'none'; return; }
       data = await res.json();
       if (data.ok) cacheSet('commits', data);
@@ -573,7 +580,7 @@ async function cargarCommits() {
   } catch { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
 }
 
-async function cargarServerStats() {
+async function cargarServerStats(sig) {
   const w = document.getElementById('server-stats-widget');
   if (!w || _serverStatsInFlight) return;
   if (document.visibilityState !== 'visible') { _serverStatsTimer = setTimeout(() => { if (document.getElementById('launcher-screen').style.display !== 'none') cargarServerStats(); }, 30000); return; }
@@ -583,7 +590,7 @@ async function cargarServerStats() {
     const cached = cacheGet('serverStats', 60000);
     let s = cached;
     if (!s) {
-      const res = await fetchAuth('/api/admin/server/stats');
+      const res = await fetchAuth('/api/admin/server/stats', { signal: sig || AbortSignal.timeout(15000) });
       if (!res.ok) { w.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar stats</div>'; _serverStatsTimer = setTimeout(() => { if (document.getElementById('launcher-screen').style.display !== 'none') cargarServerStats(); }, 30000); return; }
       s = await res.json();
       cacheSet('serverStats', s);
@@ -644,14 +651,14 @@ function logout() {
 }
 
 // ── Widget: Estado de módulos ──
-async function cargarModuleStatus() {
+async function cargarModuleStatus(sig) {
   const w = document.getElementById('module-status-widget');
   if (!w) return;
   try {
     const cached = cacheGet('moduleStatus', 30000);
     let mods = cached;
     if (!mods) {
-      const res = await fetchAuth('/api/admin/health');
+      const res = await fetchAuth('/api/admin/health', { signal: sig || AbortSignal.timeout(15000) });
       if (!res.ok) { w.style.display = 'none'; return; }
       mods = await res.json();
       cacheSet('moduleStatus', mods);
@@ -706,6 +713,8 @@ async function cargarNotificacionesWidget() {
 
 // ── Admin ──
 function showAdmin() {
+  // Cancel pending launcher widget fetches
+  if (_widgetAbort) _widgetAbort.abort();
   const userNameEl = document.getElementById('admin-sidebar-user');
   const userRoleEl = document.getElementById('admin-sidebar-role');
   const versionEl = document.getElementById('admin-sidebar-version');
