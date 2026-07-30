@@ -1,6 +1,45 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (29 Jul 2026 — sesión 25)
+## Estado (30 Jul 2026 — sesión 26)
+
+### Cambios Sesión 26 — Dashboard, notificaciones módulos, fixes
+
+#### Fix Issues cerrados
+- **#82**: Errores 500 en dashboard (req.user → req.usuario, migración proveedores)
+- **#81**: Sistema de notificaciones implementado en los 4 módulos
+- **#69**: Google Maps usa endpoint público (sin auth) para cargar API key
+
+#### Dashboard launcher mejorado
+- Eliminados widgets lentos: ModuleSummary, PendingTasks, Alerts, Upcoming, Weather
+- Agregados widgets rápidos: Estado de módulos (health check local), Notificaciones
+- Widgets mantenidos: ServerStats, Commits, Activity, QuickActions
+- Cache localStorage para datos estáticos (30s-120s)
+
+#### Notificaciones en todos los módulos
+- **Nómina**: Registro creado → notifica gerentes/admins; aprobado/rechazado → notifica al creador
+- **Proveedores**: Factura creada → notifica a admins/contadores
+- **Logística**: Pedido nuevo → notifica a admins
+- **Proyectos**: Tarea asignada/aprobada/rechazada (ya implementado en sesión 25)
+- Campana 🔔 en sidebar de cada módulo con dropdown
+- Auto-poll 60s para actualizar badge
+
+#### Fix Google Maps
+- API key se carga desde endpoint público (sin auth) al recargar la página
+- Antes usaba endpoint con auth que fallaba si el token expiraba
+
+### Pendientes nuevos
+- [ ] Integrar notificaciones con cron jobs (vencimientos, recordatorios)
+- [ ] Preferencias de notificaciones por usuario
+- [ ] Limpieza automática de notificaciones antiguas (>30 días)
+
+### Pendientes anteriores (actualizados)
+- [ ] Observabilidad centralizada (tabla `auditoria_central`)
+- [ ] SSH `execSync` → `ssh2` (test-ssh)
+- [ ] CSP nonce en proveedores
+- [ ] Dividir `launcher/server.js` (~2800 líneas → routers separados)
+- [ ] ESLint + Prettier config
+- [ ] Limpiar `.env` legacy
+- [ ] Actualizar docs restantes
 
 ### Cambios Sesión 25 — Seguridad, permisos, notificaciones, UX Proyectos
 
