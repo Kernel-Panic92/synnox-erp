@@ -728,20 +728,46 @@ function showAdmin() {
 let _usersCache = null;
 let _usersCacheTime = 0;
 
+function getUsersCache() {
+  if (_usersCache && (Date.now() - _usersCacheTime) < 30000) return _usersCache;
+  try {
+    const raw = sessionStorage.getItem('users_cache');
+    if (raw) {
+      const { data, ts } = JSON.parse(raw);
+      if (data && (Date.now() - ts) < 30000) {
+        _usersCache = data;
+        _usersCacheTime = ts;
+        return data;
+      }
+    }
+  } catch {}
+  return null;
+}
+
+function setUsersCache(data) {
+  _usersCache = data;
+  _usersCacheTime = Date.now();
+  try { sessionStorage.setItem('users_cache', JSON.stringify({ data, ts: _usersCacheTime })); } catch {}
+}
+
+function invalidateUsersCache() {
+  _usersCache = null;
+  _usersCacheTime = 0;
+  try { sessionStorage.removeItem('users_cache'); } catch {}
+}
+
 async function loadUsers(force) {
   const tbody = document.querySelector('#users-table tbody');
-  // Use cache if fresh (< 30s) and not forced
-  if (!force && _usersCache && (Date.now() - _usersCacheTime) < 30000) {
-    renderUsersTable(_usersCache);
-    return;
+  if (!force) {
+    const cached = getUsersCache();
+    if (cached) { renderUsersTable(cached); return; }
   }
   tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px;">Cargando...</td></tr>';
   try {
     const res = await fetchAuth('/api/admin/usuarios');
     if (!res.ok) throw new Error('Error al cargar usuarios');
     const users = await res.json();
-    _usersCache = users;
-    _usersCacheTime = Date.now();
+    setUsersCache(users);
     renderUsersTable(users);
   } catch (e) {
     toast(e.message, 'error');
@@ -883,7 +909,7 @@ async function saveUser() {
     } else {
       toast(id ? 'Usuario actualizado' : 'Usuario creado', 'success');
     }
-    loadUsers(true);
+    invalidateUsersCache(); loadUsers(true);
   } catch (e) {
     showError(errEl, e.message);
   }
@@ -1024,7 +1050,7 @@ async function deleteUser(id) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error || 'Error al desactivar');
     }
-    loadUsers(true);
+    invalidateUsersCache(); loadUsers(true);
   } catch (e) {
     toast(e.message, 'error');
   }
@@ -1043,7 +1069,7 @@ async function reactivateUser(id) {
       throw new Error(data.error || 'Error al reactivar');
     }
     toast('Usuario reactivado', 'success');
-    loadUsers(true);
+    invalidateUsersCache(); loadUsers(true);
   } catch (e) {
     toast(e.message, 'error');
   }
@@ -1060,7 +1086,7 @@ async function deleteUserPermanent(id) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error || 'Error al eliminar');
     }
-    loadUsers(true);
+    invalidateUsersCache(); loadUsers(true);
   } catch (e) {
     toast(e.message, 'error');
   }
@@ -1104,7 +1130,7 @@ async function doImportCsv() {
     toast(msg, data.errors > 0 ? 'warning' : 'success');
     if (data.details?.length) console.warn('[CSV Import]', data.details);
     cerrarModal('modal-import-csv');
-    loadUsers(true);
+    invalidateUsersCache(); loadUsers(true);
   } catch (e) {
     toast(e.message, 'error');
   }
