@@ -12,21 +12,56 @@ function soloAdminGerente(req, res, next) {
   next();
 }
 
+const LAUNCHER_URL = process.env.LAUNCHER_URL || 'http://localhost:3002';
+
+let _usersCache = null;
+let _usersCacheTs = 0;
+const USERS_CACHE_TTL = 60000;
+
+async function getLauncherUsers() {
+  const now = Date.now();
+  if (_usersCache && (now - _usersCacheTs) < USERS_CACHE_TTL) return _usersCache;
+  try {
+    const res = await fetch(`${LAUNCHER_URL}/api/usuarios/public`, { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      const data = await res.json();
+      _usersCache = Array.isArray(data) ? data : (data.usuarios || []);
+      _usersCacheTs = now;
+      return _usersCache;
+    }
+  } catch {}
+  return [];
+}
+
+async function getTareasConUsuarios(query, params) {
+  const result = await pool.query(query, params);
+  const users = await getLauncherUsers();
+  return result.rows.map(t => {
+    if (t.asignado_a) {
+      const user = users.find(u => u.id === t.asignado_a);
+      if (user) {
+        t.asignado_email = user.email;
+        t.asignado_nombre = user.nombre;
+      }
+    }
+    return t;
+  });
+}
+
 // ─── Alertas de vencimiento (tareas sin avance próximas a vencer) ───
 router.get('/alertas/vencimiento', requirePermiso('ver', 'proyectos'), async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT t.*, p.nombre AS proyecto_nombre, u.email AS asignado_email, u.nombre AS asignado_nombre
+    const tareas = await getTareasConUsuarios(
+      `SELECT t.*, p.nombre AS proyecto_nombre
        FROM projects.tareas t
        LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id
-       LEFT JOIN launcher.usuarios u ON u.id = t.asignado_a
        WHERE t.estado NOT IN ('completada')
          AND t.fecha_limite IS NOT NULL
          AND t.fecha_limite <= CURRENT_DATE + INTERVAL '3 days'
          AND (t.horas_invertidas = 0 OR t.horas_invertidas IS NULL)
        ORDER BY t.fecha_limite ASC`
     );
-    res.json({ exitosa: true, tareas: result.rows, total: result.rows.length });
+    res.json({ exitosa: true, tareas, total: tareas.length });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -35,11 +70,10 @@ router.get('/alertas/vencimiento', requirePermiso('ver', 'proyectos'), async (re
 // ─── Enviar alertas de vencimiento por email ───
 router.post('/alertas/vencimiento/enviar', requirePermiso('configurar', 'proyectos'), soloAdminGerente, async (req, res) => {
   try {
-    const result = await pool.query(
-      `SELECT t.*, p.nombre AS proyecto_nombre, u.email AS asignado_email, u.nombre AS asignado_nombre
+    const tareas = await getTareasConUsuarios(
+      `SELECT t.*, p.nombre AS proyecto_nombre
        FROM projects.tareas t
        LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id
-       LEFT JOIN launcher.usuarios u ON u.id = t.asignado_a
        WHERE t.estado NOT IN ('completada')
          AND t.fecha_limite IS NOT NULL
          AND t.fecha_limite <= CURRENT_DATE + INTERVAL '3 days'
@@ -47,7 +81,6 @@ router.post('/alertas/vencimiento/enviar', requirePermiso('configurar', 'proyect
        ORDER BY t.fecha_limite ASC`
     );
 
-    const tareas = result.rows;
     if (tareas.length === 0) {
       return res.json({ exitosa: true, enviados: 0, mensaje: 'No hay tareas pendientes de vencimiento' });
     }
@@ -90,9 +123,8 @@ router.post('/alertas/vencimiento/enviar', requirePermiso('configurar', 'proyect
 
     // Also notify gerentes/admins
     try {
-      const { rows: admins } = await pool.query(
-        `SELECT email FROM launcher.usuarios WHERE rol IN ('admin','gerente') AND activo = 1`
-      );
+      const users = await getLauncherUsers();
+      const admins = users.filter(u => ['admin', 'gerente'].includes(u.rol));
       for (const admin of admins) {
         if (admin.email) {
           await enviarCorreo(
@@ -156,9 +188,8 @@ router.post('/alertas/resumen/enviar', requirePermiso('configurar', 'proyectos')
 
     const html = templateResumenSemanal({ proyectos: proyectosResult.rows, stats });
 
-    const { rows: admins } = await pool.query(
-      `SELECT email FROM launcher.usuarios WHERE rol IN ('admin','gerente') AND activo = 1`
-    );
+    const users = await getLauncherUsers();
+    const admins = users.filter(u => ['admin', 'gerente'].includes(u.rol));
 
     let enviados = 0;
     for (const admin of admins) {

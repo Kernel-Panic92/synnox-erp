@@ -10,6 +10,32 @@ function esc(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// Cache simple de usuarios del launcher
+let _usersCache = null;
+let _usersCacheTs = 0;
+const USERS_CACHE_TTL = 60000;
+
+async function getLauncherUsers() {
+  const now = Date.now();
+  if (_usersCache && (now - _usersCacheTs) < USERS_CACHE_TTL) return _usersCache;
+  try {
+    const res = await fetch(`${LAUNCHER_URL}/api/usuarios/public`, { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      const data = await res.json();
+      _usersCache = Array.isArray(data) ? data : (data.usuarios || []);
+      _usersCacheTs = now;
+      return _usersCache;
+    }
+  } catch {}
+  return [];
+}
+
+async function getUserEmail(userId) {
+  const users = await getLauncherUsers();
+  const user = users.find(u => u.id === userId);
+  return user ? { email: user.email, nombre: user.nombre } : null;
+}
+
 export async function notificar({ usuario_id, tipo, titulo, mensaje, url, email, emailAsunto, emailHtml }) {
   if (!usuario_id) return;
 
@@ -35,32 +61,41 @@ export async function notificar({ usuario_id, tipo, titulo, mensaje, url, email,
   }
 }
 
-// Helper para obtener datos completos de tarea (asignado, proyecto, etc.)
+// Helper para obtener datos de tarea (sin JOIN cross-DB)
 export async function getTareaCompleta(pool, tareaId) {
   const result = await pool.query(`
-    SELECT t.*, p.nombre AS proyecto_nombre, p.asignado_a AS proyecto_asignado_a,
-           u1.email AS asignado_email, u1.nombre AS asignado_nombre,
-           u2.email AS reportero_email, u2.nombre AS reportero_nombre
+    SELECT t.*, p.nombre AS proyecto_nombre, p.asignado_a AS proyecto_asignado_a
     FROM projects.tareas t
     LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id
-    LEFT JOIN launcher.usuarios u1 ON u1.id = t.asignado_a
-    LEFT JOIN launcher.usuarios u2 ON u2.id = t.reportero
     WHERE t.id = $1
   `, [tareaId]);
-  return result.rows[0] || null;
+  const tarea = result.rows[0] || null;
+  if (tarea && tarea.asignado_a) {
+    const user = await getUserEmail(tarea.asignado_a);
+    if (user) {
+      tarea.asignado_email = user.email;
+      tarea.asignado_nombre = user.nombre;
+    }
+  }
+  return tarea;
 }
 
-// Helper para obtener datos completos de proyecto
+// Helper para obtener datos de proyecto (sin JOIN cross-DB)
 export async function getProyectoCompleto(pool, proyectoId) {
   const result = await pool.query(`
-    SELECT p.*,
-           u1.email AS asignado_email, u1.nombre AS asignado_nombre
+    SELECT p.*
     FROM projects.proyectos p
-    LEFT JOIN launcher.usuarios u1 ON u1.id = p.asignado_a
     WHERE p.id = $1
   `, [proyectoId]);
-  return result.rows[0] || null;
+  const proyecto = result.rows[0] || null;
+  if (proyecto && proyecto.asignado_a) {
+    const user = await getUserEmail(proyecto.asignado_a);
+    if (user) {
+      proyecto.asignado_email = user.email;
+      proyecto.asignado_nombre = user.nombre;
+    }
+  }
+  return proyecto;
 }
 
-// URL base para links en emails
 export { BASE_URL, esc };

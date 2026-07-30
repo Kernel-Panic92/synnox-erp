@@ -9,16 +9,50 @@ function canApprove(req) {
   return req.user.rol === 'admin' || req.user.rol === 'gerente';
 }
 
-async function resolveUserEmail(userId) {
+const LAUNCHER_URL = process.env.LAUNCHER_URL || 'http://localhost:3002';
+
+let _usersCache = null;
+let _usersCacheTs = 0;
+const USERS_CACHE_TTL = 60000;
+
+async function getLauncherUsers() {
+  const now = Date.now();
+  if (_usersCache && (now - _usersCacheTs) < USERS_CACHE_TTL) return _usersCache;
   try {
-    const result = await pool.query(
-      `SELECT u.id, u.email, u.nombre FROM launcher.usuarios u WHERE u.id = $1`,
-      [userId]
-    );
-    return result.rows[0] || null;
-  } catch {
-    return null;
+    const res = await fetch(`${LAUNCHER_URL}/api/usuarios/public`, { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      const data = await res.json();
+      _usersCache = Array.isArray(data) ? data : (data.usuarios || []);
+      _usersCacheTs = now;
+      return _usersCache;
+    }
+  } catch {}
+  return [];
+}
+
+async function resolveUserEmail(userId) {
+  const users = await getLauncherUsers();
+  return users.find(u => u.id === userId) || null;
+}
+
+// Obtener tarea con datos de proyecto y asignado (sin cross-DB JOIN)
+async function getTareaWithUser(tareaId) {
+  const { rows } = await pool.query(
+    `SELECT t.*, p.nombre AS proyecto_nombre
+     FROM projects.tareas t
+     LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id
+     WHERE t.id = $1`,
+    [tareaId]
+  );
+  const tarea = rows[0] || null;
+  if (tarea && tarea.asignado_a) {
+    const user = await resolveUserEmail(tarea.asignado_a);
+    if (user) {
+      tarea.asignado_email = user.email;
+      tarea.asignado_nombre = user.nombre;
+    }
   }
+  return tarea;
 }
 
 router.put('/tareas/:id/aprobar', async (req, res) => {
@@ -39,15 +73,7 @@ router.put('/tareas/:id/aprobar', async (req, res) => {
     if (result.rows.length === 0) return res.status(400).json({ error: 'La tarea debe estar en revisión para ser aprobada' });
     const tarea = result.rows[0];
 
-    const { rows: full } = await pool.query(
-      `SELECT t.*, p.nombre AS proyecto_nombre, u.email AS asignado_email, u.nombre AS asignado_nombre
-       FROM projects.tareas t
-       LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id
-       LEFT JOIN launcher.usuarios u ON u.id = t.asignado_a
-       WHERE t.id = $1`,
-      [req.params.id]
-    );
-    const tareaFull = full[0] || tarea;
+    const tareaFull = await getTareaWithUser(req.params.id);
 
     // Notificar al asignado (in-app + email)
     if (tarea.asignado_a) {
@@ -58,9 +84,9 @@ router.put('/tareas/:id/aprobar', async (req, res) => {
           titulo: 'Tarea aprobada',
           mensaje: `Tu tarea "${tarea.titulo}" fue aprobada por ${req.user.nombre}`,
           url: '/proyectos/#tareas',
-          email: tareaFull.asignado_email,
-          emailAsunto: `✅ Tarea aprobada: ${tareaFull.titulo}`,
-          emailHtml: templateAprobacionTarea({ tarea: tareaFull, accion: 'aprobada', aprobador: req.user.nombre })
+          email: tareaFull?.asignado_email,
+          emailAsunto: `✅ Tarea aprobada: ${tarea.titulo}`,
+          emailHtml: templateAprobacionTarea({ tarea: tareaFull || tarea, accion: 'aprobada', aprobador: req.user.nombre })
         });
       } catch (e) { console.warn('[notify] Error:', e.message); }
     }
@@ -92,15 +118,7 @@ router.put('/tareas/:id/rechazar', async (req, res) => {
     if (result.rows.length === 0) return res.status(400).json({ error: 'La tarea debe estar en revisión para ser rechazada' });
     const tarea = result.rows[0];
 
-    const { rows: full } = await pool.query(
-      `SELECT t.*, p.nombre AS proyecto_nombre, u.email AS asignado_email, u.nombre AS asignado_nombre
-       FROM projects.tareas t
-       LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id
-       LEFT JOIN launcher.usuarios u ON u.id = t.asignado_a
-       WHERE t.id = $1`,
-      [req.params.id]
-    );
-    const tareaFull = full[0] || tarea;
+    const tareaFull = await getTareaWithUser(req.params.id);
 
     // Notificar al asignado (in-app + email)
     if (tarea.asignado_a) {
@@ -111,9 +129,9 @@ router.put('/tareas/:id/rechazar', async (req, res) => {
           titulo: 'Tarea rechazada',
           mensaje: `Tu tarea "${tarea.titulo}" fue rechazada: ${motivo}`,
           url: '/proyectos/#tareas',
-          email: tareaFull.asignado_email,
-          emailAsunto: `❌ Tarea rechazada: ${tareaFull.titulo}`,
-          emailHtml: templateAprobacionTarea({ tarea: tareaFull, accion: 'rechazada', motivo, aprobador: req.user.nombre })
+          email: tareaFull?.asignado_email,
+          emailAsunto: `❌ Tarea rechazada: ${tarea.titulo}`,
+          emailHtml: templateAprobacionTarea({ tarea: tareaFull || tarea, accion: 'rechazada', motivo, aprobador: req.user.nombre })
         });
       } catch (e) { console.warn('[notify] Error:', e.message); }
     }
@@ -222,40 +240,31 @@ router.put('/tareas/:id/solicitar-revision', async (req, res) => {
     if (result.rows.length === 0) return res.status(400).json({ error: 'La tarea debe estar en progreso para solicitar revisión' });
     const tarea = result.rows[0];
 
-    const { rows: full } = await pool.query(
-      `SELECT t.*, p.nombre AS proyecto_nombre, u.email AS asignado_email, u.nombre AS asignado_nombre
-       FROM projects.tareas t
-       LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id
-       LEFT JOIN launcher.usuarios u ON u.id = t.asignado_a
-       WHERE t.id = $1`,
-      [req.params.id]
-    );
-    const tareaFull = full[0] || tarea;
+    const tareaFull = await getTareaWithUser(req.params.id);
 
     // Notify gerentes and admins (email + in-app)
     try {
-      const { rows: admins } = await pool.query(
-        `SELECT id, email FROM launcher.usuarios WHERE rol IN ('admin','gerente') AND activo = 1`
-      );
+      const users = await getLauncherUsers();
+      const admins = users.filter(u => ['admin', 'gerente'].includes(u.rol));
       for (const admin of admins) {
-        if (admin.email && admin.email !== tareaFull.asignado_email) {
+        if (admin.email && admin.email !== tareaFull?.asignado_email) {
           // Email
           enviarCorreo(
             admin.email,
-            `📋 Tarea pendiente de revisión: ${tareaFull.titulo}`,
-            templateTareaEnRevision({ tarea: tareaFull })
+            `📋 Tarea pendiente de revisión: ${tarea.titulo}`,
+            templateTareaEnRevision({ tarea: tareaFull || tarea })
           );
           // In-app
           notificar({
             usuario_id: admin.id,
             tipo: 'tarea_revision',
             titulo: 'Tarea para revisar',
-            mensaje: `"${tareaFull.titulo}" necesita revisión`,
+            mensaje: `"${tarea.titulo}" necesita revisión`,
             url: '/proyectos/#tareas'
           });
         }
       }
-    } catch (e) { console.warn('[email] Error enviando notificación de revisión:', e.message); }
+    } catch (e) { console.warn('[notify] Error enviando notificación de revisión:', e.message); }
 
     res.json({ exitosa: true, tarea });
   } catch (err) {

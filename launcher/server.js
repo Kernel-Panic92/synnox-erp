@@ -941,6 +941,12 @@ app.get('/api/admin/usuarios', verificarToken, soloAdmin, (req, res) => {
   `).all());
 });
 
+// ── Public user list (for internal module communication, no admin auth) ──
+app.get('/api/usuarios/public', verificarToken, (req, res) => {
+  const rows = db.prepare('SELECT id, nombre, email, rol FROM usuarios WHERE activo = 1').all();
+  res.json(rows);
+});
+
 // ── Diagnóstico de auth por usuario (solo admin, solo lectura) ──
 app.get('/api/admin/diagnostico/auth/:userId', verificarToken, soloAdmin, (req, res) => {
   const userId = parseInt(req.params.userId);
