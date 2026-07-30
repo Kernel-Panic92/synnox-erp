@@ -64,17 +64,17 @@ app.get('/api/version', (req, res) => {
 });
 
 // Track submodule visits from modules
+const trackFile = path.join(LAUNCHER_DIR, 'logs', 'track.json');
 app.post('/api/track', (req, res) => {
   const { submodule } = req.body;
   if (!submodule) return res.status(400).json({ error: 'submodule required' });
-  const trackDir = path.join(LAUNCHER_DIR, 'logs');
-  const trackFile = path.join(trackDir, 'track.json');
   try {
+    const trackDir = path.join(LAUNCHER_DIR, 'logs');
     if (!fs.existsSync(trackDir)) fs.mkdirSync(trackDir, { recursive: true });
     let track = {};
-    if (fs.existsSync(trackFile)) track = JSON.parse(fs.readFileSync(trackFile, 'utf8'));
+    try { track = JSON.parse(fs.readFileSync(trackFile, 'utf8')); } catch {}
     track[submodule] = (track[submodule] || 0) + 1;
-    fs.writeFileSync(trackFile, JSON.stringify(track, null, 2));
+    fs.writeFile(trackFile, JSON.stringify(track, null, 2), () => {});
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -82,8 +82,6 @@ app.post('/api/track', (req, res) => {
 });
 
 app.get('/api/track', (req, res) => {
-  const trackDir = path.join(LAUNCHER_DIR, 'logs');
-  const trackFile = path.join(trackDir, 'track.json');
   try {
     if (!fs.existsSync(trackFile)) return res.json({});
     res.json(JSON.parse(fs.readFileSync(trackFile, 'utf8')));
