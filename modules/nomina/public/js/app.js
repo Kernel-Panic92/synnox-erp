@@ -409,4 +409,3 @@ function initNotifications(pollMs) {
     if (dd && !dd.contains(e.target) && !bell?.contains(e.target)) dd.classList.remove('show');
   });
 }
-});
