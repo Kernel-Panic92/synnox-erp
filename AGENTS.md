@@ -1,36 +1,59 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (30 Jul 2026 — sesión 26)
+## Estado (30 Jul 2026 — sesión 27)
 
-### Cambios Sesión 26 — Dashboard, notificaciones módulos, fixes
+### Cambios Sesión 27 — Seguridad notificaciones, rendimiento launcher
 
-#### Fix Issues cerrados
-- **#82**: Errores 500 en dashboard (req.user → req.usuario, migración proveedores)
-- **#81**: Sistema de notificaciones implementado en los 4 módulos
-- **#69**: Google Maps usa endpoint público (sin auth) para cargar API key
+#### Seguridad: endpoint POST /api/notificaciones/crear
+- **INTERNAL_API_TOKEN**: Nuevo token interno obligatorio en producción (`process.exit(1)` si falta)
+- **Validación con timingSafeEqual**: Comparación de token en tiempo constante (previene timing attacks)
+- **Auth interna**: Todas las llamadas desde módulos requieren header `X-Internal-Token`
+- **Auth externa**: Solo admin puede crear notificaciones (verifica `decoded.rol === 'admin'`)
+- **Validaciones**: usuario_id debe existir y estar activo; longitudes máximas (modulo≤30, tipo≤50, titulo≤200, mensaje≤500, url≤300)
+- **Idempotency_key**: Columna nueva UNIQUE en tabla notificaciones; previene duplicados en reintentos
+- **Logs seguros**: No se imprime body completo, solo internal/tipo/usuario_id
 
-#### Dashboard launcher mejorado
-- Eliminados widgets lentos: ModuleSummary, PendingTasks, Alerts, Upcoming, Weather
-- Agregados widgets rápidos: Estado de módulos (health check local), Notificaciones
-- Widgets mantenidos: ServerStats, Commits, Activity, QuickActions
-- Cache localStorage para datos estáticos (30s-120s)
+#### Retención correcta de notificaciones
+- Eliminada sentencia DELETE global que borraba todo excepto últimas 200
+- Nueva limpieza por fecha: `DELETE WHERE created_at < datetime('now', '-30 days')`
+- Ejecución al startup + intervalo cada 24h
+- Nuevo índice: `idx_notif_fecha ON notificaciones(usuario_id, created_at DESC)`
+- Notificaciones no leídas recientes nunca se eliminan por volumen
 
-#### Notificaciones en todos los módulos
-- **Nómina**: Registro creado → notifica gerentes/admins; aprobado/rechazado → notifica al creador
-- **Proveedores**: Factura creada → notifica a admins/contadores
-- **Logística**: Pedido nuevo → notifica a admins
-- **Proyectos**: Tarea asignada/aprobada/rechazada (ya implementado en sesión 25)
-- Campana 🔔 en sidebar de cada módulo con dropdown
-- Auto-poll 60s para actualizar badge
+#### Helper reutilizable: framework/notify.js (CJS)
+- Función `notificarInterna({ usuario_id, modulo, tipo, titulo, mensaje, url, evento_id })`
+- Siempre retorna `{ ok, id?, error? }` — nunca lanza excepciones
+- Timeout 5s por intento, 1 reintento en errores transitorios (5xx/network)
+- No reintenta en 4xx (token inválido, validación fallida)
+- `evento_id` opcional: si se provee, se usa como idempotency key
+- Configuración via `LAUNCHER_URL` e `INTERNAL_API_TOKEN` del entorno
 
-#### Fix Google Maps
-- API key se carga desde endpoint público (sin auth) al recargar la página
-- Antes usaba endpoint con auth que fallaba si el token expiraba
+#### Migración de módulos al helper
+- **Nómina**: Reemplazado `crearNotificacion()` local por `notificarInterna()` con `evento_id` determinista
+- **Proveedores**: Reemplazado fetch inline por `notificarInterna()`
+- **Logística**: Reemplazado fetch inline por `notificarInterna()` (import CJS via createRequire)
+- **Proyectos**: Reemplazado fetch en `notify.js` por `notificarInterna()` (import CJS via createRequire)
+
+#### Rendimiento: execSync → execFile async
+- `GET /api/admin/server/stats`: Reemplazado `execSync('df -h / | tail -1')` por `execFileAsync('df', ['-h', '/'], { timeout: 3000 })`
+- Ya no bloquea el event loop de Node
+- Fallback `disk: null` si falla (frontend ya lo maneja)
+
+#### Optimización de polling en launcher
+- **_serverStatsInFlight**: Evita solicitudes solapadas de server stats
+- **_notifInFlight**: Evita solicitudes solapadas de notificaciones
+- **visibilitychange**: Listener instalado una sola vez (guard `_visibilityListenerInstalled`)
+- **Pausa automática**: Polling se pausa cuando `document.visibilityState !== 'visible'`
+- **Al volver visible**: Ejecuta notificaciones y versión inmediatamente
+- **Version check**: Solo ejecuta si hay sesión activa (`jwtToken` existe)
+- **Intervalo versión**: 30s (antes 15s)
+- **Cleanup en logout()**: Limpia `_notifPollTimer`, `_versionCheckTimer`, `_serverStatsTimer`
+- **Click-outside**: Listener instalado una sola vez (guard `_clickOutsideListenerInstalled`)
 
 ### Pendientes nuevos
 - [ ] Integrar notificaciones con cron jobs (vencimientos, recordatorios)
 - [ ] Preferencias de notificaciones por usuario
-- [ ] Limpieza automática de notificaciones antiguas (>30 días)
+- [ ] Actualizar docs restantes
 
 ### Pendientes anteriores (actualizados)
 - [ ] Observabilidad centralizada (tabla `auditoria_central`)
@@ -39,15 +62,8 @@
 - [ ] Dividir `launcher/server.js` (~2800 líneas → routers separados)
 - [ ] ESLint + Prettier config
 - [ ] Limpiar `.env` legacy
-- [ ] Actualizar docs restantes
 
-### Cambios Sesión 25 — Seguridad, permisos, notificaciones, UX Proyectos
-
-#### Seguridad: Validación de roles y permisos granulares (Issues #77, #78, #79, #80)
-- **Proyectos**: `requirePermiso()` en todos los endpoints (ver, crear, editar, eliminar, crear_tarea, editar_tarea, eliminar_tarea, comentar, configurar, ver_reportes)
-- **Nómina**: `requierePermiso()` ahora lee `modulos_permisos.nomina` del JWT (antes usaba tabla local SQLite)
-- **Proveedores**: Reemplazado `requireRol()` hardcodeado (admin/contador/tesorero) por `requirePermiso()` del framework — 70 endpoints migrados
-- **Logística**: Endpoints de reportes ahora requieren permiso `ver`, exportar requiere `exportar`
+### Convenciones del Framework (SEGUIR SIEMPRE)
 - **MCP**: Endpoints de proyectos y nómina ahora requieren autenticación
 - **Frontend**: Botones CRUD ocultos según permisos del JWT (`tienePermiso()`)
 

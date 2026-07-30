@@ -1,4 +1,5 @@
 const express = require('express');
+const { notificarInterna } = require('../../../../framework/notify');
 
 module.exports = function createRegistrosRouter({
   db, uid, BASE_URL, APP_NAME,
@@ -7,16 +8,6 @@ module.exports = function createRegistrosRouter({
 }) {
   const router = express.Router();
   const { todosRoles, adminRrhh, adminRrhhOp, podeEditar, podeAprobar, autenticar, requierePermiso } = middlewares;
-
-  async function crearNotificacion(usuarioId, tipo, titulo, mensaje, url) {
-    try {
-      await fetch('http://127.0.0.1:3002/api/notificaciones/crear', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ usuario_id: usuarioId, modulo: 'nomina', tipo, titulo, mensaje, url: url || '/nomina/' })
-      });
-    } catch {}
-  }
 
   function permEfectivo(usuario) {
     if (tienePermiso(usuario, 'ver_todos')) return 'todos';
@@ -213,7 +204,8 @@ module.exports = function createRegistrosRouter({
         }
         // Notificación in-app a gerentes/admins
         for (const g of gerentes) {
-          crearNotificacion(g.id, 'registro_creado', 'Hora extra pendiente', `${empN?.nombre || 'Empleado'} registró ${horas}h de ${tipoNombre} el ${fecha}`, '/nomina/');
+          void notificarInterna({ usuario_id: g.id, modulo: 'nomina', tipo: 'registro_creado', titulo: 'Hora extra pendiente', mensaje: `${empN?.nombre || 'Empleado'} registró ${horas}h de ${tipoNombre} el ${fecha}`, url: '/nomina/', evento_id: `nomina-registro-${id}-${g.id}` })
+            .then(r => { if (!r.ok) console.warn('[notif] fallo:', r.error); });
         }
       } catch (e) { console.error('Error notify gerencia:', e.message); }
 
@@ -306,11 +298,8 @@ module.exports = function createRegistrosRouter({
       ).catch(e => console.error('Notificación email falló:', e.message));
       // Notificación in-app al creador
       if (reg?.creadorId) {
-        crearNotificacion(reg.creadorId, estado === 'aprobado' ? 'registro_aprobado' : 'registro_rechazado',
-          `Hora extra ${estado === 'aprobado' ? 'aprobada' : 'rechazada'}`,
-          `Tu registro del ${reg.fecha} (${reg.horas}h) fue ${estado === 'aprobado' ? 'aprobado' : 'rechazado'}`,
-          '/nomina/'
-        );
+        void notificarInterna({ usuario_id: reg.creadorId, modulo: 'nomina', tipo: estado === 'aprobado' ? 'registro_aprobado' : 'registro_rechazado', titulo: `Hora extra ${estado === 'aprobado' ? 'aprobada' : 'rechazada'}`, mensaje: `Tu registro del ${reg.fecha} (${reg.horas}h) fue ${estado === 'aprobado' ? 'aprobado' : 'rechazado'}`, url: '/nomina/', evento_id: `nomina-${estado}-${req.params.id}` })
+          .then(r => { if (!r.ok) console.warn('[notif] fallo:', r.error); });
       }
     } catch (e) { console.error('Error preparando notificación:', e.message); }
 
