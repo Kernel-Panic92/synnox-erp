@@ -1,6 +1,8 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
+import { notificar, getTareaCompleta } from '../utils/notify.js';
+import { templateTareaAsignada } from '../utils/email.js';
 
 const router = express.Router();
 
@@ -18,7 +20,6 @@ router.get('/', requirePermiso('ver', 'proyectos'), async (req, res) => {
     const conditions = [];
     let idx = 1;
 
-    // Si tiene permiso 'ver_propios', solo ve sus tareas asignadas
     const permisos = req.user?.modulos_permisos?.proyectos || [];
     const soloPropios = permisos.includes('ver_propios');
     if (soloPropios) {
@@ -85,16 +86,24 @@ router.post('/', requirePermiso('crear_tarea', 'proyectos'), async (req, res) =>
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
       [proyecto_id || null, titulo, descripcion || '', tipo || 'tarea', prioridad || 'media', est, col, asignado_a || null, reportero || null, fecha_limite || null, estimacion_horas || null]
     );
-    // Notificar al asignado
+
+    // Notificar al asignado (in-app + email)
     if (asignado_a) {
-      try {
-        await fetch('http://127.0.0.1:3002/api/notificaciones/crear', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ usuario_id: asignado_a, modulo: 'proyectos', tipo: 'tarea_asignada', titulo: 'Tarea asignada', mensaje: 'Se te asignó la tarea "' + titulo + '"', url: '/proyectos/#tareas' })
+      const tarea = await getTareaCompleta(pool, result.rows[0].id);
+      if (tarea) {
+        notificar({
+          usuario_id: asignado_a,
+          tipo: 'tarea_asignada',
+          titulo: 'Tarea asignada',
+          mensaje: `Se te asignó la tarea "${titulo}"`,
+          url: '/proyectos/#tareas',
+          email: tarea.asignado_email,
+          emailAsunto: `[Proyectos] Tarea asignada: ${titulo}`,
+          emailHtml: templateTareaAsignada({ tarea, asignador: req.user.nombre })
         });
-      } catch (e) { console.warn('[notif] Error:', e.message); }
+      }
     }
+
     res.status(201).json({ exitosa: true, tarea: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -108,18 +117,21 @@ router.put('/reordenar', requirePermiso('editar_tarea', 'proyectos'), async (req
 
     const esAdminGerente = req.user?.rol === 'admin' || req.user?.rol === 'gerente';
 
-    // Solo admin/gerente pueden mover a completada
     if (columna === 'completada' && !esAdminGerente) {
       return res.status(403).json({ error: 'Solo admin/gerente pueden marcar tareas como completadas' });
     }
 
-    // Operadores no pueden mover tareas en estado revision
     if (!esAdminGerente) {
       const check = await pool.query('SELECT estado FROM projects.tareas WHERE id = $1', [tarea_id]);
       if (check.rows.length > 0 && check.rows[0].estado === 'revision') {
         return res.status(403).json({ error: 'No se pueden mover tareas en estado de revisión' });
       }
     }
+
+    // Obtener tarea antes del update para detectar cambio de estado
+    const tareaAntes = await pool.query('SELECT estado, asignado_a FROM projects.tareas WHERE id = $1', [tarea_id]);
+    const estadoAnterior = tareaAntes.rows[0]?.estado;
+    const asignado = tareaAntes.rows[0]?.asignado_a;
 
     const est = COLUMNA_A_ESTADO[columna] || 'pendiente';
     const resetAprobacion = columna !== 'completada' ? `, estado_aprobacion = 'pendiente', aprobado_por = NULL, aprobado_en = NULL, motivo_rechazo = NULL` : '';
@@ -129,6 +141,21 @@ router.put('/reordenar', requirePermiso('editar_tarea', 'proyectos'), async (req
       [columna, est, orden || 0, tarea_id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Tarea no encontrada' });
+
+    // Notificar cambio de estado (solo si realmente cambió)
+    if (asignado && estadoAnterior !== est) {
+      const tarea = await getTareaCompleta(pool, tarea_id);
+      if (tarea) {
+        notificar({
+          usuario_id: asignado,
+          tipo: 'cambio_estado',
+          titulo: 'Tarea movida',
+          mensaje: `"${tarea.titulo}" movida a ${est.replace('_', ' ')}`,
+          url: '/proyectos/#tablero'
+        });
+      }
+    }
+
     res.json({ exitosa: true, tarea: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -141,18 +168,22 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
 
     const esAdminGerente = req.user?.rol === 'admin' || req.user?.rol === 'gerente';
 
-    // Solo admin/gerente pueden mover a completada
     if ((estado === 'completada' || columna === 'completada') && !esAdminGerente) {
       return res.status(403).json({ error: 'Solo admin/gerente pueden marcar tareas como completadas' });
     }
 
-    // Operadores no pueden editar tareas en estado revision
     if (!esAdminGerente) {
       const check = await pool.query('SELECT estado FROM projects.tareas WHERE id = $1', [req.params.id]);
       if (check.rows.length > 0 && check.rows[0].estado === 'revision') {
         return res.status(403).json({ error: 'No se pueden editar tareas en estado de revisión' });
       }
     }
+
+    // Obtener tarea antes del update para detectar cambios
+    const tareaAntes = await pool.query('SELECT estado, asignado_a, titulo FROM projects.tareas WHERE id = $1', [req.params.id]);
+    const oldEstado = tareaAntes.rows[0]?.estado;
+    const oldAsignado = tareaAntes.rows[0]?.asignado_a;
+    const tareaTitulo = titulo || tareaAntes.rows[0]?.titulo;
 
     const updates = [];
     const params = [];
@@ -196,7 +227,39 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
       params
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Tarea no encontrada' });
-    res.json({ exitosa: true, tarea: result.rows[0] });
+
+    const tareaActualizada = result.rows[0];
+
+    // Notificar re-asignación
+    if (asignado_a !== undefined && asignado_a && asignado_a !== oldAsignado) {
+      const tarea = await getTareaCompleta(pool, req.params.id);
+      if (tarea) {
+        notificar({
+          usuario_id: asignado_a,
+          tipo: 'tarea_asignada',
+          titulo: 'Tarea re-asignada',
+          mensaje: `Se te re-asignó la tarea "${tareaTitulo}"`,
+          url: '/proyectos/#tareas',
+          email: tarea.asignado_email,
+          emailAsunto: `[Proyectos] Tarea re-asignada: ${tareaTitulo}`,
+          emailHtml: templateTareaAsignada({ tarea, asignador: req.user.nombre })
+        });
+      }
+    }
+
+    // Notificar cambio de estado
+    const newEstado = columna ? (COLUMNA_A_ESTADO[columna] || oldEstado) : (estado || oldEstado);
+    if (newEstado && oldEstado !== newEstado && oldAsignado) {
+      notificar({
+        usuario_id: oldAsignado,
+        tipo: 'cambio_estado',
+        titulo: 'Estado de tarea cambiado',
+        mensaje: `"${tareaTitulo}" cambió de ${oldEstado.replace('_', ' ')} a ${newEstado.replace('_', ' ')}`,
+        url: '/proyectos/#tareas'
+      });
+    }
+
+    res.json({ exitosa: true, tarea: tareaActualizada });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

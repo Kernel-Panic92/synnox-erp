@@ -1,24 +1,12 @@
 import express from 'express';
 import pool from '../config/db.js';
+import { notificar, getProyectoCompleto } from '../utils/notify.js';
 import { enviarCorreo, templateAprobacionTarea, templateAprobacionProyecto, templateTareaEnRevision } from '../utils/email.js';
 
 const router = express.Router();
 
 function canApprove(req) {
   return req.user.rol === 'admin' || req.user.rol === 'gerente';
-}
-
-const LAUNCHER_URL = process.env.LAUNCHER_URL || 'http://localhost:3002';
-
-async function getUserById(id) {
-  try {
-    const res = await fetch(`${LAUNCHER_URL}/api/admin/usuarios`, {
-      headers: { 'Authorization': `Bearer ${req?.headers?.authorization?.split(' ')[1] || ''}` }
-    });
-    if (!res.ok) return null;
-    const users = await res.json();
-    return users.find(u => u.id === id) || null;
-  } catch { return null; }
 }
 
 async function resolveUserEmail(userId) {
@@ -51,7 +39,6 @@ router.put('/tareas/:id/aprobar', async (req, res) => {
     if (result.rows.length === 0) return res.status(400).json({ error: 'La tarea debe estar en revisión para ser aprobada' });
     const tarea = result.rows[0];
 
-    // Fetch task with project name and assignee email
     const { rows: full } = await pool.query(
       `SELECT t.*, p.nombre AS proyecto_nombre, u.email AS asignado_email, u.nombre AS asignado_nombre
        FROM projects.tareas t
@@ -62,26 +49,18 @@ router.put('/tareas/:id/aprobar', async (req, res) => {
     );
     const tareaFull = full[0] || tarea;
 
-    // Send email notification
-    if (tareaFull.asignado_email) {
-      try {
-        await enviarCorreo(
-          tareaFull.asignado_email,
-          `✅ Tarea aprobada: ${tareaFull.titulo}`,
-          templateAprobacionTarea({ tarea: tareaFull, accion: 'aprobada', aprobador: req.user.nombre })
-        );
-      } catch (e) { console.warn('[email] Error enviando notificación de aprobación:', e.message); }
-    }
-
-    // Notificación in-app
+    // Notificar al asignado (in-app + email)
     if (tarea.asignado_a) {
-      try {
-        await fetch('http://127.0.0.1:3002/api/notificaciones/crear', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ usuario_id: tarea.asignado_a, modulo: 'proyectos', tipo: 'proyecto_aprobado', titulo: 'Tarea aprobada', mensaje: 'Tu tarea "' + tarea.titulo + '" fue aprobada por ' + req.user.nombre, url: '/proyectos/#tareas' })
-        });
-      } catch {}
+      notificar({
+        usuario_id: tarea.asignado_a,
+        tipo: 'proyecto_aprobado',
+        titulo: 'Tarea aprobada',
+        mensaje: `Tu tarea "${tarea.titulo}" fue aprobada por ${req.user.nombre}`,
+        url: '/proyectos/#tareas',
+        email: tareaFull.asignado_email,
+        emailAsunto: `✅ Tarea aprobada: ${tareaFull.titulo}`,
+        emailHtml: templateAprobacionTarea({ tarea: tareaFull, accion: 'aprobada', aprobador: req.user.nombre })
+      });
     }
 
     res.json({ exitosa: true, tarea });
@@ -121,25 +100,18 @@ router.put('/tareas/:id/rechazar', async (req, res) => {
     );
     const tareaFull = full[0] || tarea;
 
-    if (tareaFull.asignado_email) {
-      try {
-        await enviarCorreo(
-          tareaFull.asignado_email,
-          `❌ Tarea rechazada: ${tareaFull.titulo}`,
-          templateAprobacionTarea({ tarea: tareaFull, accion: 'rechazada', motivo, aprobador: req.user.nombre })
-        );
-      } catch (e) { console.warn('[email] Error enviando notificación de rechazo:', e.message); }
-    }
-
-    // Notificación in-app
+    // Notificar al asignado (in-app + email)
     if (tarea.asignado_a) {
-      try {
-        await fetch('http://127.0.0.1:3002/api/notificaciones/crear', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ usuario_id: tarea.asignado_a, modulo: 'proyectos', tipo: 'proyecto_rechazado', titulo: 'Tarea rechazada', mensaje: 'Tu tarea "' + tarea.titulo + '" fue rechazada: ' + motivo, url: '/proyectos/#tareas' })
-        });
-      } catch {}
+      notificar({
+        usuario_id: tarea.asignado_a,
+        tipo: 'proyecto_rechazado',
+        titulo: 'Tarea rechazada',
+        mensaje: `Tu tarea "${tarea.titulo}" fue rechazada: ${motivo}`,
+        url: '/proyectos/#tareas',
+        email: tareaFull.asignado_email,
+        emailAsunto: `❌ Tarea rechazada: ${tareaFull.titulo}`,
+        emailHtml: templateAprobacionTarea({ tarea: tareaFull, accion: 'rechazada', motivo, aprobador: req.user.nombre })
+      });
     }
 
     res.json({ exitosa: true, tarea });
@@ -163,7 +135,26 @@ router.put('/proyectos/:id/aprobar', async (req, res) => {
       [req.user.id, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Proyecto no encontrado' });
-    res.json({ exitosa: true, proyecto: result.rows[0] });
+    const proyecto = result.rows[0];
+
+    // Notificar al asignado del proyecto (in-app + email)
+    if (proyecto.asignado_a) {
+      const proyectoFull = await getProyectoCompleto(pool, req.params.id);
+      if (proyectoFull) {
+        notificar({
+          usuario_id: proyecto.asignado_a,
+          tipo: 'proyecto_aprobado',
+          titulo: 'Proyecto aprobado',
+          mensaje: `Tu proyecto "${proyecto.nombre}" fue aprobado por ${req.user.nombre}`,
+          url: '/proyectos/#proyectos',
+          email: proyectoFull.asignado_email,
+          emailAsunto: `✅ Proyecto aprobado: ${proyecto.nombre}`,
+          emailHtml: templateAprobacionProyecto({ proyecto, accion: 'aprobada', aprobador: req.user.nombre })
+        });
+      }
+    }
+
+    res.json({ exitosa: true, proyecto });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -183,7 +174,26 @@ router.put('/proyectos/:id/rechazar', async (req, res) => {
       [req.user.id, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Proyecto no encontrado' });
-    res.json({ exitosa: true, proyecto: result.rows[0] });
+    const proyecto = result.rows[0];
+
+    // Notificar al asignado del proyecto (in-app + email)
+    if (proyecto.asignado_a) {
+      const proyectoFull = await getProyectoCompleto(pool, req.params.id);
+      if (proyectoFull) {
+        notificar({
+          usuario_id: proyecto.asignado_a,
+          tipo: 'proyecto_rechazado',
+          titulo: 'Proyecto rechazado',
+          mensaje: `Tu proyecto "${proyecto.nombre}" fue rechazado por ${req.user.nombre}`,
+          url: '/proyectos/#proyectos',
+          email: proyectoFull.asignado_email,
+          emailAsunto: `❌ Proyecto rechazado: ${proyecto.nombre}`,
+          emailHtml: templateAprobacionProyecto({ proyecto, accion: 'rechazada', aprobador: req.user.nombre })
+        });
+      }
+    }
+
+    res.json({ exitosa: true, proyecto });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -214,18 +224,27 @@ router.put('/tareas/:id/solicitar-revision', async (req, res) => {
     );
     const tareaFull = full[0] || tarea;
 
-    // Notify gerentes and admins
+    // Notify gerentes and admins (email + in-app)
     try {
       const { rows: admins } = await pool.query(
-        `SELECT email FROM launcher.usuarios WHERE rol IN ('admin','gerente') AND activo = 1`
+        `SELECT id, email FROM launcher.usuarios WHERE rol IN ('admin','gerente') AND activo = 1`
       );
       for (const admin of admins) {
         if (admin.email && admin.email !== tareaFull.asignado_email) {
-          await enviarCorreo(
+          // Email
+          enviarCorreo(
             admin.email,
             `📋 Tarea pendiente de revisión: ${tareaFull.titulo}`,
             templateTareaEnRevision({ tarea: tareaFull })
           );
+          // In-app
+          notificar({
+            usuario_id: admin.id,
+            tipo: 'tarea_revision',
+            titulo: 'Tarea para revisar',
+            mensaje: `"${tareaFull.titulo}" necesita revisión`,
+            url: '/proyectos/#tareas'
+          });
         }
       }
     } catch (e) { console.warn('[email] Error enviando notificación de revisión:', e.message); }

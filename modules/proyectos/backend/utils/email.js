@@ -195,6 +195,54 @@ export function templateResumenSemanal({ proyectos, stats }) {
   );
 }
 
+export function templateTareaAsignada({ tarea, asignador }) {
+  return baseTemplate(
+    '📋 Tarea asignada',
+    `Proyecto: ${esc(tarea.proyecto_nombre || 'Sin proyecto')}`,
+    `<div style="background:#f8fafc;border-radius:8px;padding:16px;margin:12px 0;border:1px solid #e2e8f0;">
+      <div style="font-size:14px;color:#475569;">Se te ha asignado la tarea <strong>${esc(tarea.titulo)}</strong>.</div>
+      <div style="margin-top:12px;font-size:13px;color:#64748b;">
+        ${tarea.descripcion ? `<strong>Descripción:</strong> ${esc(tarea.descripcion).substring(0, 200)}${tarea.descripcion.length > 200 ? '...' : ''}<br/>` : ''}
+        <strong>Prioridad:</strong> ${esc(tarea.prioridad)}<br/>
+        ${tarea.fecha_limite ? `<strong>Fecha límite:</strong> ${new Date(tarea.fecha_limite).toLocaleDateString('es-CO')}<br/>` : ''}
+        <strong>Asignado por:</strong> ${esc(asignador || '—')}
+      </div>
+    </div>
+    <a href="${BASE_URL}" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin-top:8px;">Ver tarea</a>`
+  );
+}
+
+export function templateNuevoComentario({ tarea, comentario, autor }) {
+  return baseTemplate(
+    '💬 Nuevo comentario',
+    `Tarea: ${esc(tarea.titulo)}`,
+    `<div style="background:#f8fafc;border-radius:8px;padding:16px;margin:12px 0;border:1px solid #e2e8f0;">
+      <div style="font-size:14px;color:#475569;"><strong>${esc(autor)}</strong> ha comentado en la tarea:</div>
+      <div style="background:#fff;border:1px solid #e2e8f0;border-radius:6px;padding:12px;margin-top:8px;font-size:14px;color:#334155;font-style:italic;">"${esc(comentario.contenido).substring(0, 300)}${comentario.contenido.length > 300 ? '...' : ''}"</div>
+      <div style="margin-top:12px;font-size:13px;color:#64748b;">
+        <strong>Proyecto:</strong> ${esc(tarea.proyecto_nombre || 'Sin proyecto')}
+      </div>
+    </div>
+    <a href="${BASE_URL}" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin-top:8px;">Ver tarea</a>`
+  );
+}
+
+export function templateProyectoAsignado({ proyecto, asignador }) {
+  return baseTemplate(
+    '📁 Proyecto asignado',
+    'Gestión de Proyectos',
+    `<div style="background:#f8fafc;border-radius:8px;padding:16px;margin:12px 0;border:1px solid #e2e8f0;">
+      <div style="font-size:14px;color:#475569;">Se te ha asignado el proyecto <strong>${esc(proyecto.nombre)}</strong>.</div>
+      ${proyecto.descripcion ? `<div style="margin-top:8px;font-size:13px;color:#64748b;">${esc(proyecto.descripcion).substring(0, 200)}${proyecto.descripcion.length > 200 ? '...' : ''}</div>` : ''}
+      <div style="margin-top:12px;font-size:13px;color:#64748b;">
+        ${proyecto.fecha_limite ? `<strong>Fecha límite:</strong> ${new Date(proyecto.fecha_limite).toLocaleDateString('es-CO')}<br/>` : ''}
+        <strong>Asignado por:</strong> ${esc(asignador || '—')}
+      </div>
+    </div>
+    <a href="${BASE_URL}" style="display:inline-block;background:#2563eb;color:#fff;padding:10px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:14px;margin-top:8px;">Ver proyecto</a>`
+  );
+}
+
 export function invalidateSmtpCache() {
   _smtpConfig = null;
   _smtpConfigTs = 0;

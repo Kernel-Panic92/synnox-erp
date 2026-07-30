@@ -1,6 +1,8 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
+import { notificar, getProyectoCompleto } from '../utils/notify.js';
+import { templateProyectoAsignado } from '../utils/email.js';
 
 const router = express.Router();
 
@@ -95,6 +97,24 @@ router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [nombre, descripcion || '', fecha_limite || null, centro_id || null, asignado_a || null]
     );
+
+    // Notificar al asignado
+    if (asignado_a) {
+      const proyecto = await getProyectoCompleto(pool, result.rows[0].id);
+      if (proyecto) {
+        notificar({
+          usuario_id: asignado_a,
+          tipo: 'proyecto_asignado',
+          titulo: 'Proyecto asignado',
+          mensaje: `Se te asignó el proyecto "${nombre}"`,
+          url: '/proyectos/#proyectos',
+          email: proyecto.asignado_email,
+          emailAsunto: `[Proyectos] Proyecto asignado: ${nombre}`,
+          emailHtml: templateProyectoAsignado({ proyecto, asignador: req.user.nombre })
+        });
+      }
+    }
+
     res.status(201).json({ exitosa: true, proyecto: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -104,6 +124,14 @@ router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
 router.put('/:id', requirePermiso('editar', 'proyectos'), async (req, res) => {
   try {
     const { nombre, descripcion, estado, fecha_limite, centro_id, asignado_a } = req.body;
+
+    // Obtener proyecto antes del update para detectar cambios
+    const proyectoAntes = await pool.query('SELECT estado, asignado_a, nombre FROM projects.proyectos WHERE id = $1', [req.params.id]);
+    if (proyectoAntes.rows.length === 0) return res.status(404).json({ error: 'Proyecto no encontrado' });
+    const oldEstado = proyectoAntes.rows[0].estado;
+    const oldAsignado = proyectoAntes.rows[0].asignado_a;
+    const proyectoNombre = nombre || proyectoAntes.rows[0].nombre;
+
     const result = await pool.query(
       `UPDATE projects.proyectos
        SET nombre = COALESCE($1, nombre),
@@ -116,7 +144,36 @@ router.put('/:id', requirePermiso('editar', 'proyectos'), async (req, res) => {
        WHERE id = $7 RETURNING *`,
       [nombre || null, descripcion || null, estado || null, fecha_limite || null, centro_id !== undefined ? centro_id : null, asignado_a !== undefined ? asignado_a : null, req.params.id]
     );
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Proyecto no encontrado' });
+
+    // Notificar re-asignación
+    if (asignado_a !== undefined && asignado_a && asignado_a !== oldAsignado) {
+      const proyecto = await getProyectoCompleto(pool, req.params.id);
+      if (proyecto) {
+        notificar({
+          usuario_id: asignado_a,
+          tipo: 'proyecto_asignado',
+          titulo: 'Proyecto re-asignado',
+          mensaje: `Se te re-asignó el proyecto "${proyectoNombre}"`,
+          url: '/proyectos/#proyectos',
+          email: proyecto.asignado_email,
+          emailAsunto: `[Proyectos] Proyecto re-asignado: ${proyectoNombre}`,
+          emailHtml: templateProyectoAsignado({ proyecto, asignador: req.user.nombre })
+        });
+      }
+    }
+
+    // Notificar cambio de estado
+    const newEstado = estado || oldEstado;
+    if (newEstado && oldEstado !== newEstado && oldAsignado) {
+      notificar({
+        usuario_id: oldAsignado,
+        tipo: 'cambio_estado',
+        titulo: 'Estado de proyecto cambiado',
+        mensaje: `"${proyectoNombre}" cambió de ${oldEstado} a ${newEstado}`,
+        url: '/proyectos/#proyectos'
+      });
+    }
+
     res.json({ exitosa: true, proyecto: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });

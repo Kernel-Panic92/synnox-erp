@@ -395,7 +395,7 @@ async function toggleNotifDropdown() {
         list.innerHTML = '<div class="notif-empty">Sin notificaciones</div>';
       } else {
         list.innerHTML = notificaciones.map(n => {
-          const icons = { tarea_asignada: '📋', tarea_vencida: '⏰', proyecto_aprobado: '✅', proyecto_rechazado: '❌', comentario: '💬', factura_nueva: '📄', factura_vencida: '⚠️', ruta_asignada: '🛣️', backup: '💾', sistema: '⚙️' };
+          const icons = { tarea_asignada: '📋', tarea_vencida: '⏰', proyecto_aprobado: '✅', proyecto_rechazado: '❌', comentario: '💬', factura_nueva: '📄', factura_vencida: '⚠️', ruta_asignada: '🛣️', backup: '💾', sistema: '⚙️', cambio_estado: '🔄', tarea_revision: '📋', proyecto_asignado: '📁' };
           const timeAgo = timeSince(new Date(n.created_at));
           return `<div class="notif-item${n.leida ? '' : ' unread'}" onclick="marcarNotifLeida(${n.id}, '${n.url || ''}')">
             <div class="notif-icon">${icons[n.tipo] || '🔔'}</div>

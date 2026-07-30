@@ -266,6 +266,7 @@ async function showLauncher() {
       document.getElementById('alerts-widget').style.display = 'none';
     }
   }
+  initNotifPolling();
   show('launcher-screen');
 }
 
@@ -1970,6 +1971,93 @@ setInterval(async () => {
     }
   } catch {}
 }, 30 * 60 * 1000); // every 30 minutes
+
+// ── Notifications ──
+let _notifPollTimer = null;
+
+function escNotif(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s||'')); return d.innerHTML; }
+
+async function cargarNotificaciones() {
+  try {
+    const res = await fetch('/api/notificaciones/no-leidas', { headers: jwtToken ? { 'Authorization': 'Bearer ' + jwtToken } : {} });
+    if (!res.ok) return;
+    const { count } = await res.json();
+    const badge = document.getElementById('notif-count');
+    if (badge) badge.textContent = count > 0 ? (count > 99 ? '99+' : count) : '';
+  } catch {}
+}
+
+async function toggleNotifDropdown() {
+  const dd = document.getElementById('notif-dropdown');
+  if (!dd) return;
+  const isOpen = dd.classList.contains('show');
+  dd.classList.toggle('show');
+  if (!isOpen) {
+    try {
+      const res = await fetch('/api/notificaciones', { headers: jwtToken ? { 'Authorization': 'Bearer ' + jwtToken } : {} });
+      if (!res.ok) return;
+      const data = await res.json();
+      const notificaciones = data.notificaciones || [];
+      const list = dd.querySelector('.notif-list');
+      if (!notificaciones.length) {
+        list.innerHTML = '<div class="notif-empty">Sin notificaciones</div>';
+      } else {
+        var icons = { tarea_asignada: '📋', tarea_vencida: '⏰', proyecto_aprobado: '✅', proyecto_rechazado: '❌', comentario: '💬', factura_nueva: '📄', factura_vencida: '⚠️', ruta_asignada: '🛣️', backup: '💾', sistema: '⚙️', cambio_estado: '🔄', tarea_revision: '📋', proyecto_asignado: '📁' };
+        list.innerHTML = notificaciones.map(function(n) {
+          var timeAgo = timeSinceNotif(new Date(n.created_at));
+          return '<div class="notif-item' + (n.leida ? '' : ' unread') + '" onclick="marcarNotifLeida(' + n.id + ', \'' + (n.url || '') + '\')">' +
+            '<div class="notif-icon">' + (icons[n.tipo] || '🔔') + '</div>' +
+            '<div class="notif-content">' +
+              '<div class="notif-title">' + escNotif(n.titulo) + '</div>' +
+              '<div class="notif-msg">' + escNotif(n.mensaje) + '</div>' +
+              '<div class="notif-time">' + timeAgo + '</div>' +
+            '</div>' +
+          '</div>';
+        }).join('');
+      }
+    } catch {}
+  }
+}
+
+async function marcarNotifLeida(id, url) {
+  try {
+    await fetch('/api/notificaciones/' + id + '/leer', { method: 'PUT', headers: jwtToken ? { 'Authorization': 'Bearer ' + jwtToken } : {} });
+    cargarNotificaciones();
+    if (url) window.location.href = url;
+    var dd = document.getElementById('notif-dropdown');
+    if (dd) dd.classList.remove('show');
+  } catch {}
+}
+
+async function marcarTodasLeidas() {
+  try {
+    await fetch('/api/notificaciones/leer-todas', { method: 'PUT', headers: jwtToken ? { 'Authorization': 'Bearer ' + jwtToken } : {} });
+    cargarNotificaciones();
+    toggleNotifDropdown(); toggleNotifDropdown();
+  } catch {}
+}
+
+function timeSinceNotif(date) {
+  var seconds = Math.floor((new Date() - date) / 1000);
+  if (seconds < 60) return 'Ahora';
+  var minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return minutes + ' min';
+  var hours = Math.floor(minutes / 60);
+  if (hours < 24) return hours + ' h';
+  var days = Math.floor(hours / 24);
+  return days + ' d';
+}
+
+function initNotifPolling() {
+  cargarNotificaciones();
+  if (_notifPollTimer) clearInterval(_notifPollTimer);
+  _notifPollTimer = setInterval(cargarNotificaciones, 60000);
+  document.addEventListener('click', function(e) {
+    var dd = document.getElementById('notif-dropdown');
+    var bell = document.querySelector('.notif-bell');
+    if (dd && !dd.contains(e.target) && !bell?.contains(e.target)) dd.classList.remove('show');
+  });
+}
 
 // ── Auto-reload on server restart ──
 (function() {
