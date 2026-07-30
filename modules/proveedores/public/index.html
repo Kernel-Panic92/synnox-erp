@@ -212,6 +212,7 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--ac
       <div class="name" id="user-name">—</div>
       <div class="role" id="user-role">—</div>
       <span class="badge" id="user-badge"></span>
+      <div class="notif-bell" onclick="toggleNotifDropdown()" style="margin-top:8px;">🔔<span class="notif-badge" id="notif-count"></span><div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div></div>
     </div>
     <nav id="sidebar-nav"></nav>
     <div class="sidebar-footer">

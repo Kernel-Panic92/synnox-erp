@@ -361,6 +361,18 @@ router.post('/', requirePermiso('crear'), upload.fields([{ name:'pdf', maxCount:
     await client.query('COMMIT');
     res.status(201).json(rows[0]);
 
+    // Notificación in-app a admins y contadores
+    try {
+      const admins = await db.query("SELECT id FROM usuarios WHERE rol IN ('admin','contador') AND activo = true AND id != $1", [req.usuario.id]);
+      for (const u of admins.rows) {
+        await fetch('http://127.0.0.1:3002/api/notificaciones/crear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ usuario_id: u.id, modulo: 'proveedores', tipo: 'factura_nueva', titulo: 'Factura nueva', mensaje: `Factura #${numero_factura.trim()} por $${parseFloat(valor_total || 0).toLocaleString()}`, url: '/proveedores/#facturas' })
+        });
+      }
+    } catch {}
+
   } catch (err) {
     await client.query('ROLLBACK');
     res.status(500).json({ error: err.message });
