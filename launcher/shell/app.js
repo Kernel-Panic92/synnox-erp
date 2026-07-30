@@ -725,15 +725,32 @@ function showAdmin() {
   showAdminTab('usuarios');
 }
 
-async function loadUsers() {
+let _usersCache = null;
+let _usersCacheTime = 0;
+
+async function loadUsers(force) {
   const tbody = document.querySelector('#users-table tbody');
+  // Use cache if fresh (< 30s) and not forced
+  if (!force && _usersCache && (Date.now() - _usersCacheTime) < 30000) {
+    renderUsersTable(_usersCache);
+    return;
+  }
   tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:24px;">Cargando...</td></tr>';
   try {
     const res = await fetchAuth('/api/admin/usuarios');
     if (!res.ok) throw new Error('Error al cargar usuarios');
     const users = await res.json();
-    const tbody = document.querySelector('#users-table tbody');
-    tbody.innerHTML = users.map(u => `
+    _usersCache = users;
+    _usersCacheTime = Date.now();
+    renderUsersTable(users);
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+}
+
+function renderUsersTable(users) {
+  const tbody = document.querySelector('#users-table tbody');
+  tbody.innerHTML = users.map(u => `
       <tr>
         <td>${u.id}</td>
         <td>${esc(u.nombre)}</td>
@@ -869,7 +886,7 @@ async function saveUser() {
     } else {
       toast(id ? 'Usuario actualizado' : 'Usuario creado', 'success');
     }
-    loadUsers();
+    loadUsers(true);
   } catch (e) {
     showError(errEl, e.message);
   }
@@ -1010,7 +1027,7 @@ async function deleteUser(id) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error || 'Error al desactivar');
     }
-    loadUsers();
+    loadUsers(true);
   } catch (e) {
     toast(e.message, 'error');
   }
@@ -1029,7 +1046,7 @@ async function reactivateUser(id) {
       throw new Error(data.error || 'Error al reactivar');
     }
     toast('Usuario reactivado', 'success');
-    loadUsers();
+    loadUsers(true);
   } catch (e) {
     toast(e.message, 'error');
   }
@@ -1046,7 +1063,7 @@ async function deleteUserPermanent(id) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error || 'Error al eliminar');
     }
-    loadUsers();
+    loadUsers(true);
   } catch (e) {
     toast(e.message, 'error');
   }
@@ -1090,7 +1107,7 @@ async function doImportCsv() {
     toast(msg, data.errors > 0 ? 'warning' : 'success');
     if (data.details?.length) console.warn('[CSV Import]', data.details);
     cerrarModal('modal-import-csv');
-    loadUsers();
+    loadUsers(true);
   } catch (e) {
     toast(e.message, 'error');
   }
@@ -1532,7 +1549,6 @@ function showAdminTab(tab) {
    else if (tab === 'mapas') loadGmapsKeyStatus();
    else if (tab === 'seguridad') { loadRateLimitConfig(); loadSshConfig(); loadLoginLogs(); }
    else if (tab === 'auditoria') loadAuditoria();
-   else if (tab === 'telemetria') loadTelemetria();
    else if (tab === 'actualizar') { loadUpdaterStatus(); loadUpdaterLogs(); }
     else if (tab === 'mcp-modules') { loadMcpModulesStatus(); }
     else if (tab === 'respaldo') { document.getElementById('import-result').style.display = 'none'; }
@@ -1883,112 +1899,6 @@ async function killSession(id, nombre) {
     if (data.ok) { toast('Sesión cerrada', 'success'); loadAuditoria(); }
     else toast(data.error || 'Error', 'error');
   } catch (e) { toast('Error: ' + e.message, 'error'); }
-}
-
-// ── Telemetría ──
-async function loadTelemetria() {
-  try {
-    const dash = await fetch('/api/admin/telemetry/dashboard', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null);
-    if (dash) {
-      document.getElementById('tel-eventos').textContent = dash.eventosHoy || 0;
-      document.getElementById('tel-errores').textContent = dash.erroresHoy || 0;
-      renderTelChartPaginas(dash.topPaginas || []);
-      renderTelChartDias(dash.eventosPorDia || []);
-      const errTbody = document.querySelector('#tel-errores-table tbody');
-      errTbody.innerHTML = (dash.topErrores || []).map(e => `<tr><td style="font-size:12px;max-width:400px;overflow:hidden;text-overflow:ellipsis;" title="${esc(e.mensaje)}">${esc(e.mensaje)}</td><td>${e.total}</td></tr>`).join('') || '<tr><td colspan="2" style="color:var(--muted);text-align:center;">Sin errores</td></tr>';
-    }
-    await loadTelemetriaEventos();
-  } catch (e) { toast('Error cargando telemetría: ' + e.message, 'error'); }
-}
-
-function renderTelChartPaginas(data) {
-  const canvas = document.getElementById('tel-chart-paginas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const container = canvas.parentElement;
-  const w = container.clientWidth;
-  const h = 200;
-  canvas.width = w;
-  canvas.height = h;
-  ctx.clearRect(0, 0, w, h);
-  if (!data.length) { ctx.fillStyle = '#888'; ctx.font = '13px sans-serif'; ctx.fillText('Sin datos', w / 2 - 30, h / 2); return; }
-  const max = Math.max(...data.map(d => d.total));
-  const barW = Math.min(40, (w - 40) / data.length - 4);
-  const chartH = h - 40;
-  data.forEach((d, i) => {
-    const barH = (d.total / max) * chartH;
-    const x = 20 + i * (barW + 4);
-    const y = h - 20 - barH;
-    ctx.fillStyle = 'rgba(var(--accent-rgb, 230,126,34), 0.8)';
-    ctx.fillRect(x, y, barW, barH);
-    ctx.fillStyle = '#999';
-    ctx.font = '10px sans-serif';
-    ctx.save();
-    ctx.translate(x + barW / 2, h - 4);
-    ctx.fillText(d.pagina?.substring(0, 8) || '?', -15, 0);
-    ctx.restore();
-    ctx.fillStyle = 'var(--text)';
-    ctx.fillText(d.total, x + barW / 2 - 5, y - 4);
-  });
-}
-
-function renderTelChartDias(data) {
-  const canvas = document.getElementById('tel-chart-dias');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  const container = canvas.parentElement;
-  const w = container.clientWidth;
-  const h = 200;
-  canvas.width = w;
-  canvas.height = h;
-  ctx.clearRect(0, 0, w, h);
-  if (!data.length) { ctx.fillStyle = '#888'; ctx.font = '13px sans-serif'; ctx.fillText('Sin datos', w / 2 - 30, h / 2); return; }
-  const max = Math.max(...data.map(d => d.total));
-  const barW = Math.min(50, (w - 40) / data.length - 4);
-  const chartH = h - 40;
-  data.forEach((d, i) => {
-    const barH = (d.total / max) * chartH;
-    const x = 20 + i * (barW + 4);
-    const y = h - 20 - barH;
-    ctx.fillStyle = 'rgba(var(--success-rgb, 46,204,113), 0.8)';
-    ctx.fillRect(x, y, barW, barH);
-    ctx.fillStyle = '#999';
-    ctx.font = '10px sans-serif';
-    ctx.fillText((d.dia || '').slice(5), x, h - 4);
-    ctx.fillStyle = 'var(--text)';
-    ctx.fillText(d.total, x + barW / 2 - 5, y - 4);
-  });
-}
-
-async function loadTelemetriaEventos() {
-  try {
-    const evento = document.getElementById('tel-evento-filter')?.value || '';
-    const desde = document.getElementById('tel-desde')?.value || '';
-    const hasta = document.getElementById('tel-hasta')?.value || '';
-    const limit = document.getElementById('tel-limit')?.value || '50';
-    let url = '/api/admin/telemetry/eventos?limit=' + limit;
-    if (evento) url += '&evento=' + encodeURIComponent(evento);
-    if (desde) url += '&desde=' + desde;
-    if (hasta) url += '&hasta=' + hasta;
-    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + jwtToken } });
-    if (!res.ok) return;
-    const data = await res.json();
-    const eventos = data.eventos || [];
-    const total = data.total || eventos.length;
-    const countEl = document.getElementById('tel-eventos-count');
-    if (countEl) countEl.textContent = `Mostrando ${eventos.length} de ${total} registros`;
-    const tbody = document.querySelector('#tel-eventos-table tbody');
-    tbody.innerHTML = eventos.map(e => {
-      const pagina = e.pagina || '';
-      const displayPagina = pagina.length > 40 ? pagina.substring(0, 40) + '...' : pagina;
-      return `<tr>
-        <td style="white-space:nowrap;font-size:12px;">${esc(e.creado)}</td>
-        <td><span class="badge badge-admin">${esc(e.evento)}</span></td>
-        <td style="font-size:12px;" title="${esc(pagina)}">${esc(displayPagina || '—')}</td>
-        <td style="font-size:12px;">${esc(e.usuario_nombre || 'Anónimo')}</td>
-      </tr>`;
-    }).join('') || '<tr><td colspan="4" style="color:var(--muted);text-align:center;">Sin eventos</td></tr>';
-  } catch (e) {}
 }
 
 // ── Session check + refresh ──
