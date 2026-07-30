@@ -2037,7 +2037,6 @@ setInterval(async () => {
 }, 30 * 60 * 1000); // every 30 minutes
 
 // ── Notifications ──
-let _notifPollTimer = null;
 
 function escNotif(s) { var d = document.createElement('div'); d.appendChild(document.createTextNode(s||'')); return d.innerHTML; }
 
