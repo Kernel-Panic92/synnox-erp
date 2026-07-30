@@ -10,10 +10,11 @@ let _visibilityListenerInstalled = false;
 let _clickOutsideListenerInstalled = false;
 
 function fetchAuth(url, opts = {}) {
+  const { timeout = 15000, ...rest } = opts;
   return fetch(url, {
-    signal: opts.signal || AbortSignal.timeout(opts.timeout || 10000),
-    ...opts,
-    headers: { 'Authorization': 'Bearer ' + jwtToken, ...opts.headers }
+    signal: AbortSignal.timeout(timeout),
+    ...rest,
+    headers: { 'Authorization': 'Bearer ' + jwtToken, ...(rest.headers || {}) }
   });
 }
 
