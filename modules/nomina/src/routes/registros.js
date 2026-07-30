@@ -8,6 +8,16 @@ module.exports = function createRegistrosRouter({
   const router = express.Router();
   const { todosRoles, adminRrhh, adminRrhhOp, podeEditar, podeAprobar, autenticar, requierePermiso } = middlewares;
 
+  async function crearNotificacion(usuarioId, tipo, titulo, mensaje, url) {
+    try {
+      await fetch('http://127.0.0.1:3002/api/notificaciones/crear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ usuario_id: usuarioId, modulo: 'nomina', tipo, titulo, mensaje, url: url || '/nomina/' })
+      });
+    } catch {}
+  }
+
   function permEfectivo(usuario) {
     if (tienePermiso(usuario, 'ver_todos')) return 'todos';
     if (tienePermiso(usuario, 'ver_sede')) return 'sede';
@@ -192,7 +202,7 @@ module.exports = function createRegistrosRouter({
 
       try {
         const cfg = getConfig();
-        const gerentes = db.prepare("SELECT email FROM usuarios WHERE rol IN ('gerencia','admin') AND activo = 1").all();
+        const gerentes = db.prepare("SELECT email, id FROM usuarios WHERE rol IN ('gerencia','admin') AND activo = 1").all();
         const empN = db.prepare('SELECT nombre FROM empleados WHERE id = ?').get(empleadoId);
         const tipoRow = db.prepare('SELECT nombre FROM tipos WHERE id = ?').get(tipo);
         const tipoNombre = tipoRow ? tipo + ' ' + tipoRow.nombre : tipo;
@@ -200,6 +210,10 @@ module.exports = function createRegistrosRouter({
           const enlace = `${BASE_URL}?registro=${id}`;
           const cuerpo = `📢 Nueva hora extra pendiente de aprobación\n\nEmpleado: ${empN?.nombre || '—'}\nSede: ${sede}\nFecha: ${fecha}\nHoras: ${horas}\nTipo: ${tipoNombre}\nAprobador: ${aprobador}\nMotivo: ${motivo}\n\nHaz clic aquí para revisar y aprobar:\n${enlace}\n\n${BASE_URL}`;
           gerentes.forEach(g => enviarCorreo(g.email, `🔔 Nueva hora extra pendiente - ${empN?.nombre || '—'}`, cuerpo));
+        }
+        // Notificación in-app a gerentes/admins
+        for (const g of gerentes) {
+          crearNotificacion(g.id, 'registro_creado', 'Hora extra pendiente', `${empN?.nombre || 'Empleado'} registró ${horas}h de ${tipoNombre} el ${fecha}`, '/nomina/');
         }
       } catch (e) { console.error('Error notify gerencia:', e.message); }
 
@@ -286,10 +300,18 @@ module.exports = function createRegistrosRouter({
     } catch (dbErr) { return res.status(500).json({ error: 'Error actualizando DB' }); }
 
     try {
-      const reg = db.prepare('SELECT r.*, u.email as creadorEmail, u.nombre as creadorNombre FROM registros r JOIN usuarios u ON r.creadoPor = u.id WHERE r.id = ?').get(req.params.id);
+      const reg = db.prepare('SELECT r.*, u.email as creadorEmail, u.nombre as creadorNombre, u.id as creadorId FROM registros r JOIN usuarios u ON r.creadoPor = u.id WHERE r.id = ?').get(req.params.id);
       if (reg?.creadorEmail) enviarCorreo(reg.creadorEmail, `Tu hora extra fue ${estado === 'aprobado' ? 'aprobada' : 'rechazada'}`,
         `Hola ${reg.creadorNombre},\n\nTu registro de hora extra ha sido ${estado === 'aprobado' ? 'aprobado' : 'rechazado'}:\n\nFecha: ${reg.fecha}\nHoras: ${reg.horas}\nTipo: ${reg.tipo}\n\n${observaciones ? 'Observaciones: ' + observaciones : ''}\n\nSaludos,\n${APP_NAME || 'Nómina'}`
       ).catch(e => console.error('Notificación email falló:', e.message));
+      // Notificación in-app al creador
+      if (reg?.creadorId) {
+        crearNotificacion(reg.creadorId, estado === 'aprobado' ? 'registro_aprobado' : 'registro_rechazado',
+          `Hora extra ${estado === 'aprobado' ? 'aprobada' : 'rechazada'}`,
+          `Tu registro del ${reg.fecha} (${reg.horas}h) fue ${estado === 'aprobado' ? 'aprobado' : 'rechazado'}`,
+          '/nomina/'
+        );
+      }
     } catch (e) { console.error('Error preparando notificación:', e.message); }
 
     res.json({ ok: true, estado });
