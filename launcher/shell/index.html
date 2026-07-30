@@ -389,7 +389,6 @@
         <div class="sidebar-section-title">Operaciones</div>
         <div class="nav-item" data-page="seguridad" onclick="showAdminTab('seguridad')"><span class="icon">🛡️</span> Seguridad</div>
         <div class="nav-item" data-page="auditoria" onclick="showAdminTab('auditoria')"><span class="icon">📋</span> Auditoría</div>
-        <div class="nav-item" data-page="telemetria" onclick="showAdminTab('telemetria')"><span class="icon">📊</span> Telemetría</div>
         <div class="nav-item" data-page="actualizar" onclick="showAdminTab('actualizar')"><span class="icon">🔄</span> Actualizar</div>
         <div class="nav-item" data-page="respaldo" onclick="showAdminTab('respaldo')"><span class="icon">💾</span> Respaldo</div>
       </div>
@@ -673,73 +672,6 @@
       </div>
     </div>
   </div>
-  <div class="tab-content" id="tab-telemetria">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
-      <div style="font-size:var(--fs);font-weight:600;">Telemetría</div>
-      <button class="btn btn-sm" onclick="loadTelemetria()">🔄 Recargar</button>
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px;">
-      <div class="perm-rol-section" style="text-align:center;padding:16px;">
-        <div style="font-size:28px;font-weight:700;color:var(--accent);" id="tel-eventos">0</div>
-        <div style="font-size:13px;color:var(--muted);">Eventos hoy</div>
-      </div>
-      <div class="perm-rol-section" style="text-align:center;padding:16px;">
-        <div style="font-size:28px;font-weight:700;color:var(--danger);" id="tel-errores">0</div>
-        <div style="font-size:13px;color:var(--muted);">Errores hoy</div>
-      </div>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
-      <div class="perm-rol-section">
-        <div class="perm-rol-titulo">Páginas más visitadas (30 días)</div>
-        <div style="overflow:hidden;"><canvas id="tel-chart-paginas" height="200" style="width:100%;"></canvas></div>
-      </div>
-      <div class="perm-rol-section">
-        <div class="perm-rol-titulo">Eventos por día (7 días)</div>
-        <div style="overflow:hidden;"><canvas id="tel-chart-dias" height="200" style="width:100%;"></canvas></div>
-      </div>
-    </div>
-    <div class="perm-rol-section">
-      <div class="perm-rol-titulo">Errores más frecuentes</div>
-      <div style="overflow-x:auto;">
-        <table id="tel-errores-table">
-          <thead><tr><th>Error</th><th>Frecuencia</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-    <div class="perm-rol-section" style="margin-top:20px;">
-      <div class="perm-rol-titulo">Eventos recientes</div>
-      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;">
-        <span style="font-size:12px;color:var(--muted);" id="tel-eventos-count">Mostrando 0 de 0 registros</span>
-        <div style="margin-left:auto;display:flex;align-items:center;gap:6px;">
-          <span style="font-size:12px;color:var(--muted);font-weight:600;">MOSTRAR</span>
-          <select id="tel-limit" style="width:70px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:12px;" onchange="loadTelemetriaEventos()">
-            <option value="20">20</option>
-            <option value="50">50</option>
-            <option value="100" selected>100</option>
-          </select>
-          <span style="font-size:12px;color:var(--muted);font-weight:600;">REGISTROS</span>
-        </div>
-      </div>
-      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
-        <select id="tel-evento-filter" style="width:150px;">
-          <option value="">Todos los eventos</option>
-          <option value="page_view">Page views</option>
-          <option value="export">Exportaciones</option>
-          <option value="click">Clicks</option>
-        </select>
-        <input type="date" id="tel-desde" style="width:150px;">
-        <input type="date" id="tel-hasta" style="width:150px;">
-        <button class="btn btn-sm" onclick="loadTelemetriaEventos()">🔍 Filtrar</button>
-      </div>
-      <div style="overflow-x:auto;">
-        <table id="tel-eventos-table">
-          <thead><tr><th>Fecha</th><th>Evento</th><th>Página</th><th>Usuario</th></tr></thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </div>
-  </div>
   <div class="tab-content" id="tab-actualizar">
     <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
       <div style="font-size:var(--fs);font-weight:600;">Actualización del Launcher</div>
@@ -985,6 +917,5 @@ fetch('/api/config/gmaps/key')
 </script>
 <script src="config.js?v=20260630"></script>
 <script src="app.js?v=20260729"></script>
-<script src="telemetry.js"></script>
 </body>
 </html>
