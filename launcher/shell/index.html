@@ -972,13 +972,13 @@
 <style>@keyframes toast-in{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}</style>
 <script>
 var GOOGLE_MAPS_KEY = '';
-fetch('/api/config/gmaps/js-url', { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('platform_jwt') } })
+fetch('/api/config/gmaps/key')
   .then(function(r){ return r.ok ? r.json() : null; })
   .then(function(d){
-    if(d && d.url){
-      GOOGLE_MAPS_KEY = d.url.match(/key=([^&]+)/)?.[1] || '';
+    if(d && d.key){
+      GOOGLE_MAPS_KEY = d.key;
       var s = document.createElement('script');
-      s.src = d.url;
+      s.src = 'https://maps.googleapis.com/maps/api/js?key=' + d.key + '&libraries=places';
       s.async = true; s.defer = true;
       s.onload = function(){ window.googleMapsListo = true; };
       s.onerror = function(){ console.warn('[maps] Error cargando Google Maps API'); };
