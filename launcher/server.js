@@ -941,8 +941,8 @@ app.get('/api/admin/usuarios', verificarToken, soloAdmin, (req, res) => {
   `).all());
 });
 
-// ── Public user list (for internal module communication, no admin auth) ──
-app.get('/api/usuarios/public', verificarToken, (req, res) => {
+// ── Public user list (for internal module communication) ──
+app.get('/api/usuarios/public', (req, res) => {
   const rows = db.prepare('SELECT id, nombre, email, rol FROM usuarios WHERE activo = 1').all();
   res.json(rows);
 });
@@ -1891,7 +1891,9 @@ app.delete('/api/notificaciones/:id', verificarToken, (req, res) => {
 app.post('/api/notificaciones/crear', (req, res) => {
   try {
     // Bypass auth for internal requests (localhost)
-    const isInternal = req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === '::ffff:127.0.0.1';
+    const ip = req.ip || req.connection?.remoteAddress || '';
+    const isInternal = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || ip.includes('127.0.0.1');
+    console.log(`[notif-crear] ip=${ip} isInternal=${isInternal} body=`, JSON.stringify(req.body).substring(0, 200));
     if (!isInternal) {
       // External requests need auth
       const token = req.headers.authorization?.replace('Bearer ', '') || req.cookies?.launcher_jwt;
