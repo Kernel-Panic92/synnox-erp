@@ -165,6 +165,7 @@ async function init() {
     if (footerRole && data.rol) footerRole.textContent = data.rol === 'admin' ? 'Administrador' : data.rol === 'gerente' ? 'Gerente' : (data.perfil_nombre || data.rol);
     await cargarTodosLosUsuarios();
     try { initNotifications(60000); } catch {}
+    injectNotificationBell(document.querySelector('.header-actions'));
     if (!tienePermiso('crear')) {
       const btnNuevo = document.querySelector('#page-proyectos .btn-primary');
       if (btnNuevo) btnNuevo.style.display = 'none';

@@ -216,9 +216,7 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
   <div class="sidebar-overlay" onclick="closeSidebar()"></div>
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>
-    <div class="logo" style="display:flex;align-items:center;gap:8px;">🚚 <span>Logística</span>
-      <div class="notif-bell" onclick="toggleNotifDropdown()" style="margin-left:auto;">🔔<span class="notif-badge" id="notif-count"></span><div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div></div>
-    </div>
+    <div class="logo">🚚 <span>Logística</span></div>
     <div class="user-info">
       <div class="name" id="user-name"></div>
       <div class="role" id="user-role"></div>
@@ -244,6 +242,7 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
         <h2 id="page-title">Dashboard</h2>
       </div>
       <div class="header-actions">
+        <div class="notif-bell" onclick="toggleNotifDropdown()">🔔<span class="notif-badge" id="notif-count"></span><div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div></div>
       </div>
     </div>
     <div class="main-body">
