@@ -8,7 +8,7 @@ initFramework({
   basePath: BASE,
   apiPrefix: '/api',
   themeKey: 'synnox_theme',
-  tokenKey: 'proyectos_token',
+  tokenKey: 'platform_jwt',
   routes: {
     dashboard: () => cargarDashboard(),
     proyectos: () => cargarProyectos(),
