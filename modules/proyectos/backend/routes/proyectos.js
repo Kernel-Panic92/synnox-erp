@@ -1,7 +1,7 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
-import { notificar, getProyectoCompleto, BASE_URL } from '../utils/notify.js';
+import { notificar, getProyectoCompleto, getEmailBaseUrl } from '../utils/notify.js';
 import { enviarCorreo } from '../utils/email.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -115,7 +115,7 @@ router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
             url: '/proyectos/#proyectos',
             email: proyecto.asignado_email,
             emailAsunto: `[Proyectos] Proyecto asignado: ${nombre}`,
-            emailHtml: templateAsignacion({ entidad: 'proyecto', nombre, asignador: req.user.nombre, descripcion, url: `${BASE_URL}/#proyectos`, module: 'proyectos', baseUrl: BASE_URL }),
+            emailHtml: templateAsignacion({ entidad: 'proyecto', nombre, asignador: req.user.nombre, descripcion, url: `${await getEmailBaseUrl()}/#proyectos`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
             enviarCorreo
           });
         }
@@ -166,7 +166,7 @@ router.put('/:id', requirePermiso('editar', 'proyectos'), async (req, res) => {
             url: '/proyectos/#proyectos',
             email: proyecto.asignado_email,
             emailAsunto: `[Proyectos] Proyecto re-asignado: ${proyectoNombre}`,
-            emailHtml: templateAsignacion({ entidad: 'proyecto', nombre: proyectoNombre, asignador: req.user.nombre, url: `${BASE_URL}/#proyectos`, module: 'proyectos', baseUrl: BASE_URL }),
+            emailHtml: templateAsignacion({ entidad: 'proyecto', nombre: proyectoNombre, asignador: req.user.nombre, url: `${await getEmailBaseUrl()}/#proyectos`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
             enviarCorreo
           });
         }
@@ -187,7 +187,7 @@ router.put('/:id', requirePermiso('editar', 'proyectos'), async (req, res) => {
           url: '/proyectos/#proyectos',
           email: proyecto?.asignado_email,
           emailAsunto: `[Proyectos] Estado cambiado: ${proyectoNombre}`,
-          emailHtml: templateCambioEstado({ entidad: 'proyecto', nombre: proyectoNombre, estadoAnterior: oldEstado, estadoNuevo: newEstado, url: `${BASE_URL}/#proyectos`, module: 'proyectos', baseUrl: BASE_URL }),
+          emailHtml: templateCambioEstado({ entidad: 'proyecto', nombre: proyectoNombre, estadoAnterior: oldEstado, estadoNuevo: newEstado, url: `${await getEmailBaseUrl()}/#proyectos`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
           enviarCorreo
         });
       } catch (e) { console.warn('[notify] Error:', e.message); }

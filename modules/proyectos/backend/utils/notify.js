@@ -4,10 +4,27 @@ const { notificar } = require('../../../../framework/notify');
 
 const LAUNCHER_URL = process.env.LAUNCHER_URL || 'http://localhost:3002';
 
-const BASE_URL = (() => {
+let _baseUrl = null;
+
+async function getBaseUrl() {
+  if (_baseUrl) return _baseUrl;
+  try {
+    const res = await fetch(`${LAUNCHER_URL}/api/smtp/internal`, { signal: AbortSignal.timeout(3000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.baseUrl) {
+        _baseUrl = `${data.baseUrl}/proyectos`;
+        return _baseUrl;
+      }
+    }
+  } catch {}
   const domain = process.env.COMPANY_DOMAIN || 'localhost';
-  return domain !== 'localhost' ? `https://${domain}/proyectos` : 'http://localhost:3101';
-})();
+  _baseUrl = domain !== 'localhost' ? `https://${domain}/proyectos` : `http://localhost:3101`;
+  return _baseUrl;
+}
+
+// Pre-fetch on module load
+getBaseUrl().catch(() => {});
 
 function esc(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -90,4 +107,7 @@ export async function getProyectoCompleto(pool, proyectoId) {
   return proyecto;
 }
 
-export { notificar, BASE_URL, esc };
+export { notificar, esc };
+
+// Re-export email helpers
+export { getEmailBaseUrl, getEmailModuleOpts } from './email.js';

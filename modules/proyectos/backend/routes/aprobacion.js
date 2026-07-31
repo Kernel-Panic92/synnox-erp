@@ -1,6 +1,6 @@
 import express from 'express';
 import pool from '../config/db.js';
-import { notificar, getProyectoCompleto, BASE_URL } from '../utils/notify.js';
+import { notificar, getProyectoCompleto, getEmailBaseUrl } from '../utils/notify.js';
 import { enviarCorreo } from '../utils/email.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -90,7 +90,7 @@ router.put('/tareas/:id/aprobar', async (req, res) => {
           url: '/proyectos/#tareas',
           email: tareaFull?.asignado_email,
           emailAsunto: `✅ Tarea aprobada: ${tarea.titulo}`,
-          emailHtml: templateAprobacion({ entidad: 'tarea', nombre: tarea.titulo, accion: 'aprobada', aprobador: req.user.nombre, url: `${BASE_URL}/#tareas`, module: 'proyectos', baseUrl: BASE_URL }),
+          emailHtml: templateAprobacion({ entidad: 'tarea', nombre: tarea.titulo, accion: 'aprobada', aprobador: req.user.nombre, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
           enviarCorreo
         });
       } catch (e) { console.warn('[notify] Error:', e.message); }
@@ -137,7 +137,7 @@ router.put('/tareas/:id/rechazar', async (req, res) => {
           url: '/proyectos/#tareas',
           email: tareaFull?.asignado_email,
           emailAsunto: `❌ Tarea rechazada: ${tarea.titulo}`,
-          emailHtml: templateAprobacion({ entidad: 'tarea', nombre: tarea.titulo, accion: 'rechazada', motivo, aprobador: req.user.nombre, url: `${BASE_URL}/#tareas`, module: 'proyectos', baseUrl: BASE_URL }),
+          emailHtml: templateAprobacion({ entidad: 'tarea', nombre: tarea.titulo, accion: 'rechazada', motivo, aprobador: req.user.nombre, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
           enviarCorreo
         });
       } catch (e) { console.warn('[notify] Error:', e.message); }
@@ -180,7 +180,7 @@ router.put('/proyectos/:id/aprobar', async (req, res) => {
             url: '/proyectos/#proyectos',
             email: proyectoFull.asignado_email,
             emailAsunto: `✅ Proyecto aprobado: ${proyecto.nombre}`,
-            emailHtml: templateAprobacion({ entidad: 'proyecto', nombre: proyecto.nombre, accion: 'aprobada', aprobador: req.user.nombre, url: `${BASE_URL}/#proyectos`, module: 'proyectos', baseUrl: BASE_URL }),
+            emailHtml: templateAprobacion({ entidad: 'proyecto', nombre: proyecto.nombre, accion: 'aprobada', aprobador: req.user.nombre, url: `${await getEmailBaseUrl()}/#proyectos`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
             enviarCorreo
           });
         }
@@ -223,7 +223,7 @@ router.put('/proyectos/:id/rechazar', async (req, res) => {
             url: '/proyectos/#proyectos',
             email: proyectoFull.asignado_email,
             emailAsunto: `❌ Proyecto rechazado: ${proyecto.nombre}`,
-            emailHtml: templateAprobacion({ entidad: 'proyecto', nombre: proyecto.nombre, accion: 'rechazada', aprobador: req.user.nombre, url: `${BASE_URL}/#proyectos`, module: 'proyectos', baseUrl: BASE_URL }),
+            emailHtml: templateAprobacion({ entidad: 'proyecto', nombre: proyecto.nombre, accion: 'rechazada', aprobador: req.user.nombre, url: `${await getEmailBaseUrl()}/#proyectos`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
             enviarCorreo
           });
         }
@@ -268,7 +268,7 @@ router.put('/tareas/:id/solicitar-revision', async (req, res) => {
             url: '/proyectos/#tareas',
             email: admin.email,
             emailAsunto: `📋 Tarea pendiente de revisión: ${tarea.titulo}`,
-            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tarea.titulo, descripcion: tareaFull?.descripcion, prioridad: tarea.prioridad, url: `${BASE_URL}/#tareas`, module: 'proyectos', baseUrl: BASE_URL }),
+            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tarea.titulo, descripcion: tareaFull?.descripcion, prioridad: tarea.prioridad, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
             enviarCorreo
           });
         }
@@ -284,7 +284,7 @@ router.put('/tareas/:id/solicitar-revision', async (req, res) => {
           url: '/proyectos/#tareas',
           email: tareaFull.reportero_email,
           emailAsunto: `📋 Tarea enviada a revisión: ${tarea.titulo}`,
-          emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tarea.titulo, descripcion: tareaFull?.descripcion, prioridad: tarea.prioridad, url: `${BASE_URL}/#tareas`, module: 'proyectos', baseUrl: BASE_URL }),
+          emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tarea.titulo, descripcion: tareaFull?.descripcion, prioridad: tarea.prioridad, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
           enviarCorreo
         });
       }

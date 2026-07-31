@@ -2247,11 +2247,13 @@ async function toggleNotifDropdown() {
 async function marcarNotifLeida(id, url) {
   try {
     await fetch('/api/notificaciones/' + id + '/leer', { method: 'PUT', headers: jwtToken ? { 'Authorization': 'Bearer ' + jwtToken } : {} });
-    cargarNotificaciones();
-    if (url) window.location.href = url;
-    var dd = document.getElementById('notif-dropdown');
-    if (dd) dd.classList.remove('show');
-  } catch {}
+  } catch (e) { console.warn('[notif] Error marcando leída:', e.message); }
+  cargarNotificaciones();
+  var dd = document.getElementById('notif-dropdown');
+  if (dd) dd.classList.remove('show');
+  if (url && url !== 'null' && url !== 'undefined') {
+    window.location.href = url;
+  }
 }
 
 async function marcarTodasLeidas() {

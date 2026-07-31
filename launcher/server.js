@@ -731,7 +731,7 @@ app.get('/api/smtp/internal', (req, res) => {
   const rows = db.prepare("SELECT key, value FROM config WHERE key LIKE 'smtp_%' ORDER BY key").all();
   const cfg = {};
   for (const r of rows) cfg[r.key] = r.value;
-  res.json({ config: cfg });
+  res.json({ config: cfg, baseUrl: getBaseUrl() });
 });
 
 // ── Shell/Theme config for framework ──

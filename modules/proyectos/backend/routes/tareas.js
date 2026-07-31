@@ -1,7 +1,7 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
-import { notificar, getTareaCompleta, BASE_URL } from '../utils/notify.js';
+import { notificar, getTareaCompleta, getEmailBaseUrl } from '../utils/notify.js';
 import { enviarCorreo } from '../utils/email.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -104,7 +104,7 @@ router.post('/', requirePermiso('crear_tarea', 'proyectos'), async (req, res) =>
             url: '/proyectos/#tareas',
             email: tarea.asignado_email,
             emailAsunto: `[Proyectos] Tarea asignada: ${titulo}`,
-            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: titulo, asignador: req.user.nombre, descripcion, prioridad, fechaLimite: fecha_limite, url: `${BASE_URL}/#tareas`, module: 'proyectos', baseUrl: BASE_URL }),
+            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: titulo, asignador: req.user.nombre, descripcion, prioridad, fechaLimite: fecha_limite, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
             enviarCorreo
           });
         }
@@ -163,7 +163,7 @@ router.put('/reordenar', requirePermiso('editar_tarea', 'proyectos'), async (req
             url: '/proyectos/#tablero',
             email: tarea.asignado_email,
             emailAsunto: `[Proyectos] Tarea movida: ${tarea.titulo}`,
-            emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tarea.titulo, estadoAnterior: estadoAnterior.replace('_', ' '), estadoNuevo: est.replace('_', ' '), url: `${BASE_URL}/#tablero`, module: 'proyectos', baseUrl: BASE_URL }),
+            emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tarea.titulo, estadoAnterior: estadoAnterior.replace('_', ' '), estadoNuevo: est.replace('_', ' '), url: `${await getEmailBaseUrl()}/#tablero`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
             enviarCorreo
           });
           // Notificar al reportero si es diferente
@@ -177,7 +177,7 @@ router.put('/reordenar', requirePermiso('editar_tarea', 'proyectos'), async (req
               url: '/proyectos/#tablero',
               email: tarea.reportero_email,
               emailAsunto: `[Proyectos] Tarea movida: ${tarea.titulo}`,
-              emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tarea.titulo, estadoAnterior: estadoAnterior.replace('_', ' '), estadoNuevo: est.replace('_', ' '), url: `${BASE_URL}/#tablero`, module: 'proyectos', baseUrl: BASE_URL }),
+              emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tarea.titulo, estadoAnterior: estadoAnterior.replace('_', ' '), estadoNuevo: est.replace('_', ' '), url: `${await getEmailBaseUrl()}/#tablero`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
               enviarCorreo
             });
           }
@@ -273,7 +273,7 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
             url: '/proyectos/#tareas',
             email: tarea.asignado_email,
             emailAsunto: `[Proyectos] Tarea re-asignada: ${tareaTitulo}`,
-            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tareaTitulo, asignador: req.user.nombre, url: `${BASE_URL}/#tareas`, module: 'proyectos', baseUrl: BASE_URL }),
+            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tareaTitulo, asignador: req.user.nombre, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
             enviarCorreo
           });
           // Notificar al reportero
@@ -287,7 +287,7 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
               url: '/proyectos/#tareas',
               email: tarea.reportero_email,
               emailAsunto: `[Proyectos] Tarea re-asignada: ${tareaTitulo}`,
-              emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tareaTitulo, asignador: req.user.nombre, url: `${BASE_URL}/#tareas`, module: 'proyectos', baseUrl: BASE_URL }),
+              emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tareaTitulo, asignador: req.user.nombre, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
               enviarCorreo
             });
           }
@@ -309,7 +309,7 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
           url: '/proyectos/#tareas',
           email: tarea?.asignado_email,
           emailAsunto: `[Proyectos] Estado cambiado: ${tareaTitulo}`,
-          emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: oldEstado.replace('_', ' '), estadoNuevo: newEstado.replace('_', ' '), url: `${BASE_URL}/#tareas`, module: 'proyectos', baseUrl: BASE_URL }),
+          emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: oldEstado.replace('_', ' '), estadoNuevo: newEstado.replace('_', ' '), url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
           enviarCorreo
         });
         // Notificar al reportero si es diferente
@@ -323,7 +323,7 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
             url: '/proyectos/#tareas',
             email: tarea.reportero_email,
             emailAsunto: `[Proyectos] Estado cambiado: ${tareaTitulo}`,
-            emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: oldEstado.replace('_', ' '), estadoNuevo: newEstado.replace('_', ' '), url: `${BASE_URL}/#tareas`, module: 'proyectos', baseUrl: BASE_URL }),
+            emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: oldEstado.replace('_', ' '), estadoNuevo: newEstado.replace('_', ' '), url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
             enviarCorreo
           });
         }
@@ -346,7 +346,7 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
             url: '/proyectos/#tareas',
             email: tarea.reportero_email,
             emailAsunto: `[Proyectos] Tarea editada: ${tareaTitulo}`,
-            emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: 'anterior', estadoNuevo: 'editada', url: `${BASE_URL}/#tareas`, module: 'proyectos', baseUrl: BASE_URL }),
+            emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: 'anterior', estadoNuevo: 'editada', url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
             enviarCorreo
           });
         }

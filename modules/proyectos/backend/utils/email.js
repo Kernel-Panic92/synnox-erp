@@ -7,6 +7,7 @@ const BASE_URL = process.env.BASE_URL || (_domain !== 'localhost' ? `https://${_
 
 let _smtpConfig = null;
 let _smtpConfigTs = 0;
+let _launcherBaseUrl = null;
 const SMTP_CACHE_TTL = 60000;
 
 async function getSmtpConfig() {
@@ -27,6 +28,7 @@ async function getSmtpConfig() {
         from: c.smtp_from || 'smtp@localhost',
         fromName: c.smtp_from_name || APP_NAME
       };
+      if (data.baseUrl) _launcherBaseUrl = data.baseUrl;
       _smtpConfigTs = now;
       return _smtpConfig;
     }
@@ -34,6 +36,10 @@ async function getSmtpConfig() {
     console.warn('[email] Launcher SMTP no disponible:', e.message);
   }
   return null;
+}
+
+export function getLauncherBaseUrl() {
+  return _launcherBaseUrl;
 }
 
 function esc(s) {
@@ -246,5 +252,12 @@ export function templateProyectoAsignado({ proyecto, asignador }) {
 export function invalidateSmtpCache() {
   _smtpConfig = null;
   _smtpConfigTs = 0;
-  _transporter = null;
+}
+
+export function getEmailBaseUrl() {
+  return _launcherBaseUrl ? `${_launcherBaseUrl}/proyectos` : BASE_URL;
+}
+
+export function getEmailModuleOpts() {
+  return { module: 'proyectos', baseUrl: getEmailBaseUrl() };
 }
