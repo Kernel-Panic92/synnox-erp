@@ -203,13 +203,13 @@ let launcherVersion = '';
 
 let modulosCache = [];
 
-async function loadModulosDinamicos() {
+async function loadModulosDinamicos(sig) {
   try {
-    const res = await fetch('/api/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const res = await fetch('/api/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken }, signal: sig || AbortSignal.timeout(15000) });
     if (!res.ok) throw new Error('Error al cargar módulos');
     modulosCache = res.json ? await res.json() : [];
-  } catch {
-    modulosCache = [];
+  } catch (e) {
+    if (e.name !== 'AbortError') modulosCache = [];
   }
 }
 
@@ -286,7 +286,7 @@ async function showLauncher() {
   updatePostLoginStatus('Cargando módulos...', 75);
   const grid = document.getElementById('module-grid');
   renderModulos(grid);
-  loadModulosDinamicos().then(() => renderModulos(grid));
+  loadModulosDinamicos(sig).then(() => renderModulos(grid));
 
   // Prefetch module HTML in background
   Promise.allSettled([
@@ -303,13 +303,13 @@ async function showLauncher() {
     cargarCommits(sig);
     cargarQuickActions(sig);
     cargarModuleStatus(sig);
-    cargarNotificacionesWidget();
+    cargarNotificacionesWidget(sig);
     cargarActivity(sig);
   } else {
     document.getElementById('server-stats-widget').style.display = 'none';
     if (user?.rol === 'gerente') {
       cargarQuickActions(sig);
-      cargarNotificacionesWidget();
+      cargarNotificacionesWidget(sig);
     } else {
       cargarQuickActions(sig);
     }
@@ -683,6 +683,7 @@ function logout() {
   jwtToken = null;
   user = null;
   _ver = null;
+  modulosCache = [];
   if (_notifPollTimer) { clearInterval(_notifPollTimer); _notifPollTimer = null; }
   if (_versionCheckTimer) { clearInterval(_versionCheckTimer); _versionCheckTimer = null; }
   if (_serverStatsTimer) { clearTimeout(_serverStatsTimer); _serverStatsTimer = null; }
@@ -728,11 +729,11 @@ async function cargarModuleStatus(sig) {
 }
 
 // ── Widget: Notificaciones recientes ──
-async function cargarNotificacionesWidget() {
+async function cargarNotificacionesWidget(sig) {
   const w = document.getElementById('notif-widget');
   if (!w) return;
   try {
-    const res = await fetch('/api/notificaciones', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const res = await fetch('/api/notificaciones', { headers: { 'Authorization': 'Bearer ' + jwtToken }, signal: sig || AbortSignal.timeout(15000) });
     if (!res.ok) { w.style.display = 'none'; return; }
     const { notificaciones } = await res.json();
     if (!notificaciones?.length) { w.style.display = 'none'; return; }
@@ -753,7 +754,7 @@ async function cargarNotificacionesWidget() {
           </div>`;
         }).join('')}
       </div>`;
-  } catch { w.style.display = 'none'; }
+  } catch (e) { if (e.name !== 'AbortError') w.style.display = 'none'; }
 }
 
 // ── Admin ──
@@ -2048,11 +2049,15 @@ setInterval(async () => {
   }
 }, 15 * 60 * 1000);
 
-// Refresh when tab becomes visible again
+// Refresh when tab becomes visible again (with debounce guard)
+let _refreshInFlight = false;
 document.addEventListener('visibilitychange', async () => {
-  if (document.visibilityState === 'visible' && jwtToken) {
-    const ok = await refreshToken();
-    if (!ok) showSessionExpiredModal();
+  if (document.visibilityState === 'visible' && jwtToken && !_refreshInFlight) {
+    _refreshInFlight = true;
+    try {
+      const ok = await refreshToken();
+      if (!ok) showSessionExpiredModal();
+    } finally { _refreshInFlight = false; }
   }
 });
 
@@ -2201,10 +2206,12 @@ function pollNotificaciones() {
 // ── Auto-reload on server restart ──
 var _ver = null;
 var _verBanner = null;
+var _versionInFlight = false;
 function checkVersion() {
-  if (!jwtToken) return; // Sin sesión, no checkear
+  if (!jwtToken || _versionInFlight) return;
   if (document.visibilityState !== 'visible') return;
-  fetch('/api/version', { cache: 'no-store' }).then(function(r){ return r.json(); }).then(function(d){
+  _versionInFlight = true;
+  fetch('/api/version', { cache: 'no-store', signal: AbortSignal.timeout(5000) }).then(function(r){ return r.json(); }).then(function(d){
     if (d.v) {
       if (_ver === null) { _ver = d.v; return; }
       if (d.v !== _ver) {
@@ -2216,7 +2223,7 @@ function checkVersion() {
         }
       }
     }
-  }).catch(function(){});
+  }).catch(function(){}).finally(function(){ _versionInFlight = false; });
 }
 function initVersionCheck() {
   checkVersion();
