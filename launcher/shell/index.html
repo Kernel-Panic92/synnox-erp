@@ -386,11 +386,7 @@
     <p>Selecciona un módulo para abrirlo</p>
     <div class="grid" id="module-grid"></div>
     <div id="quick-actions-widget" style="margin-top:24px;display:none;"></div>
-    <div id="module-status-widget" style="margin-top:24px;display:none;"></div>
     <div id="notif-widget" style="margin-top:24px;display:none;"></div>
-    <div id="activity-widget" style="margin-top:24px;display:none;"></div>
-    <div id="server-stats-widget" style="margin-top:32px;"><div class="widget-skeleton"><div class="skel-line" style="width:30%"></div><div class="skel-line" style="width:80%"></div><div class="skel-line" style="width:60%"></div></div></div>
-    <div id="commits-widget" style="margin-top:24px;display:none;"></div>
   </div>
 </div>
 
@@ -400,7 +396,6 @@
     <nav style="flex:1;overflow-y:auto;">
       <div class="sidebar-section">
         <div class="sidebar-section-title">Gestión</div>
-        <div class="nav-item" data-page="dashboard" onclick="showAdminTab('dashboard')"><span class="icon">📊</span> Dashboard</div>
         <div class="nav-item active" data-page="usuarios" onclick="showAdminTab('usuarios')"><span class="icon">👥</span> Usuarios</div>
         <div class="nav-item" data-page="perfiles" onclick="showAdminTab('perfiles')"><span class="icon">🔐</span> Perfiles</div>
         <div class="nav-item" data-page="centros" onclick="showAdminTab('centros')"><span class="icon">🏢</span> Centros de operación</div>
@@ -431,14 +426,6 @@
   </aside>
   <div class="admin-main">
     <div class="dash-body">
-  <div class="tab-content" id="tab-dashboard">
-    <div style="font-size:var(--fs);font-weight:600;margin:12px 0;">📊 Dashboard del Sistema</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;">
-      <div id="admin-server-stats"><div class="widget-skeleton"><div class="skel-line" style="width:30%"></div><div class="skel-line" style="width:80%"></div><div class="skel-line" style="width:60%"></div></div></div>
-      <div id="admin-commits"><div class="widget-skeleton"><div class="skel-line" style="width:40%"></div><div class="skel-line" style="width:70%"></div></div></div>
-      <div id="admin-activity"><div class="widget-skeleton"><div class="skel-line" style="width:50%"></div><div class="skel-line" style="width:60%"></div></div></div>
-    </div>
-  </div>
   <div class="tab-content active" id="tab-usuarios">
     <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
       <div style="font-size:var(--fs);font-weight:600;">Usuarios</div>
