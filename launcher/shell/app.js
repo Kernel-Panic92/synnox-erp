@@ -204,10 +204,24 @@ let launcherVersion = '';
 let modulosCache = [];
 
 async function loadModulosDinamicos(sig) {
+  // Try sessionStorage cache first (TTL 5 min)
+  try {
+    const cached = sessionStorage.getItem('synnox_modulos_cache');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed.data && parsed.ts && (Date.now() - parsed.ts) < 300000) {
+        modulosCache = parsed.data;
+        return modulosCache;
+      }
+    }
+  } catch {}
+  // Fetch fresh data
   try {
     const res = await fetch('/api/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken }, signal: sig || AbortSignal.timeout(15000) });
     if (!res.ok) throw new Error('Error al cargar módulos');
     modulosCache = res.json ? await res.json() : [];
+    // Cache in sessionStorage for instant reload
+    try { sessionStorage.setItem('synnox_modulos_cache', JSON.stringify({ data: modulosCache, ts: Date.now() })); } catch {}
   } catch (e) {
     if (e.name !== 'AbortError') modulosCache = [];
   }
@@ -684,6 +698,7 @@ function logout() {
   user = null;
   _ver = null;
   modulosCache = [];
+  try { sessionStorage.removeItem('synnox_modulos_cache'); } catch {}
   if (_notifPollTimer) { clearInterval(_notifPollTimer); _notifPollTimer = null; }
   if (_versionCheckTimer) { clearInterval(_versionCheckTimer); _versionCheckTimer = null; }
   if (_serverStatsTimer) { clearTimeout(_serverStatsTimer); _serverStatsTimer = null; }
