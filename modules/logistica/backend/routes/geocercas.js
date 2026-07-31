@@ -89,13 +89,14 @@ router.post('/import-widetech', async (req, res) => {
           metadata[k] = v;
         }
       }
+      const randomColor = '#' + Math.floor(Math.random() * 0xffffff).toString(16).padStart(6, '0');
       try {
         const r = await pool.query(
           `INSERT INTO logistics.geocercas (widetech_id, nombre, tipo, latitud, longitud, radio, color, activa, fuente, metadata)
-           VALUES ($1, $2, $3, $4, $5, $6, '#3388ff', true, 'widetech', $7)
-           ON CONFLICT (widetech_id) DO UPDATE SET nombre=$2, tipo=$3, latitud=$4, longitud=$5, radio=$6, metadata=$7, updated_at=CURRENT_TIMESTAMP
+           VALUES ($1, $2, $3, $4, $5, $6, $7, true, 'widetech', $8)
+           ON CONFLICT (widetech_id) DO UPDATE SET nombre=$2, tipo=$3, latitud=$4, longitud=$5, radio=$6, metadata=$8, updated_at=CURRENT_TIMESTAMP
            RETURNING (xmax = 0) AS is_insert`,
-          [widetechId, nombre, tipo, lat, lng, radio, Object.keys(metadata).length ? JSON.stringify(metadata) : null]
+          [widetechId, nombre, tipo, lat, lng, radio, randomColor, Object.keys(metadata).length ? JSON.stringify(metadata) : null]
         );
         if (r.rows[0]?.is_insert) importadas++; else actualizadas++;
       } catch (e) {
