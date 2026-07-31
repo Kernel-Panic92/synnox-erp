@@ -68,13 +68,44 @@ async function start() {
     res.status(404).json({ error: 'Not found' });
   });
 
-  app.listen(PORT, '0.0.0.0', () => {
+  app.listen(PORT, '0.0.0.0', async () => {
     console.log(`✅ SynnoxERP corriendo en puerto ${PORT}`);
     console.log(`   Dashboard: http://localhost:${PORT}`);
     console.log(`   Proveedores: http://localhost:${PORT}/proveedores/`);
     console.log(`   Logística: http://localhost:${PORT}/logistica/`);
     console.log(`   Nómina:    http://localhost:${PORT}/nomina/`);
     console.log(`   Proyectos: http://localhost:${PORT}/proyectos/`);
+
+    // Warmup: pre-load databases and modules to avoid cold start on first request
+    console.log('🔥 Calentando servicios...');
+    try {
+      const Database = require('better-sqlite3');
+      const warmupDb = new Database('./launcher/launcher.db', { readonly: true });
+      warmupDb.prepare('SELECT COUNT(*) FROM usuarios').get();
+      warmupDb.prepare('SELECT COUNT(*) FROM modulos_plataforma').get();
+      warmupDb.close();
+      console.log('   ✅ SQLite launcher.db');
+    } catch (e) { console.warn('   ⚠️ SQLite:', e.message); }
+
+    try {
+      const nominaDb = new Database('./modules/nomina/horas_extra.db', { readonly: true });
+      nominaDb.prepare('SELECT COUNT(*) FROM usuarios').get();
+      nominaDb.prepare('SELECT COUNT(*) FROM empleados').get();
+      nominaDb.close();
+      console.log('   ✅ SQLite horas_extra.db');
+    } catch (e) { console.warn('   ⚠️ SQLite nómina:', e.message); }
+
+    try {
+      await import('./modules/logistica/backend/server.js');
+      console.log('   ✅ Módulo Logística');
+    } catch (e) { console.warn('   ⚠️ Logística:', e.message); }
+
+    try {
+      await import('./modules/proyectos/backend/server.js');
+      console.log('   ✅ Módulo Proyectos');
+    } catch (e) { console.warn('   ⚠️ Proyectos:', e.message); }
+
+    console.log('🔥 Warmup completado');
   });
 }
 
