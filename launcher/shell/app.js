@@ -335,8 +335,8 @@ async function showLauncher() {
   initVersionCheck();
   updatePostLoginStatus('Listo ✓', 100);
   show('launcher-screen');
-  // Load widgets AFTER launcher is visible — don't block module navigation
-  setTimeout(_deferredWidgets, 300);
+  // Load widgets AFTER launcher is visible — defer by 2s to let module navigation complete
+  setTimeout(_deferredWidgets, 2000);
 }
 
 function trackModuleVisit(moduleId) {
