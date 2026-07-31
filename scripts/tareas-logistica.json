@@ -1,0 +1,285 @@
+{
+  "proyecto": {
+    "nombre": "Desarrollo Módulo Logística",
+    "descripcion": "Seguimiento del desarrollo del módulo de optimización de rutas y logística (SynnoxERP Logistics). Incluye backend, frontend, parsers, VRP, MCP, DevOps y documentación.",
+    "estado": "activo",
+    "fecha_limite": null
+  },
+  "tareas_completadas": [
+    {
+      "titulo": "Parser PDF SIESA (planillas cuadre)",
+      "tipo": "tarea",
+      "prioridad": "alta",
+      "descripcion": "Extrae facturas, clientes, direcciones, conductores, placas, valores de entrega desde PDF de planillas de cuadre SIESA",
+      "grupo": "Core Backend & Parsers"
+    },
+    {
+      "titulo": "Parser Excel Widetech (GPS histórico)",
+      "tipo": "tarea",
+      "prioridad": "alta",
+      "descripcion": "Extrae 4,933+ registros GPS: placa, fecha/hora, lat/lon, velocidad, ubicación textual desde Excel de Widetech",
+      "grupo": "Core Backend & Parsers"
+    },
+    {
+      "titulo": "CRUD Vehículos (placa, alias, capacidad peso/volumen, sede)",
+      "tipo": "tarea",
+      "prioridad": "alta",
+      "descripcion": "API REST completa con validaciones para gestión de flota de vehículos",
+      "grupo": "Core Backend & Parsers"
+    },
+    {
+      "titulo": "CRUD Pedidos logística",
+      "tipo": "tarea",
+      "prioridad": "alta",
+      "descripcion": "Listar, crear, actualizar, eliminar pedidos; endpoint de pendientes sin asignar",
+      "grupo": "Core Backend & Parsers"
+    },
+    {
+      "titulo": "Motor VRP básico (OSRM + Nearest Neighbor + 2-opt)",
+      "tipo": "tarea",
+      "prioridad": "alta",
+      "descripcion": "Optimización de rutas con matriz distancia/tiempo real via OSRM, algoritmo Nearest Neighbor + mejora 2-opt",
+      "grupo": "Core Backend & Parsers"
+    },
+    {
+      "titulo": "API Rutas: generar, listar, obtener con paradas",
+      "tipo": "tarea",
+      "prioridad": "alta",
+      "descripcion": "POST /rutas/generar, GET /rutas, GET /rutas/:id con paradas en secuencia optimizada",
+      "grupo": "Core Backend & Parsers"
+    },
+    {
+      "titulo": "Frontend SPA (Dashboard, CRUDs, importación)",
+      "tipo": "tarea",
+      "prioridad": "media",
+      "descripcion": "Vanilla JS SPA con tema oscuro/claro, sidebar responsive, Dashboard con gráficos, páginas CRUD e importación",
+      "grupo": "Frontend & Auth"
+    },
+    {
+      "titulo": "Autenticación JWT (login, verificación, middleware)",
+      "tipo": "tarea",
+      "prioridad": "alta",
+      "descripcion": "Cookie httpOnly, expiración 1h, refresh token, middleware protect para rutas API",
+      "grupo": "Frontend & Auth"
+    },
+    {
+      "titulo": "MCP Server (9 tools para Claude)",
+      "tipo": "feature",
+      "prioridad": "media",
+      "descripcion": "Tools: dashboard, listar_vehiculos, listar_sedes, listar_pedidos, buscar_clientes, crear_pedido, generar_rutas, listar_rutas, obtener_ruta",
+      "grupo": "Frontend & Auth"
+    },
+    {
+      "titulo": "Instalador automatizado (install.sh)",
+      "tipo": "tarea",
+      "prioridad": "media",
+      "descripcion": "Guía paso a paso interactiva: puerto, conexión PostgreSQL, credenciales admin, deja servicio corriendo con PM2",
+      "grupo": "Frontend & Auth"
+    },
+    {
+      "titulo": "PM2 Ecosystem config (producción)",
+      "tipo": "tarea",
+      "prioridad": "media",
+      "descripcion": "Configuración PM2 para auto-restart, logs, clustering en producción",
+      "grupo": "DevOps & DB"
+    },
+    {
+      "titulo": "Docker Compose (PostgreSQL + OSRM local)",
+      "tipo": "tarea",
+      "prioridad": "media",
+      "descripcion": "Infraestructura containerizada para desarrollo y testing local",
+      "grupo": "DevOps & DB"
+    },
+    {
+      "titulo": "Base de datos: 18 migraciones + 10 tablas",
+      "tipo": "tarea",
+      "prioridad": "alta",
+      "descripcion": "Tablas: vehiculos, pedidos_logistica, rutas, paradas_ruta, posiciones_gps, importaciones, clientes, sedes, geocercas, usuarios",
+      "grupo": "DevOps & DB"
+    },
+    {
+      "titulo": "Seed data demo",
+      "tipo": "tarea",
+      "prioridad": "baja",
+      "descripcion": "Datos de prueba para vehículos, sedes, clientes para desarrollo rápido",
+      "grupo": "DevOps & DB"
+    },
+    {
+      "titulo": "Documentación técnica (README, QUICK_START, AGENTS.md)",
+      "tipo": "tarea",
+      "prioridad": "media",
+      "descripcion": "300+ líneas c/u de documentación técnica completa",
+      "grupo": "DevOps & DB"
+    },
+    {
+      "titulo": "CRUD Sedes / Centros de operación",
+      "tipo": "tarea",
+      "prioridad": "media",
+      "descripcion": "Route sedes.js, migración 010, sincronización desde launcher",
+      "grupo": "Features Recientes (Sesión 10+)"
+    },
+    {
+      "titulo": "CRUD Clientes logística",
+      "tipo": "tarea",
+      "prioridad": "media",
+      "descripcion": "Route clientes.js, migración 007, gestión de clientes con direcciones y coordenadas",
+      "grupo": "Features Recientes (Sesión 10+)"
+    },
+    {
+      "titulo": "Geocercas (zonas geográficas)",
+      "tipo": "feature",
+      "prioridad": "media",
+      "descripcion": "Route geocercas.js, migración 018, definición de zonas poligonales para validación de rutas",
+      "grupo": "Features Recientes (Sesión 10+)"
+    },
+    {
+      "titulo": "Reportes logística (rutas, pedidos, vehículos, eficiencia)",
+      "tipo": "feature",
+      "prioridad": "alta",
+      "descripcion": "Route reportes.js con 4 endpoints: rutas, pedidos, vehículos, eficiencia; filtros y paginación server-side",
+      "grupo": "Features Recientes (Sesión 10+)"
+    },
+    {
+      "titulo": "Exportar reportes a Excel",
+      "tipo": "feature",
+      "prioridad": "alta",
+      "descripcion": "POST /reportes/exportar con exceljs: cabecera azul, auto-filtro, fila congelada, formato moneda COP",
+      "grupo": "Features Recientes (Sesión 10+)"
+    },
+    {
+      "titulo": "Backup / Restore módulo",
+      "tipo": "tarea",
+      "prioridad": "media",
+      "descripcion": "Route backup.js para respaldo y restauración de datos del módulo",
+      "grupo": "Features Recientes (Sesión 10+)"
+    },
+    {
+      "titulo": "Auditoría / Logs de cambios",
+      "tipo": "tarea",
+      "prioridad": "media",
+      "descripcion": "Route auditoria.js para trazabilidad de operaciones críticas",
+      "grupo": "Features Recientes (Sesión 10+)"
+    },
+    {
+      "titulo": "Generación PDF de rutas",
+      "tipo": "feature",
+      "prioridad": "media",
+      "descripcion": "Route rutas-pdf.js para generar PDFs de rutas optimizadas con detalle de paradas",
+      "grupo": "Features Recientes (Sesión 10+)"
+    },
+    {
+      "titulo": "Configuración (Mapas, Google Maps API, OSRM)",
+      "tipo": "tarea",
+      "prioridad": "media",
+      "descripcion": "Route configuracion.js para gestionar API keys de Google Maps, URL OSRM, parámetros de optimización",
+      "grupo": "Features Recientes (Sesión 10+)"
+    },
+    {
+      "titulo": "Geocodificación (direcciones → coords)",
+      "tipo": "feature",
+      "prioridad": "media",
+      "descripcion": "utils/geocoding.js para convertir direcciones textuales a lat/lon usando Nominatim/Google",
+      "grupo": "Features Recientes (Sesión 10+)"
+    },
+    {
+      "titulo": "Widetech Sync (tiempo real GPS)",
+      "tipo": "feature",
+      "prioridad": "alta",
+      "descripcion": "widetech-sync.js y widetech-client.js para sincronización periódica de posiciones GPS en tiempo real",
+      "grupo": "Features Recientes (Sesión 10+)"
+    },
+    {
+      "titulo": "Importador SIESA (PDF) con validaciones",
+      "tipo": "tarea",
+      "prioridad": "alta",
+      "descripcion": "Importador robusto con validación de estructura, manejo de errores, log de importaciones",
+      "grupo": "Features Recientes (Sesión 10+)"
+    },
+    {
+      "titulo": "Importador Widetech (Excel) con parser robusto",
+      "tipo": "tarea",
+      "prioridad": "alta",
+      "descripcion": "Parser exceljs para historicos Widetech, validación de columnas, deduplicación GPS",
+      "grupo": "Features Recientes (Sesión 10+)"
+    },
+    {
+      "titulo": "Health checks y monitoreo",
+      "tipo": "tarea",
+      "prioridad": "media",
+      "descripcion": "Route health.js con verificación de BD, OSRM, conectividad externa",
+      "grupo": "Features Recientes (Sesión 10+)"
+    }
+  ],
+  "tareas_pendientes": [
+    {
+      "titulo": "Mapa interactivo Leaflet (visualización rutas)",
+      "tipo": "feature",
+      "prioridad": "alta",
+      "descripcion": "Visualización de rutas optimizadas en mapa Leaflet con capas de paradas, vehículos, geocercas",
+      "grupo": "Futuro / Roadmap"
+    },
+    {
+      "titulo": "Tracking tiempo real (posiciones GPS en mapa)",
+      "tipo": "feature",
+      "prioridad": "alta",
+      "descripcion": "WebSocket / SSE para actualización en vivo de posiciones de vehículos en el mapa",
+      "grupo": "Futuro / Roadmap"
+    },
+    {
+      "titulo": "App móvil conductores (PWA / React Native)",
+      "tipo": "epic",
+      "prioridad": "alta",
+      "descripcion": "Aplicación móvil para conductores: ver rutas asignadas, navegar, confirmar entregas, reportar novedades",
+      "grupo": "Futuro / Roadmap"
+    },
+    {
+      "titulo": "Integración MCP completa con SynnoxERP launcher",
+      "tipo": "feature",
+      "prioridad": "media",
+      "descripcion": "Exponer tools MCP vía gateway del launcher con prefijo logistics_*, autenticación interna",
+      "grupo": "Futuro / Roadmap"
+    },
+    {
+      "titulo": "Análisis eficiencia avanzado (KPIs, tendencias)",
+      "tipo": "feature",
+      "prioridad": "media",
+      "descripcion": "Dashboards de KPIs: km/entrega, tiempo/entrega, cumplimiento ventanas, costo por ruta, tendencias históricas",
+      "grupo": "Futuro / Roadmap"
+    },
+    {
+      "titulo": "Rate limiting / Seguridad hardening",
+      "tipo": "tarea",
+      "prioridad": "media",
+      "descripcion": "Implementar rate limiting granular, validación de entrada, headers de seguridad, CSP",
+      "grupo": "Futuro / Roadmap"
+    },
+    {
+      "titulo": "HTTPS / SSL en producción (validar certificado)",
+      "tipo": "tarea",
+      "prioridad": "alta",
+      "descripcion": "Validar certificado Let's Encrypt, renovación automática, HSTS, redirect HTTP→HTTPS",
+      "grupo": "Futuro / Roadmap"
+    },
+    {
+      "titulo": "Tests automatizados (unit + integration)",
+      "tipo": "tarea",
+      "prioridad": "media",
+      "descripcion": "Suite de tests: Jest para unit, Supertest para API integration, coverage mínimo 80%",
+      "grupo": "Futuro / Roadmap"
+    },
+    {
+      "titulo": "CI/CD pipeline (GitHub Actions)",
+      "tipo": "tarea",
+      "prioridad": "media",
+      "descripcion": "Pipeline: lint → test → build → deploy staging → deploy production con approvals",
+      "grupo": "Futuro / Roadmap"
+    },
+    {
+      "titulo": "Documentación usuario final (manual conductor, admin)",
+      "tipo": "tarea",
+      "prioridad": "baja",
+      "descripcion": "Manuales PDF/HTML: guía conductor app móvil, guía admin dashboard, FAQ troubleshooting",
+      "grupo": "Futuro / Roadmap"
+    }
+  ]
+}
