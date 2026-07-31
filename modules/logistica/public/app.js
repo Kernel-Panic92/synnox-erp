@@ -3069,7 +3069,8 @@ function renderGeocercasMapa(geocercas) {
       }
     }
   }
-  setTimeout(() => _geoMapaInstance?.invalidateSize(), 100);
+  setTimeout(() => { _geoMapaInstance?.invalidateSize(); }, 200);
+  setTimeout(() => { _geoMapaInstance?.invalidateSize(); }, 500);
 }
 
 function toggleGeoTipo() {
@@ -3108,7 +3109,8 @@ function actualizarPreviewGeo() {
     const color = document.getElementById('geo-color').value || '#3388ff';
     L.circle([lat, lng], { radius: radio, color, fillColor: color, fillOpacity: 0.15, weight: 2 }).addTo(_geoPreviewMapa);
   }
-  setTimeout(() => _geoPreviewMapa?.invalidateSize(), 100);
+  setTimeout(() => _geoPreviewMapa?.invalidateSize(), 200);
+  setTimeout(() => _geoPreviewMapa?.invalidateSize(), 500);
 }
 
 function initGeoPoligonoMapa() {
@@ -3127,6 +3129,8 @@ function initGeoPoligonoMapa() {
     actualizarGeoPoligono();
     if (_geoPoligonoCoords.length) _geoMapa.fitBounds(_geoPoligonoCoords.map(p => [p.lat, p.lng]));
   }
+  setTimeout(() => _geoMapa?.invalidateSize(), 200);
+  setTimeout(() => _geoMapa?.invalidateSize(), 500);
 }
 
 function actualizarGeoPoligono() {

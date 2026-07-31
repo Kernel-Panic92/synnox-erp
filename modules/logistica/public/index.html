@@ -115,6 +115,13 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
 .mapa-pin{height:220px;border-radius:10px;border:1px solid var(--border);overflow:hidden;margin-top:8px}
 .mapa-pin .leaflet-container{background:var(--surface2);height:100%}
 
+/* ── Geocercas ── */
+#geocercas-mapa{max-width:500px;height:320px}
+.modal{overflow:visible}
+.modal .leaflet-container{z-index:1}
+.modal .leaflet-top,.modal .leaflet-bottom{z-index:2}
+#geo-mapa-preview,#geo-mapa-poligono{position:relative;z-index:0;overflow:hidden}
+
 /* ── Logout button ── */
 .btn-logout{width:100%;padding:10px;background:rgba(247,97,79,.08);border:1px solid rgba(247,97,79,.2);border-radius:9px;color:var(--danger);font-family:inherit;font-weight:600;font-size:13px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .15s;justify-content:center}
 .btn-logout:hover{background:rgba(247,97,79,.15);border-color:var(--danger)}
