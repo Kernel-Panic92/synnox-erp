@@ -83,16 +83,18 @@ function setCachedSeq(userId, seq) {
 }
 
 // Verify user session directly via SQLite (no HTTP call needed in monorepo)
+let _readonlyDb = null;
 function verifySessionValid(payload) {
   try {
     const cachedSeq = getCachedSeq(payload.id);
     if (cachedSeq !== null) return cachedSeq === payload.seq;
-    const Database = require('better-sqlite3');
-    const path = require('path');
-    const dbPath = path.join(__dirname, '..', 'launcher', 'launcher.db');
-    const ldb = new Database(dbPath, { readonly: true });
-    const row = ldb.prepare('SELECT seq FROM usuarios WHERE id = ?').get(payload.id);
-    ldb.close();
+    if (!_readonlyDb) {
+      const Database = require('better-sqlite3');
+      const path = require('path');
+      const dbPath = path.join(__dirname, '..', 'launcher', 'launcher.db');
+      _readonlyDb = new Database(dbPath, { readonly: true });
+    }
+    const row = _readonlyDb.prepare('SELECT seq FROM usuarios WHERE id = ?').get(payload.id);
     const seq = row ? row.seq : payload.seq;
     setCachedSeq(payload.id, seq);
     return seq === payload.seq;

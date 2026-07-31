@@ -73,11 +73,14 @@ router.get('/seguridad', soloAdmin, async (req, res) => {
     for (const row of result.rows) cfg[row.clave] = row.valor;
     let fail2ban = { installed: false, active: false };
     try {
-      const { execSync } = await import('child_process');
-      fail2ban.installed = execSync('which fail2ban-client 2>/dev/null || echo ""', { encoding: 'utf8' }).trim().length > 0;
+      const { exec } = await import('child_process');
+      const { promisify } = await import('util');
+      const execAsync = promisify(exec);
+      const { stdout: installedOut } = await execAsync('which fail2ban-client 2>/dev/null || echo ""');
+      fail2ban.installed = installedOut.trim().length > 0;
       if (fail2ban.installed) {
-        const status = execSync('systemctl is-active fail2ban 2>/dev/null || echo "inactive"', { encoding: 'utf8' }).trim();
-        fail2ban.active = status === 'active';
+        const { stdout: statusOut } = await execAsync('systemctl is-active fail2ban 2>/dev/null || echo "inactive"');
+        fail2ban.active = statusOut.trim() === 'active';
       }
     } catch {}
     res.json({ config: cfg, fail2ban });
@@ -109,9 +112,11 @@ router.post('/fail2ban/:action', soloAdmin, async (req, res) => {
   const action = req.params.action;
   if (!['start','stop','restart','reload'].includes(action)) return res.status(400).json({ error: 'Acción inválida' });
   try {
-    const { execSync } = await import('child_process');
-    const result = execSync(`sudo systemctl ${action} fail2ban 2>&1 || true`, { encoding: 'utf8' }).trim();
-    res.json({ ok: true, mensaje: `fail2ban ${action}: ${result || 'ok'}` });
+    const { exec } = await import('child_process');
+    const { promisify } = await import('util');
+    const execAsync = promisify(exec);
+    const { stdout: result } = await execAsync(`sudo systemctl ${action} fail2ban 2>&1 || true`, { timeout: 15000 });
+    res.json({ ok: true, mensaje: `fail2ban ${action}: ${result.trim() || 'ok'}` });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

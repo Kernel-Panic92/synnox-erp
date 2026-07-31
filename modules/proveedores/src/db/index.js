@@ -6,7 +6,7 @@ const pool = new Pool({
   database: process.env.PGDATABASE || process.env.DB_NAME     || 'synnox_erp',
   user:     process.env.PGUSER     || process.env.DB_USER     || 'postgres',
   password: process.env.PGPASSWORD || process.env.DB_PASSWORD || undefined,
-  max: 10,
+  max: 20,
   idleTimeoutMillis: 30000,
   connectionTimeoutMillis: 5000,
 });

@@ -126,6 +126,7 @@ const SERVER_START = Date.now();
 
 const db = new Database(path.join(__dirname, 'launcher.db'));
 db.pragma('journal_mode = WAL');
+db.pragma('busy_timeout = 5000');
 db.exec(`
   CREATE TABLE IF NOT EXISTS usuarios (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

@@ -315,7 +315,10 @@ router.put('/horas', requirePermiso('configurar'), async (req, res) => {
   }
 });
 
-const { execSync, spawnSync } = require('child_process');
+const { execFile, exec } = require('child_process');
+const { promisify } = require('util');
+const execFileAsync = promisify(execFile);
+const execAsync = promisify(exec);
 
 // ─── SEGURIDAD ───────────────────────────────────────────────────────────────
 router.get('/seguridad', requirePermiso('ver'), async (req, res) => {
@@ -331,11 +334,11 @@ router.get('/seguridad', requirePermiso('ver'), async (req, res) => {
     
     let fail2banStatus = { installed: false, active: false };
     try {
-      const installed = execSync('which fail2ban-client 2>/dev/null && echo yes || echo no').toString().trim();
-      fail2banStatus.installed = installed === 'yes';
+      const { stdout: installedOut } = await execAsync('which fail2ban-client 2>/dev/null && echo yes || echo no');
+      fail2banStatus.installed = installedOut.trim() === 'yes';
       if (fail2banStatus.installed) {
-        const active = execSync('systemctl is-active fail2ban 2>/dev/null || echo inactive').toString().trim();
-        fail2banStatus.active = active === 'active';
+        const { stdout: activeOut } = await execAsync('systemctl is-active fail2ban 2>/dev/null || echo inactive');
+        fail2banStatus.active = activeOut.trim() === 'active';
       }
     } catch (e) {}
     
@@ -381,7 +384,7 @@ router.put('/seguridad', requirePermiso('configurar'), async (req, res) => {
     
     if (fail2ban_enabled === 'true') {
       try {
-        execSync(`cat > /etc/fail2ban/jail.local << 'EOF'
+        await execAsync(`cat > /etc/fail2ban/jail.local << 'EOF'
 [proveedores]
 enabled = true
 port = 3100
@@ -391,9 +394,9 @@ maxretry = ${fail2ban_maxretry || 10}
 bantime = ${fail2ban_bantime || 3600}
 findtime = ${fail2ban_findtime || 600}
 action = iptables-allports[name=proveedores]
-EOF`, { stdio: 'pipe' });
+EOF`, { timeout: 10000 });
         
-        execSync('systemctl restart fail2ban 2>/dev/null || true', { stdio: 'pipe' });
+        await execAsync('systemctl restart fail2ban 2>/dev/null || true', { timeout: 15000 });
       } catch (e) {}
     }
     
@@ -415,7 +418,7 @@ router.post('/seguridad/fail2ban/action', requirePermiso('configurar'), async (r
   }
   
   try {
-    execSync(`systemctl ${action} fail2ban 2>/dev/null || true`, { stdio: 'pipe' });
+    await execAsync(`systemctl ${action} fail2ban 2>/dev/null || true`, { timeout: 15000 });
     res.json({ ok: true, message: `Fail2ban ${action}ido` });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -507,9 +510,9 @@ router.put('/backups-auto', requirePermiso('configurar'), async (req, res) => {
         throw new Error('Expresión cron inválida');
       }
       const cronCmd = `cd ${APP_DIR} && /usr/bin/node src/scripts/backup-auto.js >> ${APP_DIR}/logs/backup-auto.log 2>&1`;
-      execSync(`(crontab -l 2>/dev/null | grep -v 'backup-auto'; echo "${backup_auto_cron} ${cronCmd}") | crontab -`, { stdio: 'pipe' });
+      await execAsync(`(crontab -l 2>/dev/null | grep -v 'backup-auto'; echo "${backup_auto_cron} ${cronCmd}") | crontab -`, { timeout: 10000 });
     } else {
-      execSync(`crontab -l 2>/dev/null | grep -v 'backup-auto' | crontab -`, { stdio: 'pipe' });
+      await execAsync(`crontab -l 2>/dev/null | grep -v 'backup-auto' | crontab -`, { timeout: 10000 });
     }
     
     await client.query('COMMIT');
@@ -597,7 +600,7 @@ router.get('/cron', requirePermiso('ver'), async (req, res) => {
     
     let currentCrons = [];
     try {
-      const crontab = execSync('crontab -l 2>/dev/null || echo ""').toString();
+      const { stdout: crontab } = await execAsync('crontab -l 2>/dev/null || echo ""');
       currentCrons = crontab.split('\n').filter(l => l.trim() && !l.startsWith('#'));
     } catch (e) {}
     
@@ -639,7 +642,7 @@ router.put('/cron', requirePermiso('configurar'), async (req, res) => {
     fs.writeFileSync(cronFile, newCrontab);
     console.log('[CRON] File written, running crontab command');
     
-    execSync(`crontab "${cronFile}"`, { stdio: 'pipe' });
+    await execFileAsync('crontab', [cronFile], { timeout: 10000 });
     console.log('[CRON] Crontab installed');
     try { fs.unlinkSync(cronFile); } catch(e) {}
     

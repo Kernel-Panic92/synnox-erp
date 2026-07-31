@@ -11,7 +11,10 @@ const router = require('express').Router();
 const path   = require('path');
 const fs     = require('fs');
 const os     = require('os');
-const { execSync } = require('child_process');
+const { execFile, exec } = require('child_process');
+const { promisify } = require('util');
+const execFileAsync = promisify(execFile);
+const execAsync = promisify(exec);
 const multer = require('multer');
 const AdmZip = require('adm-zip');
 const db     = require('../db');
@@ -149,7 +152,7 @@ async function generarZip(tipo = 'completo', timestamp = Date.now()) {
       const uploadsTar = path.join(os.tmpdir(), `uploads_${timestamp}.tar.gz`);
       try {
         console.log('[Backup] 3/4: ejecutando tar -czf...');
-        execSync(`tar -czf "${uploadsTar}" -C "${APP_DIR}" uploads`, { stdio: 'pipe' });
+        await execFileAsync('tar', ['-czf', uploadsTar, '-C', APP_DIR, 'uploads'], { timeout: 30000 });
         zip.addLocalFile(uploadsTar, 'uploads.tar.gz');
         fs.unlinkSync(uploadsTar); // Limpiar archivo temporal
       } catch (e) {
@@ -247,7 +250,7 @@ router.all('/', soloAdmin, async (req, res) => {
         const userArg = nasUser + (nasPass ? '%' + nasPass : '');
         const cmd = `smbclient "${nasDest}" -U "${userArg}" -c "put ${filepath} ${filename}"`;
         
-        const copyResult = execSync(cmd, { stdio: 'pipe', timeout: 300 }).toString();
+        const { stdout: copyResult } = await execAsync(cmd, { timeout: 300000 });
         console.log('[Backup] NAS copy result:', copyResult);
         
         if (!copyResult.includes('OK') && !copyResult.includes('putting')) {

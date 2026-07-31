@@ -3,6 +3,7 @@ const crypto   = require('crypto');
 
 const db = new Database(process.env.DB_PATH || 'horas_extra.db');
 db.pragma('journal_mode = WAL');
+db.pragma('busy_timeout = 5000');
 
 function uid() {
   return crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
