@@ -1651,7 +1651,8 @@ function showAdminTab(tab) {
 
 // Load admin dashboard widgets (server stats, commits, activity)
 async function loadAdminDashboard() {
-  const sig = _widgetAbort?.signal;
+  // Don't use _widgetAbort — it's already aborted when entering admin
+  const sig = AbortSignal.timeout(10000);
   // Server stats
   try {
     const w = document.getElementById('admin-server-stats');
