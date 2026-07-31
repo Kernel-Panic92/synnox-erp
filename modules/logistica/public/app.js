@@ -3078,6 +3078,7 @@ function actualizarPreviewGeo() {
   }
   document.getElementById('geo-preview-circular').style.display = '';
   if (_geoPreviewMapa) { _geoPreviewMapa.remove(); _geoPreviewMapa = null; }
+  if (el._leaflet_id) { el._leaflet_id = null; }
   _geoPreviewMapa = L.map(el).setView([lat, lng], 14);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(_geoPreviewMapa);
   L.marker([lat, lng]).addTo(_geoPreviewMapa);
@@ -3092,6 +3093,7 @@ function actualizarPreviewGeo() {
 function initGeoPoligonoMapa() {
   const el = document.getElementById('geo-mapa-poligono');
   if (!el || _geoMapa) return;
+  if (el._leaflet_id) { el._leaflet_id = null; }
   _geoMapa = L.map(el).setView([6.2476, -75.5658], 13);
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(_geoMapa);
   _geoPoligonoLayer = L.layerGroup().addTo(_geoMapa);
