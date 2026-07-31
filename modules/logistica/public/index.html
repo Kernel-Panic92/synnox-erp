@@ -544,6 +544,9 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
               <option value="">Todas las rutas</option>
             </select>
             <button class="btn btn-sm btn-secondary" onclick="reiniciarMapa()">🔄</button>
+            <label style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none;">
+              <input type="checkbox" id="mapa-show-geocercas" onchange="toggleGeocercasMapaPrincipal()" style="accent-color:var(--accent);"> 📐 Geocercas
+            </label>
           </div>
         </div>
         <div id="mapa-contenedor" style="height:calc(100vh - 180px);border-radius:12px;border:1px solid var(--border);overflow:hidden;"></div>
@@ -566,6 +569,38 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
           <p class="text-muted">Selecciona una pestaña para cargar datos de Widetech.</p>
           <p style="font-size:13px;color:var(--muted);">Antes de usar, configura las credenciales en <a href="#" onclick="navigate('config');cfgTab='widetech';rConfig()" style="color:var(--accent)">Configuración → Widetech</a>.</p>
         </div>
+      </div>
+
+      <!-- Geocercas -->
+      <div class="page" id="page-geocercas">
+        <div class="page-header flex" style="justify-content:space-between;align-items:center;">
+          <div><h3>📐 Geocercas</h3><p>Zonas geográficas para tracking y alertas</p></div>
+          <div class="flex gap-sm">
+            <button class="btn btn-secondary btn-sm" onclick="importarGeocercasWidetech()">🛰️ Importar Widetech</button>
+            <button class="btn btn-primary btn-sm" onclick="abrirModalGeocerca()">+ Nueva</button>
+          </div>
+        </div>
+        <div class="flex gap-sm mb-12" style="flex-wrap:wrap;">
+          <div style="position:relative;min-width:160px;">
+            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;">🔍</span>
+            <input type="text" id="filtro-geocercas-q" placeholder="Buscar nombre..."
+                   oninput="cargarGeocercas()"
+                   style="width:100%;padding:7px 12px 7px 32px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
+          </div>
+          <select id="filtro-geocercas-fuente" onchange="cargarGeocercas()" style="width:auto;">
+            <option value="">Todas</option>
+            <option value="widetech">Widetech</option>
+            <option value="manual">Manual</option>
+          </select>
+          <select id="filtro-geocercas-activa" onchange="cargarGeocercas()" style="width:auto;">
+            <option value="">Todas</option>
+            <option value="true">Activas</option>
+            <option value="false">Inactivas</option>
+          </select>
+        </div>
+        <div id="geocercas-stats" class="stats-row" style="margin-bottom:16px;"></div>
+        <div id="geocercas-mapa" style="height:300px;border-radius:12px;border:1px solid var(--border);margin-bottom:16px;overflow:hidden;"></div>
+        <div id="geocercas-table"></div>
       </div>
 
       <!-- Configuración -->
@@ -609,6 +644,46 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
     <div class="modal-title" style="font-family:var(--font-head);font-size:18px;margin-bottom:12px;">📦 Detalle del Pedido</div>
     <div id="pedido-detalle">Cargando...</div>
     <div class="modal-actions"><button class="btn btn-secondary" onclick="document.getElementById('modal-pedido').classList.remove('show')">Cerrar</button></div>
+  </div>
+</div>
+
+<!-- Modal Geocerca -->
+<div class="modal-overlay" id="modal-geocerca" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal" style="max-width:560px;">
+    <h3 id="geo-modal-title">Nueva Geocerca</h3>
+    <p class="modal-desc">Define una zona geográfica circular o polígono</p>
+    <div id="modal-body-geocerca">
+      <div class="form-grid">
+        <div class="full"><label>Nombre</label><input id="geo-nombre" placeholder="Ej: Zona Centro"></div>
+        <div><label>Tipo</label>
+          <select id="geo-tipo" onchange="toggleGeoTipo()">
+            <option value="circular">Circular</option>
+            <option value="poligono">Polígono</option>
+          </select>
+        </div>
+        <div><label>Color</label><input type="color" id="geo-color" value="#3388ff" style="height:42px;padding:4px;"></div>
+        <div id="geo-campos-circular">
+          <label>Latitud</label><input id="geo-lat" type="number" step="any" placeholder="6.2476">
+        </div>
+        <div id="geo-campos-circular2">
+          <label>Longitud</label><input id="geo-lng" type="number" step="any" placeholder="-75.5658">
+        </div>
+        <div id="geo-campos-radio" class="full">
+          <label>Radio (metros)</label><input id="geo-radio" type="number" step="any" placeholder="500">
+        </div>
+        <div id="geo-campos-poligono" class="full" style="display:none;">
+          <label>Polígono (click en el mapa para agregar puntos)</label>
+          <div id="geo-mapa-poligono" style="height:220px;border-radius:10px;border:1px solid var(--border);margin-top:6px;overflow:hidden;"></div>
+          <p class="help" id="geo-poligono-info">0 puntos seleccionados</p>
+        </div>
+        <div><label>Activa</label><select id="geo-activa"><option value="true">Sí</option><option value="false">No</option></select></div>
+        <div id="geo-campos-fuente"><label>Fuente</label><input id="geo-fuente" value="manual" disabled></div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-geocerca').classList.remove('show')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-geo-guardar" onclick="guardarGeocerca()">Guardar</button>
+    </div>
   </div>
 </div>
 

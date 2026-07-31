@@ -42,6 +42,7 @@ import rutasPdfRoutes from './routes/rutas-pdf.js';
 import reportesRoutes from './routes/reportes.js';
 import widetechRoutes from './routes/widetech.js';
 import widetechSyncRoutes from './routes/widetech-sync.js';
+import geocercasRoutes from './routes/geocercas.js';
 
 const protect = createProtect(MODULE_ID);
 
@@ -92,6 +93,7 @@ app.use('/api/rutas-pdf', protect, rutasPdfRoutes);
 app.use('/api/reportes', protect, reportesRoutes);
 app.use('/api/widetech', [verifyToken, requireModule(MODULE_ID), requirePermiso('configurar', MODULE_ID)], widetechRoutes);
 app.use('/api/widetech-sync', protect, widetechSyncRoutes);
+app.use('/api/geocercas', protect, geocercasRoutes);
 
 // GET /api/auth/me — verify JWT, session and module access
 app.get('/api/auth/me', protect, async (req, res) => {

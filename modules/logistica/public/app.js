@@ -70,6 +70,7 @@ function navigate(page) {
   else if (page === 'clientes') cargarClientes();
   else if (page === 'sedes') cargarSedes();
   else if (page === 'widetech') rWidetech();
+  else if (page === 'geocercas') cargarGeocercas();
 }
 
 /* ── Init ── */
@@ -85,6 +86,7 @@ function renderSidebar(usuario) {
     { page: 'rutas', icon: '🗺️', label: 'Rutas', show: true },
     { page: 'reportes', icon: '📈', label: 'Reportes', show: true },
     { page: 'mapa', icon: '🗺️', label: 'Mapa', show: true },
+    { page: 'geocercas', icon: '📐', label: 'Geocercas', show: true },
     { page: 'widetech', icon: '🛰️', label: 'Widetech', show: isAdmin || modPermisos.includes('configurar') },
     { page: 'config', icon: '⚙️', label: 'Configuración', show: isAdmin || modPermisos.includes('configurar') },
   ];
@@ -2954,6 +2956,297 @@ function initNotifications(pollMs) {
     const bell = document.querySelector('.notif-bell');
     if (dd && !dd.contains(e.target) && !bell?.contains(e.target)) dd.classList.remove('show');
   });
+}
+
+/* ── Geocercas ── */
+let _geoEditando = null;
+let _geoMapa = null;
+let _geoPoligonoCoords = [];
+let _geoPoligonoLayer = null;
+let _geoMapaInstance = null;
+let _geocercasCache = [];
+
+async function cargarGeocercas() {
+  const q = document.getElementById('filtro-geocercas-q')?.value || '';
+  const fuente = document.getElementById('filtro-geocercas-fuente')?.value || '';
+  const activa = document.getElementById('filtro-geocercas-activa')?.value || '';
+  const params = new URLSearchParams();
+  if (q) params.set('q', q);
+  if (fuente) params.set('fuente', fuente);
+  if (activa) params.set('activa', activa);
+  const qs = params.toString() ? '?' + params.toString() : '';
+  try {
+    const data = await api('/geocercas' + qs);
+    _geocercasCache = data.geocercas || [];
+    renderGeocercasStats(_geocercasCache);
+    renderGeocercasTabla(_geocercasCache);
+    renderGeocercasMapa(_geocercasCache);
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function renderGeocercasStats(geocercas) {
+  const total = geocercas.length;
+  const activas = geocercas.filter(g => g.activa).length;
+  const widetech = geocercas.filter(g => g.fuente === 'widetech').length;
+  const alertas = geocercas.reduce((s, g) => s + parseInt(g.alertas_count || 0), 0);
+  document.getElementById('geocercas-stats').innerHTML = `
+    <div class="stat-card"><div class="stat-label">Total</div><div class="stat-value">${total}</div></div>
+    <div class="stat-card"><div class="stat-label">Activas</div><div class="stat-value" style="color:var(--success)">${activas}</div></div>
+    <div class="stat-card"><div class="stat-label">Widetech</div><div class="stat-value" style="color:var(--accent)">${widetech}</div></div>
+    <div class="stat-card"><div class="stat-label">Alertas</div><div class="stat-value" style="color:var(--warning)">${alertas}</div></div>`;
+}
+
+function renderGeocercasTabla(geocercas) {
+  const el = document.getElementById('geocercas-table');
+  if (!geocercas.length) { el.innerHTML = '<div class="empty-state"><div class="icon">📐</div><p>No hay geocercas</p></div>'; return; }
+  el.innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr>
+    <th>Nombre</th><th>Tipo</th><th>Centro</th><th>Radio</th><th>Fuente</th><th>Activa</th><th>Alertas</th><th>Acciones</th>
+  </tr></thead><tbody>${geocercas.map(g => `<tr>
+    <td><strong>${esc(g.nombre)}</strong></td>
+    <td><span class="badge ${g.tipo === 'circular' ? 'badge-info' : 'badge-warning'}">${g.tipo}</span></td>
+    <td>${g.latitud && g.longitud ? `${parseFloat(g.latitud).toFixed(5)}, ${parseFloat(g.longitud).toFixed(5)}` : '—'}</td>
+    <td>${g.radio ? parseFloat(g.radio).toFixed(0) + ' m' : '—'}</td>
+    <td><span class="badge ${g.fuente === 'widetech' ? 'badge-info' : 'badge-success'}">${g.fuente}</span></td>
+    <td>${g.activa ? '<span style="color:var(--success)">✓</span>' : '<span style="color:var(--muted)">✗</span>'}</td>
+    <td>${g.alertas_count || 0}</td>
+    <td>
+      <button class="btn-icon" onclick="abrirModalGeocerca(${g.id})" title="Editar">✎</button>
+      <button class="btn-icon" onclick="verAlertasGeocerca(${g.id})" title="Ver alertas">🔔</button>
+      <button class="btn-icon-danger" onclick="eliminarGeocerca(${g.id})" title="Eliminar">✕</button>
+    </td>
+  </tr>`).join('')}</tbody></table></div>`;
+}
+
+function renderGeocercasMapa(geocercas) {
+  const el = document.getElementById('geocercas-mapa');
+  if (!el) return;
+  if (_geoMapaInstance) { _geoMapaInstance.remove(); _geoMapaInstance = null; }
+  const conCoords = geocercas.filter(g => g.activa && g.latitud && g.longitud);
+  if (!conCoords.length) { el.innerHTML = '<div class="empty-state" style="padding:20px;"><p class="text-muted">Sin geocercas activas con coordenadas</p></div>'; return; }
+  const center = [parseFloat(conCoords[0].latitud), parseFloat(conCoords[0].longitud)];
+  _geoMapaInstance = L.map(el).setView(center, 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(_geoMapaInstance);
+  for (const g of conCoords) {
+    const color = g.color || '#3388ff';
+    if (g.tipo === 'circular' && g.radio) {
+      L.circle([parseFloat(g.latitud), parseFloat(g.longitud)], {
+        radius: parseFloat(g.radio), color, fillColor: color, fillOpacity: 0.15, weight: 2
+      }).addTo(_geoMapaInstance).bindPopup(`<b>${esc(g.nombre)}</b><br>Radio: ${parseFloat(g.radio).toFixed(0)}m`);
+    } else if (g.tipo === 'poligono' && g.poligono) {
+      const puntos = typeof g.poligono === 'string' ? JSON.parse(g.poligono) : g.poligono;
+      const latlngs = puntos.map(p => [parseFloat(p.lat || p.latitud || p[0]), parseFloat(p.lng || p.longitud || p[1])]);
+      if (latlngs.length >= 3) {
+        L.polygon(latlngs, { color, fillColor: color, fillOpacity: 0.15, weight: 2 }).addTo(_geoMapaInstance).bindPopup(`<b>${esc(g.nombre)}</b>`);
+      }
+    }
+  }
+  setTimeout(() => _geoMapaInstance?.invalidateSize(), 100);
+}
+
+function toggleGeoTipo() {
+  const tipo = document.getElementById('geo-tipo').value;
+  document.getElementById('geo-campos-circular').style.display = tipo === 'circular' ? '' : 'none';
+  document.getElementById('geo-campos-circular2').style.display = tipo === 'circular' ? '' : 'none';
+  document.getElementById('geo-campos-radio').style.display = tipo === 'circular' ? '' : 'none';
+  document.getElementById('geo-campos-poligono').style.display = tipo === 'poligono' ? '' : 'none';
+  if (tipo === 'poligono') setTimeout(() => initGeoPoligonoMapa(), 100);
+}
+
+function initGeoPoligonoMapa() {
+  const el = document.getElementById('geo-mapa-poligono');
+  if (!el || _geoMapa) return;
+  _geoMapa = L.map(el).setView([6.2476, -75.5658], 13);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(_geoMapa);
+  _geoPoligonoLayer = L.layerGroup().addTo(_geoMapa);
+  _geoMapa.on('click', e => {
+    _geoPoligonoCoords.push({ lat: e.latlng.lat, lng: e.latlng.lng });
+    actualizarGeoPoligono();
+  });
+  if (_geoEditando && _geoEditando.poligono) {
+    const puntos = typeof _geoEditando.poligono === 'string' ? JSON.parse(_geoEditando.poligono) : _geoEditando.poligono;
+    _geoPoligonoCoords = puntos.map(p => ({ lat: parseFloat(p.lat || p.latitud || p[0]), lng: parseFloat(p.lng || p.longitud || p[1]) }));
+    actualizarGeoPoligono();
+    if (_geoPoligonoCoords.length) _geoMapa.fitBounds(_geoPoligonoCoords.map(p => [p.lat, p.lng]));
+  }
+}
+
+function actualizarGeoPoligono() {
+  if (!_geoPoligonoLayer) return;
+  _geoPoligonoLayer.clearLayers();
+  if (_geoPoligonoCoords.length) {
+    _geoPoligonoCoords.forEach((p, i) => {
+      L.circleMarker([p.lat, p.lng], { radius: 5, color: '#3388ff', fillColor: '#fff', fillOpacity: 1 }).addTo(_geoPoligonoLayer)
+        .bindTooltip(`#${i + 1}`, { permanent: false });
+    });
+    if (_geoPoligonoCoords.length >= 3) {
+      L.polygon(_geoPoligonoCoords.map(p => [p.lat, p.lng]), { color: '#3388ff', fillOpacity: 0.1 }).addTo(_geoPoligonoLayer);
+    }
+  }
+  document.getElementById('geo-poligono-info').textContent = `${_geoPoligonoCoords.length} puntos seleccionados${_geoPoligonoCoords.length < 3 ? ' (mínimo 3)' : ''}`;
+}
+
+async function abrirModalGeocerca(id) {
+  _geoEditando = null;
+  _geoMapa = null;
+  _geoPoligonoCoords = [];
+  _geoPoligonoLayer = null;
+  document.getElementById('geo-modal-title').textContent = id ? 'Editar Geocerca' : 'Nueva Geocerca';
+  document.getElementById('geo-nombre').value = '';
+  document.getElementById('geo-tipo').value = 'circular';
+  document.getElementById('geo-color').value = '#3388ff';
+  document.getElementById('geo-lat').value = '';
+  document.getElementById('geo-lng').value = '';
+  document.getElementById('geo-radio').value = '';
+  document.getElementById('geo-activa').value = 'true';
+  document.getElementById('geo-fuente').value = 'manual';
+  toggleGeoTipo();
+  if (id) {
+    try {
+      const data = await api('/geocercas/' + id);
+      const g = data.geocerca;
+      _geoEditando = g;
+      document.getElementById('geo-nombre').value = g.nombre || '';
+      document.getElementById('geo-tipo').value = g.tipo || 'circular';
+      document.getElementById('geo-color').value = g.color || '#3388ff';
+      document.getElementById('geo-lat').value = g.latitud || '';
+      document.getElementById('geo-lng').value = g.longitud || '';
+      document.getElementById('geo-radio').value = g.radio || '';
+      document.getElementById('geo-activa').value = String(g.activa);
+      document.getElementById('geo-fuente').value = g.fuente || 'manual';
+      toggleGeoTipo();
+    } catch (e) { toast(e.message, 'error'); return; }
+  }
+  document.getElementById('modal-geocerca').classList.add('show');
+}
+
+async function guardarGeocerca() {
+  const nombre = document.getElementById('geo-nombre').value.trim();
+  if (!nombre) { toast('Nombre requerido', 'error'); return; }
+  const tipo = document.getElementById('geo-tipo').value;
+  const body = {
+    nombre,
+    tipo,
+    color: document.getElementById('geo-color').value,
+    activa: document.getElementById('geo-activa').value === 'true'
+  };
+  if (tipo === 'circular') {
+    body.latitud = parseFloat(document.getElementById('geo-lat').value) || null;
+    body.longitud = parseFloat(document.getElementById('geo-lng').value) || null;
+    body.radio = parseFloat(document.getElementById('geo-radio').value) || null;
+    if (!body.latitud || !body.longitud || !body.radio) { toast('Circular requiere latitud, longitud y radio', 'error'); return; }
+  } else {
+    if (_geoPoligonoCoords.length < 3) { toast('Polígono requiere al menos 3 puntos', 'error'); return; }
+    body.poligono = _geoPoligonoCoords;
+    const avgLat = _geoPoligonoCoords.reduce((s, p) => s + p.lat, 0) / _geoPoligonoCoords.length;
+    const avgLng = _geoPoligonoCoords.reduce((s, p) => s + p.lng, 0) / _geoPoligonoCoords.length;
+    body.latitud = avgLat;
+    body.longitud = avgLng;
+  }
+  try {
+    if (_geoEditando) {
+      await api('/geocercas/' + _geoEditando.id, { method: 'PUT', body: JSON.stringify(body) });
+      toast('Geocerca actualizada', 'success');
+    } else {
+      await api('/geocercas', { method: 'POST', body: JSON.stringify(body) });
+      toast('Geocerca creada', 'success');
+    }
+    document.getElementById('modal-geocerca').classList.remove('show');
+    cargarGeocercas();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function eliminarGeocerca(id) {
+  const ok = await confirmModal('¿Eliminar esta geocerca? Se borrarán también sus alertas.', 'Eliminar', 'delete');
+  if (!ok) return;
+  try {
+    await api('/geocercas/' + id, { method: 'DELETE' });
+    toast('Geocerca eliminada', 'success');
+    cargarGeocercas();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function importarGeocercasWidetech() {
+  const ok = await confirmModal('Se importarán TODAS las zonas de Widetech. Las existentes se actualizarán. ¿Continuar?', 'Importar Widetech', 'update');
+  if (!ok) return;
+  try {
+    toast('Importando zonas desde Widetech...', 'info');
+    const data = await api('/geocercas/import-widetech', { method: 'POST' });
+    toast(`Importadas: ${data.importadas}, Actualizadas: ${data.actualizadas}, Total: ${data.total}`, 'success');
+    cargarGeocercas();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function verAlertasGeocerca(id) {
+  try {
+    const data = await api('/geocercas/' + id + '/alertas');
+    const geocerca = _geocercasCache.find(g => g.id === id);
+    let html = `<h4 style="margin-bottom:12px;">Alertas: ${esc(geocerca?.nombre || '')}</h4>`;
+    if (!data.alertas?.length) {
+      html += '<p class="text-muted">Sin alertas registradas</p>';
+    } else {
+      html += `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Fecha</th><th>Vehículo</th><th>Tipo</th><th>Ubicación</th></tr></thead><tbody>`;
+      html += data.alertas.map(a => `<tr>
+        <td>${new Date(a.fecha).toLocaleString('es-CO')}</td>
+        <td>${esc(a.placa)} — ${esc(a.alias || '')}</td>
+        <td><span class="badge ${a.tipo === 'entrada' ? 'badge-success' : 'badge-danger'}">${a.tipo}</span></td>
+        <td>${a.latitud ? `${parseFloat(a.latitud).toFixed(5)}, ${parseFloat(a.longitud).toFixed(5)}` : '—'}</td>
+      </tr>`).join('');
+      html += '</tbody></table></div>';
+    }
+    document.getElementById('modal-title').textContent = '🔔 Alertas de Geocerca';
+    document.getElementById('modal-desc').textContent = '';
+    document.getElementById('modal-body').innerHTML = html;
+    document.getElementById('modal-actions').innerHTML = '<button class="btn btn-secondary" onclick="cerrarModal()">Cerrar</button>';
+    document.getElementById('modal-overlay').classList.add('show');
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function toggleGeocercasEnMapa(mapInstance, show) {
+  if (!mapInstance) return;
+  if (show) {
+    cargarYDibujarGeocercas(mapInstance);
+  } else {
+    if (mapInstance._geocercasLayer) {
+      mapInstance.removeLayer(mapInstance._geocercasLayer);
+      mapInstance._geocercasLayer = null;
+    }
+  }
+}
+
+async function cargarYDibujarGeocercas(mapInstance) {
+  try {
+    const data = await api('/geocercas?activa=true');
+    const geocercas = data.geocercas || [];
+    if (mapInstance._geocercasLayer) mapInstance.removeLayer(mapInstance._geocercasLayer);
+    const layer = L.layerGroup();
+    for (const g of geocercas) {
+      const color = g.color || '#3388ff';
+      if (g.tipo === 'circular' && g.latitud && g.longitud && g.radio) {
+        L.circle([parseFloat(g.latitud), parseFloat(g.longitud)], {
+          radius: parseFloat(g.radio), color, fillColor: color, fillOpacity: 0.1, weight: 1, dashArray: '4 4'
+        }).addTo(layer).bindPopup(`<b>📐 ${esc(g.nombre)}</b><br>Radio: ${parseFloat(g.radio).toFixed(0)}m`);
+      } else if (g.tipo === 'poligono' && g.poligono) {
+        const puntos = typeof g.poligono === 'string' ? JSON.parse(g.poligono) : g.poligono;
+        const latlngs = puntos.map(p => [parseFloat(p.lat || p.latitud || p[0]), parseFloat(p.lng || p.longitud || p[1])]);
+        if (latlngs.length >= 3) {
+          L.polygon(latlngs, { color, fillColor: color, fillOpacity: 0.1, weight: 1, dashArray: '4 4' }).addTo(layer).bindPopup(`<b>📐 ${esc(g.nombre)}</b>`);
+        }
+      }
+    }
+    layer.addTo(mapInstance);
+    mapInstance._geocercasLayer = layer;
+  } catch (e) { console.error('[geocercas] Error cargando en mapa:', e.message); }
+}
+
+function toggleGeocercasMapaPrincipal() {
+  const show = document.getElementById('mapa-show-geocercas')?.checked;
+  if (!mapInstance) return;
+  if (show) {
+    cargarYDibujarGeocercas(mapInstance);
+  } else if (mapInstance._geocercasLayer) {
+    mapInstance.removeLayer(mapInstance._geocercasLayer);
+    mapInstance._geocercasLayer = null;
+  }
 }
 
 init();
