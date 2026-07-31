@@ -339,8 +339,8 @@ async function guardarCalendario() {
 
 // ── BACKUP ──
 
-let restoreFile = null;
-let _backupListenerInit = false;
+let _cfgRestoreFile = null;
+let _cfgBackupListenerInit = false;
 
 async function cargarUltimoBackup() {
   const card = document.getElementById('ultimo-backup-card');
@@ -491,9 +491,9 @@ function initBackupListeners() {
   if (!inp) return;
   inp.addEventListener('change', function() {
     if (!this.files || !this.files[0]) return;
-    restoreFile = this.files[0];
+    _cfgRestoreFile = this.files[0];
     const fnEl = document.getElementById('restore-filename');
-    if (fnEl) { fnEl.textContent = '📄 ' + restoreFile.name; fnEl.style.display = 'block'; }
+    if (fnEl) { fnEl.textContent = '📄 ' + _cfgRestoreFile.name; fnEl.style.display = 'block'; }
     const btnRestore = document.getElementById('btn-restaurar');
     if (btnRestore) { btnRestore.disabled = false; btnRestore.style.opacity = '1'; }
     ['restore-ok','restore-err'].forEach(id => { const el = document.getElementById(id); if (el) el.style.display = 'none'; });
@@ -511,10 +511,10 @@ function handleRestoreDrop(e) {
 }
 
 async function restaurarBackup() {
-  if (!restoreFile) return;
+  if (!_cfgRestoreFile) return;
   confirmar({
     titulo: 'Restaurar Backup',
-    mensaje: '¿Estás seguro? Los datos actuales serán reemplazados por los del archivo "' + restoreFile.name + '". Esta acción no se puede deshacer.',
+    mensaje: '¿Estás seguro? Los datos actuales serán reemplazados por los del archivo "' + _cfgRestoreFile.name + '". Esta acción no se puede deshacer.',
     icono: '♻️',
     btnTxt: 'Restaurar',
     onConfirm: async () => {
@@ -523,14 +523,14 @@ async function restaurarBackup() {
       if (okEl) okEl.style.display = 'none'; if (errEl) errEl.style.display = 'none';
       try {
         const form = new FormData();
-        form.append('backup', restoreFile);
+        form.append('backup', _cfgRestoreFile);
         const res = await fetchCSRF(API + '/api/restore', { method: 'POST', body: form });
         const json = await res.json();
         if (!res.ok) { if (errEl) { errEl.textContent = '✗ ' + (json.error || 'Error al restaurar'); errEl.style.display = 'block'; } }
         else {
           if (okEl) { okEl.textContent = '✓ ' + json.mensaje; okEl.style.display = 'block'; }
-          if (typeof enviarTelemetria === 'function') enviarTelemetria('backup_restaurado', { archivo: restoreFile.name });
-          restoreFile = null;
+          if (typeof enviarTelemetria === 'function') enviarTelemetria('backup_restaurado', { archivo: _cfgRestoreFile.name });
+          _cfgRestoreFile = null;
           ['restore-file','restore-filename','btn-restaurar'].forEach(id => {
             const el = document.getElementById(id);
             if (id === 'restore-file' && el) el.value = '';
@@ -708,16 +708,16 @@ async function cerrarSesionAdmin(token, nombre) {
 
 // ── PERMISOS ──
 
-let permisosData = {};
-let permRolSeleccionado = '';
+let _cfgPermisosData = {};
+let _cfgPermRolSeleccionado = '';
 
-const PERMISOS_DISPONIBLES = {
+const _cfg_cfgPERMISOS_DISPONIBLES = {
   'Páginas': ['centros','usuarios','empleados','nominas','registros','configuracion','backup','reportes','siesa','tipos'],
   'Acciones': ['aprobar','editar','revertir','eliminar_registros','eliminar_empleados','eliminar_centros','eliminar_nominas'],
   'Visibilidad': ['ver_todos','ver_sede','ver_propios']
 };
 
-const LABEL_MAP = {
+const _cfg_cfgLABEL_MAP = {
   centros: 'Centros de Operación', usuarios: 'Usuarios', empleados: 'Empleados', nominas: 'Nóminas',
   registros: 'Registros', configuracion: 'Configuración', backup: 'Backup', reportes: 'Reportes',
   siesa: 'Exportar Siesa', tipos: 'Conceptos de Nómina',
@@ -733,18 +733,18 @@ async function cargarPermisos() {
   try {
     const res = await fetchCSRF('/api/permisos');
     if (!res.ok) { showToast('Error al cargar permisos', 'error'); return; }
-    permisosData = await res.json();
+    _cfgPermisosData = await res.json();
     renderTabsPermisos();
-    if (permRolSeleccionado && permisosData[permRolSeleccionado]) renderPermisosRol(permRolSeleccionado);
+    if (_cfgPermRolSeleccionado && _cfgPermisosData[_cfgPermRolSeleccionado]) renderPermisosRol(_cfgPermRolSeleccionado);
   } catch (e) { showToast('Error al cargar permisos: ' + e.message, 'error'); }
 }
 
 function renderTabsPermisos() {
   const tabContainer = document.getElementById('perm-rol-tabs');
   if (!tabContainer) return;
-  const roles = Object.keys(permisosData).sort();
+  const roles = Object.keys(_cfgPermisosData).sort();
   tabContainer.innerHTML = roles.map(r => {
-    const active = permRolSeleccionado === r;
+    const active = _cfgPermRolSeleccionado === r;
     const esSistema = ['admin','rrhh','gerencia','operador','consulta'].includes(r);
     return '<span class="badge badge-' + r + '" onclick="seleccionarRolPermisos(\'' + r + '\')" style="cursor:pointer;padding:8px 14px;font-size:13px;border-radius:20px;transition:all 0.15s;display:inline-flex;align-items:center;gap:6px;' + (active ? 'outline:2px solid var(--text);outline-offset:2px;' : 'opacity:0.55;') + '">'
       + rolLabel(r)
@@ -768,7 +768,7 @@ async function guardarNuevoRol() {
     const res = await fetchCSRF('/api/roles', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nombre }) });
     if (!res.ok) { const d = await res.json().catch(()=>({})); showToast(d.error || 'Error al crear rol', 'error'); return; }
     const data = await res.json();
-    permisosData[data.nombre] = [];
+    _cfgPermisosData[data.nombre] = [];
     cerrarModal('modal-rol');
     seleccionarRolPermisos(data.nombre);
     showToast('Rol "' + rolLabel(data.nombre) + '" creado. Asígnale permisos.', 'success');
@@ -783,8 +783,8 @@ async function eliminarRol(rol) {
     onConfirm: async () => {
       try {
         await DEL('/api/roles/' + rol);
-        delete permisosData[rol];
-        if (permRolSeleccionado === rol) permRolSeleccionado = '';
+        delete _cfgPermisosData[rol];
+        if (_cfgPermRolSeleccionado === rol) _cfgPermRolSeleccionado = '';
         renderTabsPermisos();
         const permLista = document.getElementById('perm-lista');
         if (permLista) permLista.innerHTML = '<div style="text-align:center;padding:60px;color:var(--muted);">Selecciona un rol para ver y editar sus permisos.</div>';
@@ -797,7 +797,7 @@ async function eliminarRol(rol) {
 }
 
 function seleccionarRolPermisos(rol) {
-  permRolSeleccionado = rol;
+  _cfgPermRolSeleccionado = rol;
   renderTabsPermisos();
   renderPermisosRol(rol);
 }
@@ -806,15 +806,15 @@ function renderPermisosRol(rol) {
   const container = document.getElementById('perm-lista');
   const footer = document.getElementById('perm-footer');
   if (!container) return;
-  const actuales = permisosData[rol] || [];
+  const actuales = _cfgPermisosData[rol] || [];
   let html = '';
-  for (const [cat, perms] of Object.entries(PERMISOS_DISPONIBLES)) {
+  for (const [cat, perms] of Object.entries(_cfgPERMISOS_DISPONIBLES)) {
     html += '<div style="margin-bottom:20px;"><div style="font-weight:700;font-size:14px;color:var(--head);margin-bottom:10px;padding-bottom:4px;border-bottom:1px solid var(--border);text-transform:uppercase;letter-spacing:0.5px;">' + cat + '</div><div style="display:flex;flex-direction:column;gap:6px;">';
     perms.forEach(p => {
       const checked = actuales.includes(p) ? 'checked' : '';
       html += '<label style="display:flex;align-items:center;gap:10px;padding:8px 14px;background:var(--surface2);border-radius:8px;cursor:pointer;font-size:13px;user-select:none;border:1px solid var(--border);transition:border-color 0.15s;" onmouseover="this.style.borderColor=\'var(--accent)\'" onmouseout="this.style.borderColor=\'var(--border)\'">'
         + '<input type="checkbox" data-perm-key="' + p + '" ' + checked + ' style="accent-color:var(--accent);width:18px;height:18px;cursor:pointer;">'
-        + '<span>' + (LABEL_MAP[p] || p) + '</span></label>';
+        + '<span>' + (_cfgLABEL_MAP[p] || p) + '</span></label>';
     });
     html += '</div></div>';
   }
@@ -823,14 +823,14 @@ function renderPermisosRol(rol) {
 }
 
 async function guardarPermisos() {
-  if (!permRolSeleccionado) return;
+  if (!_cfgPermRolSeleccionado) return;
   const checks = document.querySelectorAll('#perm-lista input[data-perm-key]:checked');
   const permisos = Array.from(checks).map(c => c.dataset.permKey);
   try {
-    const res = await fetchCSRF('/api/permisos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rol: permRolSeleccionado, permisos }) });
+    const res = await fetchCSRF('/api/permisos', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ rol: _cfgPermRolSeleccionado, permisos }) });
     if (!res.ok) { const d = await res.json().catch(()=>({})); showToast(d.error || 'Error al guardar', 'error'); return; }
-    permisosData[permRolSeleccionado] = permisos;
-    showToast('Permisos de "' + rolLabel(permRolSeleccionado) + '" actualizados. Los cambios aplican al próximo inicio de sesión.', 'success');
+    _cfgPermisosData[_cfgPermRolSeleccionado] = permisos;
+    showToast('Permisos de "' + rolLabel(_cfgPermRolSeleccionado) + '" actualizados. Los cambios aplican al próximo inicio de sesión.', 'success');
   } catch (e) { showToast('Error al guardar permisos: ' + e.message, 'error'); }
 }
 

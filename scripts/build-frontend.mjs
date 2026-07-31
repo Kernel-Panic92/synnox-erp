@@ -6,7 +6,7 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.join(__dirname, '..');
 
-// Module configurations: each module has an ordered list of JS files to bundle
+// Module configurations: ordered list of JS files to concatenate + minify
 const modules = {
   proyectos: {
     dir: path.join(ROOT, 'modules/proyectos/public'),
@@ -21,7 +21,6 @@ const modules = {
       'js/modules/reportes.js',
       'app.js',
     ],
-    outdir: 'dist',
     outfile: 'dist/bundle.js',
   },
   logistica: {
@@ -29,7 +28,6 @@ const modules = {
     files: [
       'app.js',
     ],
-    outdir: 'dist',
     outfile: 'dist/bundle.js',
   },
   proveedores: {
@@ -50,7 +48,6 @@ const modules = {
       'js/modules/config.js',
       'app.js',
     ],
-    outdir: 'dist',
     outfile: 'dist/bundle.js',
   },
   nomina: {
@@ -73,56 +70,63 @@ const modules = {
       'js/modules/users.js',
       'js/modules/permisos.js',
     ],
-    outdir: 'dist',
     outfile: 'dist/bundle.js',
   },
 };
 
 async function buildModule(name, config) {
   const { dir, files, outfile } = config;
-  
-  // Create entry point that imports all files in order
-  const entryContent = files.map(f => `import './${f}';`).join('\n');
-  const entryPath = path.join(dir, '_entry.js');
-  
+
   try {
-    fs.writeFileSync(entryPath, entryContent);
-    
-    const result = await esbuild.build({
-      entryPoints: [entryPath],
-      bundle: true,
+    // 1. Concatenate all files in order (preserves vanilla JS execution order)
+    const parts = [];
+    for (const file of files) {
+      const filePath = path.join(dir, file);
+      if (!fs.existsSync(filePath)) {
+        console.warn(`  ⚠️  ${name}: ${file} not found, skipping`);
+        continue;
+      }
+      const content = fs.readFileSync(filePath, 'utf8');
+      parts.push(`/* ── ${file} ── */\n${content}`);
+    }
+
+    if (parts.length === 0) {
+      throw new Error('No files found');
+    }
+
+    const concatenated = parts.join('\n;\n');
+
+    // 2. Minify with esbuild (transform API — preserves order, no bundling)
+    const result = await esbuild.transform(concatenated, {
       minify: true,
-      sourcemap: false,
-      target: ['es2020'],
-      outfile: path.join(dir, outfile),
-      logLevel: 'warning',
-      // Don't try to resolve node_modules — these are browser scripts
-      external: [],
-      platform: 'browser',
+      target: 'es2020',
+      loader: 'js',
     });
-    
+
+    // 3. Write output
     const outPath = path.join(dir, outfile);
-    const size = fs.statSync(outPath).size;
-    console.log(`  ✅ ${name}: ${(size / 1024).toFixed(1)}KB bundled`);
-    
+    const outDir = path.dirname(outPath);
+    if (!fs.existsSync(outDir)) fs.mkdirSync(outDir, { recursive: true });
+    fs.writeFileSync(outPath, result.code);
+
+    const size = Buffer.byteLength(result.code, 'utf8');
+    console.log(`  ✅ ${name}: ${(size / 1024).toFixed(1)}KB (${files.length} files → 1 bundle)`);
+
     return { name, success: true, size };
   } catch (e) {
     console.error(`  ❌ ${name}: ${e.message}`);
     return { name, success: false, error: e.message };
-  } finally {
-    // Clean up entry point
-    try { fs.unlinkSync(entryPath); } catch {}
   }
 }
 
 async function main() {
-  console.log('🔨 Building frontend bundles...\n');
-  
+  console.log('🔨 Building frontend bundles (concatenate + minify)...\n');
+
   const results = [];
   for (const [name, config] of Object.entries(modules)) {
     results.push(await buildModule(name, config));
   }
-  
+
   console.log('\n📊 Summary:');
   for (const r of results) {
     if (r.success) {
@@ -131,14 +135,13 @@ async function main() {
       console.log(`  ${r.name}: FAILED — ${r.error}`);
     }
   }
-  
-  // Check if any failed
+
   const failed = results.filter(r => !r.success);
   if (failed.length > 0) {
     console.error(`\n❌ ${failed.length} module(s) failed to build`);
     process.exit(1);
   }
-  
+
   console.log('\n✅ All modules built successfully');
 }
 
