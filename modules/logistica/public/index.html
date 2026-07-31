@@ -663,17 +663,21 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
         </div>
         <div><label>Color</label><input type="color" id="geo-color" value="#3388ff" style="height:42px;padding:4px;"></div>
         <div id="geo-campos-circular">
-          <label>Latitud</label><input id="geo-lat" type="number" step="any" placeholder="6.2476">
+          <label>Latitud</label><input id="geo-lat" type="number" step="any" placeholder="6.2476" onchange="actualizarPreviewGeo()">
         </div>
         <div id="geo-campos-circular2">
-          <label>Longitud</label><input id="geo-lng" type="number" step="any" placeholder="-75.5658">
+          <label>Longitud</label><input id="geo-lng" type="number" step="any" placeholder="-75.5658" onchange="actualizarPreviewGeo()">
         </div>
         <div id="geo-campos-radio" class="full">
-          <label>Radio (metros)</label><input id="geo-radio" type="number" step="any" placeholder="500">
+          <label>Radio (metros)</label><input id="geo-radio" type="number" step="any" placeholder="500" onchange="actualizarPreviewGeo()">
+        </div>
+        <div id="geo-preview-circular" class="full" style="display:none;">
+          <label>Vista previa</label>
+          <div id="geo-mapa-preview" style="height:160px;border-radius:10px;border:1px solid var(--border);margin-top:4px;overflow:hidden;"></div>
         </div>
         <div id="geo-campos-poligono" class="full" style="display:none;">
           <label>Polígono (click en el mapa para agregar puntos)</label>
-          <div id="geo-mapa-poligono" style="height:220px;border-radius:10px;border:1px solid var(--border);margin-top:6px;overflow:hidden;"></div>
+          <div id="geo-mapa-poligono" style="height:180px;border-radius:10px;border:1px solid var(--border);margin-top:4px;overflow:hidden;"></div>
           <p class="help" id="geo-poligono-info">0 puntos seleccionados</p>
         </div>
         <div><label>Activa</label><select id="geo-activa"><option value="true">Sí</option><option value="false">No</option></select></div>

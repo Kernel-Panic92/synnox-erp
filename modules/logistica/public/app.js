@@ -2992,6 +2992,7 @@ let _geoMapa = null;
 let _geoPoligonoCoords = [];
 let _geoPoligonoLayer = null;
 let _geoMapaInstance = null;
+let _geoPreviewMapa = null;
 let _geocercasCache = [];
 
 async function cargarGeocercas() {
@@ -3029,7 +3030,7 @@ function renderGeocercasTabla(geocercas) {
   if (!geocercas.length) { el.innerHTML = '<div class="empty-state"><div class="icon">📐</div><p>No hay geocercas</p></div>'; return; }
   el.innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr>
     <th>Nombre</th><th>Tipo</th><th>Centro</th><th>Radio</th><th>Fuente</th><th>Activa</th><th>Alertas</th><th>Acciones</th>
-  </tr></thead><tbody>${geocercas.map(g => `<tr>
+  </tr></thead><tbody>${geocercas.map(g => `<tr style="cursor:pointer" onclick="abrirModalGeocerca(${g.id})">
     <td><strong>${esc(g.nombre)}</strong></td>
     <td><span class="badge ${g.tipo === 'circular' ? 'badge-info' : 'badge-warning'}">${g.tipo}</span></td>
     <td>${g.latitud && g.longitud ? `${parseFloat(g.latitud).toFixed(5)}, ${parseFloat(g.longitud).toFixed(5)}` : '—'}</td>
@@ -3037,7 +3038,7 @@ function renderGeocercasTabla(geocercas) {
     <td><span class="badge ${g.fuente === 'widetech' ? 'badge-info' : 'badge-success'}">${g.fuente}</span></td>
     <td>${g.activa ? '<span style="color:var(--success)">✓</span>' : '<span style="color:var(--muted)">✗</span>'}</td>
     <td>${g.alertas_count || 0}</td>
-    <td>
+    <td onclick="event.stopPropagation()">
       <button class="btn-icon" onclick="abrirModalGeocerca(${g.id})" title="Editar">✎</button>
       <button class="btn-icon" onclick="verAlertasGeocerca(${g.id})" title="Ver alertas">🔔</button>
       <button class="btn-icon-danger" onclick="eliminarGeocerca(${g.id})" title="Eliminar">✕</button>
@@ -3076,8 +3077,38 @@ function toggleGeoTipo() {
   document.getElementById('geo-campos-circular').style.display = tipo === 'circular' ? '' : 'none';
   document.getElementById('geo-campos-circular2').style.display = tipo === 'circular' ? '' : 'none';
   document.getElementById('geo-campos-radio').style.display = tipo === 'circular' ? '' : 'none';
+  document.getElementById('geo-preview-circular').style.display = tipo === 'circular' ? '' : 'none';
   document.getElementById('geo-campos-poligono').style.display = tipo === 'poligono' ? '' : 'none';
-  if (tipo === 'poligono') setTimeout(() => initGeoPoligonoMapa(), 100);
+  if (tipo === 'poligono') {
+    if (_geoPreviewMapa) { _geoPreviewMapa.remove(); _geoPreviewMapa = null; }
+    setTimeout(() => initGeoPoligonoMapa(), 100);
+  } else {
+    _geoMapa = null;
+    setTimeout(() => actualizarPreviewGeo(), 100);
+  }
+}
+
+function actualizarPreviewGeo() {
+  const lat = parseFloat(document.getElementById('geo-lat').value);
+  const lng = parseFloat(document.getElementById('geo-lng').value);
+  const radio = parseFloat(document.getElementById('geo-radio').value);
+  const el = document.getElementById('geo-mapa-preview');
+  if (!el) return;
+  if (!lat || !lng) {
+    document.getElementById('geo-preview-circular').style.display = 'none';
+    if (_geoPreviewMapa) { _geoPreviewMapa.remove(); _geoPreviewMapa = null; }
+    return;
+  }
+  document.getElementById('geo-preview-circular').style.display = '';
+  if (_geoPreviewMapa) { _geoPreviewMapa.remove(); _geoPreviewMapa = null; }
+  _geoPreviewMapa = L.map(el).setView([lat, lng], 14);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(_geoPreviewMapa);
+  L.marker([lat, lng]).addTo(_geoPreviewMapa);
+  if (radio > 0) {
+    const color = document.getElementById('geo-color').value || '#3388ff';
+    L.circle([lat, lng], { radius: radio, color, fillColor: color, fillOpacity: 0.15, weight: 2 }).addTo(_geoPreviewMapa);
+  }
+  setTimeout(() => _geoPreviewMapa?.invalidateSize(), 100);
 }
 
 function initGeoPoligonoMapa() {
@@ -3116,6 +3147,7 @@ function actualizarGeoPoligono() {
 async function abrirModalGeocerca(id) {
   _geoEditando = null;
   _geoMapa = null;
+  _geoPreviewMapa = null;
   _geoPoligonoCoords = [];
   _geoPoligonoLayer = null;
   document.getElementById('geo-modal-title').textContent = id ? 'Editar Geocerca' : 'Nueva Geocerca';
