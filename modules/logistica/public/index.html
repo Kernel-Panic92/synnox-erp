@@ -552,7 +552,7 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
             </select>
             <button class="btn btn-sm btn-secondary" onclick="reiniciarMapa()">🔄</button>
             <label style="font-size:13px;color:var(--muted);display:flex;align-items:center;gap:4px;cursor:pointer;user-select:none;">
-              <input type="checkbox" id="mapa-show-geocercas" checked onchange="toggleGeocercasMapaPrincipal()" style="accent-color:var(--accent);"> 📐 Geocercas
+              <input type="checkbox" id="mapa-show-geocercas" checked onchange="toggleGeocercasMapaPrincipal()" style="accent-color:var(--accent);"> 📍 Geocercas
             </label>
           </div>
         </div>
@@ -569,7 +569,7 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
           <div class="rpt-tabs" id="wt-tabs">
             <div class="rpt-tab active" data-wt="sync" onclick="wtTab='sync';rWidetech()">🔄 Sincronización</div>
             <div class="rpt-tab" data-wt="vehiculos" onclick="wtTab='vehiculos';rWidetech()">🚦 Estado vehículos</div>
-            <div class="rpt-tab" data-wt="zonas" onclick="wtTab='zonas';rWidetech()">📐 Zonas</div>
+            <div class="rpt-tab" data-wt="zonas" onclick="wtTab='zonas';rWidetech()">📍 Zonas</div>
           </div>
         </div>
         <div id="wt-content">
@@ -581,7 +581,7 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
       <!-- Geocercas -->
       <div class="page" id="page-geocercas">
         <div class="page-header flex" style="justify-content:space-between;align-items:center;">
-          <div><h3>📐 Geocercas</h3><p>Zonas geográficas para tracking y alertas</p></div>
+            <div><h3>📍 Geocercas</h3><p>Zonas geográficas para tracking y alertas</p></div>
           <div class="flex gap-sm">
             <button class="btn btn-secondary btn-sm" onclick="importarGeocercasWidetech()">🛰️ Importar Widetech</button>
             <button class="btn btn-primary btn-sm" onclick="abrirModalGeocerca()">+ Nueva</button>

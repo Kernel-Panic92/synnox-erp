@@ -114,7 +114,7 @@ function renderSidebar(usuario) {
     { page: 'rutas', icon: '🗺️', label: 'Rutas', show: true },
     { page: 'reportes', icon: '📈', label: 'Reportes', show: true },
     { page: 'mapa', icon: '🗺️', label: 'Mapa', show: true },
-    { page: 'geocercas', icon: '📐', label: 'Geocercas', show: true },
+    { page: 'geocercas', icon: '📍', label: 'Geocercas', show: true },
     { page: 'widetech', icon: '🛰️', label: 'Widetech', show: isAdmin || modPermisos.includes('configurar') },
     { page: 'config', icon: '⚙️', label: 'Configuración', show: isAdmin || modPermisos.includes('configurar') },
   ];
@@ -2617,7 +2617,7 @@ async function cargarWtCheckVehiculos() {
 async function renderWtZonas(el) {
   el.innerHTML = `
     <div class="card" style="max-width:600px;">
-      <h4 style="margin-bottom:16px;font-family:var(--font-head);">📐 Zonas Widetech (Geocercas)</h4>
+      <h4 style="margin-bottom:16px;font-family:var(--font-head);">📍 Zonas Widetech (Geocercas)</h4>
       <p style="font-size:13px;color:var(--muted);margin-bottom:16px;">
         Geocercas configuradas en la plataforma Widetech. Puedes consultarlas y visualizar sus polígonos.
       </p>
@@ -3030,7 +3030,7 @@ function renderGeocercasStats(geocercas) {
 
 function renderGeocercasTabla(geocercas) {
   const el = document.getElementById('geocercas-table');
-  if (!geocercas.length) { el.innerHTML = '<div class="empty-state"><div class="icon">📐</div><p>No hay geocercas</p></div>'; return; }
+  if (!geocercas.length) { el.innerHTML = '<div class="empty-state"><div class="icon">📍</div><p>No hay geocercas</p></div>'; return; }
   el.innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr>
     <th>Nombre</th><th>Tipo</th><th>Centro</th><th>Radio</th><th>Fuente</th><th>Activa</th><th>Alertas</th><th>Acciones</th>
   </tr></thead><tbody>${geocercas.map(g => `<tr style="cursor:pointer" onclick="abrirModalGeocerca(${g.id})">
@@ -3280,12 +3280,12 @@ async function cargarYDibujarGeocercas(mapInstance) {
       const marker = L.marker([lat, lng], {
         icon: L.divIcon({
           className: 'geocerca-marker',
-          html: `<div style="background:${color};color:#fff;width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);">📐</div>`,
+          html: `<div style="background:${color};color:#fff;width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);">📍</div>`,
           iconSize: [26, 26],
           iconAnchor: [13, 13]
         })
       }).addTo(layer);
-      marker.bindPopup(`<b>📐 ${esc(g.nombre)}</b><br>Tipo: ${g.tipo}${g.radio ? '<br>Radio: ' + parseFloat(g.radio).toFixed(0) + 'm' : ''}<br>Fuente: ${g.fuente}`);
+      marker.bindPopup(`<b>📍 ${esc(g.nombre)}</b><br>Tipo: ${g.tipo}${g.radio ? '<br>Radio: ' + parseFloat(g.radio).toFixed(0) + 'm' : ''}<br>Fuente: ${g.fuente}`);
       layer.addTo(mapInstance);
       mapInstance._geocercasLayer = layer;
     }
