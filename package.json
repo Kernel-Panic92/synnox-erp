@@ -11,7 +11,6 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "build": "node scripts/build-frontend.mjs",
     "audit": "pnpm audit --prod"
   },
   "dependencies": {
@@ -40,7 +39,6 @@
     "uuid": "^11.0.5"
   },
   "devDependencies": {
-    "esbuild": "^0.28.1",
     "nodemon": "^3.1.4"
   },
   "pnpm": {
