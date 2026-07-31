@@ -789,7 +789,7 @@ function showAdmin() {
   if (userRoleEl) userRoleEl.textContent = user?.rol || '';
   if (versionEl) versionEl.textContent = launcherVersion ? 'v' + launcherVersion : '';
   show('admin-screen');
-  showAdminTab('usuarios');
+  showAdminTab('dashboard');
 }
 
 let _usersCache = null;
@@ -1633,7 +1633,8 @@ async function testSmtpConfig() {
 function showAdminTab(tab) {
   document.querySelectorAll('#admin-sidebar .nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === tab));
   document.querySelectorAll('#admin-screen .tab-content').forEach(t => t.classList.toggle('active', t.id === 'tab-' + tab));
-  if (tab === 'usuarios') loadUsers();
+  if (tab === 'dashboard') loadAdminDashboard();
+  else if (tab === 'usuarios') loadUsers();
   else if (tab === 'perfiles') loadPerfiles();
   else if (tab === 'centros') loadCentros();
   else if (tab === 'modulos') loadModulos();
@@ -1646,6 +1647,71 @@ function showAdminTab(tab) {
     else if (tab === 'mcp-modules') { loadMcpModulesStatus(); }
     else if (tab === 'respaldo') { document.getElementById('import-result').style.display = 'none'; }
 
+}
+
+// Load admin dashboard widgets (server stats, commits, activity)
+async function loadAdminDashboard() {
+  const sig = _widgetAbort?.signal;
+  // Server stats
+  try {
+    const w = document.getElementById('admin-server-stats');
+    const res = await fetchAuth('/api/admin/server-stats', { signal: sig || AbortSignal.timeout(10000) });
+    if (res.ok) {
+      const s = await res.json();
+      const uptime = s.uptime ? Math.floor(s.uptime / 3600) + 'h ' + Math.floor((s.uptime % 3600) / 60) + 'm' : '—';
+      w.innerHTML = `<div style="padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+        <h3 style="margin:0 0 12px;font-size:14px;">🖥️ Servidor</h3>
+        <div style="font-size:12px;color:var(--muted);line-height:1.8;">
+          <div>Node: ${esc(s.node || '—')}</div>
+          <div>Plataforma: ${esc(s.platform || '—')}</div>
+          <div>Uptime: ${uptime}</div>
+          <div>Memoria: ${s.memory ? Math.round(s.memory.rss / 1024 / 1024) + 'MB' : '—'}</div>
+        </div>
+      </div>`;
+    }
+  } catch {}
+
+  // Commits
+  try {
+    const w = document.getElementById('admin-commits');
+    const res = await fetchAuth('/api/admin/commits?limit=8', { signal: sig || AbortSignal.timeout(10000) });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.ok && data.commits?.length) {
+        w.innerHTML = `<div style="padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+          <h3 style="margin:0 0 12px;font-size:14px;">📝 Últimos commits</h3>
+          ${data.commits.map(c => `<div style="font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);">
+            <span style="color:var(--accent);font-family:monospace;">${esc(c.hash)}</span>
+            <span style="color:var(--muted);margin-left:8px;">${esc(c.message)}</span>
+          </div>`).join('')}
+        </div>`;
+      }
+    }
+  } catch {}
+
+  // Activity (login logs)
+  try {
+    const w = document.getElementById('admin-activity');
+    const res = await fetchAuth('/api/admin/login-logs?limit=10', { signal: sig || AbortSignal.timeout(10000) });
+    if (res.ok) {
+      const data = await res.json();
+      const logs = data.logs || [];
+      if (logs.length) {
+        w.innerHTML = `<div style="padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
+          <h3 style="margin:0 0 12px;font-size:14px;">👤 Actividad reciente</h3>
+          ${logs.slice(0, 8).map(l => {
+            const d = new Date(l.fecha);
+            const hora = d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit' });
+            return `<div style="font-size:12px;padding:4px 0;display:flex;gap:8px;">
+              <span>${l.exitoso ? '🔑' : '🚫'}</span>
+              <span style="flex:1;">${esc(l.email || '—')}</span>
+              <span style="color:var(--muted);">${hora}</span>
+            </div>`;
+          }).join('')}
+        </div>`;
+      }
+    }
+  } catch {}
 }
 
 
