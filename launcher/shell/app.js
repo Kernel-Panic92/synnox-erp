@@ -4,6 +4,7 @@ const INSTALL_DIR = window.INSTALL_DIR || '';
 let _serverStatsTimer = null;
 let _serverStatsInFlight = false;
 let _notifPollTimer = null;
+let _lastNotifCount = 0;
 let _notifInFlight = false;
 let _versionCheckTimer = null;
 let _visibilityListenerInstalled = false;
@@ -2190,6 +2191,17 @@ async function cargarNotificaciones() {
     const { count } = await res.json();
     const badge = document.getElementById('notif-count');
     if (badge) badge.textContent = count > 0 ? (count > 99 ? '99+' : count) : '';
+
+    // Toast si hay notificaciones nuevas
+    if (count > _lastNotifCount && _lastNotifCount > 0) {
+      toast('Tienes ' + (count - _lastNotifCount) + ' notificación(es) nueva(s)', 'info');
+      // Refrescar dropdown si está abierto
+      var dd = document.getElementById('notif-dropdown');
+      if (dd && dd.classList.contains('show')) {
+        toggleNotifDropdown(); toggleNotifDropdown();
+      }
+    }
+    _lastNotifCount = count;
   } catch {}
 }
 
@@ -2272,7 +2284,7 @@ function parseNotifDate(s) {
 function initNotifPolling() {
   cargarNotificaciones();
   if (_notifPollTimer) clearInterval(_notifPollTimer);
-  _notifPollTimer = setInterval(pollNotificaciones, 60000);
+  _notifPollTimer = setInterval(pollNotificaciones, 10000);
 
   // Listener de visibility — solo instalar una vez
   if (!_visibilityListenerInstalled) {
