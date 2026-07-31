@@ -312,22 +312,22 @@ async function showLauncher() {
 
   updatePostLoginStatus('Preparando dashboard...', 90);
   // Defer widget loading until AFTER launcher is visible
-  // This prevents widgets from competing with module navigation for HTTP/2 connections
-  const _deferredWidgets = () => {
+  // Load widgets SEQUENTIALLY to avoid blocking the event loop with concurrent SQLite queries
+  const _deferredWidgets = async () => {
     if (user?.rol === 'admin') {
-      cargarServerStats(sig);
-      cargarCommits(sig);
-      cargarQuickActions(sig);
-      cargarModuleStatus(sig);
-      cargarNotificacionesWidget(sig);
-      cargarActivity(sig);
+      await cargarQuickActions(sig);
+      await cargarModuleStatus(sig);
+      await cargarNotificacionesWidget(sig);
+      await cargarServerStats(sig);
+      await cargarCommits(sig);
+      await cargarActivity(sig);
     } else {
       document.getElementById('server-stats-widget').style.display = 'none';
       if (user?.rol === 'gerente') {
-        cargarQuickActions(sig);
-        cargarNotificacionesWidget(sig);
+        await cargarQuickActions(sig);
+        await cargarNotificacionesWidget(sig);
       } else {
-        cargarQuickActions(sig);
+        await cargarQuickActions(sig);
       }
     }
   };
