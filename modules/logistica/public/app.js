@@ -2106,6 +2106,11 @@ async function cargarMapa() {
       if (allLayers.length) mapInstance.fitBounds(allLayers, { padding: [40,40] });
       mapaFitted = true;
     }
+
+    // Cargar geocercas si el checkbox está marcado
+    if (document.getElementById('mapa-show-geocercas')?.checked) {
+      cargarYDibujarGeocercas(mapInstance);
+    }
   } catch {}
 }
 
@@ -2991,7 +2996,6 @@ let _geoEditando = null;
 let _geoMapa = null;
 let _geoPoligonoCoords = [];
 let _geoPoligonoLayer = null;
-let _geoMapaInstance = null;
 let _geoPreviewMapa = null;
 let _geocercasCache = [];
 
@@ -3009,7 +3013,6 @@ async function cargarGeocercas() {
     _geocercasCache = data.geocercas || [];
     renderGeocercasStats(_geocercasCache);
     renderGeocercasTabla(_geocercasCache);
-    renderGeocercasMapa(_geocercasCache);
   } catch (e) { toast(e.message, 'error'); }
 }
 
@@ -3044,33 +3047,6 @@ function renderGeocercasTabla(geocercas) {
       <button class="btn-icon-danger" onclick="eliminarGeocerca(${g.id})" title="Eliminar">✕</button>
     </td>
   </tr>`).join('')}</tbody></table></div>`;
-}
-
-function renderGeocercasMapa(geocercas) {
-  const el = document.getElementById('geocercas-mapa');
-  if (!el) return;
-  if (_geoMapaInstance) { _geoMapaInstance.remove(); _geoMapaInstance = null; }
-  const conCoords = geocercas.filter(g => g.activa && g.latitud && g.longitud);
-  if (!conCoords.length) { el.innerHTML = '<div class="empty-state" style="padding:20px;"><p class="text-muted">Sin geocercas activas con coordenadas</p></div>'; return; }
-  const center = [parseFloat(conCoords[0].latitud), parseFloat(conCoords[0].longitud)];
-  _geoMapaInstance = L.map(el).setView(center, 13);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(_geoMapaInstance);
-  for (const g of conCoords) {
-    const color = g.color || '#3388ff';
-    if (g.tipo === 'circular' && g.radio) {
-      L.circle([parseFloat(g.latitud), parseFloat(g.longitud)], {
-        radius: parseFloat(g.radio), color, fillColor: color, fillOpacity: 0.15, weight: 2
-      }).addTo(_geoMapaInstance).bindPopup(`<b>${esc(g.nombre)}</b><br>Radio: ${parseFloat(g.radio).toFixed(0)}m`);
-    } else if (g.tipo === 'poligono' && g.poligono) {
-      const puntos = typeof g.poligono === 'string' ? JSON.parse(g.poligono) : g.poligono;
-      const latlngs = puntos.map(p => [parseFloat(p.lat || p.latitud || p[0]), parseFloat(p.lng || p.longitud || p[1])]);
-      if (latlngs.length >= 3) {
-        L.polygon(latlngs, { color, fillColor: color, fillOpacity: 0.15, weight: 2 }).addTo(_geoMapaInstance).bindPopup(`<b>${esc(g.nombre)}</b>`);
-      }
-    }
-  }
-  setTimeout(() => { _geoMapaInstance?.invalidateSize(); }, 200);
-  setTimeout(() => { _geoMapaInstance?.invalidateSize(); }, 500);
 }
 
 function toggleGeoTipo() {
