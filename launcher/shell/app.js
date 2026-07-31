@@ -2208,9 +2208,9 @@ async function toggleNotifDropdown() {
       if (!notificaciones.length) {
         list.innerHTML = '<div class="notif-empty">Sin notificaciones</div>';
       } else {
-        var icons = { tarea_asignada: '📋', tarea_vencida: '⏰', proyecto_aprobado: '✅', proyecto_rechazado: '❌', comentario: '💬', factura_nueva: '📄', factura_vencida: '⚠️', ruta_asignada: '🛣️', backup: '💾', sistema: '⚙️', cambio_estado: '🔄', tarea_revision: '📋', proyecto_asignado: '📁' };
+        var icons = { tarea_asignada: '📋', tarea_aprobada: '✅', tarea_rechazada: '❌', tarea_en_revision: '📋', tarea_revision: '📋', cambio_estado: '🔄', proyecto_asignado: '📁', proyecto_aprobado: '✅', proyecto_rechazado: '❌', nuevo_comentario: '💬', alerta_vencimiento: '⏰', resumen_semanal: '📊', factura_nueva: '📄', factura_recibida: '📄', factura_asignada: '📄', factura_en_revision: '📄', factura_aprobada: '✅', factura_rechazada: '❌', factura_causada: '📄', factura_pagada: '💰', escalacion: '⚠️', pedido_nuevo: '🚚', hora_extra_registrada: '💰', hora_extra_aprobada: '✅', hora_extra_rechazada: '❌', password_reset: '🔑', usuario_creado: '👤', registro_creado: '💰', registro_aprobado: '✅', registro_rechazado: '❌', tarea_vencida: '⏰', ruta_asignada: '🛣️', backup: '💾', sistema: '⚙️' };
         list.innerHTML = notificaciones.map(function(n) {
-          var timeAgo = timeSinceNotif(new Date(n.created_at));
+          var timeAgo = timeSinceNotif(parseNotifDate(n.created_at));
           return '<div class="notif-item' + (n.leida ? '' : ' unread') + '" onclick="marcarNotifLeida(' + n.id + ', \'' + (n.url || '') + '\')">' +
             '<div class="notif-icon">' + (icons[n.tipo] || '🔔') + '</div>' +
             '<div class="notif-content">' +
@@ -2244,7 +2244,9 @@ async function marcarTodasLeidas() {
 }
 
 function timeSinceNotif(date) {
+  if (isNaN(date.getTime())) return '';
   var seconds = Math.floor((new Date() - date) / 1000);
+  if (seconds < 0) return 'Ahora';
   if (seconds < 60) return 'Ahora';
   var minutes = Math.floor(seconds / 60);
   if (minutes < 60) return minutes + ' min';
@@ -2252,6 +2254,12 @@ function timeSinceNotif(date) {
   if (hours < 24) return hours + ' h';
   var days = Math.floor(hours / 24);
   return days + ' d';
+}
+
+function parseNotifDate(s) {
+  if (!s) return new Date();
+  if (s.includes('T')) return new Date(s);
+  return new Date(s.replace(' ', 'T') + 'Z');
 }
 
 function initNotifPolling() {

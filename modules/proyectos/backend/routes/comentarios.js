@@ -1,7 +1,7 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
-import { notificar, getTareaCompleta } from '../utils/notify.js';
+import { notificar, getTareaCompleta, BASE_URL } from '../utils/notify.js';
 import { enviarCorreo } from '../utils/email.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -50,7 +50,7 @@ router.post('/:id/comentarios', requirePermiso('comentar', 'proyectos'), async (
           url: '/proyectos/#tareas',
           email: tarea.asignado_email,
           emailAsunto: `[Proyectos] Nuevo comentario en: ${tarea.titulo}`,
-          emailHtml: templateNuevoComentario({ entidad: 'tarea', nombre: tarea.titulo, autor: req.user.nombre, comentario: result.rows[0].contenido, url: '/proyectos/#tareas', module: 'proyectos' }),
+          emailHtml: templateNuevoComentario({ entidad: 'tarea', nombre: tarea.titulo, autor: req.user.nombre, comentario: result.rows[0].contenido, url: `${BASE_URL}/#tareas`, module: 'proyectos', baseUrl: BASE_URL }),
           enviarCorreo
         });
       } catch (e) { console.warn('[notify] Error:', e.message); }
