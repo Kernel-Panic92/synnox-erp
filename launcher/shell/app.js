@@ -311,16 +311,12 @@ async function showLauncher() {
   ]);
 
   updatePostLoginStatus('Preparando dashboard...', 90);
-  // Defer widget loading until AFTER launcher is visible
-  // Load widgets SEQUENTIALLY to avoid blocking the event loop with concurrent SQLite queries
+  // Launcher = module selector only. Heavy widgets are in Admin panel.
+  // Only load lightweight widgets: QuickActions + Notifications
   const _deferredWidgets = async () => {
     if (user?.rol === 'admin') {
       await cargarQuickActions(sig);
-      await cargarModuleStatus(sig);
       await cargarNotificacionesWidget(sig);
-      await cargarServerStats(sig);
-      await cargarCommits(sig);
-      // cargarActivity removed — login-logs available in Admin → Auditoría
     } else {
       document.getElementById('server-stats-widget').style.display = 'none';
       if (user?.rol === 'gerente') {
@@ -330,6 +326,11 @@ async function showLauncher() {
         await cargarQuickActions(sig);
       }
     }
+    // Hide unused widget containers
+    ['server-stats-widget', 'commits-widget', 'module-summary-widget', 'pending-tasks-widget', 'alerts-widget', 'upcoming-widget', 'activity-widget'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.style.display = 'none';
+    });
   };
   initNotifPolling();
   initVersionCheck();
