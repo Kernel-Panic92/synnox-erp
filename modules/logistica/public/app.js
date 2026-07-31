@@ -3261,20 +3261,32 @@ async function cargarYDibujarGeocercas(mapInstance) {
     const layer = L.layerGroup();
     for (const g of geocercas) {
       const color = g.color || '#3388ff';
-      if (g.tipo === 'circular' && g.latitud && g.longitud && g.radio) {
-        L.circle([parseFloat(g.latitud), parseFloat(g.longitud)], {
-          radius: parseFloat(g.radio), color, fillColor: color, fillOpacity: 0.1, weight: 1, dashArray: '4 4'
-        }).addTo(layer).bindPopup(`<b>📐 ${esc(g.nombre)}</b><br>Radio: ${parseFloat(g.radio).toFixed(0)}m`);
+      const lat = parseFloat(g.latitud);
+      const lng = parseFloat(g.longitud);
+      if (!lat || !lng) continue;
+      if (g.tipo === 'circular' && g.radio) {
+        L.circle([lat, lng], {
+          radius: parseFloat(g.radio), color, fillColor: color, fillOpacity: 0.15, weight: 2
+        }).addTo(layer);
       } else if (g.tipo === 'poligono' && g.poligono) {
         const puntos = typeof g.poligono === 'string' ? JSON.parse(g.poligono) : g.poligono;
         const latlngs = puntos.map(p => [parseFloat(p.lat || p.latitud || p[0]), parseFloat(p.lng || p.longitud || p[1])]);
         if (latlngs.length >= 3) {
-          L.polygon(latlngs, { color, fillColor: color, fillOpacity: 0.1, weight: 1, dashArray: '4 4' }).addTo(layer).bindPopup(`<b>📐 ${esc(g.nombre)}</b>`);
+          L.polygon(latlngs, { color, fillColor: color, fillOpacity: 0.15, weight: 2 }).addTo(layer);
         }
       }
+      const marker = L.marker([lat, lng], {
+        icon: L.divIcon({
+          className: 'geocerca-marker',
+          html: `<div style="background:${color};color:#fff;width:26px;height:26px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;border:2px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.3);">📐</div>`,
+          iconSize: [26, 26],
+          iconAnchor: [13, 13]
+        })
+      }).addTo(layer);
+      marker.bindPopup(`<b>📐 ${esc(g.nombre)}</b><br>Tipo: ${g.tipo}${g.radio ? '<br>Radio: ' + parseFloat(g.radio).toFixed(0) + 'm' : ''}<br>Fuente: ${g.fuente}`);
+      layer.addTo(mapInstance);
+      mapInstance._geocercasLayer = layer;
     }
-    layer.addTo(mapInstance);
-    mapInstance._geocercasLayer = layer;
   } catch (e) { console.error('[geocercas] Error cargando en mapa:', e.message); }
 }
 
