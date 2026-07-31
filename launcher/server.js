@@ -577,7 +577,7 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
     const userWithPerms = getUserWithPermissions(db, user.id);
     if (!userWithPerms) return res.status(500).json({ error: 'Error al cargar permisos' });
     const payload = buildPayload(userWithPerms);
-    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '1h' });
+    const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
     db.prepare("UPDATE usuarios SET actualizado = datetime('now') WHERE id = ?").run(user.id);
     const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
     res.cookie('launcher_jwt', token, {
@@ -585,7 +585,7 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
       secure: isSecure,
       sameSite: 'lax',
       path: '/',
-      maxAge: 60 * 60 * 1000
+      maxAge: 24 * 60 * 60 * 1000
     });
     console.log(`[LOGIN] Cookie set for ${email} (secure: ${isSecure})`);
     res.json({ jwt: token, usuario: payload, modulos: payload.modulos });

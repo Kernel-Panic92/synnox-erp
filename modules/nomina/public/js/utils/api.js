@@ -10,6 +10,23 @@ function rebuildEmpMap() {
   _empMap = new Map(empleados.map(e => [e.id, e]));
 }
 
+async function refreshToken() {
+  try {
+    const token = localStorage.getItem('platform_jwt');
+    if (!token) return null;
+    const res = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      signal: AbortSignal.timeout(10000),
+      headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.jwt) { localStorage.setItem('platform_jwt', data.jwt); return data.jwt; }
+    }
+  } catch {}
+  return null;
+}
+
 const api = async (method, path, body = undefined) => {
   const opts = {
     method,
@@ -18,12 +35,21 @@ const api = async (method, path, body = undefined) => {
     }
   };
   if (body) opts.body = JSON.stringify(body);
-  const res = await fetch(API + path, opts);
+  let res = await fetch(API + path, opts);
+
+  // Auto-refresh on 401
   if (res.status === 401 && path !== '/api/auth/me') {
-    localStorage.removeItem('he_logged_in');
-    sesion = null;
-    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-    window.location.href = '/';
+    const newToken = await refreshToken();
+    if (newToken) {
+      opts.headers['Authorization'] = 'Bearer ' + newToken;
+      res = await fetch(API + path, opts);
+    }
+    if (res.status === 401) {
+      // Still 401 after refresh — redirect to launcher
+      localStorage.removeItem('he_logged_in');
+      sesion = null;
+      window.location.href = '/';
+    }
   } else if (res.status === 403 && path === '/api/auth/me') {
     // Handled by app.js init - don't redirect here
   } else if (res.status >= 400 && res.status !== 404 && res.status !== 403 && !(res.status === 401 && path === '/api/auth/me')) {

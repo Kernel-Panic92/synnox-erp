@@ -117,10 +117,10 @@ function toggleTheme() {
 }
 
 function show(id) {
-  ['loading-screen', 'login-screen', 'launcher-screen', 'admin-screen', 'admin-form-overlay', 'modulo-form-overlay'].forEach(s => {
+  ['loading-screen', 'post-login-screen', 'login-screen', 'launcher-screen', 'admin-screen', 'admin-form-overlay', 'modulo-form-overlay'].forEach(s => {
     const el = document.getElementById(s);
     if (s === id) {
-      el.style.display = (s === 'login-screen' || s === 'admin-screen') ? 'flex' : 'block';
+      el.style.display = (s === 'login-screen' || s === 'admin-screen' || s === 'post-login-screen') ? 'flex' : 'block';
     } else {
       el.style.display = 'none';
     }
@@ -130,6 +130,21 @@ function show(id) {
 function showError(el, msg) {
   el.textContent = msg;
   el.classList.add('show');
+}
+
+function updatePostLoginStatus(text, pct) {
+  const status = document.getElementById('post-login-status');
+  const progress = document.getElementById('post-login-progress');
+  if (status) status.textContent = text;
+  if (progress) progress.style.width = pct + '%';
+}
+
+function showModuleLoading(icon, nombre) {
+  const overlay = document.getElementById('module-loading-overlay');
+  if (!overlay) return;
+  document.getElementById('module-loading-icon').textContent = icon;
+  document.getElementById('module-loading-name').textContent = 'Cargando ' + nombre + '...';
+  overlay.style.display = 'flex';
 }
 
 async function login() {
@@ -164,6 +179,8 @@ async function login() {
     user = data.usuario;
 
     localStorage.setItem('platform_jwt', jwtToken);
+    show('post-login-screen');
+    updatePostLoginStatus('Cargando módulos...', 30);
     await showLauncher();
   } catch (e) {
     showError(errEl, e.message);
@@ -220,10 +237,11 @@ function renderModulos(grid, mods) {
     card.className = 'card';
     card.href = window.location.origin + mod.ruta;
     card.rel = 'noopener';
-    card.onclick = () => {
+    card.onclick = (e) => {
       trackModuleVisit(mod.id);
       const hash = window.location.hash?.replace('#', '');
       if (hash) trackModuleVisit(hash);
+      showModuleLoading(mod.icon, mod.nombre);
     };
     const count = usage[mod.id] || 0;
     card.innerHTML = `
@@ -252,13 +270,24 @@ async function showLauncher() {
   _widgetAbort = new AbortController();
   const sig = _widgetAbort.signal;
 
+  updatePostLoginStatus('Cargando perfil...', 60);
   document.getElementById('launcher-user').innerHTML = esc(user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
   document.getElementById('launcher-role').textContent = user?.perfil_nombre || user?.rol || '';
 
+  updatePostLoginStatus('Cargando módulos...', 75);
   const grid = document.getElementById('module-grid');
   renderModulos(grid);
   loadModulosDinamicos().then(() => renderModulos(grid));
 
+  // Prefetch module HTML in background
+  Promise.allSettled([
+    fetch('/proveedores/', { mode: 'no-cors' }).catch(() => {}),
+    fetch('/nomina/', { mode: 'no-cors' }).catch(() => {}),
+    fetch('/logistica/', { mode: 'no-cors' }).catch(() => {}),
+    fetch('/proyectos/', { mode: 'no-cors' }).catch(() => {}),
+  ]);
+
+  updatePostLoginStatus('Preparando dashboard...', 90);
   // Admin-only widgets
   if (user?.rol === 'admin') {
     cargarServerStats(sig);
@@ -278,6 +307,7 @@ async function showLauncher() {
   }
   initNotifPolling();
   initVersionCheck();
+  updatePostLoginStatus('Listo ✓', 100);
   show('launcher-screen');
 }
 
@@ -635,9 +665,10 @@ async function cargarServerStats(sig) {
 }
 
 function logout() {
-  // Clear state immediately (non-blocking)
+  // Clear session state (non-blocking)
   localStorage.removeItem('platform_jwt');
-  localStorage.removeItem('synnox_theme');
+  // Clear widget caches (security — don't show previous user's data)
+  Object.keys(localStorage).filter(k => k.startsWith('w_')).forEach(k => localStorage.removeItem(k));
   invalidateUsersCache();
   jwtToken = null;
   user = null;
@@ -645,6 +676,7 @@ function logout() {
   if (_notifPollTimer) { clearInterval(_notifPollTimer); _notifPollTimer = null; }
   if (_versionCheckTimer) { clearInterval(_versionCheckTimer); _versionCheckTimer = null; }
   if (_serverStatsTimer) { clearTimeout(_serverStatsTimer); _serverStatsTimer = null; }
+  // NOTE: synnox_theme is NOT cleared — it's a UI preference, not session data
   // Show login immediately — don't wait for server
   show('login-screen');
   document.getElementById('login-user').value = '';
@@ -1945,15 +1977,15 @@ async function killSession(id, nombre) {
       if (res.ok) {
         const data = await res.json();
         user = data;
+        show('post-login-screen');
+        updatePostLoginStatus('Preparando tu espacio de trabajo...', 50);
         await showLauncher();
         return;
       }
     } catch {}
-    // Clear both localStorage AND cookie to avoid stale JWT in modules
-    localStorage.removeItem('platform_jwt');
-    jwtToken = null;
-    user = null;
-    fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+    // Session invalid — show re-login modal (preserve localStorage cache)
+    showSessionExpiredModal();
+    return;
   }
   show('login-screen');
   const params = new URLSearchParams(window.location.search);
@@ -1979,25 +2011,74 @@ setTimeout(() => {
 }, 8000);
 
 // ── Auto-refresh token (sliding session) ──
-setInterval(async () => {
-  if (!jwtToken) return;
+async function refreshToken() {
+  if (!jwtToken) return false;
   try {
     const res = await fetch('/api/auth/refresh', {
       method: 'POST',
+      signal: AbortSignal.timeout(10000),
       headers: { 'Authorization': 'Bearer ' + jwtToken }
     });
     if (res.ok) {
       const data = await res.json();
       if (data.jwt) { jwtToken = data.jwt; localStorage.setItem('platform_jwt', jwtToken); }
-    } else if (res.status === 401) {
-      localStorage.removeItem('platform_jwt');
-      jwtToken = null;
-      user = null;
-      fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
-      show('login-screen');
+      return true;
     }
   } catch {}
-}, 30 * 60 * 1000); // every 30 minutes
+  return false;
+}
+
+// Refresh every 15 minutes
+setInterval(async () => {
+  if (!jwtToken) return;
+  const ok = await refreshToken();
+  if (!ok) {
+    // Don't logout — show re-login modal instead (preserves localStorage)
+    showSessionExpiredModal();
+  }
+}, 15 * 60 * 1000);
+
+// Refresh when tab becomes visible again
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && jwtToken) {
+    const ok = await refreshToken();
+    if (!ok) showSessionExpiredModal();
+  }
+});
+
+function showSessionExpiredModal() {
+  // Don't clear localStorage — preserve cache
+  const modal = document.getElementById('session-expired-modal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function hideSessionExpiredModal() {
+  const modal = document.getElementById('session-expired-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function reanudarSesion() {
+  const email = document.getElementById('reanudar-email')?.value?.trim();
+  const pass = document.getElementById('reanudar-pass')?.value;
+  const errEl = document.getElementById('reanudar-error');
+  if (!email || !pass) { if (errEl) errEl.textContent = 'Ingresa tus credenciales'; return; }
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass })
+    });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Credenciales inválidas'); }
+    const data = await res.json();
+    jwtToken = data.jwt;
+    user = data.usuario;
+    localStorage.setItem('platform_jwt', jwtToken);
+    hideSessionExpiredModal();
+    await showLauncher();
+  } catch (e) {
+    if (errEl) errEl.textContent = e.message;
+  }
+}
 
 // ── Notifications ──
 
