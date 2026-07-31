@@ -320,7 +320,7 @@ async function showLauncher() {
       await cargarNotificacionesWidget(sig);
       await cargarServerStats(sig);
       await cargarCommits(sig);
-      await cargarActivity(sig);
+      // cargarActivity removed — login-logs available in Admin → Auditoría
     } else {
       document.getElementById('server-stats-widget').style.display = 'none';
       if (user?.rol === 'gerente') {
