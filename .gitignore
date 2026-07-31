@@ -35,4 +35,7 @@ modules/proveedores/backups/
 # Uploads & logs
 logs/
 uploads/
-modules/proyectos/uploads/launcher/.last-update
+modules/proyectos/uploads/
+
+# Frontend bundles (build artifacts)
+modules/*/public/dist/
