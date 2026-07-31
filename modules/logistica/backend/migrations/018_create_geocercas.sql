@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS logistics.geocercas (
   metadata JSONB,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(widetech_id) WHERE widetech_id IS NOT NULL
+  UNIQUE(widetech_id)
 );
 
 CREATE TABLE IF NOT EXISTS logistics.alertas_geocerca (

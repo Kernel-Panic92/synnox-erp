@@ -17,7 +17,8 @@ if (!ADMIN_PASS) {
   process.exit(1);
 }
 
-const TAREAS_FILE = path.join(path.dirname(path.resolve('')), 'scripts', 'tareas-logistica.json');
+const __dirname = path.dirname(new URL(import.meta.url).pathname);
+const TAREAS_FILE = path.join(__dirname, 'tareas-logistica.json');
 const data = JSON.parse(fs.readFileSync(TAREAS_FILE, 'utf8'));
 
 let jwtToken = null;
