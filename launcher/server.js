@@ -1833,23 +1833,16 @@ app.get('/api/notificaciones/no-leidas', verificarToken, (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-app.put('/api/notificaciones/:id/leer', verificarToken, (req, res) => {
-  try {
-    db.prepare('UPDATE notificaciones SET leida = 1 WHERE id = ? AND usuario_id = ?').run(req.params.id, req.usuario.id);
-    res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.put('/api/notificaciones/leer-todas', verificarToken, (req, res) => {
-  try {
-    db.prepare('UPDATE notificaciones SET leida = 1 WHERE usuario_id = ? AND leida = 0').run(req.usuario.id);
-    res.json({ ok: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.delete('/api/notificaciones/:id', verificarToken, (req, res) => {
+app.delete('/api/notificaciones/:id/leer', verificarToken, (req, res) => {
   try {
     db.prepare('DELETE FROM notificaciones WHERE id = ? AND usuario_id = ?').run(req.params.id, req.usuario.id);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.delete('/api/notificaciones/leer-todas', verificarToken, (req, res) => {
+  try {
+    db.prepare('DELETE FROM notificaciones WHERE usuario_id = ?').run(req.usuario.id);
     res.json({ ok: true });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });

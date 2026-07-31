@@ -2246,8 +2246,8 @@ async function toggleNotifDropdown() {
 
 async function marcarNotifLeida(id, url) {
   try {
-    await fetch('/api/notificaciones/' + id + '/leer', { method: 'PUT', headers: jwtToken ? { 'Authorization': 'Bearer ' + jwtToken } : {} });
-  } catch (e) { console.warn('[notif] Error marcando leída:', e.message); }
+    await fetch('/api/notificaciones/' + id + '/leer', { method: 'DELETE', headers: jwtToken ? { 'Authorization': 'Bearer ' + jwtToken } : {} });
+  } catch (e) { console.warn('[notif] Error eliminando:', e.message); }
   cargarNotificaciones();
   var dd = document.getElementById('notif-dropdown');
   if (dd) dd.classList.remove('show');
@@ -2258,7 +2258,7 @@ async function marcarNotifLeida(id, url) {
 
 async function marcarTodasLeidas() {
   try {
-    await fetch('/api/notificaciones/leer-todas', { method: 'PUT', headers: jwtToken ? { 'Authorization': 'Bearer ' + jwtToken } : {} });
+    await fetch('/api/notificaciones/leer-todas', { method: 'DELETE', headers: jwtToken ? { 'Authorization': 'Bearer ' + jwtToken } : {} });
     cargarNotificaciones();
     toggleNotifDropdown(); toggleNotifDropdown();
   } catch {}
