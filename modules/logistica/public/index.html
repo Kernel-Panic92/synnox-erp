@@ -117,10 +117,8 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
 
 /* ── Geocercas ── */
 #geocercas-mapa{max-width:500px;height:320px}
-.modal{overflow:visible}
-.modal .leaflet-container{z-index:1}
-.modal .leaflet-top,.modal .leaflet-bottom{z-index:2}
-#geo-mapa-preview,#geo-mapa-poligono{position:relative;z-index:0;overflow:hidden}
+.modal{overflow:hidden}
+#geo-mapa-preview,#geo-mapa-poligono{position:relative;overflow:hidden;height:200px!important}
 
 /* ── Logout button ── */
 .btn-logout{width:100%;padding:10px;background:rgba(247,97,79,.08);border:1px solid rgba(247,97,79,.2);border-radius:9px;color:var(--danger);font-family:inherit;font-weight:600;font-size:13px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .15s;justify-content:center}
@@ -656,10 +654,10 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
 
 <!-- Modal Geocerca -->
 <div class="modal-overlay" id="modal-geocerca" onclick="if(event.target===this)this.classList.remove('show')">
-  <div class="modal" style="max-width:560px;">
+  <div class="modal" style="max-width:580px;max-height:90vh;">
     <h3 id="geo-modal-title">Nueva Geocerca</h3>
     <p class="modal-desc">Define una zona geográfica circular o polígono</p>
-    <div id="modal-body-geocerca">
+    <div id="modal-body-geocerca" style="overflow-y:auto;flex:1;min-height:0;">
       <div class="form-grid">
         <div class="full"><label>Nombre</label><input id="geo-nombre" placeholder="Ej: Zona Centro"></div>
         <div><label>Tipo</label>
@@ -680,11 +678,11 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
         </div>
         <div id="geo-preview-circular" class="full" style="display:none;">
           <label>Vista previa</label>
-          <div id="geo-mapa-preview" style="height:160px;border-radius:10px;border:1px solid var(--border);margin-top:4px;overflow:hidden;"></div>
+          <div id="geo-mapa-preview" style="height:200px;border-radius:10px;border:1px solid var(--border);margin-top:4px;overflow:hidden;"></div>
         </div>
         <div id="geo-campos-poligono" class="full" style="display:none;">
           <label>Polígono (click en el mapa para agregar puntos)</label>
-          <div id="geo-mapa-poligono" style="height:180px;border-radius:10px;border:1px solid var(--border);margin-top:4px;overflow:hidden;"></div>
+          <div id="geo-mapa-poligono" style="height:200px;border-radius:10px;border:1px solid var(--border);margin-top:4px;overflow:hidden;"></div>
           <p class="help" id="geo-poligono-info">0 puntos seleccionados</p>
         </div>
         <div><label>Activa</label><select id="geo-activa"><option value="true">Sí</option><option value="false">No</option></select></div>
