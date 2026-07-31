@@ -711,13 +711,13 @@ async function cerrarSesionAdmin(token, nombre) {
 let _cfgPermisosData = {};
 let _cfgPermRolSeleccionado = '';
 
-const _cfg_cfgPERMISOS_DISPONIBLES = {
+const _cfgPERMISOS_DISPONIBLES = {
   'Páginas': ['centros','usuarios','empleados','nominas','registros','configuracion','backup','reportes','siesa','tipos'],
   'Acciones': ['aprobar','editar','revertir','eliminar_registros','eliminar_empleados','eliminar_centros','eliminar_nominas'],
   'Visibilidad': ['ver_todos','ver_sede','ver_propios']
 };
 
-const _cfg_cfgLABEL_MAP = {
+const _cfgLABEL_MAP = {
   centros: 'Centros de Operación', usuarios: 'Usuarios', empleados: 'Empleados', nominas: 'Nóminas',
   registros: 'Registros', configuracion: 'Configuración', backup: 'Backup', reportes: 'Reportes',
   siesa: 'Exportar Siesa', tipos: 'Conceptos de Nómina',
