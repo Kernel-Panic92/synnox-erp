@@ -38,8 +38,8 @@ router.post('/:id/comentarios', requirePermiso('comentar', 'proyectos'), async (
       [req.params.id, usuario_id, contenido]
     );
 
-    // Notificar al asignado de la tarea (si no es el mismo que comenta)
-    if (tarea.asignado_a && tarea.asignado_a !== usuario_id) {
+    // Notificar al asignado de la tarea (siempre)
+    if (tarea.asignado_a) {
       try {
         notificar({
           usuario_id: tarea.asignado_a,
