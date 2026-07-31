@@ -1,47 +1,62 @@
 const smtp = require('./smtp.service');
 const db   = require('../db');
 const { debeEnviarEmail } = require('../../../../framework/email-check');
+const { notificarInterna } = require('../../../../framework/notify');
 
 /**
- * Notificaciones por email en cada transición del flujo de facturas.
+ * Notificaciones in-app + email en cada transición del flujo de facturas.
  * Se llama desde las rutas de facturas.
  */
 
+const tipoEventoMap = {
+  recibida:       'factura_recibida',
+  asignada:       'factura_asignada',
+  revision:       'factura_en_revision',
+  aprobada:       'factura_aprobada',
+  rechazada:      'factura_rechazada',
+  causada:        'factura_causada',
+  pagada:         'factura_pagada',
+  escalacion_nivel1: 'escalacion',
+  escalacion_nivel2: 'escalacion',
+};
+
+const tipoLabel = {
+  recibida: 'recibida', asignada: 'asignada', revision: 'en revisión',
+  aprobada: 'aprobada', rechazada: 'rechazada', causada: 'causada',
+  pagada: 'pagada', escalacion_nivel1: 'escalación', escalacion_nivel2: 'escalación',
+};
+
 async function notificarTransicion(factura, tipo, usuario, comentario = null) {
-  if (!smtp.isConfigured()) return;
-
-  const tipoEventoMap = {
-    recibida:       'factura_recibida',
-    asignada:       'factura_asignada',
-    revision:       'factura_en_revision',
-    aprobada:       'factura_aprobada',
-    rechazada:      'factura_rechazada',
-    causada:        'factura_causada',
-    pagada:         'factura_pagada',
-    escalacion_nivel1: 'escalacion',
-    escalacion_nivel2: 'escalacion',
-  };
   const evento = tipoEventoMap[tipo] || tipo;
-  if (!(await debeEnviarEmail('proveedores', evento))) return;
-
   const f = await obtenerDatosFactura(factura.id);
   if (!f) return;
 
-  const tipoNombres = {
-    recibida:       'recibida',
-    asignada:       'asignada',
-    revision:       'revision',
-    aprobada:       'aprobada',
-    rechazada:      'rechazada',
-    causada:        'causada',
-    pagada:         'pagada',
-    escalacion_nivel1: 'escalacion',
-    escalacion_nivel2: 'escalacion',
-  };
+  // 1. In-app notifications
+  try {
+    const destinatarios = await obtenerDestinatariosInApp(f, tipo);
+    const titulo = `Factura ${tipoLabel[tipo] || tipo}`;
+    const mensaje = `Factura #${f.numero_factura || f.id} de ${f.proveedor || '—'} — ${tipoLabel[tipo] || tipo}`;
+    for (const uid of destinatarios) {
+      void notificarInterna({
+        usuario_id: uid,
+        modulo: 'proveedores',
+        tipo: evento,
+        titulo,
+        mensaje,
+        url: '/proveedores/#facturas',
+        evento_id: `proveedores-${evento}-${f.id}-${uid}`
+      }).then(r => { if (!r.ok) console.warn('[notif] in-app error:', r.error); });
+    }
+  } catch (e) {
+    console.error('[Notif] Error in-app:', e.message);
+  }
 
-  const tipoEmail = tipoNombres[tipo] || tipo;
-  const emails    = await obtenerDestinatarios(f, tipoEmail);
+  // 2. Email notifications
+  if (!smtp.isConfigured()) return;
+  if (!(await debeEnviarEmail('proveedores', evento))) return;
 
+  const tipoEmail = tipoLabel[tipo] || tipo;
+  const emails = await obtenerDestinatariosEmail(f, tipoEmail);
   if (emails.length === 0) return;
 
   for (const email of emails) {
@@ -54,7 +69,7 @@ async function notificarTransicion(factura, tipo, usuario, comentario = null) {
         comentario,
       });
     } catch (err) {
-      console.error(`[Notif] Error enviando a ${email}:`, err.message);
+      console.error(`[Notif] Error enviando email a ${email}:`, err.message);
     }
   }
 }
@@ -83,10 +98,64 @@ async function obtenerDatosFactura(facturaId) {
   }
 }
 
-async function obtenerDestinatarios(factura, tipo) {
+async function obtenerLauncherUserIdByEmail(email) {
+  if (!email) return null;
+  try {
+    const { Client } = require('pg');
+    const client = new Client({ connectionString: process.env.DATABASE_URL });
+    await client.connect();
+    const res = await client.query('SELECT id FROM launcher.usuarios WHERE email = $1 AND activo = 1', [email]);
+    await client.end();
+    return res.rows[0]?.id || null;
+  } catch { return null; }
+}
+
+async function obtenerDestinatariosInApp(factura, tipo) {
+  const ids = new Set();
+
+  switch (tipo) {
+    case 'recibida':
+    case 'asignada':
+    case 'revision':
+    case 'escalacion_nivel1':
+    case 'escalacion_nivel2': {
+      // Notificar al asignado
+      if (factura.asignado_a_id) ids.add(factura.asignado_a_id);
+      // Notificar a admins/contadores del launcher
+      try {
+        const { rows } = await db.query("SELECT id FROM launcher.usuarios WHERE rol IN ('admin','contador') AND activo = 1");
+        rows.forEach(r => ids.add(r.id));
+      } catch {}
+      break;
+    }
+    case 'aprobada':
+    case 'causada': {
+      // Notificar a tesoreros/contadores
+      try {
+        const { rows } = await db.query("SELECT id FROM launcher.usuarios WHERE rol IN ('admin','tesorero','contador') AND activo = 1");
+        rows.forEach(r => ids.add(r.id));
+      } catch {}
+      break;
+    }
+    case 'rechazada':
+    case 'pagada': {
+      if (factura.asignado_a_id) ids.add(factura.asignado_a_id);
+      try {
+        const { rows } = await db.query("SELECT id FROM launcher.usuarios WHERE rol = 'admin' AND activo = 1");
+        rows.forEach(r => ids.add(r.id));
+      } catch {}
+      break;
+    }
+    default:
+      break;
+  }
+
+  return Array.from(ids);
+}
+
+async function obtenerDestinatariosEmail(factura, tipo) {
   const emails = new Set();
 
-  // Siempre incluir al email de notificaciones global (si existe)
   const cfgEmail = await db.query(
     "SELECT valor FROM configuracion WHERE clave = 'email_notificaciones'"
   );
@@ -98,9 +167,7 @@ async function obtenerDestinatarios(factura, tipo) {
     case 'recibida':
     case 'revision':
     case 'escalacion':
-      // Enviar al comprador/asignado
       if (factura.asignado_email) emails.add(factura.asignado_email);
-      // Enviar al área
       const areaUsers = await db.query(
         `SELECT email FROM usuarios u WHERE u.area_id = $1 AND u.activo = TRUE`,
         [factura.area_responsable_id]
@@ -110,7 +177,6 @@ async function obtenerDestinatarios(factura, tipo) {
 
     case 'aprobada':
     case 'causada':
-      // Enviar a tesoreros/contadores
       const financieros = await db.query(
         `SELECT email FROM usuarios
          WHERE rol IN ('tesorero', 'contador', 'admin') AND activo = TRUE`
@@ -119,9 +185,7 @@ async function obtenerDestinatarios(factura, tipo) {
       break;
 
     case 'rechazada':
-      // Enviar al creador/original (si tenemos email del asignado)
       if (factura.asignado_email) emails.add(factura.asignado_email);
-      // Enviar al área
       const areaEmails = await db.query(
         `SELECT email FROM usuarios u WHERE u.area_id = $1 AND u.activo = TRUE LIMIT 5`,
         [factura.area_responsable_id]
@@ -130,7 +194,6 @@ async function obtenerDestinatarios(factura, tipo) {
       break;
 
     case 'pagada':
-      // Notificar al área
       if (factura.asignado_email) emails.add(factura.asignado_email);
       const areaFinal = await db.query(
         `SELECT email FROM usuarios u WHERE u.area_id = $1 AND u.activo = TRUE LIMIT 3`,

@@ -2,7 +2,10 @@ import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
 import { notificar, getTareaCompleta } from '../utils/notify.js';
-import { templateTareaAsignada } from '../utils/email.js';
+import { enviarCorreo } from '../utils/email.js';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { templateAsignacion, templateCambioEstado } = require('../../../../framework/email-templates');
 
 const router = express.Router();
 
@@ -94,13 +97,15 @@ router.post('/', requirePermiso('crear_tarea', 'proyectos'), async (req, res) =>
         if (tarea) {
           notificar({
             usuario_id: asignado_a,
+            modulo: 'proyectos',
             tipo: 'tarea_asignada',
             titulo: 'Tarea asignada',
             mensaje: `Se te asignó la tarea "${titulo}"`,
             url: '/proyectos/#tareas',
             email: tarea.asignado_email,
             emailAsunto: `[Proyectos] Tarea asignada: ${titulo}`,
-            emailHtml: templateTareaAsignada({ tarea, asignador: req.user.nombre })
+            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: titulo, asignador: req.user.nombre, descripcion, prioridad, fechaLimite: fecha_limite, url: '/proyectos/#tareas', module: 'proyectos' }),
+            enviarCorreo
           });
         }
       } catch (e) { console.warn('[notify] Error:', e.message); }
@@ -151,10 +156,15 @@ router.put('/reordenar', requirePermiso('editar_tarea', 'proyectos'), async (req
         if (tarea) {
           notificar({
             usuario_id: asignado,
+            modulo: 'proyectos',
             tipo: 'cambio_estado',
             titulo: 'Tarea movida',
             mensaje: `"${tarea.titulo}" movida a ${est.replace('_', ' ')}`,
-            url: '/proyectos/#tablero'
+            url: '/proyectos/#tablero',
+            email: tarea.asignado_email,
+            emailAsunto: `[Proyectos] Tarea movida: ${tarea.titulo}`,
+            emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tarea.titulo, estadoAnterior: estadoAnterior.replace('_', ' '), estadoNuevo: est.replace('_', ' '), url: '/proyectos/#tablero', module: 'proyectos' }),
+            enviarCorreo
           });
         }
       } catch (e) { console.warn('[notify] Error:', e.message); }
@@ -241,13 +251,15 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
         if (tarea) {
           notificar({
             usuario_id: asignado_a,
+            modulo: 'proyectos',
             tipo: 'tarea_asignada',
             titulo: 'Tarea re-asignada',
             mensaje: `Se te re-asignó la tarea "${tareaTitulo}"`,
             url: '/proyectos/#tareas',
             email: tarea.asignado_email,
             emailAsunto: `[Proyectos] Tarea re-asignada: ${tareaTitulo}`,
-            emailHtml: templateTareaAsignada({ tarea, asignador: req.user.nombre })
+            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tareaTitulo, asignador: req.user.nombre, url: '/proyectos/#tareas', module: 'proyectos' }),
+            enviarCorreo
           });
         }
       } catch (e) { console.warn('[notify] Error:', e.message); }
@@ -257,12 +269,18 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
     const newEstado = columna ? (COLUMNA_A_ESTADO[columna] || oldEstado) : (estado || oldEstado);
     if (newEstado && oldEstado !== newEstado && oldAsignado) {
       try {
+        const tarea = await getTareaCompleta(pool, req.params.id);
         notificar({
           usuario_id: oldAsignado,
+          modulo: 'proyectos',
           tipo: 'cambio_estado',
           titulo: 'Estado de tarea cambiado',
           mensaje: `"${tareaTitulo}" cambió de ${oldEstado.replace('_', ' ')} a ${newEstado.replace('_', ' ')}`,
-          url: '/proyectos/#tareas'
+          url: '/proyectos/#tareas',
+          email: tarea?.asignado_email,
+          emailAsunto: `[Proyectos] Estado cambiado: ${tareaTitulo}`,
+          emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: oldEstado.replace('_', ' '), estadoNuevo: newEstado.replace('_', ' '), url: '/proyectos/#tareas', module: 'proyectos' }),
+          enviarCorreo
         });
       } catch (e) { console.warn('[notify] Error:', e.message); }
     }

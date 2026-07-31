@@ -1,7 +1,10 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { notificar, getProyectoCompleto } from '../utils/notify.js';
-import { enviarCorreo, templateAprobacionTarea, templateAprobacionProyecto, templateTareaEnRevision } from '../utils/email.js';
+import { enviarCorreo } from '../utils/email.js';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { templateAprobacion, templateAsignacion } = require('../../../../framework/email-templates');
 
 const router = express.Router();
 
@@ -80,13 +83,15 @@ router.put('/tareas/:id/aprobar', async (req, res) => {
       try {
         notificar({
           usuario_id: tarea.asignado_a,
-          tipo: 'proyecto_aprobado',
+          modulo: 'proyectos',
+          tipo: 'tarea_aprobada',
           titulo: 'Tarea aprobada',
           mensaje: `Tu tarea "${tarea.titulo}" fue aprobada por ${req.user.nombre}`,
           url: '/proyectos/#tareas',
           email: tareaFull?.asignado_email,
           emailAsunto: `✅ Tarea aprobada: ${tarea.titulo}`,
-          emailHtml: templateAprobacionTarea({ tarea: tareaFull || tarea, accion: 'aprobada', aprobador: req.user.nombre })
+          emailHtml: templateAprobacion({ entidad: 'tarea', nombre: tarea.titulo, accion: 'aprobada', aprobador: req.user.nombre, url: '/proyectos/#tareas', module: 'proyectos' }),
+          enviarCorreo
         });
       } catch (e) { console.warn('[notify] Error:', e.message); }
     }
@@ -125,13 +130,15 @@ router.put('/tareas/:id/rechazar', async (req, res) => {
       try {
         notificar({
           usuario_id: tarea.asignado_a,
-          tipo: 'proyecto_rechazado',
+          modulo: 'proyectos',
+          tipo: 'tarea_rechazada',
           titulo: 'Tarea rechazada',
           mensaje: `Tu tarea "${tarea.titulo}" fue rechazada: ${motivo}`,
           url: '/proyectos/#tareas',
           email: tareaFull?.asignado_email,
           emailAsunto: `❌ Tarea rechazada: ${tarea.titulo}`,
-          emailHtml: templateAprobacionTarea({ tarea: tareaFull || tarea, accion: 'rechazada', motivo, aprobador: req.user.nombre })
+          emailHtml: templateAprobacion({ entidad: 'tarea', nombre: tarea.titulo, accion: 'rechazada', motivo, aprobador: req.user.nombre, url: '/proyectos/#tareas', module: 'proyectos' }),
+          enviarCorreo
         });
       } catch (e) { console.warn('[notify] Error:', e.message); }
     }
@@ -166,13 +173,15 @@ router.put('/proyectos/:id/aprobar', async (req, res) => {
         if (proyectoFull) {
           notificar({
             usuario_id: proyecto.asignado_a,
+            modulo: 'proyectos',
             tipo: 'proyecto_aprobado',
             titulo: 'Proyecto aprobado',
             mensaje: `Tu proyecto "${proyecto.nombre}" fue aprobado por ${req.user.nombre}`,
             url: '/proyectos/#proyectos',
             email: proyectoFull.asignado_email,
             emailAsunto: `✅ Proyecto aprobado: ${proyecto.nombre}`,
-            emailHtml: templateAprobacionProyecto({ proyecto, accion: 'aprobada', aprobador: req.user.nombre })
+            emailHtml: templateAprobacion({ entidad: 'proyecto', nombre: proyecto.nombre, accion: 'aprobada', aprobador: req.user.nombre, url: '/proyectos/#proyectos', module: 'proyectos' }),
+            enviarCorreo
           });
         }
       } catch (e) { console.warn('[notify] Error:', e.message); }
@@ -207,13 +216,15 @@ router.put('/proyectos/:id/rechazar', async (req, res) => {
         if (proyectoFull) {
           notificar({
             usuario_id: proyecto.asignado_a,
+            modulo: 'proyectos',
             tipo: 'proyecto_rechazado',
             titulo: 'Proyecto rechazado',
             mensaje: `Tu proyecto "${proyecto.nombre}" fue rechazado por ${req.user.nombre}`,
             url: '/proyectos/#proyectos',
             email: proyectoFull.asignado_email,
             emailAsunto: `❌ Proyecto rechazado: ${proyecto.nombre}`,
-            emailHtml: templateAprobacionProyecto({ proyecto, accion: 'rechazada', aprobador: req.user.nombre })
+            emailHtml: templateAprobacion({ entidad: 'proyecto', nombre: proyecto.nombre, accion: 'rechazada', aprobador: req.user.nombre, url: '/proyectos/#proyectos', module: 'proyectos' }),
+            enviarCorreo
           });
         }
       } catch (e) { console.warn('[notify] Error:', e.message); }
@@ -248,19 +259,17 @@ router.put('/tareas/:id/solicitar-revision', async (req, res) => {
       const admins = users.filter(u => ['admin', 'gerente'].includes(u.rol));
       for (const admin of admins) {
         if (admin.email && admin.email !== tareaFull?.asignado_email) {
-          // Email
-          enviarCorreo(
-            admin.email,
-            `📋 Tarea pendiente de revisión: ${tarea.titulo}`,
-            templateTareaEnRevision({ tarea: tareaFull || tarea })
-          );
-          // In-app
           notificar({
             usuario_id: admin.id,
+            modulo: 'proyectos',
             tipo: 'tarea_revision',
             titulo: 'Tarea para revisar',
             mensaje: `"${tarea.titulo}" necesita revisión`,
-            url: '/proyectos/#tareas'
+            url: '/proyectos/#tareas',
+            email: admin.email,
+            emailAsunto: `📋 Tarea pendiente de revisión: ${tarea.titulo}`,
+            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tarea.titulo, descripcion: tareaFull?.descripcion, prioridad: tarea.prioridad, url: '/proyectos/#tareas', module: 'proyectos' }),
+            enviarCorreo
           });
         }
       }

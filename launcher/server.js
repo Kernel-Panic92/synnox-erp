@@ -487,6 +487,8 @@ const emailNotifDefaults = [
     ['tarea_aprobada', 'Tarea aprobada por revisor'],
     ['tarea_rechazada', 'Tarea rechazada por revisor'],
     ['tarea_en_revision', 'Tarea enviada a revisión'],
+    ['tarea_revision', 'Tarea pendiente de revisión (notifica a revisor)'],
+    ['cambio_estado', 'Tarea o proyecto movido de estado'],
     ['proyecto_asignado', 'Proyecto asignado a usuario'],
     ['proyecto_aprobado', 'Proyecto aprobado'],
     ['proyecto_rechazado', 'Proyecto rechazado'],

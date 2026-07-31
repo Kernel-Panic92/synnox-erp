@@ -4,8 +4,8 @@ import { requirePermiso } from '../../../../framework/auth.mjs';
 import { enviarCorreo } from '../utils/email.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-const { notificarInterna } = require('../../../../framework/notify');
-const { debeEnviarEmail } = require('../../../../framework/email-check');
+const { notificar } = require('../../../../framework/notify');
+const { templateGenerico } = require('../../../../framework/email-templates');
 const MODULE = 'logistica';
 
 const router = express.Router();
@@ -73,26 +73,27 @@ router.post('/', requirePermiso('crear', MODULE), async (req, res) => {
       [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado || 'pendiente', sede || null, latitud || null, longitud || null, vehiculo_id || null]
     );
     res.status(201).json({ exitosa: true, pedido: result.rows[0] });
-    // Notificación in-app
+    // Notificación in-app + email
     try {
       const admins = await pool.query("SELECT id, email, nombre FROM launcher.usuarios WHERE rol = 'admin' AND activo = 1");
+      const cfg = await pool.query("SELECT clave, valor FROM logistics.configuracion WHERE clave IN ('smtp_host','smtp_heredar')");
+      const cfgMap = {};
+      for (const r of cfg.rows) cfgMap[r.clave] = r.valor;
+      const tieneSmtp = cfgMap.smtp_host || cfgMap.smtp_heredar === '1' || cfgMap.smtp_heredar === 'true';
       for (const u of admins.rows) {
-        void notificarInterna({ usuario_id: u.id, modulo: 'logistica', tipo: 'pedido_nuevo', titulo: 'Pedido nuevo', mensaje: `Pedido #${numero_factura} — ${cliente_nombre || '—'}`, url: '/logistica/#pedidos', evento_id: `logistica-pedido-${result.rows[0].id}-${u.id}` })
-          .then(r => { if (!r.ok) console.warn('[notif] fallo:', r.error); });
-      }
-      // Email notification
-      if (await debeEnviarEmail('logistica', 'pedido_nuevo')) {
-        const cfg = await pool.query("SELECT clave, valor FROM logistics.configuracion WHERE clave IN ('smtp_host','smtp_heredar')");
-        const cfgMap = {};
-        for (const r of cfg.rows) cfgMap[r.clave] = r.valor;
-        if (cfgMap.smtp_host || cfgMap.smtp_heredar === '1' || cfgMap.smtp_heredar === 'true') {
-          for (const u of admins.rows) {
-            if (u.email) {
-              enviarCorreo(u.email, `Nuevo pedido #${numero_factura}`, `Se ha creado un nuevo pedido:\n\nFactura: ${numero_factura}\nCliente: ${cliente_nombre || '—'}\nDirección: ${direccion || '—'}\nCiudad: ${ciudad || '—'}\nSede: ${sede || '—'}\n\nVer pedidos: /logistica/#pedidos`, `<h2>Nuevo pedido</h2><p><strong>Factura:</strong> ${numero_factura}</p><p><strong>Cliente:</strong> ${cliente_nombre || '—'}</p><p><strong>Dirección:</strong> ${direccion || '—'}</p><p><strong>Ciudad:</strong> ${ciudad || '—'}</p><p><strong>Sede:</strong> ${sede || '—'}</p><p><a href="/logistica/#pedidos">Ver pedidos</a></p>`)
-                .catch(e => console.warn('[email] Error enviando pedido_nuevo:', e.message));
-            }
-          }
-        }
+        notificar({
+          usuario_id: u.id,
+          modulo: 'logistica',
+          tipo: 'pedido_nuevo',
+          titulo: 'Pedido nuevo',
+          mensaje: `Pedido #${numero_factura} — ${cliente_nombre || '—'}`,
+          url: '/logistica/#pedidos',
+          evento_id: `logistica-pedido-${result.rows[0].id}-${u.id}`,
+          email: tieneSmtp ? u.email : null,
+          emailAsunto: `Nuevo pedido #${numero_factura}`,
+          emailHtml: templateGenerico({ titulo: `Nuevo pedido #${numero_factura}`, mensaje: `<strong>Cliente:</strong> ${cliente_nombre || '—'}<br/><strong>Dirección:</strong> ${direccion || '—'}<br/><strong>Ciudad:</strong> ${ciudad || '—'}<br/><strong>Sede:</strong> ${sede || '—'}`, url: '/logistica/#pedidos', botonTexto: 'Ver pedidos', module: 'logistica' }),
+          enviarCorreo
+        });
       }
     } catch {}
   } catch (err) {

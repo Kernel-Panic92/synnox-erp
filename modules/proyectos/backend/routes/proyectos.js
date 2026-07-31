@@ -2,7 +2,10 @@ import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
 import { notificar, getProyectoCompleto } from '../utils/notify.js';
-import { templateProyectoAsignado } from '../utils/email.js';
+import { enviarCorreo } from '../utils/email.js';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { templateAsignacion, templateCambioEstado } = require('../../../../framework/email-templates');
 
 const router = express.Router();
 
@@ -105,13 +108,15 @@ router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
         if (proyecto) {
           notificar({
             usuario_id: asignado_a,
+            modulo: 'proyectos',
             tipo: 'proyecto_asignado',
             titulo: 'Proyecto asignado',
             mensaje: `Se te asignó el proyecto "${nombre}"`,
             url: '/proyectos/#proyectos',
             email: proyecto.asignado_email,
             emailAsunto: `[Proyectos] Proyecto asignado: ${nombre}`,
-            emailHtml: templateProyectoAsignado({ proyecto, asignador: req.user.nombre })
+            emailHtml: templateAsignacion({ entidad: 'proyecto', nombre, asignador: req.user.nombre, descripcion, url: '/proyectos/#proyectos', module: 'proyectos' }),
+            enviarCorreo
           });
         }
       } catch (e) { console.warn('[notify] Error:', e.message); }
@@ -154,13 +159,15 @@ router.put('/:id', requirePermiso('editar', 'proyectos'), async (req, res) => {
         if (proyecto) {
           notificar({
             usuario_id: asignado_a,
+            modulo: 'proyectos',
             tipo: 'proyecto_asignado',
             titulo: 'Proyecto re-asignado',
             mensaje: `Se te re-asignó el proyecto "${proyectoNombre}"`,
             url: '/proyectos/#proyectos',
             email: proyecto.asignado_email,
             emailAsunto: `[Proyectos] Proyecto re-asignado: ${proyectoNombre}`,
-            emailHtml: templateProyectoAsignado({ proyecto, asignador: req.user.nombre })
+            emailHtml: templateAsignacion({ entidad: 'proyecto', nombre: proyectoNombre, asignador: req.user.nombre, url: '/proyectos/#proyectos', module: 'proyectos' }),
+            enviarCorreo
           });
         }
       } catch (e) { console.warn('[notify] Error:', e.message); }
@@ -170,12 +177,18 @@ router.put('/:id', requirePermiso('editar', 'proyectos'), async (req, res) => {
     const newEstado = estado || oldEstado;
     if (newEstado && oldEstado !== newEstado && oldAsignado) {
       try {
+        const proyecto = await getProyectoCompleto(pool, req.params.id);
         notificar({
           usuario_id: oldAsignado,
+          modulo: 'proyectos',
           tipo: 'cambio_estado',
           titulo: 'Estado de proyecto cambiado',
           mensaje: `"${proyectoNombre}" cambió de ${oldEstado} a ${newEstado}`,
-          url: '/proyectos/#proyectos'
+          url: '/proyectos/#proyectos',
+          email: proyecto?.asignado_email,
+          emailAsunto: `[Proyectos] Estado cambiado: ${proyectoNombre}`,
+          emailHtml: templateCambioEstado({ entidad: 'proyecto', nombre: proyectoNombre, estadoAnterior: oldEstado, estadoNuevo: newEstado, url: '/proyectos/#proyectos', module: 'proyectos' }),
+          enviarCorreo
         });
       } catch (e) { console.warn('[notify] Error:', e.message); }
     }

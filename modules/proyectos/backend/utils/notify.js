@@ -1,8 +1,8 @@
-import { enviarCorreo } from './email.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
-const { notificarInterna } = require('../../../../framework/notify');
-const { debeEnviarEmail } = require('../../../../framework/email-check');
+const { notificar } = require('../../../../framework/notify');
+
+const LAUNCHER_URL = process.env.LAUNCHER_URL || 'http://localhost:3002';
 
 const BASE_URL = (() => {
   const domain = process.env.COMPANY_DOMAIN || 'localhost';
@@ -13,7 +13,6 @@ function esc(s) {
   return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-// Cache simple de usuarios del launcher
 let _usersCache = null;
 let _usersCacheTs = 0;
 const USERS_CACHE_TTL = 60000;
@@ -22,7 +21,6 @@ async function getLauncherUsers() {
   const now = Date.now();
   if (_usersCache && (now - _usersCacheTs) < USERS_CACHE_TTL) return _usersCache;
   try {
-    const LAUNCHER_URL = process.env.LAUNCHER_URL || 'http://localhost:3002';
     const res = await fetch(`${LAUNCHER_URL}/api/usuarios/public`, { signal: AbortSignal.timeout(3000) });
     if (res.ok) {
       const data = await res.json();
@@ -40,26 +38,6 @@ async function getUserEmail(userId) {
   return user ? { email: user.email, nombre: user.nombre } : null;
 }
 
-export async function notificar({ usuario_id, tipo, titulo, mensaje, url, email, emailAsunto, emailHtml }) {
-  if (!usuario_id) return;
-
-  // 1. In-app notification
-  const result = await notificarInterna({ usuario_id, modulo: 'proyectos', tipo, titulo, mensaje, url, evento_id: `proyectos-${tipo}-${usuario_id}-${Date.now()}` });
-  if (!result.ok) console.warn('[notify] In-app error:', result.error);
-
-  // 2. Email notification
-  if (email && emailHtml) {
-    try {
-      if (await debeEnviarEmail('proyectos', tipo)) {
-        await enviarCorreo(email, emailAsunto || titulo, emailHtml);
-      }
-    } catch (e) {
-      console.warn('[notify] Error email:', e.message);
-    }
-  }
-}
-
-// Helper para obtener datos de tarea (sin JOIN cross-DB)
 export async function getTareaCompleta(pool, tareaId) {
   const result = await pool.query(`
     SELECT t.*, p.nombre AS proyecto_nombre, p.asignado_a AS proyecto_asignado_a
@@ -78,7 +56,6 @@ export async function getTareaCompleta(pool, tareaId) {
   return tarea;
 }
 
-// Helper para obtener datos de proyecto (sin JOIN cross-DB)
 export async function getProyectoCompleto(pool, proyectoId) {
   const result = await pool.query(`
     SELECT p.*
@@ -96,4 +73,4 @@ export async function getProyectoCompleto(pool, proyectoId) {
   return proyecto;
 }
 
-export { BASE_URL, esc };
+export { notificar, BASE_URL, esc };

@@ -1,5 +1,6 @@
 'use strict';
 const crypto = require('crypto');
+const { debeEnviarEmail } = require('./email-check');
 
 const LAUNCHER_URL = process.env.LAUNCHER_URL || 'http://127.0.0.1:3002';
 const INTERNAL_API_TOKEN = process.env.INTERNAL_API_TOKEN || '';
@@ -62,4 +63,39 @@ async function notificarInterna({ usuario_id, modulo, tipo, titulo, mensaje, url
   return { ok: false, error: 'Fallo tras 2 intentos' };
 }
 
-module.exports = { notificarInterna };
+/**
+ * Notificación unificada: in-app + email (opcional).
+ *
+ * @param {Object} opts
+ * @param {number}  opts.usuario_id     — ID del usuario destino
+ * @param {string}  opts.modulo         — Nombre del módulo
+ * @param {string}  opts.tipo           — Tipo/evento (max 50)
+ * @param {string}  opts.titulo         — Título (max 200)
+ * @param {string}  opts.mensaje        — Mensaje (max 500)
+ * @param {string}  [opts.url]          — URL de destino
+ * @param {string}  [opts.evento_id]    — Idempotency key
+ * @param {string}  [opts.email]        — Email del destinatario
+ * @param {string}  [opts.emailAsunto]  — Asunto del email (default: titulo)
+ * @param {string}  [opts.emailHtml]    — HTML del email
+ * @param {Function}[opts.enviarCorreo] — fn(to, subject, html) del módulo
+ * @returns {Promise<{ok: boolean, id?: number, error?: string}>}
+ */
+async function notificar({ usuario_id, modulo, tipo, titulo, mensaje, url, evento_id, email, emailAsunto, emailHtml, enviarCorreo }) {
+  // 1. In-app (siempre)
+  const result = await notificarInterna({ usuario_id, modulo, tipo, titulo, mensaje, url, evento_id });
+
+  // 2. Email (si se proporciona y está habilitado)
+  if (email && emailHtml && enviarCorreo) {
+    try {
+      if (await debeEnviarEmail(modulo, tipo)) {
+        await enviarCorreo(email, emailAsunto || titulo, emailHtml);
+      }
+    } catch (e) {
+      console.warn('[notify] Error email:', e.message);
+    }
+  }
+
+  return result;
+}
+
+module.exports = { notificarInterna, notificar };

@@ -1,6 +1,6 @@
 const express = require('express');
-const { notificarInterna } = require('../../../../framework/notify');
-const { debeEnviarEmail } = require('../../../../framework/email-check');
+const { notificar } = require('../../../../framework/notify');
+const { templateGenerico, templateAprobacion } = require('../../../../framework/email-templates');
 
 module.exports = function createRegistrosRouter({
   db, uid, BASE_URL, APP_NAME,
@@ -198,17 +198,21 @@ module.exports = function createRegistrosRouter({
         const empN = db.prepare('SELECT nombre FROM empleados WHERE id = ?').get(empleadoId);
         const tipoRow = db.prepare('SELECT nombre FROM tipos WHERE id = ?').get(tipo);
         const tipoNombre = tipoRow ? tipo + ' ' + tipoRow.nombre : tipo;
-        if (gerentes.length && cfg.smtp_host) {
-          const enlace = `${BASE_URL}?registro=${id}`;
-          const cuerpo = `📢 Nueva hora extra pendiente de aprobación\n\nEmpleado: ${empN?.nombre || '—'}\nSede: ${sede}\nFecha: ${fecha}\nHoras: ${horas}\nTipo: ${tipoNombre}\nAprobador: ${aprobador}\nMotivo: ${motivo}\n\nHaz clic aquí para revisar y aprobar:\n${enlace}\n\n${BASE_URL}`;
-          if (await debeEnviarEmail('nomina', 'hora_extra_registrada')) {
-            gerentes.forEach(g => enviarCorreo(g.email, `🔔 Nueva hora extra pendiente - ${empN?.nombre || '—'}`, cuerpo));
-          }
-        }
-        // Notificación in-app a gerentes/admins
+        const enlace = `${BASE_URL}?registro=${id}`;
         for (const g of gerentes) {
-          void notificarInterna({ usuario_id: g.id, modulo: 'nomina', tipo: 'registro_creado', titulo: 'Hora extra pendiente', mensaje: `${empN?.nombre || 'Empleado'} registró ${horas}h de ${tipoNombre} el ${fecha}`, url: '/nomina/', evento_id: `nomina-registro-${id}-${g.id}` })
-            .then(r => { if (!r.ok) console.warn('[notif] fallo:', r.error); });
+          notificar({
+            usuario_id: g.id,
+            modulo: 'nomina',
+            tipo: 'hora_extra_registrada',
+            titulo: 'Hora extra pendiente',
+            mensaje: `${empN?.nombre || 'Empleado'} registró ${horas}h de ${tipoNombre} el ${fecha}`,
+            url: '/nomina/',
+            evento_id: `nomina-registro-${id}-${g.id}`,
+            email: cfg.smtp_host ? g.email : null,
+            emailAsunto: `🔔 Nueva hora extra pendiente - ${empN?.nombre || '—'}`,
+            emailHtml: templateGenerico({ titulo: '📢 Nueva hora extra pendiente', mensaje: `<strong>Empleado:</strong> ${empN?.nombre || '—'}<br/><strong>Sede:</strong> ${sede}<br/><strong>Fecha:</strong> ${fecha}<br/><strong>Horas:</strong> ${horas}<br/><strong>Tipo:</strong> ${tipoNombre}<br/><strong>Aprobador:</strong> ${aprobador}<br/><strong>Motivo:</strong> ${motivo}`, url: enlace, botonTexto: 'Revisar y aprobar', module: 'nomina', baseUrl: BASE_URL }),
+            enviarCorreo
+          });
         }
       } catch (e) { console.error('Error notify gerencia:', e.message); }
 
@@ -296,18 +300,22 @@ module.exports = function createRegistrosRouter({
 
     try {
       const reg = db.prepare('SELECT r.*, u.email as creadorEmail, u.nombre as creadorNombre, u.id as creadorId FROM registros r JOIN usuarios u ON r.creadoPor = u.id WHERE r.id = ?').get(req.params.id);
-      if (reg?.creadorEmail) {
-        const evento = estado === 'aprobado' ? 'hora_extra_aprobada' : 'hora_extra_rechazada';
-        if (await debeEnviarEmail('nomina', evento)) {
-          enviarCorreo(reg.creadorEmail, `Tu hora extra fue ${estado === 'aprobado' ? 'aprobada' : 'rechazada'}`,
-            `Hola ${reg.creadorNombre},\n\nTu registro de hora extra ha sido ${estado === 'aprobado' ? 'aprobado' : 'rechazado'}:\n\nFecha: ${reg.fecha}\nHoras: ${reg.horas}\nTipo: ${reg.tipo}\n\n${observaciones ? 'Observaciones: ' + observaciones : ''}\n\nSaludos,\n${APP_NAME || 'Nómina'}`
-          ).catch(e => console.error('Notificación email falló:', e.message));
-        }
-      }
-      // Notificación in-app al creador
       if (reg?.creadorId) {
-        void notificarInterna({ usuario_id: reg.creadorId, modulo: 'nomina', tipo: estado === 'aprobado' ? 'registro_aprobado' : 'registro_rechazado', titulo: `Hora extra ${estado === 'aprobado' ? 'aprobada' : 'rechazada'}`, mensaje: `Tu registro del ${reg.fecha} (${reg.horas}h) fue ${estado === 'aprobado' ? 'aprobado' : 'rechazado'}`, url: '/nomina/', evento_id: `nomina-${estado}-${req.params.id}` })
-          .then(r => { if (!r.ok) console.warn('[notif] fallo:', r.error); });
+        const evento = estado === 'aprobado' ? 'hora_extra_aprobada' : 'hora_extra_rechazada';
+        const accion = estado === 'aprobado' ? 'aprobada' : 'rechazada';
+        notificar({
+          usuario_id: reg.creadorId,
+          modulo: 'nomina',
+          tipo: evento,
+          titulo: `Hora extra ${accion}`,
+          mensaje: `Tu registro del ${reg.fecha} (${reg.horas}h) fue ${estado === 'aprobado' ? 'aprobado' : 'rechazado'}`,
+          url: '/nomina/',
+          evento_id: `nomina-${estado}-${req.params.id}`,
+          email: reg.creadorEmail,
+          emailAsunto: `Tu hora extra fue ${accion}`,
+          emailHtml: templateAprobacion({ entidad: 'hora extra', nombre: `${reg.fecha} (${reg.horas}h)`, accion, motivo: observaciones || null, url: '/nomina/', module: 'nomina', baseUrl: BASE_URL }),
+          enviarCorreo
+        });
       }
     } catch (e) { console.error('Error preparando notificación:', e.message); }
 
