@@ -46,11 +46,28 @@ export async function getTareaCompleta(pool, tareaId) {
     WHERE t.id = $1
   `, [tareaId]);
   const tarea = result.rows[0] || null;
-  if (tarea && tarea.asignado_a) {
-    const user = await getUserEmail(tarea.asignado_a);
-    if (user) {
-      tarea.asignado_email = user.email;
-      tarea.asignado_nombre = user.nombre;
+  if (tarea) {
+    if (tarea.asignado_a) {
+      const user = await getUserEmail(tarea.asignado_a);
+      if (user) {
+        tarea.asignado_email = user.email;
+        tarea.asignado_nombre = user.nombre;
+      }
+    }
+    if (tarea.reportero) {
+      const reporter = await getUserEmail(tarea.reportero);
+      if (reporter) {
+        tarea.reportero_email = reporter.email;
+        tarea.reportero_nombre = reporter.nombre;
+      }
+    }
+    if (tarea.proyecto_asignado_a && tarea.proyecto_asignado_a !== tarea.asignado_a) {
+      const owner = await getUserEmail(tarea.proyecto_asignado_a);
+      if (owner) {
+        tarea.proyecto_owner_email = owner.email;
+        tarea.proyecto_owner_nombre = owner.nombre;
+        tarea.proyecto_owner_id = tarea.proyecto_asignado_a;
+      }
     }
   }
   return tarea;

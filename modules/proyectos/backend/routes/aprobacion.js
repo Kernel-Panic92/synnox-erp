@@ -273,6 +273,21 @@ router.put('/tareas/:id/solicitar-revision', async (req, res) => {
           });
         }
       }
+      // Notificar al reportero si es diferente al asignado y no es admin/gerente
+      if (tareaFull?.reportero && tareaFull.reportero !== tarea.asignado_a && !admins.some(a => a.id === tareaFull.reportero)) {
+        notificar({
+          usuario_id: tareaFull.reportero,
+          modulo: 'proyectos',
+          tipo: 'tarea_revision',
+          titulo: 'Tarea enviada a revisión',
+          mensaje: `"${tarea.titulo}" fue enviada a revisión por ${req.user.nombre}`,
+          url: '/proyectos/#tareas',
+          email: tareaFull.reportero_email,
+          emailAsunto: `📋 Tarea enviada a revisión: ${tarea.titulo}`,
+          emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tarea.titulo, descripcion: tareaFull?.descripcion, prioridad: tarea.prioridad, url: `${BASE_URL}/#tareas`, module: 'proyectos', baseUrl: BASE_URL }),
+          enviarCorreo
+        });
+      }
     } catch (e) { console.warn('[notify] Error enviando notificación de revisión:', e.message); }
 
     res.json({ exitosa: true, tarea });

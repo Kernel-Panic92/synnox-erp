@@ -56,6 +56,24 @@ router.post('/:id/comentarios', requirePermiso('comentar', 'proyectos'), async (
       } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
+    // Notificar al reportero/creador si es diferente al asignado y al que comenta
+    if (tarea.reportero && tarea.reportero !== usuario_id && tarea.reportero !== tarea.asignado_a) {
+      try {
+        notificar({
+          usuario_id: tarea.reportero,
+          modulo: 'proyectos',
+          tipo: 'nuevo_comentario',
+          titulo: 'Nuevo comentario',
+          mensaje: `${req.user.nombre} comentó en "${tarea.titulo}"`,
+          url: '/proyectos/#tareas',
+          email: tarea.reportero_email,
+          emailAsunto: `[Proyectos] Nuevo comentario en: ${tarea.titulo}`,
+          emailHtml: templateNuevoComentario({ entidad: 'tarea', nombre: tarea.titulo, autor: req.user.nombre, comentario: result.rows[0].contenido, url: `${BASE_URL}/#tareas`, module: 'proyectos', baseUrl: BASE_URL }),
+          enviarCorreo
+        });
+      } catch (e) { console.warn('[notify] Error:', e.message); }
+    }
+
     res.status(201).json({ exitosa: true, comentario: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
