@@ -1,8 +1,35 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (30 Jul 2026 — sesión 28)
+## Estado (31 Jul 2026 — sesión 29)
 
-### Cambios Sesión 28 — Rendimiento, telemetría, cache
+### Cambios Sesión 29 — Geocercas Widetech
+
+#### Nuevo feature: Geocercas (CRUD + import Widetech + mapa + alertas)
+- **Migración**: `018_create_geocercas.sql` — tablas `logistics.geocercas` + `logistics.alertas_geocerca` con índices
+- **Backend**: `routes/geocercas.js` — 8 endpoints (CRUD + import-widetech + check-alert + alertas)
+- **Import Widetech**: `POST /api/geocercas/import-widetech` — upsert por `widetech_id`, color aleatorio por geocerca
+- **Alertas**: `POST /api/geocercas/check-alert` — detección entrada/salida vehículos con haversine + point-in-polygon
+- **Frontend**: Página Geocercas con stats, filtros, tabla CRUD, modal crear/editar
+- **Modal**: Tipo circular (lat/lng/radio) o polígono (dibujar en mapa), preview map con Leaflet
+- **Mapa principal**: Checkbox "📍 Geocercas" (activo por defecto), marcadores tipo sedes con emoji 📍, círculos/polígonos visibles
+- **Icono**: 📍 (pin de ubicación) en vez de 📐 (escuadra)
+- **Compatibilidad**: `UNIQUE(widetech_id)` sin `WHERE` para PG < 15, sin `gin_trgm_ops` en índice
+
+#### Fixes durante sesión
+- **confirmModal**: No existía en logística — agregada función desde nómina/proveedores
+- **framework.js**: No se cargaba en HTML — agregado `<script>` antes de app.js
+- **Leaflet z-index**: Mapas dentro de modales se superponían — fix con z-index + overflow:hidden
+- **Leaflet already initialized**: `_leaflet_id` no se limpiaba — fix con `el._leaflet_id = null`
+- **Migración fallida**: `gin_trgm_ops` abortaba toda la migración — eliminado índice
+
+#### Archivos creados/modificados
+- `modules/logistica/backend/migrations/018_create_geocercas.sql` (nuevo)
+- `modules/logistica/backend/routes/geocercas.js` (nuevo, 192 líneas)
+- `modules/logistica/backend/server.js` (+2 líneas: import + mount)
+- `modules/logistica/public/app.js` (+~300 líneas: CRUD, mapa, alertas)
+- `modules/logistica/public/index.html` (+~75 líneas: página, modal, checkbox mapa)
+
+### Issues conocidos (pendientes)
 
 #### Eliminación de telemetría (-438 líneas)
 - Removido `telemetry.js` de launcher shell y 5 módulos
@@ -227,6 +254,7 @@
 
 - **Modales**: Definir en HTML con `class="modal-overlay"`, mostrar/ocultar con `display: block/none`. NO crear modales dinámicamente con `document.createElement`.
 - **Z-index modales**: `#modal-overlay` (confirmaciones/acciones) SIEMPRE z-index MAYOR que `#modal-detalle` (panel de detalle). Framework: overlay=300, detalle=200. Evita que confirmaciones queden detrás del modal de detalle.
+- **Leaflet en modales**: Al re-crear mapas Leaflet dentro de modales, limpiar `el._leaflet_id = null` antes de `L.map(el)`. Leaflet guarda un ID en el contenedor DOM; si no se limpia, lanza "Map container is also initialized". Usar `invalidateSize()` con timeout (200ms + 500ms) después de crear el mapa para que calcule tamaño correctamente dentro del modal.
 - **Confirmaciones**: Usar `confirmModal(msg, title, type)` del framework, NUNCA `confirm()` del navegador. Tipos: `'delete'` (default, rojo 🗑️), `'update'` (azul 🔄), `'restart'` (amarillo ♻️), `'info'` (gris ℹ️).
 - **Mensajes**: Usar `toast(msg, type)` del framework para feedback al usuario.
 - **CSS**: Usar variables del framework (`var(--surface)`, `var(--border)`, `var(--text)`, `var(--muted)`, `var(--accent)`, `var(--success)`, `var(--danger)`).
