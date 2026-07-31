@@ -28,7 +28,6 @@ CREATE TABLE IF NOT EXISTS logistics.alertas_geocerca (
 
 CREATE INDEX IF NOT EXISTS idx_geocercas_activa ON logistics.geocercas(activa);
 CREATE INDEX IF NOT EXISTS idx_geocercas_widetech ON logistics.geocercas(widetech_id);
-CREATE INDEX IF NOT EXISTS idx_geocercas_nombre ON logistics.geocercas USING gin (nombre gin_trgm_ops);
 CREATE INDEX IF NOT EXISTS idx_alertas_geocerca ON logistics.alertas_geocerca(geocerca_id);
 CREATE INDEX IF NOT EXISTS idx_alertas_vehiculo ON logistics.alertas_geocerca(vehiculo_id);
 CREATE INDEX IF NOT EXISTS idx_alertas_fecha ON logistics.alertas_geocerca(fecha);
