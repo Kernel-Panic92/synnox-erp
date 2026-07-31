@@ -1623,6 +1623,74 @@ async function testSmtpConfig() {
   }
 }
 
+// ── Email Notif Config ──
+const MODULO_LABELS = { proyectos: 'Proyectos', nomina: 'Nómina', proveedores: 'Proveedores', logistica: 'Logística', launcher: 'Launcher' };
+const MODULO_ICONS = { proyectos: '📋', nomina: '💰', proveedores: '📄', logistica: '🚚', launcher: '🏠' };
+
+async function loadEmailNotifConfig() {
+  const container = document.getElementById('email-notif-container');
+  const smtpStatus = document.getElementById('email-notif-smtp-status');
+  container.innerHTML = '<span style="color:var(--muted);">Cargando...</span>';
+  try {
+    const [notifRes, smtpRes] = await Promise.all([
+      fetch('/api/admin/email-notif', { headers: { 'Authorization': 'Bearer ' + jwtToken } }),
+      fetch('/api/admin/smtp', { headers: { 'Authorization': 'Bearer ' + jwtToken } })
+    ]);
+    const notifData = await notifRes.json();
+    const smtpData = await smtpRes.json();
+    smtpStatus.innerHTML = smtpData.configured ? '<span style="color:var(--success);">SMTP configurado</span>' : '<span style="color:var(--warning);">SMTP no configurado</span>';
+    container.innerHTML = '';
+    for (const [modulo, eventos] of Object.entries(notifData.config)) {
+      const allOn = eventos.every(e => e.habilitado);
+      const someOn = eventos.some(e => e.habilitado);
+      const section = document.createElement('div');
+      section.className = 'perm-rol-section';
+      section.style.marginBottom = '16px';
+      section.innerHTML = `
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+          <div class="perm-rol-titulo" style="margin:0;">${MODULO_ICONS[modulo] || '📦'} ${MODULO_LABELS[modulo] || modulo}</div>
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;text-transform:none;letter-spacing:0;font-weight:400;">
+            <input type="checkbox" ${allOn ? 'checked' : ''} ${someOn && !allOn ? 'data-indeterminate="true"' : ''} onchange="toggleModuloEmailNotif('${modulo}', this.checked)" style="width:auto;">
+            ${allOn ? 'Todos' : someOn ? 'Parcial' : 'Ninguno'}
+          </label>
+        </div>
+        <div style="display:grid;gap:8px;">
+          ${eventos.map(e => `
+            <label style="display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;padding:6px 8px;border-radius:6px;background:var(--surface2);text-transform:none;letter-spacing:0;font-weight:400;">
+              <input type="checkbox" ${e.habilitado ? 'checked' : ''} onchange="toggleEventoEmailNotif(${e.id}, this.checked)" style="width:auto;">
+              <span>${esc(e.descripcion)}</span>
+              <span style="margin-left:auto;font-size:11px;color:var(--muted);font-family:monospace;">${esc(e.evento)}</span>
+            </label>
+          `).join('')}
+        </div>`;
+      container.appendChild(section);
+    }
+  } catch (e) {
+    container.innerHTML = '<span style="color:var(--danger);">Error: ' + e.message + '</span>';
+  }
+}
+
+async function toggleEventoEmailNotif(id, habilitado) {
+  try {
+    await fetch('/api/admin/email-notif/' + id, {
+      method: 'PUT',
+      headers: { 'Authorization': 'Bearer ' + jwtToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ habilitado })
+    });
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function toggleModuloEmailNotif(modulo, habilitado) {
+  try {
+    await fetch('/api/admin/email-notif/modulo/' + modulo, {
+      method: 'PUT',
+      headers: { 'Authorization': 'Bearer ' + jwtToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ habilitado })
+    });
+    loadEmailNotifConfig();
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
+}
+
 // ── Admin tab router ──
 function showAdminTab(tab) {
   document.querySelectorAll('#admin-sidebar .nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === tab));
@@ -1633,6 +1701,7 @@ function showAdminTab(tab) {
   else if (tab === 'modulos') loadModulos();
    else if (tab === 'mcp') { loadMcpConfig(); loadMcpUrl(); }
    else if (tab === 'smtp') loadSmtpConfig();
+   else if (tab === 'email-notif') loadEmailNotifConfig();
    else if (tab === 'mapas') loadGmapsKeyStatus();
    else if (tab === 'seguridad') { loadRateLimitConfig(); loadSshConfig(); loadLoginLogs(); }
    else if (tab === 'auditoria') loadAuditoria();

@@ -1,9 +1,11 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
+import { enviarCorreo } from '../utils/email.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { notificarInterna } = require('../../../../framework/notify');
+const { debeEnviarEmail } = require('../../../../framework/email-check');
 const MODULE = 'logistica';
 
 const router = express.Router();
@@ -73,10 +75,24 @@ router.post('/', requirePermiso('crear', MODULE), async (req, res) => {
     res.status(201).json({ exitosa: true, pedido: result.rows[0] });
     // Notificación in-app
     try {
-      const admins = await pool.query("SELECT id FROM launcher.usuarios WHERE rol = 'admin' AND activo = 1");
+      const admins = await pool.query("SELECT id, email, nombre FROM launcher.usuarios WHERE rol = 'admin' AND activo = 1");
       for (const u of admins.rows) {
         void notificarInterna({ usuario_id: u.id, modulo: 'logistica', tipo: 'pedido_nuevo', titulo: 'Pedido nuevo', mensaje: `Pedido #${numero_factura} — ${cliente_nombre || '—'}`, url: '/logistica/#pedidos', evento_id: `logistica-pedido-${result.rows[0].id}-${u.id}` })
           .then(r => { if (!r.ok) console.warn('[notif] fallo:', r.error); });
+      }
+      // Email notification
+      if (await debeEnviarEmail('logistica', 'pedido_nuevo')) {
+        const cfg = await pool.query("SELECT clave, valor FROM logistics.configuracion WHERE clave IN ('smtp_host','smtp_heredar')");
+        const cfgMap = {};
+        for (const r of cfg.rows) cfgMap[r.clave] = r.valor;
+        if (cfgMap.smtp_host || cfgMap.smtp_heredar === '1' || cfgMap.smtp_heredar === 'true') {
+          for (const u of admins.rows) {
+            if (u.email) {
+              enviarCorreo(u.email, `Nuevo pedido #${numero_factura}`, `Se ha creado un nuevo pedido:\n\nFactura: ${numero_factura}\nCliente: ${cliente_nombre || '—'}\nDirección: ${direccion || '—'}\nCiudad: ${ciudad || '—'}\nSede: ${sede || '—'}\n\nVer pedidos: /logistica/#pedidos`, `<h2>Nuevo pedido</h2><p><strong>Factura:</strong> ${numero_factura}</p><p><strong>Cliente:</strong> ${cliente_nombre || '—'}</p><p><strong>Dirección:</strong> ${direccion || '—'}</p><p><strong>Ciudad:</strong> ${ciudad || '—'}</p><p><strong>Sede:</strong> ${sede || '—'}</p><p><a href="/logistica/#pedidos">Ver pedidos</a></p>`)
+                .catch(e => console.warn('[email] Error enviando pedido_nuevo:', e.message));
+            }
+          }
+        }
       }
     } catch {}
   } catch (err) {

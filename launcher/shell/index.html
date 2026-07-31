@@ -406,6 +406,7 @@
         <div class="nav-item" data-page="mcp" onclick="showAdminTab('mcp')"><span class="icon">🤖</span> MCP</div>
         <div class="nav-item" data-page="mcp-modules" onclick="showAdminTab('mcp-modules')"><span class="icon">🔌</span> Servicios MCP</div>
         <div class="nav-item" data-page="smtp" onclick="showAdminTab('smtp')"><span class="icon">📧</span> SMTP</div>
+        <div class="nav-item" data-page="email-notif" onclick="showAdminTab('email-notif')"><span class="icon">🔔</span> Notificaciones</div>
         <div class="nav-item" data-page="mapas" onclick="showAdminTab('mapas')"><span class="icon">🗺️</span> Mapas</div>
       </div>
       <div class="sidebar-section">
@@ -587,6 +588,16 @@
       </div>
       <div id="smtp-result" style="margin-top:12px;"></div>
     </div>
+  </div>
+  <div class="tab-content" id="tab-email-notif">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
+      <div style="font-size:var(--fs);font-weight:600;">Notificaciones por Email</div>
+      <span style="font-size:13px;color:var(--muted);" id="email-notif-smtp-status"></span>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 16px;">
+      Configura qué eventos envían correo electrónico por módulo. Los cambios se aplican inmediatamente.
+    </p>
+    <div id="email-notif-container"></div>
   </div>
   <div class="tab-content" id="tab-mapas">
     <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">

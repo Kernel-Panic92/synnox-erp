@@ -14,6 +14,7 @@ const rateLimit = require('express-rate-limit');
 const { verificarToken, soloAdmin, parseCookies, firmarToken } = require('./middleware/auth');
 const { encryptEmail, decryptEmail } = require('./services/crypto');
 const { createLoginRateLimit, getLoginAttempts } = require('./services/rateLimit');
+const { debeEnviarEmail } = require('../framework/email-check');
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 const mcpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 const publicLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
@@ -466,6 +467,65 @@ db.exec("CREATE INDEX IF NOT EXISTS idx_notif_fecha ON notificaciones(usuario_id
 try { db.exec("ALTER TABLE notificaciones ADD COLUMN idempotency_key TEXT"); } catch {}
 db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_notif_idempotency ON notificaciones(idempotency_key) WHERE idempotency_key IS NOT NULL");
 
+// ── Configuración de notificaciones por email ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS email_notif_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    modulo TEXT NOT NULL,
+    evento TEXT NOT NULL,
+    descripcion TEXT NOT NULL,
+    habilitado INTEGER NOT NULL DEFAULT 1,
+    created_at TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+    UNIQUE(modulo, evento)
+  )
+`);
+
+const emailNotifDefaults = [
+  { modulo: 'proyectos', eventos: [
+    ['tarea_asignada', 'Tarea asignada a usuario'],
+    ['tarea_aprobada', 'Tarea aprobada por revisor'],
+    ['tarea_rechazada', 'Tarea rechazada por revisor'],
+    ['tarea_en_revision', 'Tarea enviada a revisión'],
+    ['proyecto_asignado', 'Proyecto asignado a usuario'],
+    ['proyecto_aprobado', 'Proyecto aprobado'],
+    ['proyecto_rechazado', 'Proyecto rechazado'],
+    ['nuevo_comentario', 'Nuevo comentario en tarea'],
+    ['alerta_vencimiento', 'Alerta de vencimiento de tarea'],
+    ['resumen_semanal', 'Resumen semanal de actividades']
+  ]},
+  { modulo: 'nomina', eventos: [
+    ['hora_extra_registrada', 'Hora extra registrada (alerta a gerentes)'],
+    ['hora_extra_aprobada', 'Hora extra aprobada'],
+    ['hora_extra_rechazada', 'Hora extra rechazada']
+  ]},
+  { modulo: 'proveedores', eventos: [
+    ['factura_nueva', 'Factura nueva recibida'],
+    ['factura_recibida', 'Factura descargada de correo'],
+    ['factura_asignada', 'Factura asignada a revisor'],
+    ['factura_en_revision', 'Factura en revisión'],
+    ['factura_aprobada', 'Factura aprobada'],
+    ['factura_rechazada', 'Factura rechazada'],
+    ['factura_causada', 'Factura causada'],
+    ['factura_pagada', 'Factura pagada'],
+    ['escalacion', 'Escalación de factura vencida']
+  ]},
+  { modulo: 'logistica', eventos: [
+    ['pedido_nuevo', 'Nuevo pedido creado']
+  ]},
+  { modulo: 'launcher', eventos: [
+    ['password_reset', 'Correo de restablecimiento de contraseña'],
+    ['usuario_creado', 'Correo de bienvenida de usuario']
+  ]}
+];
+
+const upsertNotifConfig = db.prepare(`INSERT OR IGNORE INTO email_notif_config (modulo, evento, descripcion) VALUES (?, ?, ?)`);
+for (const mod of emailNotifDefaults) {
+  for (const [evento, desc] of mod.eventos) {
+    upsertNotifConfig.run(mod.modulo, evento, desc);
+  }
+}
+
 // ── Limpieza de notificaciones >30 días ──
 function limpiarNotificaciones() {
   try {
@@ -765,7 +825,7 @@ app.post('/api/admin/sesiones/:id/kill', verificarToken, soloAdmin, (req, res) =
 });
 
 // ── Password recovery ──
-app.post('/api/auth/forgot', loginRateLimit, (req, res) => {
+app.post('/api/auth/forgot', loginRateLimit, async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email requerido' });
   const emailNorm = email.toLowerCase().trim();
@@ -780,7 +840,9 @@ app.post('/api/auth/forgot', loginRateLimit, (req, res) => {
   db.prepare('INSERT INTO reset_tokens (email, token, expires_at) VALUES (?, ?, ?)').run(user.email, token, expiresAt);
   const resetUrl = `${getBaseUrl()}/reset?token=${token}`;
   if (mail.isConfigured()) {
-    mail.sendResetEmail(user.email, resetUrl, user.nombre).catch(e => console.error('[MAIL] sendResetEmail error:', e.message));
+    if (await debeEnviarEmail('launcher', 'password_reset')) {
+      mail.sendResetEmail(user.email, resetUrl, user.nombre).catch(e => console.error('[MAIL] sendResetEmail error:', e.message));
+    }
     forgotCooldowns[emailNorm] = Date.now();
     res.json({ ok: true, message: 'Si el email existe, recibirás un enlace de recuperación' });
   } else {
@@ -948,12 +1010,14 @@ app.post('/api/admin/usuarios', verificarToken, soloAdmin, async (req, res) => {
 
     if (!password && mail.isConfigured()) {
       try {
-        const token = crypto.randomBytes(32).toString('hex');
-        const expiresAt = new Date(Date.now() + 7 * 24 * 3600000).toISOString().replace('T', ' ').split('.')[0];
-        db.prepare('INSERT INTO reset_tokens (email, token, expires_at) VALUES (?, ?, ?)').run(email.toLowerCase().trim(), token, expiresAt);
-        const setupUrl = `${getBaseUrl()}/reset?token=${token}`;
-        await mail.sendWelcomeEmail(email.toLowerCase().trim(), setupUrl, nombre, userRol);
-        welcomeSent = true;
+        if (await debeEnviarEmail('launcher', 'usuario_creado')) {
+          const token = crypto.randomBytes(32).toString('hex');
+          const expiresAt = new Date(Date.now() + 7 * 24 * 3600000).toISOString().replace('T', ' ').split('.')[0];
+          db.prepare('INSERT INTO reset_tokens (email, token, expires_at) VALUES (?, ?, ?)').run(email.toLowerCase().trim(), token, expiresAt);
+          const setupUrl = `${getBaseUrl()}/reset?token=${token}`;
+          await mail.sendWelcomeEmail(email.toLowerCase().trim(), setupUrl, nombre, userRol);
+          welcomeSent = true;
+        }
       } catch (e) {
         console.error('[MAIL] sendWelcomeEmail error:', e.message);
       }
@@ -1004,7 +1068,9 @@ app.post('/api/admin/usuarios/:id/reset-password', verificarToken, soloAdmin, as
     db.prepare('INSERT INTO reset_tokens (email, token, expires_at) VALUES (?, ?, ?)').run(user.email, token, expiresAt);
     const resetUrl = `${getBaseUrl()}/reset?token=${token}`;
     if (mail.isConfigured()) {
-      mail.sendResetEmail(user.email, resetUrl, user.nombre).catch(e => console.error('[MAIL] sendResetEmail error:', e.message));
+      if (await debeEnviarEmail('launcher', 'password_reset')) {
+        mail.sendResetEmail(user.email, resetUrl, user.nombre).catch(e => console.error('[MAIL] sendResetEmail error:', e.message));
+      }
       res.json({ ok: true, message: 'Email de recuperación enviado a ' + user.email });
     } else {
       console.log('[RESET] SMTP no configurado — token para', user.email, ':', resetUrl);
@@ -1821,6 +1887,49 @@ app.post('/api/notificaciones/crear', (req, res) => {
     const result = db.prepare('INSERT INTO notificaciones (usuario_id, modulo, tipo, titulo, mensaje, url, idempotency_key) VALUES (?, ?, ?, ?, ?, ?, ?)')
       .run(usuario_id, modulo, tipo, titulo, mensaje, url || null, idempotency_key || null);
     res.json({ ok: true, id: result.lastInsertRowid });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── API: Email Notif Config ──
+app.get('/api/admin/email-notif', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const rows = db.prepare('SELECT * FROM email_notif_config ORDER BY modulo, id').all();
+    const grouped = {};
+    for (const r of rows) {
+      if (!grouped[r.modulo]) grouped[r.modulo] = [];
+      grouped[r.modulo].push(r);
+    }
+    res.json({ config: grouped });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/admin/email-notif/:id', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const { habilitado } = req.body;
+    if (habilitado === undefined) return res.status(400).json({ error: 'habilitado requerido' });
+    const r = db.prepare('UPDATE email_notif_config SET habilitado = ?, updated_at = datetime(\'now\') WHERE id = ?').run(habilitado ? 1 : 0, req.params.id);
+    if (r.changes === 0) return res.status(404).json({ error: 'Config no encontrada' });
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/admin/email-notif/modulo/:modulo', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const { habilitado } = req.body;
+    if (habilitado === undefined) return res.status(400).json({ error: 'habilitado requerido' });
+    db.prepare('UPDATE email_notif_config SET habilitado = ?, updated_at = datetime(\'now\') WHERE modulo = ?').run(habilitado ? 1 : 0, req.params.modulo);
+    res.json({ ok: true });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.get('/api/email-notif/check/:modulo/:evento', (req, res) => {
+  const ip = req.ip || req.connection?.remoteAddress || '';
+  const isLocal = ip === '127.0.0.1' || ip === '::1' || ip === '::ffff:127.0.0.1' || req.hostname === 'localhost';
+  if (!isLocal) return res.status(403).json({ error: 'Acceso denegado: solo localhost' });
+  try {
+    const row = db.prepare('SELECT habilitado FROM email_notif_config WHERE modulo = ? AND evento = ?').get(req.params.modulo, req.params.evento);
+    if (!row) return res.json({ habilitado: true });
+    res.json({ habilitado: !!row.habilitado });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

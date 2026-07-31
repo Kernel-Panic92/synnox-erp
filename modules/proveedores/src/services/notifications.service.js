@@ -1,5 +1,6 @@
 const smtp = require('./smtp.service');
 const db   = require('../db');
+const { debeEnviarEmail } = require('../../../../framework/email-check');
 
 /**
  * Notificaciones por email en cada transición del flujo de facturas.
@@ -8,6 +9,20 @@ const db   = require('../db');
 
 async function notificarTransicion(factura, tipo, usuario, comentario = null) {
   if (!smtp.isConfigured()) return;
+
+  const tipoEventoMap = {
+    recibida:       'factura_recibida',
+    asignada:       'factura_asignada',
+    revision:       'factura_en_revision',
+    aprobada:       'factura_aprobada',
+    rechazada:      'factura_rechazada',
+    causada:        'factura_causada',
+    pagada:         'factura_pagada',
+    escalacion_nivel1: 'escalacion',
+    escalacion_nivel2: 'escalacion',
+  };
+  const evento = tipoEventoMap[tipo] || tipo;
+  if (!(await debeEnviarEmail('proveedores', evento))) return;
 
   const f = await obtenerDatosFactura(factura.id);
   if (!f) return;

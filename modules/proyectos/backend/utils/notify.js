@@ -2,6 +2,7 @@ import { enviarCorreo } from './email.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { notificarInterna } = require('../../../../framework/notify');
+const { debeEnviarEmail } = require('../../../../framework/email-check');
 
 const BASE_URL = (() => {
   const domain = process.env.COMPANY_DOMAIN || 'localhost';
@@ -49,7 +50,9 @@ export async function notificar({ usuario_id, tipo, titulo, mensaje, url, email,
   // 2. Email notification
   if (email && emailHtml) {
     try {
-      await enviarCorreo(email, emailAsunto || titulo, emailHtml);
+      if (await debeEnviarEmail('proyectos', tipo)) {
+        await enviarCorreo(email, emailAsunto || titulo, emailHtml);
+      }
     } catch (e) {
       console.warn('[notify] Error email:', e.message);
     }
