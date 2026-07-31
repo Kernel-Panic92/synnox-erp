@@ -2211,7 +2211,7 @@ async function toggleNotifDropdown() {
         var icons = { tarea_asignada: '📋', tarea_aprobada: '✅', tarea_rechazada: '❌', tarea_en_revision: '📋', tarea_revision: '📋', cambio_estado: '🔄', proyecto_asignado: '📁', proyecto_aprobado: '✅', proyecto_rechazado: '❌', nuevo_comentario: '💬', alerta_vencimiento: '⏰', resumen_semanal: '📊', factura_nueva: '📄', factura_recibida: '📄', factura_asignada: '📄', factura_en_revision: '📄', factura_aprobada: '✅', factura_rechazada: '❌', factura_causada: '📄', factura_pagada: '💰', escalacion: '⚠️', pedido_nuevo: '🚚', hora_extra_registrada: '💰', hora_extra_aprobada: '✅', hora_extra_rechazada: '❌', password_reset: '🔑', usuario_creado: '👤', registro_creado: '💰', registro_aprobado: '✅', registro_rechazado: '❌', tarea_vencida: '⏰', ruta_asignada: '🛣️', backup: '💾', sistema: '⚙️' };
         list.innerHTML = notificaciones.map(function(n) {
           var timeAgo = timeSinceNotif(parseNotifDate(n.created_at));
-          return '<div class="notif-item' + (n.leida ? '' : ' unread') + '" onclick="marcarNotifLeida(' + n.id + ', \'' + (n.url || '') + '\')">' +
+          return '<div class="notif-item' + (n.leida ? '' : ' unread') + '" data-notif-id="' + n.id + '" data-notif-url="' + escNotif(n.url || '') + '">' +
             '<div class="notif-icon">' + (icons[n.tipo] || '🔔') + '</div>' +
             '<div class="notif-content">' +
               '<div class="notif-title">' + escNotif(n.titulo) + '</div>' +
@@ -2220,6 +2220,13 @@ async function toggleNotifDropdown() {
             '</div>' +
           '</div>';
         }).join('');
+        list.querySelectorAll('.notif-item').forEach(function(el) {
+          el.addEventListener('click', function() {
+            var nid = el.getAttribute('data-notif-id');
+            var nurl = el.getAttribute('data-notif-url') || '';
+            marcarNotifLeida(nid, nurl);
+          });
+        });
       }
     } catch {}
   }
