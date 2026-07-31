@@ -36,6 +36,3 @@ modules/proveedores/backups/
 logs/
 uploads/
 modules/proyectos/uploads/
-
-# Frontend bundles (build artifacts)
-modules/*/public/dist/
