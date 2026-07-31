@@ -32,6 +32,15 @@ function cacheGet(key, ttlMs) {
 function cacheSet(key, data) {
   try { localStorage.setItem('w_' + key, JSON.stringify({ data, ts: Date.now() })); } catch {}
 }
+function cleanExpiredWidgetCache() {
+  const keys = Object.keys(localStorage).filter(k => k.startsWith('w_'));
+  for (const key of keys) {
+    try {
+      const c = JSON.parse(localStorage.getItem(key));
+      if (c && c.ts && (Date.now() - c.ts > 300000)) localStorage.removeItem(key); // 5 min
+    } catch { localStorage.removeItem(key); }
+  }
+}
 
 function confirmModal(msg, title = 'Confirmar', type = 'delete') {
   const types = {
@@ -230,7 +239,7 @@ function renderModulos(grid, mods) {
     desc: m.descripcion || '',
     ruta: m.proxy_prefix || (m.url ? new URL(m.url).pathname : '/' + m.id + '/'),
   }));
-  const usage = JSON.parse(localStorage.getItem('module_usage') || '{}');
+  const usage = JSON.parse(localStorage.getItem('submodule_usage') || '{}');
   modulosDisponibles.sort((a, b) => (usage[b.id] || 0) - (usage[a.id] || 0));
   for (const mod of modulosDisponibles) {
     const card = document.createElement('a');
@@ -668,6 +677,7 @@ function logout() {
   // Clear session state (non-blocking)
   localStorage.removeItem('platform_jwt');
   // Clear widget caches (security — don't show previous user's data)
+  cleanExpiredWidgetCache();
   Object.keys(localStorage).filter(k => k.startsWith('w_')).forEach(k => localStorage.removeItem(k));
   invalidateUsersCache();
   jwtToken = null;
@@ -2605,6 +2615,11 @@ function showCentroForm(data) {
 }
 
 function closeCentroForm() {
+  const container = document.getElementById('mapa-pin-centro');
+  if (container && container._leafletMap) {
+    container._leafletMap.remove();
+    container._leafletMap = null;
+  }
   document.getElementById('centro-form-overlay').style.display = 'none';
 }
 
@@ -2836,8 +2851,23 @@ function initTableFilters(tableId, opts = {}) {
 
   const searchEl = opts.searchId ? document.getElementById(opts.searchId) : document.querySelector('.table-filters .filter-input');
   const statusEl = opts.statusId ? document.getElementById(opts.statusId) : document.querySelector('.table-filters .filter-select');
-  if (searchEl) searchEl.addEventListener('input', applyFilters);
-  if (statusEl) statusEl.addEventListener('change', applyFilters);
+
+  // Cleanup: remove previous listeners to avoid accumulation
+  if (searchEl && searchEl._tableFilterHandler) {
+    searchEl.removeEventListener('input', searchEl._tableFilterHandler);
+  }
+  if (statusEl && statusEl._tableFilterHandler) {
+    statusEl.removeEventListener('change', statusEl._tableFilterHandler);
+  }
+
+  if (searchEl) {
+    searchEl._tableFilterHandler = applyFilters;
+    searchEl.addEventListener('input', applyFilters);
+  }
+  if (statusEl) {
+    statusEl._tableFilterHandler = applyFilters;
+    statusEl.addEventListener('change', applyFilters);
+  }
   applyFilters();
   return { applyFilters, rows };
 }
