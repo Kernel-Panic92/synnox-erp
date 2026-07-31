@@ -311,27 +311,32 @@ async function showLauncher() {
   ]);
 
   updatePostLoginStatus('Preparando dashboard...', 90);
-  // Admin-only widgets
-  if (user?.rol === 'admin') {
-    cargarServerStats(sig);
-    cargarCommits(sig);
-    cargarQuickActions(sig);
-    cargarModuleStatus(sig);
-    cargarNotificacionesWidget(sig);
-    cargarActivity(sig);
-  } else {
-    document.getElementById('server-stats-widget').style.display = 'none';
-    if (user?.rol === 'gerente') {
+  // Defer widget loading until AFTER launcher is visible
+  // This prevents widgets from competing with module navigation for HTTP/2 connections
+  const _deferredWidgets = () => {
+    if (user?.rol === 'admin') {
+      cargarServerStats(sig);
+      cargarCommits(sig);
       cargarQuickActions(sig);
+      cargarModuleStatus(sig);
       cargarNotificacionesWidget(sig);
+      cargarActivity(sig);
     } else {
-      cargarQuickActions(sig);
+      document.getElementById('server-stats-widget').style.display = 'none';
+      if (user?.rol === 'gerente') {
+        cargarQuickActions(sig);
+        cargarNotificacionesWidget(sig);
+      } else {
+        cargarQuickActions(sig);
+      }
     }
-  }
+  };
   initNotifPolling();
   initVersionCheck();
   updatePostLoginStatus('Listo ✓', 100);
   show('launcher-screen');
+  // Load widgets AFTER launcher is visible — don't block module navigation
+  setTimeout(_deferredWidgets, 300);
 }
 
 function trackModuleVisit(moduleId) {
