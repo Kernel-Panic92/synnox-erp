@@ -97,30 +97,52 @@ app.use('/api/geocercas', protect, geocercasRoutes);
 
 // GET /api/auth/me — verify JWT, session and module access
 app.get('/api/auth/me', protect, async (req, res) => {
-  console.log(`[logistica] /me llamado — user: ${req.user?.email}, rol: ${req.user?.rol}, modulos: ${JSON.stringify(req.user?.modulos)}`);
   try {
+    // Read fresh user data from launcher.db
+    let freshUser = null;
+    try {
+      const Database = (await import('better-sqlite3')).default;
+      const pathMod = (await import('path')).default;
+      const { fileURLToPath } = await import('url');
+      const __dirname = pathMod.dirname(fileURLToPath(import.meta.url));
+      const dbPath = pathMod.join(__dirname, '..', '..', '..', 'launcher', 'launcher.db');
+      const ldb = new Database(dbPath, { readonly: true });
+      freshUser = ldb.prepare(`
+        SELECT u.id, u.nombre, u.email, u.rol, u.perfil_id,
+               p.nombre as perfil_nombre
+        FROM usuarios u LEFT JOIN perfiles p ON u.perfil_id = p.id
+        WHERE u.id = ?
+      `).get(req.user.id);
+      ldb.close();
+    } catch {}
+
+    const nombre = freshUser?.nombre || req.user.nombre || req.user.email;
+    const rol = freshUser?.rol || req.user.rol;
+    const perfil_nombre = freshUser?.perfil_nombre || req.user.perfil_nombre || null;
+
+    // Sync to local logistics.usuarios
     const result = await pool.query('SELECT id, nombre, email, rol, activo FROM logistics.usuarios WHERE email=$1', [req.user.email]);
     const user = result.rows[0];
     if (!user) {
       const rolesValidos = ['admin', 'operador', 'visor'];
-      const rol = rolesValidos.includes(req.user.rol) ? req.user.rol : 'operador';
+      const rolInsert = rolesValidos.includes(rol) ? rol : 'operador';
       const r = await pool.query(
         `INSERT INTO logistics.usuarios (nombre, email, password_hash, rol, activo)
          VALUES ($1, $2, '', $3, true)
          ON CONFLICT (email) DO UPDATE SET nombre = $1, rol = $3
          RETURNING id, nombre, email, rol, activo`,
-        [req.user.nombre || req.user.email, req.user.email, rol]
+        [nombre, req.user.email, rolInsert]
       );
-      return res.json(r.rows[0]);
+      return res.json({ ...r.rows[0], perfil_nombre });
     }
     const rolesValidos = ['admin', 'operador', 'visor'];
-    const updateRol = rolesValidos.includes(req.user.rol) ? req.user.rol : 'operador';
-    if (user.nombre !== (req.user.nombre || req.user.email) || user.rol !== updateRol) {
-      await pool.query('UPDATE logistics.usuarios SET nombre = $1, rol = $2 WHERE id = $3', [req.user.nombre || req.user.email, updateRol, user.id]);
-      user.nombre = req.user.nombre || req.user.email;
+    const updateRol = rolesValidos.includes(rol) ? rol : 'operador';
+    if (user.nombre !== nombre || user.rol !== updateRol) {
+      await pool.query('UPDATE logistics.usuarios SET nombre = $1, rol = $2 WHERE id = $3', [nombre, updateRol, user.id]);
+      user.nombre = nombre;
       user.rol = updateRol;
     }
-    res.json({ ...user, perfil_nombre: req.user.perfil_nombre || null });
+    res.json({ ...user, perfil_nombre });
   } catch (err) {
     console.error('[auth/me]', err);
     res.status(500).json({ error: 'Error interno' });

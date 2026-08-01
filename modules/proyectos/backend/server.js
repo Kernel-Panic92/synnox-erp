@@ -54,15 +54,30 @@ app.get('/api/centros', (req, res) => {
   res.json(globalThis.__centrosCache || []);
 });
 
-app.get('/api/auth/me', protect, (req, res) => {
-  res.json({
-    id: req.user.id,
-    nombre: req.user.nombre,
-    email: req.user.email,
-    rol: req.user.rol,
-    perfil_nombre: req.user.perfil_nombre || null,
-    modulos_permisos: req.user.modulos_permisos || {}
-  });
+app.get('/api/auth/me', protect, async (req, res) => {
+  try {
+    const Database = (await import('better-sqlite3')).default;
+    const pathMod = (await import('path')).default;
+    const { fileURLToPath } = await import('url');
+    const __dirname = pathMod.dirname(fileURLToPath(import.meta.url));
+    const dbPath = pathMod.join(__dirname, '..', '..', '..', 'launcher', 'launcher.db');
+    const ldb = new Database(dbPath, { readonly: true });
+    const row = ldb.prepare(`
+      SELECT u.id, u.nombre, u.email, u.rol, u.perfil_id, u.sede,
+             p.nombre as perfil_nombre
+      FROM usuarios u
+      LEFT JOIN perfiles p ON u.perfil_id = p.id
+      WHERE u.id = ?
+    `).get(req.user.id);
+    ldb.close();
+    if (!row) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const modulos_permisos = req.user.modulos_permisos || {};
+    res.json({ ...row, modulos_permisos });
+  } catch {
+    // Fallback to JWT data if launcher.db unavailable
+    const { modulos_permisos, ...rest } = req.user;
+    res.json({ ...rest, modulos_permisos: modulos_permisos || {} });
+  }
 });
 
 app.get('/api/dashboard', protect, async (req, res) => {

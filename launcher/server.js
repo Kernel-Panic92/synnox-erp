@@ -1052,7 +1052,9 @@ app.put('/api/admin/usuarios/:id', verificarToken, soloAdmin, (req, res) => {
     const changedRol = rol !== undefined && rol !== user.rol;
     const changedPerfil = perfil_id !== undefined && perfil_id !== user.perfil_id;
     db.prepare(`UPDATE usuarios SET ${updates.join(', ')} WHERE id = ?`).run(...params);
-    if (changedRol || changedPerfil) invalidarSesionUsuario(id);
+    const changedNombre = nombre !== undefined && nombre !== user.nombre;
+    const changedEmail = email !== undefined && email.toLowerCase().trim() !== user.email;
+    if (changedRol || changedPerfil || changedNombre || changedEmail) invalidarSesionUsuario(id);
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Error interno' }); }
 });

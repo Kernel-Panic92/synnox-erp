@@ -294,6 +294,12 @@ async function showLauncher() {
   _widgetAbort = new AbortController();
   const sig = _widgetAbort.signal;
 
+  // Refresh user data from DB (so sidebar shows latest name/role)
+  try {
+    const res = await fetch('/api/auth/me', { signal: AbortSignal.timeout(5000), headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (res.ok) { const data = await res.json(); user = data; }
+  } catch {}
+
   updatePostLoginStatus('Cargando perfil...', 60);
   document.getElementById('launcher-user').innerHTML = esc(user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
   document.getElementById('launcher-role').textContent = user?.perfil_nombre || user?.rol || '';
@@ -774,9 +780,14 @@ async function cargarNotificacionesWidget(sig) {
 }
 
 // ── Admin ──
-function showAdmin() {
+async function showAdmin() {
   // Cancel pending launcher widget fetches
   if (_widgetAbort) _widgetAbort.abort();
+  // Refresh user data from DB
+  try {
+    const res = await fetch('/api/auth/me', { signal: AbortSignal.timeout(5000), headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (res.ok) { const data = await res.json(); user = data; }
+  } catch {}
   const userNameEl = document.getElementById('admin-sidebar-user');
   const userRoleEl = document.getElementById('admin-sidebar-role');
   const versionEl = document.getElementById('admin-sidebar-version');
