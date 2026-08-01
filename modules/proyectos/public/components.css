@@ -38,6 +38,9 @@ button, .btn {
 .tbl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; overflow-x: auto; }
 .tbl { width: 100%; border-collapse: collapse; }
 .tbl th { text-align: left; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; padding: 10px 12px; border-bottom: 1px solid var(--border); font-weight: 600; }
+.tbl th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
+.tbl th.sortable:hover { color: var(--text); }
+.tbl th .sort-indicator { font-size: 10px; margin-left: 2px; }
 .tbl td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
 .tbl tr:hover { background: rgba(255,255,255,.02); }
 

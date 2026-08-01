@@ -85,7 +85,21 @@
           <div class="card"><h3 style="margin-bottom:12px">Distribucion por estado</h3><canvas id="chart-estados" height="200"></canvas></div>
           <div class="card"><h3 style="margin-bottom:12px">Tareas pendientes por usuario</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Usuario</th><th>Pendientes</th></tr></thead><tbody id="dash-asignado"></tbody></table></div></div>
         </div>
-        <div class="card"><h3 style="margin-bottom:12px">Tareas recientes</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Titulo</th><th>Proyecto</th><th>Estado</th><th>Prioridad</th></tr></thead><tbody id="dash-recientes"></tbody></table></div></div>
+        <div class="card" id="dash-recientes-card"><h3 style="margin-bottom:12px">Tareas recientes</h3>
+          <div class="filters" style="margin-bottom:12px">
+            <select id="dash-filtro-proyecto" onchange="dashAplicarFiltros()"><option value="">Todos los proyectos</option></select>
+            <select id="dash-filtro-estado" onchange="dashAplicarFiltros()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="en_progreso">En Progreso</option><option value="revision">Revision</option><option value="completada">Completada</option></select>
+            <select id="dash-filtro-prioridad" onchange="dashAplicarFiltros()"><option value="">Todas las prioridades</option><option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option><option value="critica">Critica</option></select>
+            <input id="dash-filtro-busqueda" type="text" placeholder="Buscar tarea..." oninput="dashAplicarFiltros()">
+          </div>
+          <div class="tbl-wrap"><table class="tbl"><thead><tr>
+            <th class="sortable" data-sort="titulo" onclick="dashSort('titulo')">Titulo<span class="sort-indicator"></span></th>
+            <th class="sortable" data-sort="proyecto_nombre" onclick="dashSort('proyecto_nombre')">Proyecto<span class="sort-indicator"></span></th>
+            <th class="sortable" data-sort="estado" onclick="dashSort('estado')">Estado<span class="sort-indicator"></span></th>
+            <th class="sortable" data-sort="prioridad" onclick="dashSort('prioridad')">Prioridad<span class="sort-indicator"></span></th>
+            <th class="sortable" data-sort="fecha_limite" onclick="dashSort('fecha_limite')">Fecha Limite<span class="sort-indicator"></span></th>
+          </tr></thead><tbody id="dash-recientes"></tbody></table></div>
+        </div>
       </div>
 
       <!-- Proyectos -->

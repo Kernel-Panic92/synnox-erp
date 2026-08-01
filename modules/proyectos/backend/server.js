@@ -79,8 +79,8 @@ app.get('/api/dashboard', protect, async (req, res) => {
       ? await pool.query(`SELECT t.asignado_a, COUNT(*) AS total FROM projects.tareas t WHERE t.estado != 'completada' AND t.asignado_a = $1 GROUP BY t.asignado_a ORDER BY total DESC`, [uid])
       : await pool.query(`SELECT t.asignado_a, COUNT(*) AS total FROM projects.tareas t WHERE t.estado != 'completada' GROUP BY t.asignado_a ORDER BY total DESC`);
     const recientes = soloPropios
-      ? await pool.query(`SELECT t.*, p.nombre AS proyecto_nombre FROM projects.tareas t LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id WHERE t.asignado_a = $1 ORDER BY t.updated_at DESC LIMIT 10`, [uid])
-      : await pool.query(`SELECT t.*, p.nombre AS proyecto_nombre FROM projects.tareas t LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id ORDER BY t.updated_at DESC LIMIT 10`);
+      ? await pool.query(`SELECT t.*, p.nombre AS proyecto_nombre FROM projects.tareas t LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id WHERE t.asignado_a = $1 ORDER BY t.updated_at DESC LIMIT 50`, [uid])
+      : await pool.query(`SELECT t.*, p.nombre AS proyecto_nombre FROM projects.tareas t LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id ORDER BY t.updated_at DESC LIMIT 50`);
     const aprobacion = soloPropios
       ? await pool.query(`SELECT COUNT(*) AS pendientes FROM projects.tareas WHERE estado_aprobacion = 'pendiente' AND estado = 'revision' AND asignado_a = $1`, [uid])
       : await pool.query(`SELECT COUNT(*) AS pendientes FROM projects.tareas WHERE estado_aprobacion = 'pendiente' AND estado = 'revision'`);

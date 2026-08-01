@@ -1,3 +1,11 @@
+let _dashRecientes = [];
+let _dashFiltroQ = '';
+let _dashFiltroEstado = '';
+let _dashFiltroPrioridad = '';
+let _dashFiltroProyecto = '';
+let _dashSortCol = 'updated_at';
+let _dashSortDir = 'desc';
+
 async function cargarDashboard() {
   try {
     const data = await api('/dashboard');
@@ -96,18 +104,13 @@ async function cargarDashboard() {
     const idsAsignadosActivos = porAsignado.map(r => r.asignado_a).filter(Boolean);
     await cargarNombresUsuarios([...new Set([...idsAsignados, ...idsAsignadosActivos])]);
 
-    if (!recientes.length) {
-      document.getElementById('dash-recientes').innerHTML = '<tr><td colspan="4" class="empty-state" style="padding:32px"><div class="icon">&#x1F4CB;</div><p>Crea tu primera tarea para verla aqui</p></td></tr>';
-    } else {
-      document.getElementById('dash-recientes').innerHTML = recientes.map(t => `
-        <tr>
-          <td><strong>${esc(t.titulo)}</strong></td>
-          <td><span style="font-size:12px;color:var(--muted)">${esc(t.proyecto_nombre || '—')}</span></td>
-          <td>${badgeEstado(t.estado)} ${t.estado === 'revision' ? badgeAprobacion(t.estado_aprobacion) : ''}</td>
-          <td>${badgePrioridad(t.prioridad)}</td>
-        </tr>
-      `).join('');
+    _dashRecientes = recientes;
+    await cargarProyectosSelect();
+    const proySel = document.getElementById('dash-filtro-proyecto');
+    if (proySel && proySel.options.length <= 1) {
+      proySel.innerHTML = '<option value="">Todos los proyectos</option>' + _tareasProyectos.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
     }
+    renderDashRecientes();
 
     if (porAsignado.length) {
       const asignadoHtml = porAsignado.slice(0, 8).map(r => `
@@ -131,4 +134,79 @@ function verTareasEstado(estado) {
     const sel = document.getElementById('filtro-estado');
     if (sel) { sel.value = estado; cargarTareas(); }
   }, 100);
+}
+
+function dashAplicarFiltros() {
+  _dashFiltroProyecto = document.getElementById('dash-filtro-proyecto')?.value || '';
+  _dashFiltroEstado = document.getElementById('dash-filtro-estado')?.value || '';
+  _dashFiltroPrioridad = document.getElementById('dash-filtro-prioridad')?.value || '';
+  _dashFiltroQ = document.getElementById('dash-filtro-busqueda')?.value?.trim() || '';
+  renderDashRecientes();
+}
+
+function dashSort(col) {
+  if (_dashSortCol === col) {
+    _dashSortDir = _dashSortDir === 'asc' ? 'desc' : 'asc';
+  } else {
+    _dashSortCol = col;
+    _dashSortDir = 'asc';
+  }
+  document.querySelectorAll('#dash-recientes-card th[data-sort]').forEach(th => {
+    const ind = th.querySelector('.sort-indicator');
+    if (th.dataset.sort === _dashSortCol) {
+      ind.textContent = _dashSortDir === 'asc' ? ' ▲' : ' ▼';
+    } else {
+      ind.textContent = '';
+    }
+  });
+  renderDashRecientes();
+}
+
+function renderDashRecientes() {
+  const tbody = document.getElementById('dash-recientes');
+
+  const filtradas = _dashRecientes.filter(t => {
+    if (_dashFiltroProyecto && String(t.proyecto_id) !== String(_dashFiltroProyecto)) return false;
+    if (_dashFiltroEstado && t.estado !== _dashFiltroEstado) return false;
+    if (_dashFiltroPrioridad && t.prioridad !== _dashFiltroPrioridad) return false;
+    if (_dashFiltroQ) {
+      const q = _dashFiltroQ.toLowerCase();
+      const hay = (t.titulo || '').toLowerCase().includes(q)
+        || (t.proyecto_nombre || '').toLowerCase().includes(q)
+        || (t.descripcion || '').toLowerCase().includes(q);
+      if (!hay) return false;
+    }
+    return true;
+  });
+
+  const dir = _dashSortDir === 'asc' ? 1 : -1;
+  filtradas.sort((a, b) => {
+    const va = a[_dashSortCol];
+    const vb = b[_dashSortCol];
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    if (_dashSortCol === 'fecha_limite') {
+      const d1 = new Date(va).getTime();
+      const d2 = new Date(vb).getTime();
+      return (d1 - d2) * dir;
+    }
+    if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
+    return String(va).localeCompare(String(vb)) * dir;
+  });
+
+  if (!filtradas.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="empty-state" style="padding:32px;text-align:center"><div class="icon">&#x1F4CB;</div><p>No se encontraron tareas recientes</p></td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = filtradas.map(t => `
+    <tr style="cursor:pointer" onclick="abrirModalDetalleTarea(${t.id})">
+      <td><a href="#" onclick="event.preventDefault();event.stopPropagation();abrirModalDetalleTarea(${t.id})" style="font-weight:600">${esc(t.titulo)}</a></td>
+      <td><span style="font-size:12px;color:var(--muted)">${esc(t.proyecto_nombre || '—')}</span></td>
+      <td>${badgeEstado(t.estado)} ${t.estado === 'revision' ? badgeAprobacion(t.estado_aprobacion) : ''}</td>
+      <td>${badgePrioridad(t.prioridad)}</td>
+      <td style="font-size:12px;color:var(--muted)">${formatDate(t.fecha_limite)}</td>
+    </tr>
+  `).join('');
 }
