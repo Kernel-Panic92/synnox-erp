@@ -8,6 +8,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="components.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
 :root {
@@ -125,13 +126,6 @@ button,.btn{cursor:pointer;border:none;border-radius:9px;font:600 14px/1 var(--f
 /* ── Logout button ── */
 .btn-logout{width:100%;padding:10px;background:rgba(247,97,79,.08);border:1px solid rgba(247,97,79,.2);border-radius:9px;color:var(--danger);font-family:inherit;font-weight:600;font-size:13px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:all .15s;justify-content:center}
 .btn-logout:hover{background:rgba(247,97,79,.15);border-color:var(--danger)}
-
-/* ── Status badges ── */
-.badge{padding:3px 10px;border-radius:10px;font-size:12px;font-weight:600;display:inline-block}
-.badge-success{background:rgba(79,190,150,.15);color:var(--success)}
-.badge-warning{background:rgba(247,212,79,.15);color:var(--warning)}
-.badge-danger{background:rgba(247,97,79,.15);color:var(--danger)}
-.badge-info{background:rgba(0,168,107,.15);color:var(--accent)}
 
 /* ── Utility ── */
 .flex{display:flex;gap:10px;flex-wrap:wrap;align-items:center}

@@ -67,12 +67,13 @@ button, .btn {
 .modal .modal-desc { color: var(--muted); font-size: 14px; margin-bottom: 20px; }
 .modal .modal-actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--border); }
 
-/* ── Status Badges ── */
-.badge { padding: 3px 10px; border-radius: 10px; font-size: 12px; font-weight: 600; display: inline-block; }
+/* ── Status Badges (semaforo) ── */
+.badge { padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; display: inline-block; }
+.badge-muted { background: rgba(139,92,246,.12); color: #8b5cf6; }
 .badge-success { background: rgba(79,190,150,.15); color: var(--success); }
-.badge-warning { background: rgba(247,212,79,.15); color: var(--warning); }
+.badge-info { background: rgba(247,212,79,.15); color: var(--warning); }
+.badge-warning { background: rgba(247,148,79,.15); color: var(--accent2); }
 .badge-danger { background: rgba(247,97,79,.15); color: var(--danger); }
-.badge-info { background: rgba(0,168,107,.15); color: var(--accent); }
 
 /* ── Role Badges (sidebar) ── */
 .role-badge { display: inline-block; background: var(--accent); color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-top: 4px; text-transform: uppercase; letter-spacing: .5px; }

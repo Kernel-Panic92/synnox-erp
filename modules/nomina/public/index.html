@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
 <title>Nómina</title>
 <link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="components.css">
 <style>
   /* ── MODULE-SPECIFIC OVERRIDES ── */
   body.light .stat-card { background:#ffffff; border-color:#d0d4e4; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
@@ -72,8 +73,7 @@
   tr:last-child td{border-bottom:none;}
   tr:hover td{background:rgba(255,255,255,0.02);}
 
-  /* ── BADGES ── */
-  .badge{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;}
+  /* ── BADGES (nómina específicos) ── */
   .badge-diurna  {background:rgba(79,142,247,0.15);color:var(--accent);}
   .badge-nocturna{background:rgba(147,100,247,0.15);color:#a06af7;}
   .badge-festivo   {background:rgba(247,148,79,0.15);color:var(--accent2);}
@@ -84,15 +84,10 @@
   .badge-quincenal{background:rgba(79,190,150,0.15);color:var(--success);}
   .badge-mensual {background:rgba(247,212,79,0.15);color:var(--warning);}
   .badge-admin   {background:rgba(247,97,79,0.15);color:var(--danger);}
-.badge-rrhh    {background:rgba(79,142,247,0.15);color:var(--accent);}
-.badge-gerencia{background:rgba(247,148,79,0.15);color:var(--accent2);}
-.badge-consulta{background:rgba(79,190,150,0.15);color:var(--success);}
+  .badge-rrhh    {background:rgba(79,142,247,0.15);color:var(--accent);}
+  .badge-gerencia{background:rgba(247,148,79,0.15);color:var(--accent2);}
+  .badge-consulta{background:rgba(79,190,150,0.15);color:var(--success);}
   .badge-operador{background:rgba(156,156,156,0.15);color:var(--success);}
-  .badge-activo  {background:rgba(79,190,150,0.15);color:var(--success);}
-  .badge-inactivo{background:rgba(122,133,160,0.15);color:var(--muted);}
-  .badge-success{background:rgba(79,190,150,0.15);color:var(--success);}
-  .badge-danger{background:rgba(247,97,79,0.15);color:var(--danger);}
-  .badge-warning{background:rgba(247,212,79,0.15);color:var(--warning);}
   .badge-delete{cursor:pointer;opacity:0.5;font-size:15px;line-height:1;transition:opacity 0.1s;}
   .badge-delete:hover{opacity:1;}
 
