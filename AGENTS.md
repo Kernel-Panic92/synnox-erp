@@ -1,6 +1,79 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (31 Jul 2026 — sesión 29)
+## Estado (1 Ago 2026 — sesión 30)
+
+### Cambios Sesión 30 — Dashboard, badges semáforo, tema global, datos frescos
+
+#### Dashboard proyectos — filtrar, ordenar y abrir tareas recientes
+- **Backend**: `GET /api/dashboard` LIMIT 10→50 para tareas recientes
+- **Filtros**: barra de filtros (proyecto, estado, prioridad, búsqueda) en la tabla de recientes
+- **Ordenamiento**: headers clicables con indicador ▲/▼ (título, proyecto, estado, prioridad, fecha límite)
+- **Orden jerárquico**: prioridad (baja→media→alta→critica), estado (pendiente→en_progreso→revision→completada)
+- **Click**: cada fila abre el modal de detalle (`abrirModalDetalleTarea`)
+- **CSS**: clases `.sortable` / `.sort-indicator` en framework + módulo
+
+#### Datos frescos en `/api/auth/me` — leer launcher.db
+- **Problema**: módulos leían nombre/rol del JWT (stale 24h), no se reflejaban cambios del admin
+- **Fix `/api/auth/me`**: proyectos, logística y proveedores ahora leen de `launcher.db` vía `better-sqlite3`
+- **Fallback**: si launcher.db no está disponible, usa datos del JWT
+- **Invalidación de sesión**: `PUT /api/admin/usuarios/:id` ahora incrementa `seq` al cambiar nombre, email, rol o perfil (antes solo con rol/perfil)
+- **Launcher frontend**: `showLauncher()` y `showAdmin()` refrescan `user` desde `/api/auth/me` antes de renderizar
+- **Dependencia**: `better-sqlite3` agregada a `modules/logistica/package.json` y `modules/proveedores/package.json`
+
+#### Badges semáforo en framework
+- **Nuevo esquema de colores** en `framework/components.css`:
+  - `badge-muted` — lila (`#8b5cf6`) — pendiente/inactivo/espera
+  - `badge-success` — verde (`var(--success)`) — completado/aprobado
+  - `badge-info` — amarillo (`var(--warning)`) — en progreso/activo
+  - `badge-warning` — naranja (`var(--accent2)`) — revisión/precaución
+  - `badge-danger` — rojo (`var(--danger)`) — crítico/rechazado
+- **`border-radius: 20px`** unificado (antes 10px en framework, 20px en nómina/proveedores)
+- **CSS duplicado eliminado**: logística (6 líneas inline), nómina (clases comunes)
+- **`components.css`** copiado a logística, nómina y proveedores + `<link>` agregado en HTML
+- **Nómina**: mantuvo badges específicos (`badge-diurna`, `badge-nocturna`, etc.)
+
+#### Toggle tema light/dark en todos los módulos
+- **Botón ☀️/🌙** agregado en header de los 4 módulos (logística, nómina, proveedores, proyectos)
+- **`toggleTheme()`** actualiza texto del botón + persiste en `localStorage('synnox_theme')`
+- **Init**: cada módulo setea el texto correcto del botón al cargar según tema guardado
+- **Persistencia**: eliminado `localStorage.removeItem('synnox_theme')` de logout en los 4 módulos (antes lo limpiaban, el launcher no lo hacía)
+- **Nómina**: `aplicarTema()` corregido para usar `#theme-btn` (antes buscaba `#theme-icon`/`#theme-text` que no existían)
+- **Nómina**: default cambiado de `'light'` a `'dark'` para consistencia
+
+#### Fix pnpm-lock.yaml
+- Regenerado con `pnpm install` — agregaba `better-sqlite3` a logística
+
+#### Fix launcher versión
+- `launcher/server.js`: `require('./package.json')` → `require('../package.json')`
+- Ahora lee root `package.json` (versión `1.1.0`) en vez de `launcher/package.json` (`1.0.0`)
+- Todos los módulos y launcher muestran la misma versión
+
+#### Archivos modificados
+- `launcher/server.js` — versión + invalidación sesión nombre/email
+- `launcher/shell/app.js` — refresh user en showLauncher/showAdmin
+- `modules/proyectos/backend/server.js` — `/api/auth/me` lee launcher.db
+- `modules/proyectos/public/js/modules/dashboard.js` — filtros, orden, click en recientes
+- `modules/proyectos/public/index.html` — filtros + headers ordenables
+- `modules/proyectos/public/framework.js` — toggleTheme + loadVersion init
+- `modules/proyectos/public/components.css` — badges semáforo
+- `modules/logistica/backend/server.js` — `/api/auth/me` lee launcher.db
+- `modules/logistica/public/app.js` — toggleTheme + init version botón
+- `modules/logistica/public/framework.js` — toggleTheme + logout fix
+- `modules/logistica/public/index.html` — botón tema + link components.css
+- `modules/logistica/public/components.css` — badges semáforo (nuevo)
+- `modules/logistica/package.json` — +better-sqlite3
+- `modules/nomina/public/js/app.js` — aplicarTema + toggleTheme fix
+- `modules/nomina/public/js/modules/auth.js` — logout fix
+- `modules/nomina/public/index.html` — botón tema + link components.css
+- `modules/nomina/public/components.css` — badges semáforo (nuevo)
+- `modules/proveedores/src/routes/auth.js` — `/api/auth/me` lee launcher.db
+- `modules/proveedores/public/app.js` — (sin cambios)
+- `modules/proveedores/public/index.html` — botón tema + link components.css
+- `modules/proveedores/public/components.css` — badges semáforo (nuevo)
+- `modules/proveedores/public/js/modules/auth.js` — logout fix
+- `modules/proveedores/package.json` — +better-sqlite3
+- `framework/components.css` — badges semáforo + sortable
+- `pnpm-lock.yaml` — better-sqlite3
 
 ### Cambios Sesión 29 — Geocercas Widetech
 
