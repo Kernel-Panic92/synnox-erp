@@ -22,6 +22,8 @@ function initFramework(opts = {}) {
   HF.themePages = opts.themePages || ['dashboard'];
 
   if (localStorage.getItem(HF.THEME_KEY) === 'light') document.body.classList.add('light');
+  const themeBtn = document.getElementById('theme-btn');
+  if (themeBtn) themeBtn.textContent = document.body.classList.contains('light') ? '🌙' : '☀️';
 
   // Create toast container
   if (!document.getElementById('toast-container')) {
@@ -181,7 +183,7 @@ function mostrarApp() {
 function logout() {
   HF.TOKEN = null; HF.USER = null;
   localStorage.removeItem(HF.TOKEN_KEY);
-  localStorage.removeItem('synnox_theme');
+  // Keep synnox_theme — it's a UI preference, not session data
   window.location.href = '/logout';
 }
 
@@ -196,6 +198,8 @@ function confirmarLogout() { cerrarLogoutConfirm(); logout(); }
 function toggleTheme() {
   document.body.classList.toggle('light');
   localStorage.setItem(HF.THEME_KEY, document.body.classList.contains('light') ? 'light' : 'dark');
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = document.body.classList.contains('light') ? '🌙' : '☀️';
 }
 
 // ── Sidebar ──

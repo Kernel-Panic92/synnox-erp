@@ -2,7 +2,6 @@ const BASE = location.pathname.match(/^\/(\w+)\//) ? '/' + RegExp.$1 : '';
 const API = BASE + '/api';
 
 function logout() {
-  localStorage.removeItem('synnox_theme');
   window.location.href = '/logout';
 }
 
@@ -65,6 +64,8 @@ function confirmarLogout() {
 function toggleTheme() {
   document.body.classList.toggle('light');
   localStorage.setItem('synnox_theme', document.body.classList.contains('light') ? 'light' : 'dark');
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = document.body.classList.contains('light') ? '🌙' : '☀️';
 }
 
 function toggleSidebar() {
@@ -140,6 +141,8 @@ function injectSidebarHome(){
 
 async function init() {
   if (localStorage.getItem('synnox_theme') !== 'dark') document.body.classList.add('light');
+  const themeBtn = document.getElementById('theme-btn');
+  if (themeBtn) themeBtn.textContent = document.body.classList.contains('light') ? '🌙' : '☀️';
   const hoy = new Date().toISOString().split('T')[0];
   const fFecha = document.getElementById('filtro-fecha');
   if (fFecha) fFecha.value = hoy;

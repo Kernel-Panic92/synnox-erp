@@ -7,25 +7,22 @@ function paginaSegura(hash) {
 
 // Theme Management
 function aplicarTema() {
-  const saved = localStorage.getItem('synnox_theme') || 'light';
-  const icon = document.getElementById('theme-icon');
-  const text = document.getElementById('theme-text');
+  const saved = localStorage.getItem('synnox_theme') || 'dark';
+  const btn = document.getElementById('theme-btn');
   if (saved === 'light') {
     document.body.classList.add('light');
-    if (icon) icon.textContent = '☀️';
-    if (text) text.textContent = 'Modo oscuro';
+    if (btn) btn.textContent = '🌙';
   } else {
     document.body.classList.remove('light');
-    if (icon) icon.textContent = '🌙';
-    if (text) text.textContent = 'Modo claro';
+    if (btn) btn.textContent = '☀️';
   }
 }
 
 function toggleTheme() {
   const isLight = document.body.classList.toggle('light');
   localStorage.setItem('synnox_theme', isLight ? 'light' : 'dark');
-  const icon=document.getElementById('theme-icon');if(icon)icon.textContent=isLight?'☀️':'🌙';
-  const text=document.getElementById('theme-text');if(text)text.textContent=isLight?'Modo oscuro':'Modo claro';
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = isLight ? '🌙' : '☀️';
   
   // Re-render dashboard charts with new theme
   if (typeof renderDashboard === 'function') {

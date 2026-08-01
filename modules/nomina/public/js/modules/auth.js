@@ -13,7 +13,6 @@ async function mostrarLogoutConfirm() {
       centros = [];
       localStorage.removeItem('he_logged_in');
       localStorage.removeItem('platform_jwt');
-      localStorage.removeItem('synnox_theme');
       window.location.href = '/logout';
     }
   });
