@@ -6,6 +6,9 @@ let _dashFiltroProyecto = '';
 let _dashSortCol = 'updated_at';
 let _dashSortDir = 'desc';
 
+const _dashOrdenPrioridad = { baja: 1, media: 2, alta: 3, critica: 4 };
+const _dashOrdenEstado = { pendiente: 1, en_progreso: 2, revision: 3, completada: 4 };
+
 async function cargarDashboard() {
   try {
     const data = await api('/dashboard');
@@ -191,6 +194,8 @@ function renderDashRecientes() {
       const d2 = new Date(vb).getTime();
       return (d1 - d2) * dir;
     }
+    if (_dashSortCol === 'prioridad') return ((_dashOrdenPrioridad[va] || 99) - (_dashOrdenPrioridad[vb] || 99)) * dir;
+    if (_dashSortCol === 'estado') return ((_dashOrdenEstado[va] || 99) - (_dashOrdenEstado[vb] || 99)) * dir;
     if (typeof va === 'number' && typeof vb === 'number') return (va - vb) * dir;
     return String(va).localeCompare(String(vb)) * dir;
   });
