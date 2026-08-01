@@ -56,7 +56,7 @@ function sanitizePath(input, base) {
 }
 
 // Used by client to detect server restarts (soft reload)
-const APP_VER = require('./package.json').version;
+const APP_VER = require('../package.json').version;
 
 app.use('/api', apiLimiter);
 
