@@ -134,3 +134,30 @@ body.light .cli-card { background: #fff; border-color: #d0d4e4; box-shadow: 0 1p
 .truncate { max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .empty-state { text-align: center; padding: 48px 20px; color: var(--muted); }
 .empty-state .icon { font-size: 48px; margin-bottom: 12px; opacity: .4; }
+
+/* ── Responsive: Tablet (≤768px) ── */
+@media (max-width: 768px) {
+  .stats-row { grid-template-columns: repeat(2, 1fr); }
+  .form-grid { grid-template-columns: 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+  .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .tbl { min-width: 600px; }
+  .modal { max-width: 95vw; margin: 8px; }
+  .filters { flex-direction: column; align-items: stretch; }
+  .filters input, .filters select { min-width: 0; width: 100%; }
+  .page-header { flex-direction: column; align-items: flex-start !important; gap: 10px; }
+  .page-header .flex { width: 100%; }
+}
+
+/* ── Responsive: Móvil (≤480px) ── */
+@media (max-width: 480px) {
+  .stats-row { grid-template-columns: 1fr 1fr; gap: 8px; }
+  .stat-card { padding: 14px; }
+  .stat-value { font-size: 22px; }
+  .modal-overlay { padding: 0; }
+  .modal { max-width: 100vw; max-height: 100dvh; margin: 0; border-radius: 0; }
+  .tbl { min-width: 500px; font-size: 13px; }
+  .tbl th, .tbl td { padding: 8px; }
+  .btn { padding: 10px 16px; font-size: 13px; }
+  .btn-sm { padding: 8px 12px; font-size: 12px; }
+}

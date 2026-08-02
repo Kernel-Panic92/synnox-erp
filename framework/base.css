@@ -159,7 +159,7 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
-  .sidebar { transform: translateX(-100%); }
+  .sidebar { transform: translateX(-100%); width: 260px; }
   .sidebar.open { transform: translateX(0); }
   .hamburger { display: inline-flex; }
   .sidebar-overlay { display: none; }
@@ -169,9 +169,16 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
   .modal { max-width: 100%; border-radius: 12px; margin: 10px; }
   .main-body { padding: 16px; }
   .main-header { padding: 12px 16px; }
+  .sidebar .logo span { font-size: 16px; }
+  .sidebar .nav-item { padding: 10px 16px; font-size: 13px; }
+  .sidebar .sidebar-footer { padding: 12px; }
 }
 @media (max-width: 480px) {
   .login-card { padding: 24px; margin: 16px; border-radius: 12px; }
+  .sidebar { width: 240px; }
+  .main-body { padding: 12px; }
+  .main-header { padding: 10px 12px; }
+  .main-header h2 { font-size: 16px; }
 }
 
 /* ── Error Splash ── */
