@@ -1283,7 +1283,7 @@ function getCentrosCache() {
   globalThis.__centrosCache = _centrosCache;
   return _centrosCache;
 }
-function invalidateCentrosCache() { _centrosCache = null; _centrosCacheTs = 0; }
+function invalidateCentrosCache() { _centrosCache = null; _centrosCacheTs = 0; globalThis.__centrosCache = null; }
 
 // Pública: módulos remotos consumen centros activos (con caché)
 app.get('/api/centros', publicLimiter, (req, res) => {
