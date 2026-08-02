@@ -79,7 +79,7 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
 .sidebar .sidebar-footer .user-role { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── Sidebar collapsed ── */
-.sidebar.collapsed { width: 68px; }
+.sidebar.collapsed { width: 68px; overflow: hidden; }
 .sidebar.collapsed .sidebar-toggle { transform: rotate(180deg); }
 .sidebar.collapsed .logo span,
 .sidebar.collapsed .user-info,
@@ -88,11 +88,11 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
 .sidebar.collapsed .sidebar-footer .version,
 .sidebar.collapsed .sidebar-footer .user-name,
 .sidebar.collapsed .sidebar-footer .user-role,
-.sidebar.collapsed .sidebar-section-title { display: none; }
+.sidebar.collapsed .sidebar-section-title { display: none !important; }
 .sidebar.collapsed .logo { justify-content: center; padding: 20px 0; }
-.sidebar.collapsed nav .nav-item { justify-content: center; padding: 12px 0; gap: 0; }
+.sidebar.collapsed nav .nav-item { justify-content: center; padding: 12px 0; gap: 0; min-width: 0; }
 .sidebar.collapsed nav .nav-item .icon { font-size: 20px; width: auto; }
-.sidebar.collapsed nav .nav-item span:not(.icon) { display: none; }
+.sidebar.collapsed nav .nav-item span:not(.icon) { display: none !important; visibility: hidden !important; width: 0 !important; overflow: hidden !important; }
 .sidebar.collapsed .sidebar-footer .btn-logout { justify-content: center; }
 .sidebar.collapsed .sidebar-footer .sidebar-home { justify-content: center; }
 .sidebar.collapsed ~ .main { margin-left: 68px; }
