@@ -1,6 +1,58 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (1 Ago 2026 — sesión 30)
+## Estado (2 Ago 2026 — sesión 31)
+
+### Cambios Sesión 31 — Geocercas, mapa, centros, Acerca de
+
+#### Selección múltiple y edición en lote de geocercas
+- **Backend**: `PUT /api/geocercas/batch` (color, activa, tipo) + `DELETE /api/geocercas/batch`
+- **Frontend**: Checkboxes en tabla con toggle all, barra de acciones en lote
+- **Modal edición lote**: Color picker, select tipo, select activa — aplica a N geocercas seleccionadas
+- **Eliminación en lote**: confirmModal + DELETE batch con conteo
+
+#### Popups de mapa con más info + Street View
+- **Backend**: Endpoint `/rutas/mapa/datos` ahora envía `telefono` y `email` de sedes
+- **Sedes**: Popup muestra nombre, dirección, ciudad, teléfono, email + botón 🗺️ Street View
+- **Geocercas**: Popup muestra nombre, color (dot visual), tipo, radio, fuente + botón 🗺️ Street View
+- **Street View**: Link a `google.com/maps?q=&layer=c&cbll={lat},{lng}`
+
+#### Fix invalidación de caché de centros
+- **Bug**: `invalidateCentrosCache()` no limpiaba `globalThis.__centrosCache`
+- **Fix**: Agregado `globalThis.__centrosCache = null;` a la función de invalidación
+- **Efecto**: Al renombrar un centro, los módulos ahora ven el nombre nuevo correctamente
+
+#### loadCentros() en framework + unificar sidebar
+- **Framework**: Nueva función `loadCentros()` — lee de `GET /api/centros`, cachea en `HF.centros`
+- **Sincronizado** a copias de logística y proyectos
+- **Nómina/proveedores**: `loadCentros()` agregado a app.js (no usan framework.js)
+- **Sidebar unificado**: Todos los módulos muestran "Centros de operación" 🏢 (antes: "Sedes", "Centros de Op.", "Centros")
+- **Documentación**: `framework/README.md` actualizado con convención
+
+#### Página "Acerca de" en Admin
+- **Backend**: `GET /api/admin/system-info` — info dinámica del sistema (try-catch por sección)
+- **Frontend**: Pestaña "ℹ️ Acerca de" en Admin → Sistema
+- **Contenido**: Versión app, Node.js, OS, PostgreSQL, SQLite, empresa, git, módulos, copyright, licencia
+- **Dinámico**: Todo se carga desde endpoints en tiempo real
+
+#### Fix launcher versión
+- Antes: `require('./package.json')` → `require('../package.json')`
+- Ahora lee root `package.json` (versión `1.1.0`) consistente con todos los módulos
+
+#### Archivos modificados
+- `modules/logistica/backend/routes/geocercas.js` — +2 endpoints batch
+- `modules/logistica/public/app.js` — checkboxes, selección, edición lote, popups mejorados
+- `modules/logistica/public/index.html` — barra acciones lote, modal edición lote, sidebar rename
+- `modules/logistica/backend/routes/rutas.js` — +telefono/email en sedes del mapa
+- `modules/logistica/public/framework.js` — +loadCentros(), +HF.centros
+- `modules/nomina/public/js/app.js` — +loadCentros(), sidebar rename
+- `modules/nomina/public/index.html` — sidebar rename
+- `modules/proveedores/public/app.js` — +loadCentros(), sidebar rename + icono 🏢
+- `modules/proyectos/public/framework.js` — +loadCentros(), +HF.centros
+- `framework/framework.js` — +loadCentros(), +HF.centros
+- `framework/README.md` — convención loadCentros()
+- `launcher/server.js` — fix centros cache, system-info endpoint, system-info fixes
+- `launcher/shell/app.js` — +loadAcercaDe()
+- `launcher/shell/index.html` — +nav item Acerca de, +tab content
 
 ### Cambios Sesión 30 — Dashboard, badges semáforo, tema global, datos frescos
 
