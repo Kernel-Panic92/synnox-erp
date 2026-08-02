@@ -2058,7 +2058,13 @@ async function cargarMapa() {
           iconAnchor: [14, 14]
         })
       }).addTo(mapInstance);
-      marker.bindPopup(`<b>${esc(s.nombre)}</b>${s.centro_operacion ? '<br>Centro: ' + esc(s.centro_operacion) : ''}${s.ciudad ? '<br>📍 ' + esc(s.ciudad) : ''}${s.direccion ? '<br>🏠 ' + esc(s.direccion) : ''}`);
+      marker.bindPopup(`<div style="min-width:180px"><b style="font-size:14px">${esc(s.nombre)}</b>
+        ${s.direccion ? '<br><span style="color:var(--muted)">🏠 ' + esc(s.direccion) + '</span>' : ''}
+        ${s.ciudad ? '<br><span style="color:var(--muted)">📍 ' + esc(s.ciudad) + '</span>' : ''}
+        ${s.telefono ? '<br>📞 ' + esc(s.telefono) : ''}
+        ${s.email ? '<br>✉️ ' + esc(s.email) : ''}
+        <br><a href="https://www.google.com/maps?q=&layer=c&cbll=${s.latitud},${s.longitud}" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;padding:4px 10px;background:var(--accent);color:#fff;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;">🗺️ Street View</a>
+      </div>`);
       mapLayers.sedes.push(marker);
     }
 
@@ -3361,7 +3367,12 @@ async function cargarYDibujarGeocercas(mapInstance) {
           iconAnchor: [13, 13]
         })
       }).addTo(layer);
-      marker.bindPopup(`<b>📍 ${esc(g.nombre)}</b><br>Tipo: ${g.tipo}${g.radio ? '<br>Radio: ' + parseFloat(g.radio).toFixed(0) + 'm' : ''}<br>Fuente: ${g.fuente}`);
+      marker.bindPopup(`<div style="min-width:180px"><b style="font-size:14px">📍 ${esc(g.nombre)}</b>
+        <br><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${g.color};margin-right:4px;vertical-align:middle;"></span>${g.tipo}
+        ${g.radio ? '<br>Radio: ' + parseFloat(g.radio).toFixed(0) + ' m' : ''}
+        <br>Fuente: ${esc(g.fuente)}
+        ${g.latitud && g.longitud ? '<br><a href="https://www.google.com/maps?q=&layer=c&cbll=' + g.latitud + ',' + g.longitud + '" target="_blank" rel="noopener" style="display:inline-block;margin-top:6px;padding:4px 10px;background:var(--accent);color:#fff;border-radius:6px;font-size:12px;font-weight:600;text-decoration:none;">🗺️ Street View</a>' : ''}
+      </div>`);
       layer.addTo(mapInstance);
       mapInstance._geocercasLayer = layer;
     }

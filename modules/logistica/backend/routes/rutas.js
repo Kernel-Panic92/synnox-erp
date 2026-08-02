@@ -311,7 +311,7 @@ router.get('/mapa/datos', async (req, res) => {
 
     const sedes = (globalThis.__centrosCache || [])
       .filter(c => c.latitud && c.longitud)
-      .map(c => ({ id: c.id, nombre: c.nombre, ciudad: c.ciudad, direccion: c.direccion, latitud: c.latitud, longitud: c.longitud }));
+      .map(c => ({ id: c.id, nombre: c.nombre, ciudad: c.ciudad, direccion: c.direccion, telefono: c.telefono, email: c.email, latitud: c.latitud, longitud: c.longitud }));
 
     res.json({
       exitosa: true,
