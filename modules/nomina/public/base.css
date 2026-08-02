@@ -79,8 +79,8 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
 .sidebar .sidebar-footer .user-role { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ── Sidebar collapsed ── */
-.sidebar.collapsed { width: 68px; overflow: hidden; }
-.sidebar.collapsed .sidebar-toggle { transform: rotate(180deg); }
+.sidebar.collapsed { width: 68px; }
+.sidebar.collapsed .sidebar-toggle { transform: rotate(180deg); right: 18px; top: 16px; }
 .sidebar.collapsed .logo span,
 .sidebar.collapsed .user-info,
 .sidebar.collapsed .sidebar-footer .btn-logout span:last-child,
@@ -90,7 +90,7 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
 .sidebar.collapsed .sidebar-footer .user-role,
 .sidebar.collapsed .sidebar-section-title { display: none !important; }
 .sidebar.collapsed .logo { justify-content: center; padding: 20px 0; }
-.sidebar.collapsed nav .nav-item { justify-content: center; padding: 12px 0; gap: 0; min-width: 0; }
+.sidebar.collapsed nav .nav-item { justify-content: center; padding: 12px 0; gap: 0; min-width: 0; border-left: none; }
 .sidebar.collapsed nav .nav-item .icon { font-size: 20px; width: auto; }
 .sidebar.collapsed nav .nav-item span:not(.icon) { display: none !important; visibility: hidden !important; width: 0 !important; overflow: hidden !important; }
 .sidebar.collapsed .sidebar-footer .btn-logout { justify-content: center; }
