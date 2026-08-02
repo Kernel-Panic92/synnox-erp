@@ -2648,9 +2648,15 @@ app.get('/api/admin/system-info', verificarToken, soloAdmin, async (req, res) =>
   try { const p = require('../package.json'); appInfo = { name: p.name || 'synnoxerp', version: p.version || '?', description: p.description || '' }; } catch {}
   let serverInfo = { node: process.version, platform: osMod.platform(), arch: osMod.arch(), hostname: osMod.hostname(), port: process.env.PORT || 3002, env: process.env.NODE_ENV || 'development' };
   let pgVersion = null;
-  try { const r = await pool.query('SELECT version()'); pgVersion = r.rows[0]?.version?.split(',')[0] || null; } catch {}
+  try {
+    const { Pool } = require('pg');
+    const pgPool = new Pool({ host: process.env.DB_HOST || 'localhost', port: parseInt(process.env.DB_PORT) || 5432, database: process.env.DB_NAME || 'synnox_erp', user: process.env.DB_USER || 'synnox', password: process.env.DB_PASSWORD || '', ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false, connectionTimeoutMillis: 3000 });
+    const r = await pgPool.query('SELECT version()');
+    pgVersion = r.rows[0]?.version?.split(',')[0] || null;
+    await pgPool.end();
+  } catch {}
   let sqliteVersion = '?';
-  try { const p = require('../../modules/proyectos/package.json'); sqliteVersion = p.dependencies?.['better-sqlite3'] || '?'; } catch {}
+  try { sqliteVersion = require('better-sqlite3/package.json').version || '?'; } catch {}
   let gitInfo = null;
   try {
     const { stdout: branch } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { timeout: 3000 });
