@@ -3001,6 +3001,7 @@ let _geoPoligonoCoords = [];
 let _geoPoligonoLayer = null;
 let _geoPreviewMapa = null;
 let _geocercasCache = [];
+let _geoSeleccionadas = new Set();
 
 async function cargarGeocercas() {
   const q = document.getElementById('filtro-geocercas-q')?.value || '';
@@ -3032,11 +3033,15 @@ function renderGeocercasStats(geocercas) {
 }
 
 function renderGeocercasTabla(geocercas) {
+  _geoSeleccionadas.clear();
+  actualizarBtnGeo();
   const el = document.getElementById('geocercas-table');
   if (!geocercas.length) { el.innerHTML = '<div class="empty-state"><div class="icon">📍</div><p>No hay geocercas</p></div>'; return; }
   el.innerHTML = `<div class="tbl-wrap"><table class="tbl"><thead><tr>
+    <th style="width:40px"><input type="checkbox" onchange="toggleAllGeo(this.checked)"></th>
     <th>Nombre</th><th>Tipo</th><th>Centro</th><th>Radio</th><th>Fuente</th><th>Activa</th><th>Alertas</th><th>Acciones</th>
   </tr></thead><tbody>${geocercas.map(g => `<tr style="cursor:pointer" onclick="abrirModalGeocerca(${g.id})">
+    <td onclick="event.stopPropagation()"><input type="checkbox" class="cb-geo" value="${g.id}" onchange="toggleGeoSeleccion(${g.id}, this.checked)"></td>
     <td><strong>${esc(g.nombre)}</strong></td>
     <td><span class="badge ${g.tipo === 'circular' ? 'badge-info' : 'badge-warning'}">${g.tipo}</span></td>
     <td>${g.latitud && g.longitud ? `${parseFloat(g.latitud).toFixed(5)}, ${parseFloat(g.longitud).toFixed(5)}` : '—'}</td>
@@ -3050,6 +3055,35 @@ function renderGeocercasTabla(geocercas) {
       <button class="btn-icon-danger" onclick="eliminarGeocerca(${g.id})" title="Eliminar">✕</button>
     </td>
   </tr>`).join('')}</tbody></table></div>`;
+}
+
+function toggleAllGeo(checked) {
+  document.querySelectorAll('.cb-geo').forEach(cb => {
+    cb.checked = checked;
+    const id = parseInt(cb.value);
+    if (checked) _geoSeleccionadas.add(id); else _geoSeleccionadas.delete(id);
+  });
+  actualizarBtnGeo();
+}
+
+function toggleGeoSeleccion(id, checked) {
+  if (checked) _geoSeleccionadas.add(id); else _geoSeleccionadas.delete(id);
+  const all = document.querySelectorAll('.cb-geo');
+  const headerCb = document.querySelector('.tbl thead input[type="checkbox"]');
+  if (headerCb) headerCb.checked = all.length > 0 && _geoSeleccionadas.size === all.length;
+  actualizarBtnGeo();
+}
+
+function actualizarBtnGeo() {
+  const bar = document.getElementById('geocercas-bulk-actions');
+  const count = document.getElementById('geocercas-seleccion-count');
+  if (!bar) return;
+  if (_geoSeleccionadas.size > 0) {
+    bar.style.display = 'flex';
+    count.textContent = `☑ ${_geoSeleccionadas.size} seleccionada${_geoSeleccionadas.size > 1 ? 's' : ''}`;
+  } else {
+    bar.style.display = 'none';
+  }
 }
 
 function toggleGeoTipo() {
@@ -3206,6 +3240,45 @@ async function eliminarGeocerca(id) {
   try {
     await api('/geocercas/' + id, { method: 'DELETE' });
     toast('Geocerca eliminada', 'success');
+    cargarGeocercas();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+function abrirModalEdicionLote() {
+  if (!_geoSeleccionadas.size) return;
+  document.getElementById('geo-lote-count').textContent = `${_geoSeleccionadas.size} geocerca${_geoSeleccionadas.size > 1 ? 's' : ''} seleccionada${_geoSeleccionadas.size > 1 ? 's' : ''}`;
+  document.getElementById('geo-lote-color').value = '#3388ff';
+  document.getElementById('geo-lote-tipo').value = '';
+  document.getElementById('geo-lote-activa').value = '';
+  document.getElementById('modal-geo-lote').classList.add('show');
+}
+
+async function aplicarEdicionLote() {
+  const updates = {};
+  const color = document.getElementById('geo-lote-color').value;
+  const tipo = document.getElementById('geo-lote-tipo').value;
+  const activa = document.getElementById('geo-lote-activa').value;
+  if (color) updates.color = color;
+  if (tipo) updates.tipo = tipo;
+  if (activa) updates.activa = activa === 'true';
+  if (Object.keys(updates).length === 0) { toast('Selecciona al menos un campo para actualizar', 'warning'); return; }
+  try {
+    const ids = [..._geoSeleccionadas];
+    const data = await api('/geocercas/batch', { method: 'PUT', body: JSON.stringify({ ids, updates }) });
+    toast(`${data.actualizadas} geocerca${data.actualizadas > 1 ? 's' : ''} actualizada${data.actualizadas > 1 ? 's' : ''}`, 'success');
+    document.getElementById('modal-geo-lote').classList.remove('show');
+    cargarGeocercas();
+  } catch (e) { toast(e.message, 'error'); }
+}
+
+async function eliminarGeocercasSeleccionadas() {
+  if (!_geoSeleccionadas.size) return;
+  const ok = await confirmModal(`¿Eliminar ${_geoSeleccionadas.size} geocerca${_geoSeleccionadas.size > 1 ? 's' : ''}? Se borrarán también sus alertas.`, 'Eliminar selección', 'delete');
+  if (!ok) return;
+  try {
+    const ids = [..._geoSeleccionadas];
+    const data = await api('/geocercas/batch', { method: 'DELETE', body: JSON.stringify({ ids }) });
+    toast(`${data.eliminadas} geocerca${data.eliminadas > 1 ? 's' : ''} eliminada${data.eliminadas > 1 ? 's' : ''}`, 'success');
     cargarGeocercas();
   } catch (e) { toast(e.message, 'error'); }
 }

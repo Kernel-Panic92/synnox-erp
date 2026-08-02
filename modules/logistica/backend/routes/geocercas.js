@@ -45,6 +45,46 @@ router.post('/', async (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── Batch update (color, activa, tipo) ──
+router.put('/batch', async (req, res) => {
+  try {
+    const { ids, updates } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids requerido (array)' });
+    if (!updates || typeof updates !== 'object') return res.status(400).json({ error: 'updates requerido' });
+    const allowed = ['color', 'activa', 'tipo'];
+    const sets = [];
+    const params = [];
+    let idx = 1;
+    for (const [key, val] of Object.entries(updates)) {
+      if (!allowed.includes(key)) continue;
+      sets.push(`${key} = $${idx++}`);
+      params.push(val);
+    }
+    if (sets.length === 0) return res.status(400).json({ error: 'Sin campos válidos para actualizar' });
+    sets.push(`updated_at = CURRENT_TIMESTAMP`);
+    const placeholders = ids.map((_, i) => `$${idx + i}`).join(',');
+    params.push(...ids);
+    const result = await pool.query(
+      `UPDATE logistics.geocercas SET ${sets.join(', ')} WHERE id IN (${placeholders}) RETURNING id, nombre, color, activa, tipo`,
+      params
+    );
+    res.json({ ok: true, actualizadas: result.rowCount, geocercas: result.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ── Batch delete ──
+router.delete('/batch', async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids || !Array.isArray(ids) || ids.length === 0) return res.status(400).json({ error: 'ids requerido (array)' });
+    const result = await pool.query(
+      `DELETE FROM logistics.geocercas WHERE id = ANY($1::int[]) RETURNING id`,
+      [ids]
+    );
+    res.json({ ok: true, eliminadas: result.rowCount });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 router.put('/:id', async (req, res) => {
   try {
     const { nombre, tipo, latitud, longitud, radio, poligono, color, activa } = req.body;

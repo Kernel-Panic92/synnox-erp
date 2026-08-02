@@ -600,6 +600,12 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
             <option value="false">Inactivas</option>
           </select>
         </div>
+        <div id="geocercas-bulk-actions" class="flex gap-sm mb-12" style="display:none;align-items:center;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
+          <span id="geocercas-seleccion-count" style="font-size:13px;font-weight:600;"></span>
+          <div style="flex:1"></div>
+          <button class="btn btn-sm btn-secondary" onclick="abrirModalEdicionLote()">🎨 Editar selección</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarGeocercasSeleccionadas()">🗑️ Eliminar</button>
+        </div>
         <div id="geocercas-stats" class="stats-row" style="margin-bottom:16px;"></div>
         <div id="geocercas-table"></div>
       </div>
@@ -688,6 +694,35 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
     <div class="modal-actions">
       <button class="btn btn-secondary" onclick="document.getElementById('modal-geocerca').classList.remove('show')">Cancelar</button>
       <button class="btn btn-primary" id="btn-geo-guardar" onclick="guardarGeocerca()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Edición en Lote -->
+<div class="modal-overlay" id="modal-geo-lote" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal" style="max-width:420px;">
+    <h3>Editar selección</h3>
+    <p class="modal-desc" id="geo-lote-count"></p>
+    <div style="display:flex;flex-direction:column;gap:14px;">
+      <div><label style="font-size:13px;color:var(--muted);display:block;margin-bottom:4px;">Color</label><input type="color" id="geo-lote-color" value="#3388ff" style="height:42px;padding:4px;width:100%;"></div>
+      <div><label style="font-size:13px;color:var(--muted);display:block;margin-bottom:4px;">Tipo</label>
+        <select id="geo-lote-tipo" style="width:100%;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;">
+          <option value="">No cambiar</option>
+          <option value="circular">Circular</option>
+          <option value="poligono">Polígono</option>
+        </select>
+      </div>
+      <div><label style="font-size:13px;color:var(--muted);display:block;margin-bottom:4px;">Activa</label>
+        <select id="geo-lote-activa" style="width:100%;padding:8px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;">
+          <option value="">No cambiar</option>
+          <option value="true">Sí</option>
+          <option value="false">No</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-geo-lote').classList.remove('show')">Cancelar</button>
+      <button class="btn btn-primary" onclick="aplicarEdicionLote()">Aplicar</button>
     </div>
   </div>
 </div>
