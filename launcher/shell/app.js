@@ -1720,7 +1720,68 @@ function showAdminTab(tab) {
    else if (tab === 'actualizar') { loadUpdaterStatus(); loadUpdaterLogs(); }
     else if (tab === 'mcp-modules') { loadMcpModulesStatus(); }
     else if (tab === 'respaldo') { document.getElementById('import-result').style.display = 'none'; }
+    else if (tab === 'acerca-de') loadAcercaDe();
 
+}
+
+async function loadAcercaDe() {
+  const el = document.getElementById('acerca-de-content');
+  el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">Cargando...</div>';
+  try {
+    const res = await fetch('/api/admin/system-info', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const d = await res.json();
+    const modHtml = (d.modules || []).map(m => `<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--surface2);border-radius:8px;"><span>${m.icono || '📦'}</span><span style="font-weight:600">${esc(m.nombre)}</span><span class="badge ${m.estado === 'online' ? 'badge-success' : 'badge-danger'}" style="margin-left:auto;font-size:11px">${m.estado || 'offline'}</span></div>`).join('');
+    el.innerHTML = `
+      <div style="max-width:800px;margin:0 auto;">
+        <div style="text-align:center;margin-bottom:32px;">
+          <div style="font-size:48px;margin-bottom:8px;">⚙️</div>
+          <div style="font-size:24px;font-weight:800;font-family:var(--font-head);">SynnoxERP</div>
+          <div style="color:var(--muted);font-size:14px;margin-top:4px;">Plataforma de orquestación de módulos ERP</div>
+          <div style="margin-top:8px;"><span class="badge badge-info" style="font-size:14px;padding:6px 16px;">v${esc(d.app?.version || '?')}</span></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px;">
+          <div class="table-wrap" style="padding:20px;">
+            <div style="font-weight:700;font-size:14px;margin-bottom:12px;">🖥️ Servidor</div>
+            <div style="font-size:13px;color:var(--muted);line-height:2;">
+              <div><strong>Plataforma:</strong> ${esc(d.server?.platform || '?')} ${esc(d.server?.arch || '')}</div>
+              <div><strong>Hostname:</strong> ${esc(d.server?.hostname || '?')}</div>
+              <div><strong>Node.js:</strong> ${esc(d.server?.node || '?')}</div>
+              <div><strong>Puerto:</strong> ${esc(d.server?.port || '?')}</div>
+              <div><strong>Entorno:</strong> ${esc(d.server?.env || '?')}</div>
+            </div>
+          </div>
+          <div class="table-wrap" style="padding:20px;">
+            <div style="font-weight:700;font-size:14px;margin-bottom:12px;">🗄️ Base de Datos</div>
+            <div style="font-size:13px;color:var(--muted);line-height:2;">
+              <div><strong>PostgreSQL:</strong> ${esc(d.database?.postgresql || 'No disponible')}</div>
+              <div><strong>SQLite:</strong> ${esc(d.database?.sqlite || '?')}</div>
+              <div><strong>Engine:</strong> PostgreSQL + SQLite (híbrido)</div>
+            </div>
+          </div>
+          <div class="table-wrap" style="padding:20px;">
+            <div style="font-weight:700;font-size:14px;margin-bottom:12px;">🏢 Empresa</div>
+            <div style="font-size:13px;color:var(--muted);line-height:2;">
+              <div><strong>Nombre:</strong> ${esc(d.company?.name || 'No configurado')}</div>
+              <div><strong>Dominio:</strong> ${esc(d.company?.domain || 'No configurado')}</div>
+            </div>
+          </div>
+          <div class="table-wrap" style="padding:20px;">
+            <div style="font-weight:700;font-size:14px;margin-bottom:12px;">🔀 Git</div>
+            <div style="font-size:13px;color:var(--muted);line-height:2;">
+              <div><strong>Rama:</strong> ${esc(d.git?.branch || 'No disponible')}</div>
+              <div><strong>Commit:</strong> ${esc(d.git?.commit || '?')}</div>
+            </div>
+          </div>
+        </div>
+        ${modHtml ? `<div class="table-wrap" style="padding:20px;margin-bottom:20px;"><div style="font-weight:700;font-size:14px;margin-bottom:12px;">📦 Módulos Instalados</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;">${modHtml}</div></div>` : ''}
+        <div style="text-align:center;padding:20px;font-size:12px;color:var(--muted);border-top:1px solid var(--border);">
+          <div>${esc(d.copyright || '')}</div>
+          <div style="margin-top:4px;">${esc(d.license || '')}</div>
+        </div>
+      </div>`;
+  } catch (e) {
+    el.innerHTML = `<div style="text-align:center;padding:40px;color:var(--danger);">Error al cargar: ${esc(e.message)}</div>`;
+  }
 }
 
 

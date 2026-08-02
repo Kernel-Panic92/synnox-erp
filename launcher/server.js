@@ -2641,6 +2641,36 @@ app.get('/api/admin/server/stats', verificarToken, soloAdmin, async (req, res) =
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// ── System Info (About) ──
+app.get('/api/admin/system-info', verificarToken, soloAdmin, async (req, res) => {
+  try {
+    const osMod = require('os');
+    const pkg = require('../package.json');
+    let pgVersion = null;
+    try {
+      const r = await pool.query('SELECT version()');
+      pgVersion = r.rows[0]?.version?.split(',')[0] || null;
+    } catch {}
+    let gitInfo = null;
+    try {
+      const { stdout: branch } = await execFileAsync('git', ['rev-parse', '--abbrev-ref', 'HEAD'], { timeout: 3000 });
+      const { stdout: commit } = await execFileAsync('git', ['rev-parse', '--short', 'HEAD'], { timeout: 3000 });
+      gitInfo = { branch: branch.trim(), commit: commit.trim() };
+    } catch {}
+    const modulos = db.prepare('SELECT id, nombre, icono, estado FROM modulos_plataforma ORDER BY orden').all();
+    res.json({
+      app: { name: pkg.name || 'synnoxerp', version: pkg.version || '1.0.0', description: pkg.description || '' },
+      server: { node: process.version, platform: osMod.platform(), arch: osMod.arch(), hostname: osMod.hostname(), port: process.env.PORT || 3002, env: process.env.NODE_ENV || 'development' },
+      database: { postgresql: pgVersion, sqlite: 'better-sqlite3 ' + (require('../../modules/proyectos/package.json').dependencies?.['better-sqlite3'] || '^11.0.0') },
+      company: { name: process.env.COMPANY_NAME || '', domain: process.env.COMPANY_DOMAIN || '' },
+      git: gitInfo,
+      modules: modulos,
+      copyright: '© 2026 Edgar Velasquez — Todos los derechos reservados',
+      license: 'Propietaria (LICENSE.md)'
+    });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // ── Export / Import ──
 app.get('/api/admin/export', verificarToken, soloAdmin, (req, res) => {
   try {

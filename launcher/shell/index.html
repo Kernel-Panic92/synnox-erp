@@ -408,6 +408,7 @@
         <div class="nav-item" data-page="smtp" onclick="showAdminTab('smtp')"><span class="icon">📧</span> SMTP</div>
         <div class="nav-item" data-page="email-notif" onclick="showAdminTab('email-notif')"><span class="icon">🔔</span> Notificaciones</div>
         <div class="nav-item" data-page="mapas" onclick="showAdminTab('mapas')"><span class="icon">🗺️</span> Mapas</div>
+        <div class="nav-item" data-page="acerca-de" onclick="showAdminTab('acerca-de')"><span class="icon">ℹ️</span> Acerca de</div>
       </div>
       <div class="sidebar-section">
         <div class="sidebar-section-title">Operaciones</div>
@@ -774,6 +775,11 @@
         <button class="btn btn-danger" onclick="restaurarGeneral()" style="width:100%;justify-content:center;padding:13px;">♻️ Restaurar backup general</button>
         <div id="restore-general-msg" style="margin-top:14px;"></div>
       </div>
+    </div>
+  </div>
+  <div class="tab-content" id="tab-acerca-de">
+    <div id="acerca-de-content" style="padding:20px;">
+      <div style="text-align:center;padding:40px;color:var(--muted);">Cargando información del sistema...</div>
     </div>
   </div>
 </div>
