@@ -13,7 +13,7 @@ const NAV=[
   {id:'porpagar',l:'Por Pagar',i:'💳',s:'f',perm:'pagar'},
   {id:'causacion',l:'Causación',i:'📥',s:'f',perm:'causar'},
   {id:'categorias',l:'Categorías',i:'🏷️',s:'c',perm:'editar'},
-  {id:'centros',l:'Centros',i:'🗺️',s:'c',perm:'ver'},
+  {id:'centros',l:'Centros de operación',i:'🏢',s:'c',perm:'ver'},
   {id:'configuracion',l:'Configuración',i:'⚙️',s:'c',perm:'configurar'},
   {id:'backup',l:'Backup',i:'💾',s:'c',perm:'configurar'},
   {id:'audit',l:'Auditoría',i:'🔒',s:'c',perm:'auditar'}
@@ -74,6 +74,16 @@ window.addEventListener('popstate',()=>{
 });
 
 // ─── CENTROS DE OPERACIÓN (sincronizados desde Launcher) ───────────────────
+let _centrosCache = [];
+async function loadCentros() {
+  if (_centrosCache.length) return _centrosCache;
+  try {
+    const centros = await api('GET', '/centros');
+    _centrosCache = centros || [];
+  } catch {}
+  return _centrosCache;
+}
+
 async function rCentros(){
   const centros=await api('GET','/centros');
   $('content').innerHTML=`

@@ -5,6 +5,16 @@ function paginaSegura(hash) {
   return PAGINAS_VALIDAS.includes(hash) ? hash : 'dashboard';
 }
 
+let _centrosCache = [];
+async function loadCentros() {
+  if (_centrosCache.length) return _centrosCache;
+  try {
+    const res = await GET('/api/centros');
+    if (res.ok) _centrosCache = await res.json();
+  } catch {}
+  return _centrosCache;
+}
+
 // Theme Management
 function aplicarTema() {
   const saved = localStorage.getItem('synnox_theme') || 'dark';

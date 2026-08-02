@@ -375,7 +375,7 @@ pm2 save
 - Versión: SIEMPRE de root `package.json`, NO del módulo
 - Sidebar: SIEMPRE `base.css` + `framework.js`, NO CSS inline
 - Theme: SIEMPRE `synnox_theme`, NO key propia del módulo
-- **Sedes/Centros**: Fetch desde `GET /api/centros` del launcher (caché 30s). NO crear tablas locales de centros. Launcher es fuente única de verdad.
+- **Sedes/Centros**: Usar `loadCentros()` del framework (lee de `GET /api/centros`, caché en `HF.centros`). NO crear tablas locales de centros. Launcher es fuente única de verdad. Nombre en sidebar: SIEMPRE "Centros de operación" con icono 🏢.
 - **Logout**: Usar `window.location.href = '/logout'` (server-side cookie clearing). NO usar `document.cookie` (httpOnly).
 - **Filtros**: Usar `.table-filters` + `initTableFilters()` del framework. Ver CSS en `base.css`.
 - **Modales**: Usar `abrirModal(titulo, desc, body, actions)` y `cerrarModal()` del framework.

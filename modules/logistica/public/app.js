@@ -111,7 +111,7 @@ function renderSidebar(usuario) {
     { page: 'vehiculos', icon: '🚛', label: 'Vehículos', show: true },
     { page: 'pedidos', icon: '📦', label: 'Pedidos', show: true },
     { page: 'clientes', icon: '👤', label: 'Clientes', show: true },
-    { page: 'sedes', icon: '🏢', label: 'Sedes', show: true },
+    { page: 'sedes', icon: '🏢', label: 'Centros de operación', show: true },
     { page: 'rutas', icon: '🗺️', label: 'Rutas', show: true },
     { page: 'reportes', icon: '📈', label: 'Reportes', show: true },
     { page: 'mapa', icon: '🗺️', label: 'Mapa', show: true },

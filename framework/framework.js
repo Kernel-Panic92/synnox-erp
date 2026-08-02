@@ -10,6 +10,7 @@ let HF = {
   THEME_KEY: 'hf_theme',
   themePages: ['dashboard'],
   routeMap: {},
+  centros: [],
 };
 
 // ── Init ──
@@ -66,6 +67,17 @@ async function loadVersion() {
     el.textContent = 'v' + (data.version || '1.0.0');
     window._appVer = 'v' + (data.version || '1.0.0');
   } catch { el.textContent = 'v—'; window._appVer = 'v—'; }
+}
+
+// ── Centros de operación ──
+async function loadCentros() {
+  if (HF.centros.length) return HF.centros;
+  try {
+    const basePath = HF.API.replace(/\/api$/, '');
+    const res = await fetch(basePath + '/api/centros');
+    if (res.ok) HF.centros = await res.json();
+  } catch {}
+  return HF.centros;
 }
 
 // ── Sidebar Home link ──
