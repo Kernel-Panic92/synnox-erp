@@ -333,7 +333,6 @@ db.exec(`
 `);
 db.exec(`
   CREATE TABLE IF NOT EXISTS oauth_tokens (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
     token_id TEXT PRIMARY KEY,
     refresh_token TEXT UNIQUE,
     client_id TEXT NOT NULL REFERENCES oauth_clients(client_id) ON DELETE CASCADE,
