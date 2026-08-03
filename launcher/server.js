@@ -2735,6 +2735,32 @@ app.post('/api/admin/mcp/:id/tools/reset', verificarToken, soloAdmin, (req, res)
   res.json({ ok: true });
 });
 
+// ── MCP OAuth Admin ──
+app.get('/api/admin/mcp-oauth', verificarToken, soloAdmin, (req, res) => {
+  const enabled = db.prepare("SELECT value FROM config WHERE key = 'mcp_oauth_enabled'").get()?.value === 'true';
+  const clients = db.prepare('SELECT client_id, client_name, redirect_uris, created_at FROM oauth_clients ORDER BY created_at DESC').all();
+  const tokenCount = db.prepare('SELECT COUNT(*) as c FROM oauth_tokens WHERE revoked = 0 AND expires_at > ?').get(Date.now()).c;
+  res.json({ enabled, clients, tokenCount });
+});
+
+app.put('/api/admin/mcp-oauth', verificarToken, soloAdmin, (req, res) => {
+  const { enabled } = req.body;
+  db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').run('mcp_oauth_enabled', enabled ? 'true' : 'false');
+  res.json({ ok: true });
+});
+
+app.delete('/api/admin/mcp-oauth/clients/:id', verificarToken, soloAdmin, (req, res) => {
+  db.prepare('DELETE FROM oauth_clients WHERE client_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM oauth_tokens WHERE client_id = ?').run(req.params.id);
+  db.prepare('DELETE FROM oauth_codes WHERE client_id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+app.post('/api/admin/mcp-oauth/revoke-all', verificarToken, soloAdmin, (req, res) => {
+  db.prepare('UPDATE oauth_tokens SET revoked = 1 WHERE revoked = 0').run();
+  res.json({ ok: true });
+});
+
 // ── OAuth guard middleware ──
 function requireOauth(req, res, next) {
   const row = db.prepare("SELECT value FROM config WHERE key = 'mcp_oauth_enabled'").get();

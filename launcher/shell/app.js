@@ -1884,8 +1884,9 @@ function showAdminTab(tab) {
    else if (tab === 'auditoria') loadAuditoria();
    else if (tab === 'actualizar') { loadUpdaterStatus(); loadUpdaterLogs(); }
     else if (tab === 'mcp-modules') { loadMcpModulesStatus(); }
-    else if (tab === 'mcp-logs') { mcpLogsOffset = 0; loadMcpLogs(); loadMcpLogsStats(); }
-    else if (tab === 'respaldo') { document.getElementById('import-result').style.display = 'none'; }
+  else if (tab === 'mcp-logs') { mcpLogsOffset = 0; loadMcpLogs(); loadMcpLogsStats(); }
+  else if (tab === 'mcp-oauth') loadMcpOAuthConfig();
+  else if (tab === 'respaldo') { document.getElementById('import-result').style.display = 'none'; }
     else if (tab === 'acerca-de') loadAcercaDe();
 
 }
@@ -2734,6 +2735,66 @@ async function loadMcpLogsStats() {
 function mcpLogsPage(dir) {
   mcpLogsOffset = Math.max(0, mcpLogsOffset + dir * mcpLogsLimit);
   loadMcpLogs();
+}
+
+// ── MCP OAuth Admin ──
+async function loadMcpOAuthConfig() {
+  try {
+    const res = await fetch('/api/admin/mcp-oauth', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const data = await res.json();
+    document.getElementById('mcp-oauth-enabled').checked = data.enabled;
+    document.getElementById('mcp-oauth-status').innerHTML = data.enabled
+      ? '<span style="color:var(--success);">✅ OAuth habilitado — Los clientes MCP deben autenticarse</span>'
+      : '<span style="color:var(--muted);">⚠️ OAuth deshabilitado — Acceso sin autenticación</span>';
+    document.getElementById('mcp-oauth-token-count').textContent = data.tokenCount + ' tokens activos';
+    const listEl = document.getElementById('mcp-oauth-clients-list');
+    if (!data.clients?.length) {
+      listEl.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:13px;">No hay clientes registrados</div>';
+    } else {
+      listEl.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="border-bottom:1px solid var(--border);"><th style="padding:8px 12px;text-align:left;color:var(--muted);">Cliente</th><th style="padding:8px 12px;text-align:left;color:var(--muted);">Client ID</th><th style="padding:8px 12px;text-align:left;color:var(--muted);">Registrado</th><th style="padding:8px 12px;"></th></tr></thead><tbody>' +
+        data.clients.map(c => `<tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px 12px;font-weight:500;">${esc(c.client_name)}</td>
+          <td style="padding:8px 12px;font-family:monospace;font-size:12px;">${esc(c.client_id.slice(0, 8))}...</td>
+          <td style="padding:8px 12px;color:var(--muted);font-size:12px;">${new Date(c.created_at).toLocaleDateString('es-ES')}</td>
+          <td style="padding:8px 12px;"><button class="btn btn-sm" onclick="revokeMcpClient('${esc(c.client_id)}')" style="color:var(--danger);background:none;border:none;">🗑</button></td>
+        </tr>`).join('') +
+        '</tbody></table>';
+    }
+  } catch (e) { console.error('Error loading MCP OAuth:', e); }
+}
+
+async function saveMcpOAuthEnabled() {
+  const enabled = document.getElementById('mcp-oauth-enabled').checked;
+  try {
+    await fetch('/api/admin/mcp-oauth', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
+      body: JSON.stringify({ enabled })
+    });
+    loadMcpOAuthConfig();
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function revokeMcpClient(clientId) {
+  if (!await confirmModal('¿Revocar este cliente? Se eliminarán sus tokens.', 'Revocar', 'delete')) return;
+  try {
+    await fetch('/api/admin/mcp-oauth/clients/' + encodeURIComponent(clientId), {
+      method: 'DELETE', headers: { 'Authorization': 'Bearer ' + jwtToken }
+    });
+    loadMcpOAuthConfig();
+    toast('Cliente revocado', 'success');
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function revokeAllMcpTokens() {
+  if (!await confirmModal('¿Revocar TODOS los tokens activos? Los clientes deberán re-autenticarse.', 'Revocar todos', 'delete')) return;
+  try {
+    await fetch('/api/admin/mcp-oauth/revoke-all', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + jwtToken }
+    });
+    loadMcpOAuthConfig();
+    toast('Todos los tokens revocados', 'success');
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
 }
 
 // ── Backup general del sistema ──

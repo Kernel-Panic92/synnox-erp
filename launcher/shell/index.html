@@ -452,6 +452,7 @@
         <div class="nav-item" data-page="mcp" onclick="showAdminTab('mcp')"><span class="icon">🤖</span> MCP</div>
         <div class="nav-item" data-page="mcp-modules" onclick="showAdminTab('mcp-modules')"><span class="icon">🔌</span> Servicios MCP</div>
         <div class="nav-item" data-page="mcp-logs" onclick="showAdminTab('mcp-logs')"><span class="icon">📋</span> Logs MCP</div>
+        <div class="nav-item" data-page="mcp-oauth" onclick="showAdminTab('mcp-oauth')"><span class="icon">🔐</span> OAuth MCP</div>
         <div class="nav-item" data-page="smtp" onclick="showAdminTab('smtp')"><span class="icon">📧</span> SMTP</div>
         <div class="nav-item" data-page="oauth" onclick="showAdminTab('oauth')"><span class="icon">🔑</span> OAuth</div>
         <div class="nav-item" data-page="email-notif" onclick="showAdminTab('email-notif')"><span class="icon">🔔</span> Notificaciones</div>
@@ -903,6 +904,42 @@
       <button class="btn btn-sm" id="mcp-logs-prev" onclick="mcpLogsPage(-1)" disabled>← Anterior</button>
       <span style="font-size:13px;color:var(--muted);padding:6px 12px;" id="mcp-logs-page-info">Página 1</span>
       <button class="btn btn-sm" id="mcp-logs-next" onclick="mcpLogsPage(1)">Siguiente →</button>
+    </div>
+  </div>
+  <div class="tab-content" id="tab-mcp-oauth">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
+      <div style="font-size:var(--fs);font-weight:600;">OAuth MCP (para clientes)</div>
+      <span style="font-size:13px;color:var(--muted);">Control de acceso OAuth para MCP</span>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 16px;">
+      Habilita OAuth 2.0 para el endpoint MCP. Los clientes (Claude, Cursor, etc.) deberán autenticarse antes de usar herramientas.
+    </p>
+    <div class="perm-rol-section" style="margin-bottom:20px;">
+      <div class="perm-rol-titulo">Configuración</div>
+      <label style="display:flex;align-items:center;gap:8px;margin-bottom:12px;text-transform:none;letter-spacing:0;font-weight:400;">
+        <input type="checkbox" id="mcp-oauth-enabled" style="width:auto;" onchange="saveMcpOAuthEnabled()"> Habilitar OAuth en MCP
+      </label>
+      <div id="mcp-oauth-status" style="font-size:13px;margin-bottom:12px;"></div>
+    </div>
+    <div class="perm-rol-section" style="margin-bottom:20px;">
+      <div class="perm-rol-titulo" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Clientes registrados</span>
+        <span style="font-size:12px;color:var(--muted);font-weight:400;" id="mcp-oauth-token-count"></span>
+      </div>
+      <div id="mcp-oauth-clients-list"></div>
+      <div style="margin-top:12px;">
+        <button class="btn btn-sm" onclick="revokeAllMcpTokens()" style="background:var(--danger);color:#fff;">🔓 Revocar todos los tokens</button>
+      </div>
+    </div>
+    <div class="perm-rol-section">
+      <div class="perm-rol-titulo">URLs de descubrimiento</div>
+      <div style="font-size:13px;color:var(--muted);line-height:2;">
+        <div><strong>Metadata:</strong> <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;">/.well-known/oauth-authorization-server</code></div>
+        <div><strong>Protected Resource:</strong> <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;">/.well-known/oauth-protected-resource</code></div>
+        <div><strong>Register:</strong> <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;">/mcp/oauth/register</code></div>
+        <div><strong>Authorize:</strong> <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;">/mcp/oauth/authorize</code></div>
+        <div><strong>Token:</strong> <code style="background:var(--surface2);padding:2px 6px;border-radius:4px;">/mcp/oauth/token</code></div>
+      </div>
     </div>
   </div>
   <div class="tab-content" id="tab-respaldo">
