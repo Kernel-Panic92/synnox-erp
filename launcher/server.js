@@ -3077,24 +3077,14 @@ function oauthValidateToken(req, res, next) {
 }
 
 // ── Well-known OAuth metadata (RFC 8414 + RFC 9728) ──
-function getMcpBaseUrl() {
-  const configPath = path.join(INSTALL_DIR, 'config.env');
-  let dominio = COMPANY_DOMAIN;
-  let mcpPort = '9443';
-  try {
-    if (fs.existsSync(configPath)) {
-      const raw = fs.readFileSync(configPath, 'utf8');
-      const dm = raw.match(/^DOMAIN=(.+)$/m);
-      if (dm) dominio = dm[1].trim();
-      const pm = raw.match(/^MCP_PORT=(.+)$/m);
-      if (pm) mcpPort = pm[1].trim();
-    }
-  } catch {}
-  return `https://${dominio}:${mcpPort}`;
+function getMcpBaseUrl(req) {
+  const proto = req?.headers['x-forwarded-proto'] || 'https';
+  const host = req?.headers['x-forwarded-host'] || COMPANY_DOMAIN;
+  return `${proto}://${host}`;
 }
 
 app.get('/.well-known/oauth-authorization-server', requireOauth, (req, res) => {
-  const base = getMcpBaseUrl();
+  const base = getMcpBaseUrl(req);
   res.json({
     issuer: base,
     authorization_endpoint: base + '/mcp/oauth/authorize',
@@ -3109,7 +3099,7 @@ app.get('/.well-known/oauth-authorization-server', requireOauth, (req, res) => {
 });
 
 app.get('/.well-known/oauth-protected-resource', requireOauth, (req, res) => {
-  const base = getMcpBaseUrl();
+  const base = getMcpBaseUrl(req);
   res.json({
     resource: base + '/mcp',
     authorization_servers: [base]
