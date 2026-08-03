@@ -2529,7 +2529,8 @@ const mcpSessions = new Map();
 
 function mcpUrl(mod) {
   const base = mod.url.replace(/\/+$/, '');
-  return base + '/mcp';
+  const prefix = mod.proxy_prefix || `/${mod.id}/`;
+  return base + prefix + 'mcp';
 }
 
 async function ensureMcpSession(mod) {
