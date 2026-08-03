@@ -304,6 +304,99 @@ db.exec(`
 `);
 db.exec("DELETE FROM login_logs WHERE id NOT IN (SELECT id FROM login_logs ORDER BY id DESC LIMIT 500)");
 
+// ── OAuth 2.0 tables (MCP + third-party login) ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS oauth_clients (
+    client_id TEXT PRIMARY KEY,
+    client_secret TEXT NOT NULL,
+    client_name TEXT DEFAULT 'MCP Client',
+    redirect_uris TEXT DEFAULT '[]',
+    grant_types TEXT DEFAULT '["authorization_code","refresh_token"]',
+    response_types TEXT DEFAULT '["code"]',
+    token_endpoint_auth_method TEXT DEFAULT 'none',
+    created_at INTEGER NOT NULL
+  )
+`);
+db.exec(`
+  CREATE TABLE IF NOT EXISTS oauth_codes (
+    code TEXT PRIMARY KEY,
+    client_id TEXT NOT NULL REFERENCES oauth_clients(client_id) ON DELETE CASCADE,
+    redirect_uri TEXT,
+    code_challenge TEXT DEFAULT '',
+    code_challenge_method TEXT DEFAULT '',
+    expires_at INTEGER NOT NULL,
+    used INTEGER DEFAULT 0
+  )
+`);
+db.exec(`
+  CREATE TABLE IF NOT EXISTS oauth_tokens (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    token_id TEXT PRIMARY KEY,
+    refresh_token TEXT UNIQUE,
+    client_id TEXT NOT NULL REFERENCES oauth_clients(client_id) ON DELETE CASCADE,
+    user_id INTEGER,
+    expires_at INTEGER NOT NULL,
+    revoked INTEGER DEFAULT 0,
+    created_at INTEGER NOT NULL
+  )
+`);
+db.exec("CREATE INDEX IF NOT EXISTS idx_oauth_codes_client ON oauth_codes(client_id)");
+db.exec("CREATE INDEX IF NOT EXISTS idx_oauth_tokens_client ON oauth_tokens(client_id)");
+
+// ── OAuth DB helpers ──
+function oauthSaveClient(c) {
+  db.prepare(`INSERT OR REPLACE INTO oauth_clients
+    (client_id, client_secret, client_name, redirect_uris, grant_types,
+     response_types, token_endpoint_auth_method, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    c.client_id, c.client_secret, c.client_name || 'MCP Client',
+    JSON.stringify(c.redirect_uris || []), JSON.stringify(c.grant_types || ['authorization_code', 'refresh_token']),
+    JSON.stringify(c.response_types || ['code']), c.token_endpoint_auth_method || 'none',
+    c.created_at || Date.now()
+  );
+}
+function oauthGetClient(clientId) {
+  const row = db.prepare('SELECT * FROM oauth_clients WHERE client_id = ?').get(clientId);
+  if (!row) return null;
+  return { ...row, redirect_uris: JSON.parse(row.redirect_uris), grant_types: JSON.parse(row.grant_types) };
+}
+function oauthSaveCode(code) {
+  db.prepare(`INSERT OR REPLACE INTO oauth_codes
+    (code, client_id, redirect_uri, code_challenge, code_challenge_method, expires_at)
+    VALUES (?, ?, ?, ?, ?, ?)`).run(
+    code.code, code.client_id, code.redirect_uri,
+    code.code_challenge || '', code.code_challenge_method || '',
+    code.expires_at
+  );
+}
+function oauthGetCode(code) {
+  return db.prepare('SELECT * FROM oauth_codes WHERE code = ? AND used = 0 AND expires_at > ?').get(code, Date.now());
+}
+function oauthUseCode(code) {
+  db.prepare('UPDATE oauth_codes SET used = 1 WHERE code = ?').run(code);
+}
+function oauthSaveToken(t) {
+  db.prepare(`INSERT INTO oauth_tokens
+    (token_id, refresh_token, client_id, user_id, expires_at, created_at)
+    VALUES (?, ?, ?, ?, ?, ?)`).run(
+    t.token_id, t.refresh_token, t.client_id,
+    t.user_id || null, t.expires_at, Date.now()
+  );
+}
+function oauthGetToken(tokenId) {
+  return db.prepare('SELECT * FROM oauth_tokens WHERE token_id = ? AND revoked = 0 AND expires_at > ?').get(tokenId, Date.now());
+}
+function oauthRevokeToken(tokenId) {
+  db.prepare('UPDATE oauth_tokens SET revoked = 1 WHERE token_id = ?').run(tokenId);
+}
+function oauthCleanupExpired() {
+  db.prepare('DELETE FROM oauth_codes WHERE expires_at < ? OR used = 1').run(Date.now());
+  db.prepare('DELETE FROM oauth_tokens WHERE revoked = 1 AND created_at < ?').run(Date.now() - 86400000);
+}
+
+// Cleanup every 10 min
+setInterval(oauthCleanupExpired, 600000);
+
 // ── Telemetry Tables ──
 db.exec(`
   CREATE TABLE IF NOT EXISTS telemetria (
@@ -2191,8 +2284,6 @@ async function forwardMcpRequest(mod, body, timeout = 30000) {
 
 // ── MCP Gateway + OAuth ──
 const mcpGatewaySessions = new Map();
-const mcpOAuthClients = new Map();
-const mcpOAuthCodes = new Map();
 
 // Cleanup stale gateway sessions every 10 min
 setInterval(() => {
@@ -2292,99 +2383,155 @@ function requireOauth(req, res, next) {
   next();
 }
 
-// ── MCP OAuth 2.0 (DCR + Authorization Code flow) ──
+// Validate redirect URI per RFC 6749 Section 3.1.2
+function isValidRedirectUri(uri) {
+  try {
+    const url = new URL(uri);
+    return url.protocol === 'https:' || (url.protocol === 'http:' && (url.hostname === 'localhost' || url.hostname === '127.0.0.1'));
+  } catch { return false; }
+}
+
+// ── MCP OAuth 2.0 (RFC 7591 DCR + Authorization Code + PKCE) ──
 
 // DCR — Dynamic Client Registration
-app.post('/mcp/oauth/register', requireOauth, express.json(), (req, res) => {
-  const { redirect_uris, client_name } = req.body || {};
+function handleDcr(req, res) {
+  const { redirect_uris, client_name, grant_types, response_types, token_endpoint_auth_method } = req.body || {};
   if (!redirect_uris || !Array.isArray(redirect_uris) || redirect_uris.length === 0) {
     return res.status(400).json({ error: 'invalid_client_metadata', error_description: 'redirect_uris required' });
   }
+  for (const uri of redirect_uris) {
+    if (!isValidRedirectUri(uri)) {
+      return res.status(400).json({ error: 'invalid_client_metadata', error_description: 'Invalid redirect_uri: ' + uri });
+    }
+  }
   const clientId = crypto.randomUUID();
   const clientSecret = crypto.randomUUID();
-  mcpOAuthClients.set(clientId, {
-    client_secret: clientSecret,
-    redirect_uris,
-    client_name: client_name || 'Claude',
-    createdAt: Date.now()
-  });
+  const client = {
+    client_id: clientId, client_secret: clientSecret,
+    client_name: client_name || 'MCP Client',
+    redirect_uris, grant_types: grant_types || ['authorization_code', 'refresh_token'],
+    response_types: response_types || ['code'],
+    token_endpoint_auth_method: token_endpoint_auth_method || 'none',
+    created_at: Date.now()
+  };
+  oauthSaveClient(client);
   res.status(201).json({
-    client_id: clientId,
-    client_secret: clientSecret,
-    client_secret_expires_at: 0,
-    client_name: client_name || 'Claude',
-    redirect_uris,
-    grant_types: ['authorization_code', 'refresh_token'],
-    response_types: ['code'],
-    token_endpoint_auth_method: 'none'
+    client_id: clientId, client_secret: clientSecret,
+    client_secret_expires_at: 0, client_name: client.client_name,
+    redirect_uris, grant_types: client.grant_types,
+    response_types: client.response_types,
+    token_endpoint_auth_method: client.token_endpoint_auth_method
   });
-});
+}
+
+app.post('/mcp/oauth/register', requireOauth, express.json(), handleDcr);
+app.post('/register', requireOauth, express.json(), handleDcr);
 
 // Authorize endpoint
 app.get('/mcp/oauth/authorize', requireOauth, (req, res) => {
-  const { state, client_id, redirect_uri, response_type } = req.query;
-  if (response_type !== 'code') return res.status(400).send('Invalid response_type');
-  if (!mcpOAuthClients.has(client_id)) {
-    mcpOAuthClients.set(client_id, {
-      client_secret: crypto.randomUUID(), redirect_uris: [],
-      client_name: 'Claude', autoRegistered: true, createdAt: Date.now()
-    });
+  const { state, client_id, redirect_uri, response_type, code_challenge, code_challenge_method } = req.query;
+  if (response_type !== 'code') return res.status(400).json({ error: 'invalid_request', error_description: 'response_type must be code' });
+  const client = oauthGetClient(client_id);
+  if (!client) return res.status(400).json({ error: 'invalid_client', error_description: 'Unknown client_id' });
+  const rUri = redirect_uri || client.redirect_uris[0];
+  if (!rUri || !client.redirect_uris.includes(rUri)) {
+    return res.status(400).json({ error: 'invalid_request', error_description: 'redirect_uri not registered' });
   }
-  const client = mcpOAuthClients.get(client_id);
-  const rUri = redirect_uri || client.redirect_uris[0] || 'https://claude.ai/api/mcp/auth_callback';
-  if (!client.redirect_uris.includes(rUri) && /^https:\/\/claude\.ai\//.test(rUri)) {
-    client.redirect_uris.push(rUri);
+  if (!isValidRedirectUri(rUri)) {
+    return res.status(400).json({ error: 'invalid_request', error_description: 'Invalid redirect_uri protocol' });
   }
   const code = crypto.randomUUID();
-  mcpOAuthCodes.set(code, { client_id, redirect_uri: rUri, createdAt: Date.now() });
+  oauthSaveCode({
+    code, client_id, redirect_uri: rUri,
+    code_challenge: code_challenge || '',
+    code_challenge_method: code_challenge_method || '',
+    expires_at: Date.now() + 600000
+  });
   const url = new URL(rUri);
   url.searchParams.set('code', code);
   url.searchParams.set('state', state || '');
   res.redirect(302, url.toString());
 });
 
-// Token endpoint
+// Token endpoint (authorization_code + refresh_token)
 app.post('/mcp/oauth/token', requireOauth, express.urlencoded({ extended: false }), (req, res) => {
-  const { grant_type, code, redirect_uri } = req.body;
+  const { grant_type } = req.body;
+  if (grant_type === 'authorization_code') return handleTokenAuthCode(req, res);
+  if (grant_type === 'refresh_token') return handleTokenRefresh(req, res);
+  return res.status(400).json({ error: 'unsupported_grant_type' });
+});
+
+function handleTokenAuthCode(req, res) {
+  const { code, redirect_uri } = req.body;
   let client_id = req.body.client_id;
   const auth = req.headers['authorization'] || '';
   if (auth.startsWith('Basic ')) {
     const decoded = Buffer.from(auth.slice(6), 'base64').toString();
     client_id = decoded.split(':')[0];
   }
-  if (grant_type !== 'authorization_code') return res.status(400).json({ error: 'unsupported_grant_type' });
-  const stored = mcpOAuthCodes.get(code);
+  const stored = oauthGetCode(code);
   if (!stored) return res.status(400).json({ error: 'invalid_grant' });
-  mcpOAuthCodes.delete(code);
+  oauthUseCode(code);
+  // Validate PKCE
+  if (stored.code_challenge && req.body.code_verifier) {
+    const verifierHash = crypto.createHash('sha256').update(req.body.code_verifier).digest();
+    const expected = Buffer.from(verifierHash).toString('base64url');
+    if (expected !== stored.code_challenge) {
+      return res.status(400).json({ error: 'invalid_grant', error_description: 'PKCE verification failed' });
+    }
+  }
   const accessToken = crypto.randomUUID();
+  const refreshToken = crypto.randomUUID();
+  oauthSaveToken({
+    token_id: accessToken, refresh_token: refreshToken,
+    client_id: stored.client_id, user_id: null,
+    expires_at: Date.now() + 86400000
+  });
   res.json({
     access_token: accessToken, token_type: 'Bearer',
-    expires_in: 86400,
-    refresh_token: crypto.randomUUID()
+    expires_in: 86400, refresh_token: refreshToken
   });
-});
+}
 
-// Fallback: Claude sometimes POSTs to /register directly
-app.post('/register', requireOauth, express.json(), (req, res) => {
-  const { redirect_uris, client_name } = req.body || {};
-  if (!redirect_uris || !Array.isArray(redirect_uris) || redirect_uris.length === 0) {
-    return res.status(400).json({ error: 'invalid_client_metadata', error_description: 'redirect_uris required' });
+function handleTokenRefresh(req, res) {
+  const { refresh_token } = req.body;
+  let client_id = req.body.client_id;
+  const auth = req.headers['authorization'] || '';
+  if (auth.startsWith('Basic ')) {
+    const decoded = Buffer.from(auth.slice(6), 'base64').toString();
+    client_id = decoded.split(':')[0];
   }
-  const clientId = crypto.randomUUID();
-  const clientSecret = crypto.randomUUID();
-  mcpOAuthClients.set(clientId, {
-    client_secret: clientSecret, redirect_uris,
-    client_name: client_name || 'Claude', createdAt: Date.now()
+  if (!refresh_token) return res.status(400).json({ error: 'invalid_grant', error_description: 'refresh_token required' });
+  // Find token row by refresh_token
+  const row = db.prepare('SELECT * FROM oauth_tokens WHERE refresh_token = ? AND revoked = 0').get(refresh_token);
+  if (!row || row.expires_at < Date.now()) return res.status(400).json({ error: 'invalid_grant' });
+  // Revoke old token and issue new pair
+  oauthRevokeToken(row.token_id);
+  const newAccessToken = crypto.randomUUID();
+  const newRefreshToken = crypto.randomUUID();
+  oauthSaveToken({
+    token_id: newAccessToken, refresh_token: newRefreshToken,
+    client_id: row.client_id, user_id: row.user_id,
+    expires_at: Date.now() + 86400000
   });
-  res.status(201).json({
-    client_id: clientId, client_secret: clientSecret,
-    client_secret_expires_at: 0, client_name: client_name || 'Claude',
-    redirect_uris, grant_types: ['authorization_code', 'refresh_token'],
-    response_types: ['code'], token_endpoint_auth_method: 'none'
+  res.json({
+    access_token: newAccessToken, token_type: 'Bearer',
+    expires_in: 86400, refresh_token: newRefreshToken
   });
-});
+}
 
-// ── Well-known OAuth metadata ──
+// Token validation middleware (used by MCP endpoint when OAuth enabled)
+function oauthValidateToken(req, res, next) {
+  const auth = req.headers.authorization;
+  if (!auth?.startsWith('Bearer ')) return res.status(401).json({ error: 'invalid_token', error_description: 'Bearer token required' });
+  const token = auth.slice(7);
+  const row = oauthGetToken(token);
+  if (!row) return res.status(401).json({ error: 'invalid_token', error_description: 'Token expired or revoked' });
+  req.oauthClient = { client_id: row.client_id, user_id: row.user_id };
+  next();
+}
+
+// ── Well-known OAuth metadata (RFC 8414 + RFC 9728) ──
 function getMcpBaseUrl() {
   const configPath = path.join(INSTALL_DIR, 'config.env');
   let dominio = COMPANY_DOMAIN;

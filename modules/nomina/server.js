@@ -208,17 +208,8 @@ app.use('/api', todosRoles, require('./src/routes/consulta')({ db }));
 // ─────────────────────────────────────────────
 const mcp = require('./src/mcp/index');
 app.use('/.well-known', mcpLimiter);
-app.use('/mcp/oauth', mcpLimiter);
 app.use('/mcp', mcpLimiter);
-app.use('/.well-known', mcp.createWellKnown());
-app.use('/mcp/oauth', mcp.createOAuthRouter());
 app.use('/mcp', mcp.createMiddleware());
-// Fallback: Claude ignora registration_endpoint y llama a /register
-app.use('/register', mcpLimiter, express.json(), mcp.createRegistrationFallback());
-// Fallback: Claude ignora authorization_endpoint y construye /authorize en la raíz
-app.use('/authorize', mcpLimiter, mcp.createAuthorizeFallback());
-// Fallback: Claude ignora token_endpoint y construye /token en la raíz
-app.use('/token', mcpLimiter, express.urlencoded({ extended: false }), mcp.createTokenFallback());
 // Test endpoint para verificar que el servidor recibe requests nuevas
 app.get('/mcp-test', testLimiter, (req, res) => res.send('MCP OK ' + Date.now()));
 
