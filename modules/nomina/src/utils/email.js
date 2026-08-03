@@ -44,8 +44,18 @@ module.exports = function({ getConfig, nodemailer, escapeHtml, BASE_URL, APP_NAM
       greetingTimeout: 5000
     });
 
-    const cuerpoHtml = escapeHtml(String(texto)).replace(/\n/g, '<br/><br/>');
-    const html = `<!DOCTYPE html>
+    const trimmed = String(texto).trim();
+    const isHtml = trimmed.startsWith('<!DOCTYPE') || trimmed.startsWith('<html');
+
+    let html;
+    let text;
+
+    if (isHtml) {
+      html = trimmed;
+      text = trimmed.replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim();
+    } else {
+      const cuerpoHtml = escapeHtml(trimmed).replace(/\n/g, '<br/><br/>');
+      html = `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="UTF-8"/>
@@ -79,12 +89,14 @@ module.exports = function({ getConfig, nodemailer, escapeHtml, BASE_URL, APP_NAM
 </table>
 </body>
 </html>`;
+      text = trimmed;
+    }
 
     await transporter.sendMail({
       from: smtp.from,
       to: para,
       subject: asunto,
-      text: texto,
+      text,
       html
     });
   };
