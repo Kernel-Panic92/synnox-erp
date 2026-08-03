@@ -398,6 +398,22 @@ setInterval(() => {
   try { db.prepare('DELETE FROM mcp_tool_logs WHERE created_at < ?').run(Date.now() - 30 * 86400000); } catch {}
 }, 3600000);
 
+// ── MCP Tool Config (per-tool enable/disable) ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS mcp_tool_config (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    module_id TEXT NOT NULL,
+    tool_name TEXT NOT NULL,
+    enabled INTEGER DEFAULT 1,
+    UNIQUE(module_id, tool_name)
+  )
+`);
+
+function isToolEnabled(moduleId, toolName) {
+  const row = db.prepare('SELECT enabled FROM mcp_tool_config WHERE module_id = ? AND tool_name = ?').get(moduleId, toolName);
+  return row ? row.enabled === 1 : true; // default: enabled
+}
+
 // ── OAuth DB helpers ──
 function oauthSaveClient(c) {
   db.prepare(`INSERT OR REPLACE INTO oauth_clients
@@ -2556,7 +2572,11 @@ async function processMcpMessage(msg) {
       try {
         const data = await forwardMcpRequest(m, { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }, 5000);
         if (data.result?.tools) {
-          for (const t of data.result.tools) allTools.push({ ...t, name: m.id + '_' + t.name });
+          for (const t of data.result.tools) {
+            if (isToolEnabled(m.id, t.name)) {
+              allTools.push({ ...t, name: m.id + '_' + t.name });
+            }
+          }
         }
       } catch (e) { console.warn(`[MCP] Failed to list tools from ${m.id}:`, e.message); }
     }
@@ -2572,6 +2592,7 @@ async function processMcpMessage(msg) {
     const mod = modulos.find(m => m.id === prefix);
     if (!mod) return rpcError(id, -32601, 'Unknown or disabled module: ' + prefix);
     const toolName = parts.slice(1).join('_');
+    if (!isToolEnabled(prefix, toolName)) return rpcError(id, -32601, 'Tool disabled: ' + name);
     const startTime = Date.now();
     try {
       const result = await forwardMcpRequest(mod, { jsonrpc: '2.0', id, method: 'tools/call', params: { name: toolName, arguments: args } }, 30000);
@@ -2672,6 +2693,46 @@ app.get('/api/admin/mcp/stats', verificarToken, soloAdmin, (req, res) => {
   const todayCalls = db.prepare('SELECT COUNT(*) as c FROM mcp_tool_logs WHERE created_at >= ?').get(todayStart.getTime()).c;
   const enabledModules = modulos.length;
   res.json({ enabledModules, totalTools, activeSessions, todayCalls });
+});
+
+// ── MCP Admin: Tool Config ──
+app.get('/api/admin/mcp/:id/tools', verificarToken, soloAdmin, async (req, res) => {
+  const mod = db.prepare('SELECT * FROM modulos_plataforma WHERE id = ?').get(req.params.id);
+  if (!mod) return res.status(404).json({ error: 'Module not found' });
+  // Fetch tools from module's MCP endpoint
+  let tools = [];
+  try {
+    const data = await forwardMcpRequest(mod, { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }, 5000);
+    if (data.result?.tools) tools = data.result.tools;
+  } catch {}
+  // Merge with config
+  const config = db.prepare('SELECT tool_name, enabled FROM mcp_tool_config WHERE module_id = ?').all(req.params.id);
+  const configMap = {};
+  for (const c of config) configMap[c.tool_name] = c.enabled;
+  const result = tools.map(t => ({
+    name: t.name,
+    description: t.description || '',
+    enabled: configMap[t.name] !== undefined ? configMap[t.name] === 1 : true
+  }));
+  res.json({ tools: result });
+});
+
+app.put('/api/admin/mcp/:id/tools', verificarToken, soloAdmin, (req, res) => {
+  const { tools } = req.body;
+  if (!tools || !Array.isArray(tools)) return res.status(400).json({ error: 'tools array required' });
+  const upsert = db.prepare('INSERT OR REPLACE INTO mcp_tool_config (module_id, tool_name, enabled) VALUES (?, ?, ?)');
+  const transaction = db.transaction(() => {
+    for (const t of tools) {
+      upsert.run(req.params.id, t.name, t.enabled ? 1 : 0);
+    }
+  });
+  transaction();
+  res.json({ ok: true });
+});
+
+app.post('/api/admin/mcp/:id/tools/reset', verificarToken, soloAdmin, (req, res) => {
+  db.prepare('DELETE FROM mcp_tool_config WHERE module_id = ?').run(req.params.id);
+  res.json({ ok: true });
 });
 
 // ── OAuth guard middleware ──

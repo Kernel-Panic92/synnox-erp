@@ -1565,8 +1565,12 @@ async function loadMcpConfig() {
           <input type="password" id="mcp-token-${m.id}" value="${m.mcp_token}" style="flex:1;" placeholder="Bearer token" onchange="saveMcpField('${m.id}')">
           <button class="btn btn-sm" onclick="toggleToken('${m.id}')" style="white-space:nowrap;">👁</button>
         </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button class="btn btn-sm" onclick="testMcp('${m.id}')">🔌 Test conexión</button>
+          <button class="btn btn-sm" onclick="loadMcpTools('${m.id}')" style="background:var(--surface2);color:var(--text);">🛠 Herramientas</button>
+        </div>
+        <div id="mcp-tools-${m.id}" style="margin-top:12px;display:none;"></div>
         <div id="mcp-test-${m.id}"></div>
-        <button class="btn btn-sm" onclick="testMcp('${m.id}')">🔌 Test conexión</button>
       </div>`;
     }
     document.getElementById('mcp-container').innerHTML = html;
@@ -1622,6 +1626,61 @@ async function testMcp(id) {
   } catch (e) {
     el.innerHTML = '<span style="color:var(--danger);">❌ ' + e.message + '</span>';
   }
+}
+
+// ── MCP Tools Config ──
+async function loadMcpTools(moduleId) {
+  const container = document.getElementById('mcp-tools-' + moduleId);
+  if (!container) return;
+  if (container.style.display === 'block') { container.style.display = 'none'; return; }
+  container.style.display = 'block';
+  container.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0;">Cargando herramientas...</div>';
+  try {
+    const res = await fetch(`/api/admin/mcp/${moduleId}/tools`, { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const data = await res.json();
+    if (!data.tools?.length) {
+      container.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0;">No hay herramientas disponibles</div>';
+      return;
+    }
+    let html = '<div style="border:1px solid var(--border);border-radius:8px;overflow:hidden;">';
+    html += '<div style="background:var(--surface2);padding:8px 12px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;display:flex;justify-content:space-between;"><span>Herramienta</span><span>Activa</span></div>';
+    for (const t of data.tools) {
+      html += `<div style="padding:8px 12px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+        <div>
+          <div style="font-weight:500;font-size:13px;">${esc(t.name)}</div>
+          <div style="font-size:11px;color:var(--muted);max-width:400px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(t.description)}</div>
+        </div>
+        <input type="checkbox" ${t.enabled ? 'checked' : ''} onchange="toggleMcpTool('${moduleId}', '${esc(t.name)}', this.checked)" style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;">
+      </div>`;
+    }
+    html += '</div>';
+    html += `<div style="margin-top:8px;"><button class="btn btn-sm" onclick="resetMcpTools('${moduleId}')" style="background:var(--surface2);color:var(--text);">🔄 Restaurar todas</button></div>`;
+    container.innerHTML = html;
+  } catch (e) {
+    container.innerHTML = '<div style="color:var(--danger);font-size:13px;">Error: ' + e.message + '</div>';
+  }
+}
+
+async function toggleMcpTool(moduleId, toolName, enabled) {
+  try {
+    await fetch(`/api/admin/mcp/${moduleId}/tools`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
+      body: JSON.stringify({ tools: [{ name: toolName, enabled }] })
+    });
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function resetMcpTools(moduleId) {
+  if (!await confirmModal('¿Restaurar todas las herramientas?', 'Restaurar', 'update')) return;
+  try {
+    await fetch(`/api/admin/mcp/${moduleId}/tools/reset`, {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + jwtToken }
+    });
+    loadMcpTools(moduleId);
+    toast('Herramientas restauradas', 'success');
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
 }
 
 // ── SMTP ──
