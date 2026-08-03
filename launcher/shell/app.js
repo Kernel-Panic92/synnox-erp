@@ -500,49 +500,55 @@ function extractStats(modId, data) {
   if (config === 'estados') {
     const estados = data.estados || [];
     return [
-      { label: 'Pendientes', value: estados.find(e => e.estado === 'pendiente')?.count || 0 },
-      { label: 'En progreso', value: estados.find(e => e.estado === 'en_progreso')?.count || 0 },
-      { label: 'Completadas', value: estados.find(e => e.estado === 'completada')?.count || 0 },
+      { label: 'Pendientes', value: (estados.find(function(e) { return e.estado === 'pendiente'; }) || {}).count || 0 },
+      { label: 'En progreso', value: (estados.find(function(e) { return e.estado === 'en_progreso'; }) || {}).count || 0 },
+      { label: 'Completadas', value: (estados.find(function(e) { return e.estado === 'completada'; }) || {}).count || 0 },
     ];
   }
   if (Array.isArray(config)) {
-    return config.map(c => ({ label: c.label, value: data[c.key] || 0 }));
+    return config.map(function(c) { return { label: c.label, value: data[c.key] || 0 }; });
   }
-  // Genérico: primeros 3 key-value pairs numéricos del objeto
-  const numEntries = Object.entries(data).filter(([, v]) => typeof v === 'number').slice(0, 3);
-  return numEntries.map(([k, v]) => ({ label: k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()), value: v }));
+  var numEntries = Object.entries(data).filter(function(pair) { return typeof pair[1] === 'number'; }).slice(0, 3);
+  return numEntries.map(function(pair) { return { label: pair[0].replace(/([A-Z])/g, ' $1').replace(/^./, function(s) { return s.toUpperCase(); }), value: pair[1] }; });
 }
 
 async function cargarModuleSummary() {
-  const w = document.getElementById('module-summary-widget');
+  var w = document.getElementById('module-summary-widget');
   if (!w) return;
   try {
-    const modulos = (modulosCache || []).filter(m => m.dashboard_endpoint);
+    var modulos = (modulosCache || []).filter(function(m) { return m.dashboard_endpoint; });
     if (!modulos.length) { w.style.display = 'none'; return; }
-    const results = await Promise.allSettled(
-      modulos.map(m => fetch(m.dashboard_endpoint, { headers: { 'Authorization': 'Bearer ' + jwtToken } })
-        .then(r => r.ok ? r.json() : null)
-        .then(data => ({ mod: m, data }))
-    );
-    const cards = results
-      .filter(r => r.status === 'fulfilled' && r.value.data)
-      .map(r => {
-        const { mod, data } = r.value;
-        const stats = extractStats(mod.id, data);
-        return { icon: mod.icon || '📦', title: mod.nombre, stats };
-      })
-      .filter(c => c.stats.length > 0);
+    var promises = modulos.map(function(m) {
+      return fetch(m.dashboard_endpoint, { headers: { 'Authorization': 'Bearer ' + jwtToken } })
+        .then(function(r) { return r.ok ? r.json() : null; })
+        .then(function(data) { return { mod: m, data: data }; });
+    });
+    var results = await Promise.allSettled(promises);
+    var cards = [];
+    for (var i = 0; i < results.length; i++) {
+      var r = results[i];
+      if (r.status !== 'fulfilled' || !r.value || !r.value.data) continue;
+      var mod = r.value.mod;
+      var data = r.value.data;
+      var stats = extractStats(mod.id, data);
+      if (stats.length > 0) cards.push({ icon: mod.icon || '\u{1F4E6}', title: mod.nombre, stats: stats });
+    }
     if (!cards.length) { w.style.display = 'none'; return; }
     w.style.display = 'block';
-    w.innerHTML = `
-      <h2 style="margin-bottom:12px;">📊 Resumen del día</h2>
-      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">
-        ${cards.map(c => `<div style="padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">
-          <div style="font-size:14px;font-weight:600;margin-bottom:10px;">${c.icon} ${c.title}</div>
-          ${c.stats.map(s => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;"><span style="color:var(--muted);">${s.label}</span><strong>${s.value}</strong></div>`).join('')}
-        </div>`).join('')}
-      </div>`;
-  } catch(e) { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
+    var html = '<h2 style="margin-bottom:12px;">\u{1F4CA} Resumen del d\u00eda</h2>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px;">';
+    for (var c = 0; c < cards.length; c++) {
+      var card = cards[c];
+      html += '<div style="padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;">';
+      html += '<div style="font-size:14px;font-weight:600;margin-bottom:10px;">' + card.icon + ' ' + card.title + '</div>';
+      for (var s = 0; s < card.stats.length; s++) {
+        html += '<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;"><span style="color:var(--muted);">' + card.stats[s].label + '</span><strong>' + card.stats[s].value + '</strong></div>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+    w.innerHTML = html;
+  } catch(e) { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">\u26A0\uFE0F Error al cargar</div></div>'; }
 }
 
 async function cargarPendingTasks() {
