@@ -176,7 +176,7 @@ async function ejecutarTool(name, args, userId) {
     case 'dashboard': {
       const [porEstado, porAsignado, recientes, pendientesAprobacion] = await Promise.all([
         pool.query(`SELECT estado, COUNT(*) as total FROM projects.tareas GROUP BY estado`),
-        pool.query(`SELECT u.nombre, COUNT(*) as total FROM projects.tareas t LEFT JOIN usuarios u ON t.asignado_a = u.id WHERE t.asignado_a IS NOT NULL GROUP BY t.asignado_a, u.nombre ORDER BY total DESC`),
+        pool.query(`SELECT asignado_a, COUNT(*) as total FROM projects.tareas WHERE asignado_a IS NOT NULL GROUP BY asignado_a ORDER BY total DESC`),
         pool.query(`SELECT t.id, t.titulo, t.estado, t.prioridad, t.fecha_limite, p.nombre as proyecto FROM projects.tareas t LEFT JOIN projects.proyectos p ON t.proyecto_id = p.id ORDER BY t.created_at DESC LIMIT 10`),
         pool.query(`SELECT COUNT(*) as total FROM projects.tareas WHERE estado_aprobacion = 'pendiente' AND estado = 'revision'`)
       ]);
@@ -243,10 +243,9 @@ async function ejecutarTool(name, args, userId) {
       const result = await pool.query(`
         SELECT t.id, t.titulo, t.descripcion, t.estado, t.prioridad, t.tipo, t.fecha_limite,
                t.estimacion_horas, t.horas_invertidas, t.created_at,
-               p.nombre as proyecto, u.nombre as asignado_nombre
+               p.nombre as proyecto, t.asignado_a
         FROM projects.tareas t
         LEFT JOIN projects.proyectos p ON t.proyecto_id = p.id
-        LEFT JOIN usuarios u ON t.asignado_a = u.id
         ${where}
         ORDER BY t.created_at DESC LIMIT $${params.length - 1} OFFSET $${params.length}
       `, params);
@@ -257,7 +256,7 @@ async function ejecutarTool(name, args, userId) {
       const { tarea_id } = args;
       const [tarea, comentarios] = await Promise.all([
         pool.query(`SELECT t.*, p.nombre as proyecto FROM projects.tareas t LEFT JOIN projects.proyectos p ON t.proyecto_id = p.id WHERE t.id = $1`, [tarea_id]),
-        pool.query(`SELECT c.*, u.nombre as autor FROM projects.comentarios c LEFT JOIN usuarios u ON c.usuario_id = u.id WHERE c.tarea_id = $1 ORDER BY c.created_at`, [tarea_id])
+        pool.query(`SELECT c.*, c.usuario_id as autor_id FROM projects.comentarios c WHERE c.tarea_id = $1 ORDER BY c.created_at`, [tarea_id])
       ]);
       if (!tarea.rows.length) return { error: 'Tarea no encontrada' };
       return { ...tarea.rows[0], comentarios: comentarios.rows };
@@ -304,8 +303,7 @@ async function ejecutarTool(name, args, userId) {
     case 'comentarios': {
       const { tarea_id } = args;
       const result = await pool.query(`
-        SELECT c.*, u.nombre as autor FROM projects.comentarios c
-        LEFT JOIN usuarios u ON c.usuario_id = u.id
+        SELECT c.*, c.usuario_id as autor_id FROM projects.comentarios c
         WHERE c.tarea_id = $1 ORDER BY c.created_at
       `, [tarea_id]);
       return result.rows;
@@ -342,7 +340,7 @@ async function ejecutarTool(name, args, userId) {
       const [porPrioridad, tiempoEstimado, porUsuario] = await Promise.all([
         pool.query(`SELECT prioridad, COUNT(*) as total FROM projects.tareas GROUP BY prioridad`),
         pool.query(`SELECT SUM(estimacion_horas) as total_estimado, SUM(horas_invertidas) as total_real, COUNT(*) as total_tareas FROM projects.tareas WHERE estimacion_horas IS NOT NULL OR horas_invertidas > 0`),
-        pool.query(`SELECT u.nombre, COUNT(*) as tareas, SUM(CASE WHEN t.estado = 'completada' THEN 1 ELSE 0 END) as completadas FROM projects.tareas t LEFT JOIN usuarios u ON t.asignado_a = u.id WHERE t.asignado_a IS NOT NULL GROUP BY t.asignado_a, u.nombre`)
+        pool.query(`SELECT asignado_a, COUNT(*) as tareas, SUM(CASE WHEN estado = 'completada' THEN 1 ELSE 0 END) as completadas FROM projects.tareas WHERE asignado_a IS NOT NULL GROUP BY asignado_a`)
       ]);
       return {
         por_prioridad: porPrioridad.rows,
