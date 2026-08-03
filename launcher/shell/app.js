@@ -1688,6 +1688,57 @@ async function testSmtpConfig() {
   }
 }
 
+// ── OAuth Providers Config ──
+async function loadOAuthConfig() {
+  try {
+    const res = await fetch('/api/admin/oauth-providers', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const data = await res.json();
+    for (const [provider, cfg] of Object.entries(data.providers)) {
+      const enabled = document.getElementById(provider + '_enabled');
+      const clientId = document.getElementById(provider + '_client_id');
+      const clientSecret = document.getElementById(provider + '_client_secret');
+      if (enabled) enabled.checked = cfg.enabled;
+      if (clientId) clientId.value = cfg.client_id || '';
+      if (clientSecret) clientSecret.value = cfg.client_secret || '';
+      if (provider === 'microsoft') {
+        const tenantId = document.getElementById('microsoft_tenant_id');
+        if (tenantId) tenantId.value = cfg.tenant_id || 'common';
+      }
+    }
+  } catch (e) {
+    console.error('Error loading OAuth config:', e);
+  }
+}
+
+async function saveOAuthConfig(provider) {
+  const resultEl = document.getElementById('oauth-' + provider + '-result');
+  const fields = [provider + '_enabled', provider + '_client_id', provider + '_client_secret'];
+  if (provider === 'microsoft') fields.push('microsoft_tenant_id');
+  const body = {};
+  for (const k of fields) {
+    const el = document.getElementById(k);
+    if (!el) continue;
+    body[k] = el.type === 'checkbox' ? (el.checked ? 'true' : 'false') : el.value;
+  }
+  resultEl.innerHTML = '<span style="color:var(--muted);">Guardando...</span>';
+  try {
+    const res = await fetch('/api/admin/oauth-providers', {
+      method: 'PUT',
+      headers: { 'Authorization': 'Bearer ' + jwtToken, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      resultEl.innerHTML = '<span style="color:var(--success);">✅ Guardado</span>';
+      setTimeout(() => { resultEl.innerHTML = ''; }, 3000);
+    } else {
+      resultEl.innerHTML = '<span style="color:var(--danger);">❌ ' + (data.error || 'Error') + '</span>';
+    }
+  } catch (e) {
+    resultEl.innerHTML = '<span style="color:var(--danger);">❌ ' + e.message + '</span>';
+  }
+}
+
 // ── Email Notif Config ──
 const MODULO_LABELS = { proyectos: 'Proyectos', nomina: 'Nómina', proveedores: 'Proveedores', logistica: 'Logística', launcher: 'Launcher' };
 const MODULO_ICONS = { proyectos: '📋', nomina: '💰', proveedores: '📄', logistica: '🚚', launcher: '🏠' };
@@ -1766,6 +1817,7 @@ function showAdminTab(tab) {
   else if (tab === 'modulos') loadModulos();
    else if (tab === 'mcp') { loadMcpConfig(); loadMcpUrl(); }
    else if (tab === 'smtp') loadSmtpConfig();
+   else if (tab === 'oauth') loadOAuthConfig();
    else if (tab === 'email-notif') loadEmailNotifConfig();
    else if (tab === 'mapas') loadGmapsKeyStatus();
    else if (tab === 'seguridad') { loadRateLimitConfig(); loadSshConfig(); loadLoginLogs(); }
