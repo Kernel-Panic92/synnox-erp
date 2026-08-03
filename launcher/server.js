@@ -364,6 +364,29 @@ db.exec(`
 db.exec("CREATE INDEX IF NOT EXISTS idx_oauth_accounts_email ON oauth_accounts(email)");
 db.exec("CREATE INDEX IF NOT EXISTS idx_oauth_accounts_user ON oauth_accounts(user_id)");
 
+// ── User Blacklist ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS user_blacklist (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    reason TEXT DEFAULT '',
+    blocked_by INTEGER REFERENCES usuarios(id),
+    blocked_at INTEGER NOT NULL,
+    expires_at INTEGER,
+    UNIQUE(user_id)
+  )
+`);
+
+function isUserBlacklisted(userId) {
+  const row = db.prepare('SELECT * FROM user_blacklist WHERE user_id = ?').get(userId);
+  if (!row) return false;
+  if (row.expires_at && row.expires_at < Date.now()) {
+    db.prepare('DELETE FROM user_blacklist WHERE id = ?').run(row.id);
+    return false;
+  }
+  return true;
+}
+
 // ── MCP Tool Logging ──
 db.exec(`
   CREATE TABLE IF NOT EXISTS mcp_tool_logs (
@@ -800,6 +823,11 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
       logLoginAttempt(req.ip, email, false);
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
+    // Check blacklist
+    if (isUserBlacklisted(user.id)) {
+      const entry = db.prepare('SELECT reason FROM user_blacklist WHERE user_id = ?').get(user.id);
+      return res.status(403).json({ error: 'Tu cuenta ha sido bloqueada', reason: entry?.reason || '' });
+    }
     logLoginAttempt(req.ip, email, true);
     const userWithPerms = getUserWithPermissions(db, user.id);
     if (!userWithPerms) return res.status(500).json({ error: 'Error al cargar permisos' });
@@ -914,6 +942,7 @@ app.get('/auth/google/callback', async (req, res) => {
     const profile = await userInfoRes.json();
     if (!profile.email) return res.redirect('/?error=no_email');
     const user = oauthFindOrCreateUser({ provider: 'google', id: profile.id, email: profile.email, name: profile.name, accessToken: tokenData.access_token });
+    if (isUserBlacklisted(user.user.id)) return res.redirect('/?error=blacklisted');
     const token = oauthIssueJwt(user.user, req, res);
     if (!token) return res.redirect('/?error=auth_failed');
     res.redirect((user.isNew || !user.hasModules) ? '/?new_user=1' : '/');
@@ -952,6 +981,7 @@ app.get('/auth/github/callback', async (req, res) => {
     }
     if (!email) return res.redirect('/?error=no_email');
     const user = oauthFindOrCreateUser({ provider: 'github', id: String(ghUser.id), email, name: ghUser.name || ghUser.login, accessToken: tokenData.access_token });
+    if (isUserBlacklisted(user.user.id)) return res.redirect('/?error=blacklisted');
     const token = oauthIssueJwt(user.user, req, res);
     if (!token) return res.redirect('/?error=auth_failed');
     res.redirect((user.isNew || !user.hasModules) ? '/?new_user=1' : '/');
@@ -983,6 +1013,7 @@ app.get('/auth/microsoft/callback', async (req, res) => {
     const email = msUser.mail || msUser.userPrincipalName;
     if (!email) return res.redirect('/?error=no_email');
     const user = oauthFindOrCreateUser({ provider: 'microsoft', id: msUser.id, email, name: msUser.displayName, accessToken: tokenData.access_token });
+    if (isUserBlacklisted(user.user.id)) return res.redirect('/?error=blacklisted');
     const token = oauthIssueJwt(user.user, req, res);
     if (!token) return res.redirect('/?error=auth_failed');
     res.redirect((user.isNew || !user.hasModules) ? '/?new_user=1' : '/');
@@ -2793,6 +2824,55 @@ app.delete('/api/admin/mcp-oauth/tokens/:id', verificarToken, soloAdmin, (req, r
   const token = db.prepare('SELECT * FROM oauth_tokens WHERE token_id = ?').get(req.params.id);
   if (!token) return res.status(404).json({ error: 'Token not found' });
   db.prepare('UPDATE oauth_tokens SET revoked = 1 WHERE token_id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+// ── OAuth Accounts Management ──
+app.get('/api/admin/oauth-accounts', verificarToken, soloAdmin, (req, res) => {
+  const accounts = db.prepare(`
+    SELECT oa.id, oa.provider, oa.email, oa.nombre, oa.created_at, oa.updated_at,
+           u.id as user_id, u.nombre as user_nombre, u.email as user_email, u.rol
+    FROM oauth_accounts oa
+    LEFT JOIN usuarios u ON oa.user_id = u.id
+    ORDER BY oa.created_at DESC
+  `).all();
+  res.json({ accounts });
+});
+
+app.delete('/api/admin/oauth-accounts/:id', verificarToken, soloAdmin, (req, res) => {
+  const account = db.prepare('SELECT * FROM oauth_accounts WHERE id = ?').get(req.params.id);
+  if (!account) return res.status(404).json({ error: 'Account not found' });
+  db.prepare('DELETE FROM oauth_accounts WHERE id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
+// ── User Blacklist ──
+app.get('/api/admin/blacklist', verificarToken, soloAdmin, (req, res) => {
+  const entries = db.prepare(`
+    SELECT b.id, b.user_id, b.reason, b.blocked_at, b.expires_at,
+           u.nombre, u.email, u.rol,
+           admin.nombre as blocked_by_name
+    FROM user_blacklist b
+    LEFT JOIN usuarios u ON b.user_id = u.id
+    LEFT JOIN usuarios admin ON b.blocked_by = admin.id
+    ORDER BY b.blocked_at DESC
+  `).all();
+  res.json({ entries });
+});
+
+app.put('/api/admin/blacklist', verificarToken, soloAdmin, (req, res) => {
+  const { user_id, reason, expires_at } = req.body;
+  if (!user_id) return res.status(400).json({ error: 'user_id required' });
+  const user = db.prepare('SELECT id FROM usuarios WHERE id = ?').get(user_id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  db.prepare('INSERT OR REPLACE INTO user_blacklist (user_id, reason, blocked_by, blocked_at, expires_at) VALUES (?, ?, ?, ?, ?)').run(user_id, reason || '', req.usuario.id, Date.now(), expires_at || null);
+  res.json({ ok: true });
+});
+
+app.delete('/api/admin/blacklist/:id', verificarToken, soloAdmin, (req, res) => {
+  const entry = db.prepare('SELECT * FROM user_blacklist WHERE id = ?').get(req.params.id);
+  if (!entry) return res.status(404).json({ error: 'Entry not found' });
+  db.prepare('DELETE FROM user_blacklist WHERE id = ?').run(req.params.id);
   res.json({ ok: true });
 });
 

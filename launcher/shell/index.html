@@ -458,6 +458,8 @@
         <div class="nav-item" data-page="mcp-oauth" onclick="showAdminTab('mcp-oauth')"><span class="icon">🔐</span> OAuth MCP</div>
         <div class="nav-item" data-page="smtp" onclick="showAdminTab('smtp')"><span class="icon">📧</span> SMTP</div>
         <div class="nav-item" data-page="oauth" onclick="showAdminTab('oauth')"><span class="icon">🔑</span> OAuth</div>
+        <div class="nav-item" data-page="oauth-accounts" onclick="showAdminTab('oauth-accounts')"><span class="icon">🔗</span> Cuentas OAuth</div>
+        <div class="nav-item" data-page="blacklist" onclick="showAdminTab('blacklist')"><span class="icon">🚫</span> Lista negra</div>
         <div class="nav-item" data-page="email-notif" onclick="showAdminTab('email-notif')"><span class="icon">🔔</span> Notificaciones</div>
         <div class="nav-item" data-page="mapas" onclick="showAdminTab('mapas')"><span class="icon">🗺️</span> Mapas</div>
         <div class="nav-item" data-page="acerca-de" onclick="showAdminTab('acerca-de')"><span class="icon">ℹ️</span> Acerca de</div>
@@ -703,6 +705,42 @@
       <div style="margin-top:12px;"><button class="btn btn-sm" onclick="saveOAuthConfig('microsoft')">💾 Guardar Microsoft</button></div>
       <div id="oauth-microsoft-result" style="margin-top:8px;"></div>
     </div>
+  </div>
+  <div class="tab-content" id="tab-oauth-accounts">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
+      <div style="font-size:var(--fs);font-weight:600;">Cuentas OAuth vinculadas</div>
+      <button class="btn btn-sm" onclick="loadOAuthAccounts()" style="background:var(--surface2);color:var(--text);">🔄 Refrescar</button>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 16px;">
+      Cuentas de Google, GitHub y Microsoft vinculadas a usuarios de SynnoxERP.
+    </p>
+    <div id="oauth-accounts-list"></div>
+  </div>
+  <div class="tab-content" id="tab-blacklist">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
+      <div style="font-size:var(--fs);font-weight:600;">Lista negra de usuarios</div>
+      <button class="btn btn-sm" onclick="loadBlacklist()" style="background:var(--surface2);color:var(--text);">🔄 Refrescar</button>
+    </div>
+    <p style="font-size:13px;color:var(--muted);margin:0 0 16px;">
+      Usuarios bloqueados no pueden iniciar sesión en ningún módulo.
+    </p>
+    <div style="margin-bottom:16px;">
+      <div class="perm-rol-section">
+        <div class="perm-rol-titulo">Bloquear usuario</div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:end;">
+          <div style="flex:1;min-width:200px;">
+            <label style="font-size:11px;color:var(--muted);text-transform:uppercase;">Usuario</label>
+            <select id="blacklist-user-select" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);"></select>
+          </div>
+          <div style="flex:1;min-width:200px;">
+            <label style="font-size:11px;color:var(--muted);text-transform:uppercase;">Razón</label>
+            <input type="text" id="blacklist-reason" placeholder="Motivo del bloqueo" style="width:100%;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);">
+          </div>
+          <button class="btn btn-sm" onclick="blockUser()" style="background:var(--danger);color:#fff;">🚫 Bloquear</button>
+        </div>
+      </div>
+    </div>
+    <div id="blacklist-list"></div>
   </div>
   <div class="tab-content" id="tab-email-notif">
     <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">

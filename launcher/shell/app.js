@@ -193,7 +193,8 @@ function oauthLogin(provider) {
       token_exchange_failed: 'Error al intercambiar token con el proveedor.',
       no_email: 'El proveedor no devolvió un correo electrónico.',
       auth_failed: 'Error al crear la sesión.',
-      oauth_error: 'Error al conectar con el proveedor OAuth.'
+      oauth_error: 'Error al conectar con el proveedor OAuth.',
+      blacklisted: 'Tu cuenta ha sido bloqueada. Contacta al administrador.'
     };
     setTimeout(() => {
       const errEl = document.getElementById('login-error');
@@ -1820,6 +1821,128 @@ async function saveOAuthConfig(provider) {
   }
 }
 
+// ── OAuth Accounts Management ──
+async function loadOAuthAccounts() {
+  const listEl = document.getElementById('oauth-accounts-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:13px;">Cargando cuentas...</div>';
+  try {
+    const res = await fetch('/api/admin/oauth-accounts', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const data = await res.json();
+    if (!data.accounts?.length) {
+      listEl.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:13px;">No hay cuentas OAuth vinculadas</div>';
+      return;
+    }
+    const providerIcons = { google: '🔵', github: '⚫', microsoft: '🟦' };
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="border-bottom:1px solid var(--border);">';
+    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Proveedor</th>';
+    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Email</th>';
+    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Usuario</th>';
+    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Vinculado</th>';
+    html += '<th style="padding:8px 12px;"></th>';
+    html += '</tr></thead><tbody>';
+    for (const a of data.accounts) {
+      const date = new Date(a.created_at).toLocaleDateString('es-ES');
+      html += `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;">${providerIcons[a.provider] || '🔗'} ${esc(a.provider)}</td>
+        <td style="padding:8px 12px;">${esc(a.email)}</td>
+        <td style="padding:8px 12px;">${esc(a.user_nombre || 'Sin vincular')} <span style="color:var(--muted);font-size:11px;">(${esc(a.user_email || '')})</span></td>
+        <td style="padding:8px 12px;font-size:12px;color:var(--muted);">${date}</td>
+        <td style="padding:8px 12px;"><button class="btn btn-sm" onclick="unlinkOAuthAccount(${a.id})" style="color:var(--danger);background:none;border:none;">🗑</button></td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    listEl.innerHTML = html;
+  } catch (e) {
+    listEl.innerHTML = '<div style="padding:12px;color:var(--danger);font-size:13px;">Error: ' + e.message + '</div>';
+  }
+}
+
+async function unlinkOAuthAccount(id) {
+  if (!await confirmModal('¿Desvincular esta cuenta OAuth? El usuario podrá seguir ingresando con email/password.', 'Desvincular', 'delete')) return;
+  try {
+    await fetch('/api/admin/oauth-accounts/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    loadOAuthAccounts();
+    toast('Cuenta desvinculada', 'success');
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
+}
+
+// ── User Blacklist ──
+async function loadBlacklistUsers() {
+  try {
+    const res = await fetch('/api/admin/usuarios', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const users = await res.json();
+    const select = document.getElementById('blacklist-user-select');
+    if (!select) return;
+    select.innerHTML = '<option value="">Seleccionar usuario...</option>' +
+      users.filter(u => u.activo).map(u => `<option value="${u.id}">${esc(u.nombre)} (${esc(u.email)})</option>`).join('');
+  } catch (e) { console.error('Error loading users:', e); }
+}
+
+async function loadBlacklist() {
+  const listEl = document.getElementById('blacklist-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:13px;">Cargando lista negra...</div>';
+  try {
+    const res = await fetch('/api/admin/blacklist', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const data = await res.json();
+    if (!data.entries?.length) {
+      listEl.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:13px;">No hay usuarios bloqueados</div>';
+      return;
+    }
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="border-bottom:1px solid var(--border);">';
+    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Usuario</th>';
+    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Razón</th>';
+    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Bloqueado por</th>';
+    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Fecha</th>';
+    html += '<th style="padding:8px 12px;"></th>';
+    html += '</tr></thead><tbody>';
+    for (const b of data.entries) {
+      const date = new Date(b.blocked_at).toLocaleDateString('es-ES');
+      html += `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;"><div style="font-weight:500;">${esc(b.nombre)}</div><div style="font-size:11px;color:var(--muted);">${esc(b.email)}</div></td>
+        <td style="padding:8px 12px;font-size:12px;">${esc(b.reason || '-')}</td>
+        <td style="padding:8px 12px;font-size:12px;color:var(--muted);">${esc(b.blocked_by_name || '-')}</td>
+        <td style="padding:8px 12px;font-size:12px;color:var(--muted);">${date}</td>
+        <td style="padding:8px 12px;"><button class="btn btn-sm" onclick="unblockUser(${b.id})" style="color:var(--success);background:none;border:none;">✓ Desbloquear</button></td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    listEl.innerHTML = html;
+  } catch (e) {
+    listEl.innerHTML = '<div style="padding:12px;color:var(--danger);font-size:13px;">Error: ' + e.message + '</div>';
+  }
+}
+
+async function blockUser() {
+  const select = document.getElementById('blacklist-user-select');
+  const reason = document.getElementById('blacklist-reason');
+  const userId = select?.value;
+  if (!userId) { toast('Selecciona un usuario', 'error'); return; }
+  if (!await confirmModal('¿Bloquear este usuario? No podrá iniciar sesión.', 'Bloquear', 'delete')) return;
+  try {
+    await fetch('/api/admin/blacklist', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
+      body: JSON.stringify({ user_id: parseInt(userId), reason: reason?.value || '' })
+    });
+    loadBlacklist();
+    loadBlacklistUsers();
+    toast('Usuario bloqueado', 'success');
+    if (select) select.value = '';
+    if (reason) reason.value = '';
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function unblockUser(id) {
+  if (!await confirmModal('¿Desbloquear este usuario?', 'Desbloquear', 'update')) return;
+  try {
+    await fetch('/api/admin/blacklist/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    loadBlacklist();
+    toast('Usuario desbloqueado', 'success');
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
+}
+
 // ── Email Notif Config ──
 const MODULO_LABELS = { proyectos: 'Proyectos', nomina: 'Nómina', proveedores: 'Proveedores', logistica: 'Logística', launcher: 'Launcher' };
 const MODULO_ICONS = { proyectos: '📋', nomina: '💰', proveedores: '📄', logistica: '🚚', launcher: '🏠' };
@@ -1899,6 +2022,8 @@ function showAdminTab(tab) {
    else if (tab === 'mcp') { loadMcpConfig(); loadMcpUrl(); }
    else if (tab === 'smtp') loadSmtpConfig();
    else if (tab === 'oauth') loadOAuthConfig();
+   else if (tab === 'oauth-accounts') loadOAuthAccounts();
+   else if (tab === 'blacklist') { loadBlacklist(); loadBlacklistUsers(); }
    else if (tab === 'email-notif') loadEmailNotifConfig();
    else if (tab === 'mapas') loadGmapsKeyStatus();
    else if (tab === 'seguridad') { loadRateLimitConfig(); loadSshConfig(); loadLoginLogs(); }
