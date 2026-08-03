@@ -1638,6 +1638,13 @@ async function loadMcpTools(moduleId) {
   try {
     const res = await fetch(`/api/admin/mcp/${moduleId}/tools`, { headers: { 'Authorization': 'Bearer ' + jwtToken } });
     const data = await res.json();
+    if (data.error) {
+      container.innerHTML = `<div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px;font-size:13px;">
+        <div style="color:var(--warning);margin-bottom:4px;">⚠ ${esc(data.error)}</div>
+        <div style="color:var(--muted);font-size:12px;">URL: ${esc(data.moduleUrl || 'no configurada')}</div>
+      </div>`;
+      return;
+    }
     if (!data.tools?.length) {
       container.innerHTML = '<div style="color:var(--muted);font-size:13px;padding:8px 0;">No hay herramientas disponibles</div>';
       return;

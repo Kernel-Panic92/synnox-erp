@@ -875,7 +875,9 @@ function oauthFindOrCreateUser(profile) {
   } else {
     db.prepare("INSERT INTO oauth_accounts (user_id, provider, provider_user_id, email, nombre, access_token, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(user.id, profile.provider, profile.id, profile.email, profile.name || null, profile.accessToken || null, Date.now(), Date.now());
   }
-  return { user, isNew };
+  // Check if user has modules assigned
+  const hasModules = db.prepare('SELECT COUNT(*) as c FROM user_modulos WHERE user_id = ?').get(user.id).c > 0;
+  return { user, isNew, hasModules };
 }
 
 function oauthIssueJwt(user, req, res) {
@@ -914,7 +916,7 @@ app.get('/auth/google/callback', async (req, res) => {
     const user = oauthFindOrCreateUser({ provider: 'google', id: profile.id, email: profile.email, name: profile.name, accessToken: tokenData.access_token });
     const token = oauthIssueJwt(user.user, req, res);
     if (!token) return res.redirect('/?error=auth_failed');
-    res.redirect(user.isNew ? '/?new_user=1' : '/');
+    res.redirect((user.isNew || !user.hasModules) ? '/?new_user=1' : '/');
   } catch (e) { console.error('[OAuth Google]', e.message); res.redirect('/?error=oauth_error'); }
 });
 
@@ -952,7 +954,7 @@ app.get('/auth/github/callback', async (req, res) => {
     const user = oauthFindOrCreateUser({ provider: 'github', id: String(ghUser.id), email, name: ghUser.name || ghUser.login, accessToken: tokenData.access_token });
     const token = oauthIssueJwt(user.user, req, res);
     if (!token) return res.redirect('/?error=auth_failed');
-    res.redirect(user.isNew ? '/?new_user=1' : '/');
+    res.redirect((user.isNew || !user.hasModules) ? '/?new_user=1' : '/');
   } catch (e) { console.error('[OAuth GitHub]', e.message); res.redirect('/?error=oauth_error'); }
 });
 
@@ -983,7 +985,7 @@ app.get('/auth/microsoft/callback', async (req, res) => {
     const user = oauthFindOrCreateUser({ provider: 'microsoft', id: msUser.id, email, name: msUser.displayName, accessToken: tokenData.access_token });
     const token = oauthIssueJwt(user.user, req, res);
     if (!token) return res.redirect('/?error=auth_failed');
-    res.redirect(user.isNew ? '/?new_user=1' : '/');
+    res.redirect((user.isNew || !user.hasModules) ? '/?new_user=1' : '/');
   } catch (e) { console.error('[OAuth Microsoft]', e.message); res.redirect('/?error=oauth_error'); }
 });
 
@@ -2699,12 +2701,15 @@ app.get('/api/admin/mcp/stats', verificarToken, soloAdmin, (req, res) => {
 app.get('/api/admin/mcp/:id/tools', verificarToken, soloAdmin, async (req, res) => {
   const mod = db.prepare('SELECT * FROM modulos_plataforma WHERE id = ?').get(req.params.id);
   if (!mod) return res.status(404).json({ error: 'Module not found' });
+  if (!mod.url) return res.json({ tools: [], error: 'URL no configurada para este módulo' });
   // Fetch tools from module's MCP endpoint
   let tools = [];
+  let fetchError = null;
   try {
-    const data = await forwardMcpRequest(mod, { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }, 5000);
+    const data = await forwardMcpRequest(mod, { jsonrpc: '2.0', id: 1, method: 'tools/list', params: {} }, 8000);
     if (data.result?.tools) tools = data.result.tools;
-  } catch {}
+    else if (data.error) fetchError = data.error.message;
+  } catch (e) { fetchError = e.message; }
   // Merge with config
   const config = db.prepare('SELECT tool_name, enabled FROM mcp_tool_config WHERE module_id = ?').all(req.params.id);
   const configMap = {};
@@ -2714,7 +2719,7 @@ app.get('/api/admin/mcp/:id/tools', verificarToken, soloAdmin, async (req, res) 
     description: t.description || '',
     enabled: configMap[t.name] !== undefined ? configMap[t.name] === 1 : true
   }));
-  res.json({ tools: result });
+  res.json({ tools: result, error: fetchError, moduleUrl: mod.url });
 });
 
 app.put('/api/admin/mcp/:id/tools', verificarToken, soloAdmin, (req, res) => {
