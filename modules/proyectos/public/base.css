@@ -274,3 +274,6 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
 .select-buscador-option.selected { background: rgba(0,168,107,.12); color: var(--accent); font-weight: 600; }
 .select-buscador-option.empty-msg { color: var(--muted); cursor: default; font-style: italic; }
 .select-buscador-option.empty-msg:hover { background: transparent; }
+
+/* ── Dark mode map tiles (CSS filter on OSM) ── */
+.map-dark .leaflet-tile { filter: brightness(0.55) saturate(1.3) contrast(1.1); }

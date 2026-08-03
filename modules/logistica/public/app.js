@@ -70,16 +70,14 @@ function toggleTheme() {
 }
 
 function createThemedTileLayer() {
-  const isDark = localStorage.getItem('synnox_theme') !== 'light';
-  return isDark
-    ? L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO' })
-    : L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+  return L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
 }
 
 function switchMapTheme(map) {
   if (!map) return;
-  map.eachLayer(l => { if (l instanceof L.TileLayer) map.removeLayer(l); });
-  createThemedTileLayer().addTo(map);
+  const isDark = localStorage.getItem('synnox_theme') !== 'light';
+  const container = map.getContainer();
+  container.classList.toggle('map-dark', isDark);
 }
 
 function toggleSidebar() {
@@ -1936,6 +1934,7 @@ let mapaFitted = false;
 
 function agregarCapasMapa(map) {
   createThemedTileLayer().addTo(map);
+  switchMapTheme(map);
   const onThemeChange = () => switchMapTheme(map);
   document.addEventListener('themechange', onThemeChange);
   map.on('remove', () => document.removeEventListener('themechange', onThemeChange));
@@ -3118,6 +3117,7 @@ function actualizarPreviewGeo() {
   if (el._leaflet_id) { el._leaflet_id = null; }
   _geoPreviewMapa = L.map(el).setView([lat, lng], 14);
   createThemedTileLayer().addTo(_geoPreviewMapa);
+  switchMapTheme(_geoPreviewMapa);
   const onThemeGeoPreview = () => switchMapTheme(_geoPreviewMapa);
   document.addEventListener('themechange', onThemeGeoPreview);
   _geoPreviewMapa.on('remove', () => document.removeEventListener('themechange', onThemeGeoPreview));
@@ -3136,6 +3136,7 @@ function initGeoPoligonoMapa() {
   if (el._leaflet_id) { el._leaflet_id = null; }
   _geoMapa = L.map(el).setView([6.2476, -75.5658], 13);
   createThemedTileLayer().addTo(_geoMapa);
+  switchMapTheme(_geoMapa);
   const onThemeGeo = () => switchMapTheme(_geoMapa);
   document.addEventListener('themechange', onThemeGeo);
   _geoMapa.on('remove', () => document.removeEventListener('themechange', onThemeGeo));
