@@ -2867,7 +2867,26 @@ app.put('/api/admin/oauth-accounts/:id/link', verificarToken, soloAdmin, (req, r
   if (!account) return res.status(404).json({ error: 'Account not found' });
   const user = db.prepare('SELECT id FROM usuarios WHERE id = ?').get(user_id);
   if (!user) return res.status(404).json({ error: 'User not found' });
+  
+  const previousUserId = account.user_id;
+  
+  // Link to new user
   db.prepare('UPDATE oauth_accounts SET user_id = ?, updated_at = ? WHERE id = ?').run(user_id, Date.now(), req.params.id);
+  
+  // Auto-delete orphaned OAuth-created user if conditions are met
+  if (previousUserId && previousUserId !== user_id) {
+    const prevUser = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(previousUserId);
+    if (prevUser) {
+      const hasModules = db.prepare('SELECT COUNT(*) as c FROM user_modulos WHERE user_id = ?').get(previousUserId).c > 0;
+      const hasProfile = prevUser.perfil_id !== null;
+      const isDefaultRole = prevUser.rol === 'operador';
+      // Only delete if: default role, no modules, no profile (auto-created by OAuth)
+      if (isDefaultRole && !hasModules && !hasProfile) {
+        db.prepare('DELETE FROM usuarios WHERE id = ?').run(previousUserId);
+      }
+    }
+  }
+  
   res.json({ ok: true });
 });
 
