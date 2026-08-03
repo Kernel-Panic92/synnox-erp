@@ -809,9 +809,11 @@ function getOAuthBaseUrl() {
 
 function oauthFindOrCreateUser(profile) {
   // Find by email
+  let isNew = false;
   let user = db.prepare('SELECT * FROM usuarios WHERE email = ?').get(profile.email);
   if (!user) {
     // Create new user
+    isNew = true;
     const hash = bcrypt.hashSync(crypto.randomBytes(16).toString('hex'), 10);
     const result = db.prepare("INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, 'operador')").run(profile.name || profile.email, profile.email, hash);
     user = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(result.lastInsertRowid);
@@ -823,7 +825,7 @@ function oauthFindOrCreateUser(profile) {
   } else {
     db.prepare("INSERT INTO oauth_accounts (user_id, provider, provider_user_id, email, nombre, access_token, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(user.id, profile.provider, profile.id, profile.email, profile.name || null, profile.accessToken || null, Date.now(), Date.now());
   }
-  return user;
+  return { user, isNew };
 }
 
 function oauthIssueJwt(user, req, res) {
@@ -860,9 +862,9 @@ app.get('/auth/google/callback', async (req, res) => {
     const profile = await userInfoRes.json();
     if (!profile.email) return res.redirect('/?error=no_email');
     const user = oauthFindOrCreateUser({ provider: 'google', id: profile.id, email: profile.email, name: profile.name, accessToken: tokenData.access_token });
-    const token = oauthIssueJwt(user, req, res);
+    const token = oauthIssueJwt(user.user, req, res);
     if (!token) return res.redirect('/?error=auth_failed');
-    res.redirect('/');
+    res.redirect(user.isNew ? '/?new_user=1' : '/');
   } catch (e) { console.error('[OAuth Google]', e.message); res.redirect('/?error=oauth_error'); }
 });
 
@@ -898,9 +900,9 @@ app.get('/auth/github/callback', async (req, res) => {
     }
     if (!email) return res.redirect('/?error=no_email');
     const user = oauthFindOrCreateUser({ provider: 'github', id: String(ghUser.id), email, name: ghUser.name || ghUser.login, accessToken: tokenData.access_token });
-    const token = oauthIssueJwt(user, req, res);
+    const token = oauthIssueJwt(user.user, req, res);
     if (!token) return res.redirect('/?error=auth_failed');
-    res.redirect('/');
+    res.redirect(user.isNew ? '/?new_user=1' : '/');
   } catch (e) { console.error('[OAuth GitHub]', e.message); res.redirect('/?error=oauth_error'); }
 });
 
@@ -929,9 +931,9 @@ app.get('/auth/microsoft/callback', async (req, res) => {
     const email = msUser.mail || msUser.userPrincipalName;
     if (!email) return res.redirect('/?error=no_email');
     const user = oauthFindOrCreateUser({ provider: 'microsoft', id: msUser.id, email, name: msUser.displayName, accessToken: tokenData.access_token });
-    const token = oauthIssueJwt(user, req, res);
+    const token = oauthIssueJwt(user.user, req, res);
     if (!token) return res.redirect('/?error=auth_failed');
-    res.redirect('/');
+    res.redirect(user.isNew ? '/?new_user=1' : '/');
   } catch (e) { console.error('[OAuth Microsoft]', e.message); res.redirect('/?error=oauth_error'); }
 });
 

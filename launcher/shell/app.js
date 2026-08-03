@@ -208,6 +208,14 @@ function oauthLogin(provider) {
     }, 500);
     window.history.replaceState({}, '', '/');
   }
+  // New user from OAuth — show welcome modal
+  if (params.get('new_user') === '1') {
+    setTimeout(() => {
+      const modal = document.getElementById('new-user-modal');
+      if (modal) modal.style.display = 'flex';
+    }, 1000);
+    window.history.replaceState({}, '', '/');
+  }
 })();
 
 async function login() {
