@@ -2261,6 +2261,24 @@ async function killSession(id, nombre) {
     showSessionExpiredModal();
     return;
   }
+  // No JWT in localStorage — try httpOnly cookie (from OAuth login)
+  try {
+    const res = await fetch('/api/auth/me', { signal: AbortSignal.timeout(5000) });
+    if (res.ok) {
+      const data = await res.json();
+      // Cookie worked — store JWT for future requests
+      const refreshRes = await fetch('/api/auth/refresh', { method: 'POST', signal: AbortSignal.timeout(5000) });
+      if (refreshRes.ok) {
+        const refreshData = await refreshRes.json();
+        if (refreshData.jwt) { jwtToken = refreshData.jwt; localStorage.setItem('platform_jwt', jwtToken); }
+      }
+      user = data;
+      show('post-login-screen');
+      updatePostLoginStatus('Preparando tu espacio de trabajo...', 50);
+      await showLauncher();
+      return;
+    }
+  } catch {}
   show('login-screen');
   const params = new URLSearchParams(window.location.search);
   if (params.get('token')) {
