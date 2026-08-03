@@ -2172,6 +2172,8 @@ setTimeout(() => {
   const ls = document.getElementById('loading-screen');
   if (ls && ls.style.display !== 'none') {
     ls.style.display = 'none';
+    const sessionModal = document.getElementById('session-expired-modal');
+    if (sessionModal && sessionModal.style.display === 'flex') return;
     if (!document.getElementById('login-screen').style.display || document.getElementById('login-screen').style.display === 'none') {
       show('login-screen');
     }
@@ -2219,7 +2221,8 @@ document.addEventListener('visibilitychange', async () => {
 });
 
 function showSessionExpiredModal() {
-  // Don't clear localStorage — preserve cache
+  // Hide all screens so only the modal is visible
+  show(null);
   const modal = document.getElementById('session-expired-modal');
   if (modal) modal.style.display = 'flex';
 }
