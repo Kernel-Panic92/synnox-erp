@@ -886,23 +886,37 @@ function getOAuthBaseUrl() {
 }
 
 function oauthFindOrCreateUser(profile) {
-  // Find by email
   let isNew = false;
-  let user = db.prepare('SELECT * FROM usuarios WHERE email = ?').get(profile.email);
+  let user = null;
+
+  // 1. FIRST: Check if there's an existing OAuth link
+  const existingLink = db.prepare('SELECT * FROM oauth_accounts WHERE provider = ? AND provider_user_id = ?').get(profile.provider, profile.id);
+  if (existingLink) {
+    user = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(existingLink.user_id);
+    if (user) {
+      // Update tokens on existing link
+      db.prepare("UPDATE oauth_accounts SET access_token = ?, nombre = ?, email = ?, updated_at = ? WHERE id = ?").run(profile.accessToken || null, profile.name || null, profile.email, Date.now(), existingLink.id);
+    }
+  }
+
+  // 2. SECOND: If no link found, search by email
   if (!user) {
-    // Create new user
+    user = db.prepare('SELECT * FROM usuarios WHERE email = ?').get(profile.email);
+  }
+
+  // 3. THIRD: If still no user, create new one
+  if (!user) {
     isNew = true;
     const hash = bcrypt.hashSync(crypto.randomBytes(16).toString('hex'), 10);
     const result = db.prepare("INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, 'operador')").run(profile.name || profile.email, profile.email, hash);
     user = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(result.lastInsertRowid);
   }
-  // Link or update oauth_account
-  const existing = db.prepare('SELECT * FROM oauth_accounts WHERE provider = ? AND provider_user_id = ?').get(profile.provider, profile.id);
-  if (existing) {
-    db.prepare("UPDATE oauth_accounts SET access_token = ?, nombre = ?, updated_at = ? WHERE id = ?").run(profile.accessToken || null, profile.name || null, Date.now(), existing.id);
-  } else {
+
+  // 4. Link or update oauth_account (if not already linked above)
+  if (!existingLink) {
     db.prepare("INSERT INTO oauth_accounts (user_id, provider, provider_user_id, email, nombre, access_token, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(user.id, profile.provider, profile.id, profile.email, profile.name || null, profile.accessToken || null, Date.now(), Date.now());
   }
+
   // Check if user has modules assigned
   const hasModules = db.prepare('SELECT COUNT(*) as c FROM user_modulos WHERE user_id = ?').get(user.id).c > 0;
   return { user, isNew, hasModules };
