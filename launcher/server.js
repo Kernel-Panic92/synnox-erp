@@ -271,6 +271,9 @@ db.exec(`CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT NOT
 
 // Seed defaults
 const defaults = { smtp_host:'', smtp_port:'587', smtp_secure:'false', smtp_user:'', smtp_pass:'', smtp_from:'', smtp_from_name: COMPANY_NAME, smtp_allow_self_signed:'false', mcp_oauth_enabled:'false',
+  google_client_id:'', google_client_secret:'', google_enabled:'false',
+  github_client_id:'', github_client_secret:'', github_enabled:'false',
+  microsoft_client_id:'', microsoft_client_secret:'', microsoft_tenant_id:'common', microsoft_enabled:'false',
   grad_c1:'230,126,34', grad_c2:'247,148,79', grad_c3:'196,98,16',
   rate_limit_max:'5', rate_limit_window:'60',
   ssh_host:'', ssh_user:'root' };
@@ -342,6 +345,25 @@ db.exec(`
 `);
 db.exec("CREATE INDEX IF NOT EXISTS idx_oauth_codes_client ON oauth_codes(client_id)");
 db.exec("CREATE INDEX IF NOT EXISTS idx_oauth_tokens_client ON oauth_tokens(client_id)");
+
+// ── Third-party OAuth accounts (Google, GitHub, Microsoft login) ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS oauth_accounts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+    provider TEXT NOT NULL,
+    provider_user_id TEXT NOT NULL,
+    email TEXT,
+    nombre TEXT,
+    access_token TEXT,
+    refresh_token TEXT,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    UNIQUE(provider, provider_user_id)
+  )
+`);
+db.exec("CREATE INDEX IF NOT EXISTS idx_oauth_accounts_email ON oauth_accounts(email)");
+db.exec("CREATE INDEX IF NOT EXISTS idx_oauth_accounts_user ON oauth_accounts(user_id)");
 
 // ── OAuth DB helpers ──
 function oauthSaveClient(c) {
@@ -768,6 +790,183 @@ app.post('/api/auth/refresh', verificarToken, (req, res) => {
   const payload = buildPayload(userWithPerms);
   const token = firmarToken(payload, res, req);
   res.json({ jwt: token });
+});
+
+// ── Third-party OAuth login (Google, GitHub, Microsoft) ──
+function getOAuthConfig(provider) {
+  const row = (key) => db.prepare("SELECT value FROM config WHERE key = ?").get(key)?.value || '';
+  return {
+    clientId: row(`${provider}_client_id`),
+    clientSecret: row(`${provider}_client_secret`),
+    enabled: row(`${provider}_enabled`) === 'true',
+    tenantId: provider === 'microsoft' ? row('microsoft_tenant_id') || 'common' : null
+  };
+}
+
+function getOAuthBaseUrl() {
+  const isProd = process.env.NODE_ENV === 'production' || COMPANY_DOMAIN !== 'localhost';
+  return isProd ? `https://${COMPANY_DOMAIN}` : `http://localhost:${PORT}`;
+}
+
+function oauthFindOrCreateUser(profile) {
+  // Find by email
+  let user = db.prepare('SELECT * FROM usuarios WHERE email = ?').get(profile.email);
+  if (!user) {
+    // Create new user
+    const hash = bcrypt.hashSync(crypto.randomBytes(16).toString('hex'), 10);
+    const result = db.prepare("INSERT INTO usuarios (nombre, email, password_hash, rol) VALUES (?, ?, ?, 'operador')").run(profile.name || profile.email, profile.email, hash);
+    user = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(result.lastInsertRowid);
+  }
+  // Link or update oauth_account
+  const existing = db.prepare('SELECT * FROM oauth_accounts WHERE provider = ? AND provider_user_id = ?').get(profile.provider, profile.id);
+  if (existing) {
+    db.prepare("UPDATE oauth_accounts SET access_token = ?, nombre = ?, updated_at = ? WHERE id = ?").run(profile.accessToken || null, profile.name || null, Date.now(), existing.id);
+  } else {
+    db.prepare("INSERT INTO oauth_accounts (user_id, provider, provider_user_id, email, nombre, access_token, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(user.id, profile.provider, profile.id, profile.email, profile.name || null, profile.accessToken || null, Date.now(), Date.now());
+  }
+  return user;
+}
+
+function oauthIssueJwt(user, req, res) {
+  const userWithPerms = getUserWithPermissions(db, user.id);
+  if (!userWithPerms) return null;
+  const payload = buildPayload(userWithPerms);
+  const token = jwt.sign(payload, JWT_SECRET, { expiresIn: '24h' });
+  const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
+  res.cookie('launcher_jwt', token, { httpOnly: true, secure: isSecure, sameSite: 'lax', path: '/', maxAge: 24 * 60 * 60 * 1000 });
+  return token;
+}
+
+// ── Google OAuth ──
+app.get('/auth/google', (req, res) => {
+  const cfg = getOAuthConfig('google');
+  if (!cfg.enabled || !cfg.clientId) return res.status(404).json({ error: 'Google OAuth not configured' });
+  const redirectUri = encodeURIComponent(getOAuthBaseUrl() + '/auth/google/callback');
+  const scope = encodeURIComponent('openid email profile');
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?client_id=${cfg.clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline`);
+});
+
+app.get('/auth/google/callback', async (req, res) => {
+  const { code, error } = req.query;
+  if (error || !code) return res.redirect('/?error=oauth_denied');
+  const cfg = getOAuthConfig('google');
+  try {
+    const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code, client_id: cfg.clientId, client_secret: cfg.clientSecret, redirect_uri: getOAuthBaseUrl() + '/auth/google/callback', grant_type: 'authorization_code' })
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenData.access_token) return res.redirect('/?error=token_exchange_failed');
+    const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: 'Bearer ' + tokenData.access_token } });
+    const profile = await userInfoRes.json();
+    if (!profile.email) return res.redirect('/?error=no_email');
+    const user = oauthFindOrCreateUser({ provider: 'google', id: profile.id, email: profile.email, name: profile.name, accessToken: tokenData.access_token });
+    const token = oauthIssueJwt(user, req, res);
+    if (!token) return res.redirect('/?error=auth_failed');
+    res.redirect('/');
+  } catch (e) { console.error('[OAuth Google]', e.message); res.redirect('/?error=oauth_error'); }
+});
+
+// ── GitHub OAuth ──
+app.get('/auth/github', (req, res) => {
+  const cfg = getOAuthConfig('github');
+  if (!cfg.enabled || !cfg.clientId) return res.status(404).json({ error: 'GitHub OAuth not configured' });
+  const redirectUri = encodeURIComponent(getOAuthBaseUrl() + '/auth/github/callback');
+  const scope = encodeURIComponent('read:user user:email');
+  res.redirect(`https://github.com/login/oauth/authorize?client_id=${cfg.clientId}&redirect_uri=${redirectUri}&scope=${scope}`);
+});
+
+app.get('/auth/github/callback', async (req, res) => {
+  const { code, error } = req.query;
+  if (error || !code) return res.redirect('/?error=oauth_denied');
+  const cfg = getOAuthConfig('github');
+  try {
+    const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
+      method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
+      body: JSON.stringify({ client_id: cfg.clientId, client_secret: cfg.clientSecret, code })
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenData.access_token) return res.redirect('/?error=token_exchange_failed');
+    const userRes = await fetch('https://api.github.com/user', { headers: { Authorization: 'Bearer ' + tokenData.access_token, Accept: 'application/json' } });
+    const ghUser = await userRes.json();
+    // Get primary email
+    let email = ghUser.email;
+    if (!email) {
+      const emailsRes = await fetch('https://api.github.com/user/emails', { headers: { Authorization: 'Bearer ' + tokenData.access_token, Accept: 'application/json' } });
+      const emails = await emailsRes.json();
+      const primary = emails.find(e => e.primary) || emails[0];
+      email = primary?.email;
+    }
+    if (!email) return res.redirect('/?error=no_email');
+    const user = oauthFindOrCreateUser({ provider: 'github', id: String(ghUser.id), email, name: ghUser.name || ghUser.login, accessToken: tokenData.access_token });
+    const token = oauthIssueJwt(user, req, res);
+    if (!token) return res.redirect('/?error=auth_failed');
+    res.redirect('/');
+  } catch (e) { console.error('[OAuth GitHub]', e.message); res.redirect('/?error=oauth_error'); }
+});
+
+// ── Microsoft OAuth ──
+app.get('/auth/microsoft', (req, res) => {
+  const cfg = getOAuthConfig('microsoft');
+  if (!cfg.enabled || !cfg.clientId) return res.status(404).json({ error: 'Microsoft OAuth not configured' });
+  const redirectUri = encodeURIComponent(getOAuthBaseUrl() + '/auth/microsoft/callback');
+  const scope = encodeURIComponent('openid email profile User.Read');
+  res.redirect(`https://login.microsoftonline.com/${cfg.tenantId}/oauth2/v2.0/authorize?client_id=${cfg.clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`);
+});
+
+app.get('/auth/microsoft/callback', async (req, res) => {
+  const { code, error } = req.query;
+  if (error || !code) return res.redirect('/?error=oauth_denied');
+  const cfg = getOAuthConfig('microsoft');
+  try {
+    const tokenRes = await fetch(`https://login.microsoftonline.com/${cfg.tenantId}/oauth2/v2.0/token`, {
+      method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ code, client_id: cfg.clientId, client_secret: cfg.clientSecret, redirect_uri: getOAuthBaseUrl() + '/auth/microsoft/callback', grant_type: 'authorization_code' }).toString()
+    });
+    const tokenData = await tokenRes.json();
+    if (!tokenData.access_token) return res.redirect('/?error=token_exchange_failed');
+    const userRes = await fetch('https://graph.microsoft.com/v1.0/me', { headers: { Authorization: 'Bearer ' + tokenData.access_token } });
+    const msUser = await userRes.json();
+    const email = msUser.mail || msUser.userPrincipalName;
+    if (!email) return res.redirect('/?error=no_email');
+    const user = oauthFindOrCreateUser({ provider: 'microsoft', id: msUser.id, email, name: msUser.displayName, accessToken: tokenData.access_token });
+    const token = oauthIssueJwt(user, req, res);
+    if (!token) return res.redirect('/?error=auth_failed');
+    res.redirect('/');
+  } catch (e) { console.error('[OAuth Microsoft]', e.message); res.redirect('/?error=oauth_error'); }
+});
+
+// ── Public: list enabled OAuth providers (for login screen) ──
+app.get('/api/auth/oauth-providers', (req, res) => {
+  const providers = ['google', 'github', 'microsoft'];
+  const enabled = providers.filter(p => getOAuthConfig(p).enabled && getOAuthConfig(p).clientId);
+  res.json({ providers: enabled.map(p => ({ id: p, name: p.charAt(0).toUpperCase() + p.slice(1) })) });
+});
+
+// ── Admin: manage OAuth providers ──
+app.get('/api/admin/oauth-providers', verificarToken, soloAdmin, (req, res) => {
+  const providers = ['google', 'github', 'microsoft'];
+  const result = {};
+  for (const p of providers) {
+    result[p] = {
+      enabled: db.prepare("SELECT value FROM config WHERE key = ?").get(`${p}_enabled`)?.value === 'true',
+      client_id: db.prepare("SELECT value FROM config WHERE key = ?").get(`${p}_client_id`)?.value || '',
+      client_secret: db.prepare("SELECT value FROM config WHERE key = ?").get(`${p}_client_secret`)?.value || '',
+      tenant_id: p === 'microsoft' ? db.prepare("SELECT value FROM config WHERE key = ?").get('microsoft_tenant_id')?.value || 'common' : undefined
+    };
+  }
+  res.json({ providers: result });
+});
+
+app.put('/api/admin/oauth-providers', verificarToken, soloAdmin, (req, res) => {
+  const allowed = ['google_enabled','google_client_id','google_client_secret',
+    'github_enabled','github_client_id','github_client_secret',
+    'microsoft_enabled','microsoft_client_id','microsoft_client_secret','microsoft_tenant_id'];
+  const upsert = db.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)');
+  for (const [k, v] of Object.entries(req.body)) {
+    if (allowed.includes(k)) upsert.run(k, String(v ?? ''));
+  }
+  res.json({ ok: true });
 });
 
 // ── Cookie test endpoint ──

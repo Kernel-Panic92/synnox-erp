@@ -147,6 +147,7 @@ function show(id) {
       el.style.display = 'none';
     }
   });
+  if (id === 'login-screen') loadOAuthProviders();
 }
 
 function showError(el, msg) {
@@ -168,6 +169,46 @@ function showModuleLoading(icon, nombre) {
   document.getElementById('module-loading-name').textContent = 'Cargando ' + nombre + '...';
   overlay.style.display = 'flex';
 }
+
+// ── OAuth login (third-party providers) ──
+async function loadOAuthProviders() {
+  try {
+    const res = await fetch('/api/auth/oauth-providers');
+    const { providers } = await res.json();
+    for (const p of providers) {
+      const btn = document.getElementById('oauth-' + p.id);
+      if (btn) btn.style.display = 'flex';
+    }
+    if (providers.length > 0) {
+      const divider = document.querySelector('.login-divider');
+      if (divider) divider.style.display = 'flex';
+    }
+  } catch {}
+}
+
+function oauthLogin(provider) {
+  window.location.href = '/auth/' + provider;
+}
+
+// Check for OAuth error on page load
+(function checkOAuthError() {
+  const params = new URLSearchParams(window.location.search);
+  const error = params.get('error');
+  if (error) {
+    const messages = {
+      oauth_denied: 'Acceso denegado. Debes autorizar para continuar.',
+      token_exchange_failed: 'Error al intercambiar token con el proveedor.',
+      no_email: 'El proveedor no devolvió un correo electrónico.',
+      auth_failed: 'Error al crear la sesión.',
+      oauth_error: 'Error al conectar con el proveedor OAuth.'
+    };
+    setTimeout(() => {
+      const errEl = document.getElementById('login-error');
+      if (errEl) { errEl.textContent = messages[error] || 'Error OAuth'; errEl.classList.add('show'); }
+    }, 500);
+    window.history.replaceState({}, '', '/');
+  }
+})();
 
 async function login() {
   const email = document.getElementById('login-user').value.trim();
