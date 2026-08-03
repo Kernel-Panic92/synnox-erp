@@ -22,9 +22,9 @@ function initFramework(opts = {}) {
   HF.routeMap = opts.routes || {};
   HF.themePages = opts.themePages || ['dashboard'];
 
-  if (localStorage.getItem(HF.THEME_KEY) === 'light') document.body.classList.add('light');
-  const themeBtn = document.getElementById('theme-btn');
-  if (themeBtn) themeBtn.textContent = document.body.classList.contains('light') ? '🌙' : '☀️';
+  const savedTheme = localStorage.getItem(HF.THEME_KEY);
+  if (!savedTheme) { localStorage.setItem(HF.THEME_KEY, 'dark'); }
+  if (savedTheme === 'light') document.body.classList.add('light');
 
   // Create toast container
   if (!document.getElementById('toast-container')) {
@@ -195,7 +195,7 @@ function mostrarApp() {
 function logout() {
   HF.TOKEN = null; HF.USER = null;
   localStorage.removeItem(HF.TOKEN_KEY);
-  // Keep synnox_theme — it's a UI preference, not session data
+  localStorage.removeItem('synnox_theme');
   window.location.href = '/logout';
 }
 
@@ -210,8 +210,6 @@ function confirmarLogout() { cerrarLogoutConfirm(); logout(); }
 function toggleTheme() {
   document.body.classList.toggle('light');
   localStorage.setItem(HF.THEME_KEY, document.body.classList.contains('light') ? 'light' : 'dark');
-  const btn = document.getElementById('theme-btn');
-  if (btn) btn.textContent = document.body.classList.contains('light') ? '🌙' : '☀️';
 }
 
 // ── Sidebar ──
@@ -336,15 +334,15 @@ function setLoading(elId, loading) {
 function initTableFilters(tableId, opts = {}) {
   const table = document.getElementById(tableId);
   if (!table) return;
-  const tbody = table.querySelector("tbody");
+  const tbody = table.querySelector('tbody');
   if (!tbody) return;
-  const rows = Array.from(tbody.querySelectorAll("tr"));
+  const rows = Array.from(tbody.querySelectorAll('tr'));
   const searchCols = opts.searchCols || null;
-  const statusKey = opts.statusKey || "status";
+  const statusKey = opts.statusKey || 'status';
 
   function applyFilters() {
-    const search = (opts.searchId ? document.getElementById(opts.searchId) : document.querySelector(".table-filters .filter-input"))?.value.toLowerCase() || "";
-    const status = (opts.statusId ? document.getElementById(opts.statusId) : document.querySelector(".table-filters .filter-select"))?.value || "";
+    const search = (opts.searchId ? document.getElementById(opts.searchId) : document.querySelector('.table-filters .filter-input'))?.value.toLowerCase() || '';
+    const status = (opts.statusId ? document.getElementById(opts.statusId) : document.querySelector('.table-filters .filter-select'))?.value || '';
     let visible = 0;
     rows.forEach(row => {
       let matchSearch = true;
@@ -360,88 +358,98 @@ function initTableFilters(tableId, opts = {}) {
       }
       const matchStatus = !status || row.dataset[statusKey] === status;
       const show = matchSearch && matchStatus;
-      row.style.display = show ? "" : "none";
+      row.style.display = show ? '' : 'none';
       if (show) visible++;
     });
-    const countEl = opts.countId ? document.getElementById(opts.countId) : document.querySelector(".table-filters .filter-count");
-    if (countEl) countEl.textContent = "Mostrando " + visible + " de " + rows.length + " registros";
+    const countEl = opts.countId ? document.getElementById(opts.countId) : document.querySelector('.table-filters .filter-count');
+    if (countEl) countEl.textContent = `Mostrando ${visible} de ${rows.length} registros`;
   }
 
-  const searchEl = opts.searchId ? document.getElementById(opts.searchId) : document.querySelector(".table-filters .filter-input");
-  const statusEl = opts.statusId ? document.getElementById(opts.statusId) : document.querySelector(".table-filters .filter-select");
-  if (searchEl) searchEl.addEventListener("input", applyFilters);
-  if (statusEl) statusEl.addEventListener("change", applyFilters);
+  const searchEl = opts.searchId ? document.getElementById(opts.searchId) : document.querySelector('.table-filters .filter-input');
+  const statusEl = opts.statusId ? document.getElementById(opts.statusId) : document.querySelector('.table-filters .filter-select');
+  if (searchEl) searchEl.addEventListener('input', applyFilters);
+  if (statusEl) statusEl.addEventListener('change', applyFilters);
   applyFilters();
-  return { applyFilters: applyFilters, rows: rows };
+  return { applyFilters, rows };
 }
 
 function clearTableFilters(containerId) {
-  var root = containerId ? document.getElementById(containerId) : document;
-  var inputs = root.querySelectorAll(".table-filters .filter-input, .table-filters .filter-select");
-  inputs.forEach(function(el) { el.value = ""; el.dispatchEvent(new Event(el.tagName === "SELECT" ? "change" : "input")); });
+  const root = containerId ? document.getElementById(containerId) : document;
+  const inputs = root.querySelectorAll('.table-filters .filter-input, .table-filters .filter-select');
+  inputs.forEach(el => { el.value = ''; el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input')); });
 }
 
 // ── Notifications ──
-var _notifPollTimer = null;
-var _notifAPI = '/api';
+let _notifPollTimer = null;
 
-function cargarNotificaciones() {
-  var base = _notifAPI || '/api';
-  return fetch(base + '/notificaciones/no-leidas', { credentials: 'include', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} })
-    .then(function(r) { return r.ok ? r.json() : null; })
-    .then(function(d) { if (d) { var b = document.getElementById('notif-count'); if (b) b.textContent = d.count > 0 ? (d.count > 99 ? '99+' : d.count) : ''; } })
-    .catch(function() {});
+async function cargarNotificaciones() {
+  try {
+    const res = await fetch(HF.API + '/notificaciones/no-leidas', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    if (!res.ok) return;
+    const { count } = await res.json();
+    const badge = document.getElementById('notif-count');
+    if (badge) badge.textContent = count > 0 ? (count > 99 ? '99+' : count) : '';
+  } catch {}
 }
 
-function toggleNotifDropdown() {
-  var dd = document.getElementById('notif-dropdown');
+async function toggleNotifDropdown() {
+  const dd = document.getElementById('notif-dropdown');
   if (!dd) return;
-  var isOpen = dd.classList.contains('show');
+  const isOpen = dd.classList.contains('show');
   dd.classList.toggle('show');
   if (!isOpen) {
-    var base = _notifAPI || '/api';
-    fetch(base + '/notificaciones', { credentials: 'include', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} })
-      .then(function(r) { return r.ok ? r.json() : null; })
-      .then(function(d) {
-        if (!d) return;
-        var notifs = d.notificaciones || [];
-        var list = dd.querySelector('.notif-list');
-        if (!notifs.length) { list.innerHTML = '<div class="notif-empty">Sin notificaciones</div>'; return; }
-        var icons = { tarea_asignada: '📋', tarea_vencida: '⏰', proyecto_aprobado: '✅', proyecto_rechazado: '❌', comentario: '💬' };
-        list.innerHTML = notifs.map(function(n) {
-          var timeAgo = timeSince(new Date(n.created_at));
-          return '<div class="notif-item' + (n.leida ? '' : ' unread') + '" onclick="marcarNotifLeida(' + n.id + ', \'' + (n.url || '') + '\')">' +
-            '<div class="notif-icon">' + (icons[n.tipo] || '🔔') + '</div>' +
-            '<div class="notif-content"><div class="notif-title">' + esc(n.titulo) + '</div>' +
-            '<div class="notif-msg">' + esc(n.mensaje) + '</div>' +
-            '<div class="notif-time">' + timeAgo + '</div></div></div>';
+    try {
+      const res = await fetch(HF.API + '/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+      if (!res.ok) return;
+      const { notificaciones } = await res.json();
+      const list = dd.querySelector('.notif-list');
+      if (!notificaciones.length) {
+        list.innerHTML = '<div class="notif-empty">Sin notificaciones</div>';
+      } else {
+        list.innerHTML = notificaciones.map(n => {
+          const icons = { tarea_asignada: '📋', tarea_vencida: '⏰', proyecto_aprobado: '✅', proyecto_rechazado: '❌', comentario: '💬', factura_nueva: '📄', factura_vencida: '⚠️', ruta_asignada: '🛣️', backup: '💾', sistema: '⚙️', cambio_estado: '🔄', tarea_revision: '📋', proyecto_asignado: '📁' };
+          const timeAgo = timeSince(new Date(n.created_at));
+          return `<div class="notif-item${n.leida ? '' : ' unread'}" onclick="marcarNotifLeida(${n.id}, '${n.url || ''}')">
+            <div class="notif-icon">${icons[n.tipo] || '🔔'}</div>
+            <div class="notif-content">
+              <div class="notif-title">${esc(n.titulo)}</div>
+              <div class="notif-msg">${esc(n.mensaje)}</div>
+              <div class="notif-time">${timeAgo}</div>
+            </div>
+          </div>`;
         }).join('');
-      }).catch(function() {});
+      }
+    } catch {}
   }
 }
 
-function marcarNotifLeida(id, url) {
-  var base = _notifAPI || '/api';
-  fetch(base + '/notificaciones/' + id + '/leer', { method: 'PUT', credentials: 'include', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} })
-    .then(function() { cargarNotificaciones(); if (url) window.location.href = url; var dd = document.getElementById('notif-dropdown'); if (dd) dd.classList.remove('show'); })
-    .catch(function() {});
+async function marcarNotifLeida(id, url) {
+  try {
+    await fetch(HF.API + '/notificaciones/' + id + '/leer', { method: 'PUT', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    cargarNotificaciones();
+    if (url) window.location.href = url;
+    const dd = document.getElementById('notif-dropdown');
+    if (dd) dd.classList.remove('show');
+  } catch {}
 }
 
-function marcarTodasLeidas() {
-  var base = _notifAPI || '/api';
-  fetch(base + '/notificaciones/leer-todas', { method: 'PUT', credentials: 'include', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} })
-    .then(function() { cargarNotificaciones(); var dd = document.getElementById('notif-dropdown'); if (dd) dd.classList.remove('show'); })
-    .catch(function() {});
+async function marcarTodasLeidas() {
+  try {
+    await fetch(HF.API + '/notificaciones/leer-todas', { method: 'PUT', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    cargarNotificaciones();
+    toggleNotifDropdown();
+    toggleNotifDropdown();
+  } catch {}
 }
 
 function timeSince(date) {
-  var seconds = Math.floor((new Date() - date) / 1000);
+  const seconds = Math.floor((new Date() - date) / 1000);
   if (seconds < 60) return 'Ahora';
-  var minutes = Math.floor(seconds / 60);
+  const minutes = Math.floor(seconds / 60);
   if (minutes < 60) return minutes + ' min';
-  var hours = Math.floor(minutes / 60);
+  const hours = Math.floor(minutes / 60);
   if (hours < 24) return hours + ' h';
-  var days = Math.floor(hours / 24);
+  const days = Math.floor(hours / 24);
   return days + ' d';
 }
 
@@ -449,14 +457,18 @@ function initNotifications(pollMs) {
   cargarNotificaciones();
   if (_notifPollTimer) clearInterval(_notifPollTimer);
   _notifPollTimer = setInterval(cargarNotificaciones, pollMs || 60000);
-  document.addEventListener('click', function(e) {
-    var dd = document.getElementById('notif-dropdown');
-    var bell = document.querySelector('.notif-bell');
+  document.addEventListener('click', (e) => {
+    const dd = document.getElementById('notif-dropdown');
+    const bell = document.querySelector('.notif-bell');
     if (dd && !dd.contains(e.target) && !bell?.contains(e.target)) dd.classList.remove('show');
   });
 }
 
 function injectNotificationBell(headerEl) {
   if (!headerEl || document.querySelector('.notif-bell')) return;
-  headerEl.innerHTML = '<div class="notif-bell" onclick="toggleNotifDropdown()">🔔<span class="notif-badge" id="notif-count"></span><div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div></div>';
+  const bell = document.createElement('div');
+  bell.className = 'notif-bell';
+  bell.onclick = toggleNotifDropdown;
+  bell.innerHTML = '🔔<span class="notif-badge" id="notif-count"></span><div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div>';
+  headerEl.appendChild(bell);
 }

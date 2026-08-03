@@ -1,6 +1,60 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (2 Ago 2026 — sesión 31)
+## Estado (3 Ago 2026 — sesión 32)
+
+### Cambios Sesión 32 — OAuth, MCP para IA, Framework sync
+
+#### OAuth Login (Google, GitHub, Microsoft)
+- **Backend**: `oauth_accounts` table, 6 OAuth endpoints (callbacks + admin)
+- **Frontend**: OAuth buttons en login (siempre visibles), modal activación para nuevos usuarios
+- **Flujo**: Auto-creación de usuario, vinculación por email, vinculación manual desde admin
+- **Lista negra**: `user_blacklist` table, check en login y callbacks OAuth
+- **Fix**: `oauthFindOrCreateUser()` busca vínculo primero, luego email, luego crea nuevo
+- **Fix**: Auto-elimina usuario OAuth-huérfano al vincular (si rol=operador, sin módulos, sin perfil)
+- **Admin UI**: Tabs "🔗 Cuentas OAuth" y "🚫 Lista negra"
+
+#### MCP para IA (Claude, ChatGPT, Cursor)
+- **Proyectos MCP**: 15 herramientas implementadas (dashboard, proyectos, tareas, comentarios, aprobaciones)
+- **OAuth MCP**: Habilitado por defecto (`mcp_oauth_enabled: 'true'`)
+- **URL fix**: Gateway URL sin puerto hardcodeado (`https://domain/mcp-gateway/mcp`)
+- **mcpUrl()**: Ahora usa `proxy_prefix` para construir URL interna correctamente
+- **MCP.md**: Documentación completa para conexión con clientes IA
+- **Logging**: Tab "📋 Logs MCP" con stats y filtros
+- **Control por herramienta**: Tab "🛠 Herramientas" por módulo
+- **Token management**: Tab "🔐 OAuth MCP" con gestión de tokens
+
+#### Fix sesión expirada
+- **Modal**: Ahora bloquea UI completamente (overlay 85%, z-index 10000)
+- **Botón**: "Cerrar sesión" en vez de "Entendido" (no se puede cerrar modal)
+- **Safety net**: Verifica si modal está activo antes de re-mostrar login
+
+#### Fix OAuth login redirect
+- **Session check**: Ahora prueba cookie httpOnly cuando localStorage está vacío
+- **Flujo**: OAuth → cookie → `/api/auth/me` → JWT en localStorage → launcher
+
+#### Dark mode maps
+- **CSS filter**: `invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%)` en `.map-dark`
+- **Auto-switch**: Todos los mapas (6) cambian con tema via evento `themechange`
+- **Sin capas separadas**: Mismos tiles OSM, filtro CSS para oscurecer
+
+#### Framework sync
+- **base.css**: Sincronizado a todos los módulos (select-buscador, map-dark)
+- **framework.js**: Sincronizado a logística y proyectos (notifications, toggleTheme)
+
+#### Archivos modificados
+- `launcher/server.js` — OAuth endpoints, blacklist, MCP OAuth, URL fixes
+- `launcher/shell/app.js` — OAuth login, MCP admin, session check fix
+- `launcher/shell/index.html` — OAuth buttons, MCP tabs, modals
+- `modules/proyectos/backend/mcp/index.js` — 15 herramientas MCP
+- `modules/nomina/src/mcp/index.js` — Eliminado OAuth in-memory
+- `modules/nomina/server.js` — Eliminadas rutas OAuth
+- `modules/logistica/public/app.js` — Dark mode maps, themechange event
+- `modules/logistica/public/framework.js` — Sincronizado con canonical
+- `modules/proyectos/public/framework.js` — Sincronizado con canonical
+- `framework/base.css` — select-buscador, map-dark CSS
+- `MCP.md` — Nueva documentación MCP
+
+### Convenciones del Framework (SEGUIR SIEMPRE)
 
 ### Cambios Sesión 31 — Geocercas, mapa, centros, Acerca de
 
