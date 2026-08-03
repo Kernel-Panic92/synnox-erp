@@ -270,7 +270,7 @@ db.exec(`
 db.exec(`CREATE TABLE IF NOT EXISTS config (key TEXT PRIMARY KEY, value TEXT NOT NULL DEFAULT '')`);
 
 // Seed defaults
-const defaults = { smtp_host:'', smtp_port:'587', smtp_secure:'false', smtp_user:'', smtp_pass:'', smtp_from:'', smtp_from_name: COMPANY_NAME, smtp_allow_self_signed:'false', mcp_oauth_enabled:'false',
+const defaults = { smtp_host:'', smtp_port:'587', smtp_secure:'false', smtp_user:'', smtp_pass:'', smtp_from:'', smtp_from_name: COMPANY_NAME, smtp_allow_self_signed:'false', mcp_oauth_enabled:'true',
   google_client_id:'', google_client_secret:'', google_enabled:'false',
   github_client_id:'', github_client_secret:'', github_enabled:'false',
   microsoft_client_id:'', microsoft_client_secret:'', microsoft_tenant_id:'common', microsoft_enabled:'false',
