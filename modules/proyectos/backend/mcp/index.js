@@ -271,7 +271,7 @@ async function ejecutarTool(name, args, userId) {
         LEFT JOIN projects.proyectos p ON t.proyecto_id = p.id
         WHERE t.titulo ILIKE $1 OR t.descripcion ILIKE $1
         ORDER BY t.created_at DESC LIMIT $2
-     `, [`%${q}%`, Math.min(parseInt(limite) || 20, 100)]);
+      `, [`%${q}%`, Math.min(parseInt(limite) || 20, 100)]);
       return result.rows;
     }
 
@@ -359,22 +359,15 @@ async function ejecutarTool(name, args, userId) {
 const sessions = new Map();
 
 export function createMiddleware() {
-  return async (req, res) => {
+  return (req, res) => {
+    if (req.method === 'GET') return res.json({ status: 'ok', server: 'proyectos-mcp' });
     if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
-
-  router.use(express.default.json());
-
-  router.get('/', (req, res) => res.json({ status: 'ok', server: 'proyectos-mcp' }));
-
-  router.post('/', (req, res) => {
-    const msg = req.body;
-    if (!msg || msg.jsonrpc !== '2.0') {
+    if (!req.body || req.body.jsonrpc !== '2.0') {
       return res.status(400).json({ jsonrpc: '2.0', error: { code: -32600, message: 'Invalid Request' }, id: null });
     }
-
+    const msg = req.body;
     const sessionId = req.headers['mcp-session-id'];
     const id = msg.id ?? null;
-
     switch (msg.method) {
       case 'initialize': {
         const newSessionId = crypto.randomUUID();
@@ -382,14 +375,10 @@ export function createMiddleware() {
         res.setHeader('mcp-session-id', newSessionId);
         return res.json({ jsonrpc: '2.0', id, result: { protocolVersion: '2025-03-26', capabilities: { tools: {} }, serverInfo: { name: 'proyectos', version: '1.0.0' } } });
       }
-
-      case 'ping':
-        return res.json({ jsonrpc: '2.0', id, result: {} });
-
+      case 'ping': return res.json({ jsonrpc: '2.0', id, result: {} });
       case 'tools/list':
         if (!sessionId || !sessions.has(sessionId)) return res.status(401).json({ jsonrpc: '2.0', error: { code: -32001, message: 'Sesión inválida' }, id });
         return res.json({ jsonrpc: '2.0', id, result: { tools: TOOLS } });
-
       case 'tools/call': {
         if (!sessionId || !sessions.has(sessionId)) return res.status(401).json({ jsonrpc: '2.0', error: { code: -32001, message: 'Sesión inválida' }, id });
         const { name, arguments: args } = msg.params || {};
@@ -400,12 +389,8 @@ export function createMiddleware() {
         });
         return;
       }
-
-      case 'notifications/initialized':
-        return res.status(202).end();
-
-      default:
-        return res.status(400).json({ jsonrpc: '2.0', error: { code: -32601, message: 'Method not found' }, id });
+      case 'notifications/initialized': return res.status(202).end();
+      default: return res.status(400).json({ jsonrpc: '2.0', error: { code: -32601, message: 'Method not found' }, id });
     }
   };
 }
