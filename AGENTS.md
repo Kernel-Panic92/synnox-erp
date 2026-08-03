@@ -750,6 +750,10 @@
 - **Error splash**: Cuando un módulo falle al cargar, mostrar `.error-splash` en vez de redirigir al launcher.
 - **Navegación same-tab**: Módulos y Home button SIEMPRE abren en la misma pestaña (`href="/"` sin `target="_blank"`).
 - **Versión**: Todos los módulos leen `/api/version` del root `package.json` (versión unificada `1.0.0`). NO usar `package.json` del módulo. NO mostrar rama git. Frontend: `el.textContent = 'v' + data.version`.
+- **Workflow de módulos: Scaffold → Desarrollo → Built-in**:
+  - **Fase 1 — Scaffold** (desde Admin → Módulos → ⚡ Crear módulo): Crea estructura básica en `modules/{id}/` (backend, public, mcp). Registra en `modulos_plataforma` con `dashboard_endpoint = /{id}/api/dashboard`. Tipo `externo` por defecto (servidor PM2 separado). El módulo funciona independiente con `pm2 start modules/{id}/backend/server.js`.
+  - **Fase 2 — Desarrollo**: Desarrollar dentro de `modules/{id}/`. Seguir convenciones del framework (sidebar, auth, CSS, etc.). El módulo corre como proceso PM2 separado en su puerto. Probar que `dashboard_endpoint` retorna datos para el launcher.
+  - **Fase 3 — Convertir a Built-in** (si el módulo es estable y necesario): 1) Mover código al repo: `git add modules/{id}/`. 2) Agregar ID al array `builtin` en `launcher/server.js` para protegerlo de eliminación. 3) Registrar en el array `modules` seed en `launcher/server.js` con todos los campos. 4) Si es tipo `interno`: montar en root `server.js` como sub-app. 5) Agregar dependencias al `package.json` del módulo y ejecutar `pnpm install`. 6) Si tiene migraciones SQL: integrarlas al patrón de los otros módulos. 7) Cambiar `tipo` a `interno` en la DB (el seed lo hace automáticamente). 8) Eliminar el proceso PM2 separado: `pm2 delete {id}`.
 
 ---
 
