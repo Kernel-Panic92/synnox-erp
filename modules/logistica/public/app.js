@@ -66,6 +66,20 @@ function toggleTheme() {
   localStorage.setItem('synnox_theme', document.body.classList.contains('light') ? 'light' : 'dark');
   const btn = document.getElementById('theme-btn');
   if (btn) btn.textContent = document.body.classList.contains('light') ? '🌙' : '☀️';
+  document.dispatchEvent(new CustomEvent('themechange', { detail: { theme: document.body.classList.contains('light') ? 'light' : 'dark' } }));
+}
+
+function createThemedTileLayer() {
+  const isDark = localStorage.getItem('synnox_theme') !== 'light';
+  return isDark
+    ? L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO' })
+    : L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+}
+
+function switchMapTheme(map) {
+  if (!map) return;
+  map.eachLayer(l => { if (l instanceof L.TileLayer) map.removeLayer(l); });
+  createThemedTileLayer().addTo(map);
 }
 
 function toggleSidebar() {
@@ -1920,31 +1934,11 @@ let mapLayers = { rutas: [], vehiculos: [], paradas: [], sedes: [] };
 const coloresRuta = ['#00A86B','#4f8ef7','#f7944f','#f7614f','#9b59b6','#1abc9c','#e67e22','#3498db'];
 let mapaFitted = false;
 
-const capasMapa = {
-  'Calle': L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' }),
-  'Satélite': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { maxZoom: 19, attribution: '© Esri' }),
-  'Oscuro': L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO' }),
-  'Claro': L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO' })
-};
-
-const fallbackTileUrl = 'https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png';
-
 function agregarCapasMapa(map) {
-  const nombreDefault = localStorage.getItem('mapa_capa') || 'Calle';
-  let capa = capasMapa[nombreDefault] || capasMapa['Calle'];
-  map.addLayer(capa);
-  L.control.layers(capasMapa, null, { collapsed: true }).addTo(map);
-  map.on('baselayerchange', e => localStorage.setItem('mapa_capa', e.name));
-  // Fallback si los tiles no cargan
-  map.on('tileerror', function() {
-    const nombre = localStorage.getItem('mapa_capa') || 'Calle';
-    if (nombre === 'Calle') {
-      localStorage.setItem('mapa_capa', 'Claro');
-      const nueva = capasMapa['Claro'];
-      map.eachLayer(l => { if (l instanceof L.TileLayer) map.removeLayer(l); });
-      map.addLayer(nueva);
-    }
-  });
+  createThemedTileLayer().addTo(map);
+  const onThemeChange = () => switchMapTheme(map);
+  document.addEventListener('themechange', onThemeChange);
+  map.on('remove', () => document.removeEventListener('themechange', onThemeChange));
 }
 
 function reiniciarMapa() {
@@ -3123,7 +3117,10 @@ function actualizarPreviewGeo() {
   if (_geoPreviewMapa) { _geoPreviewMapa.remove(); _geoPreviewMapa = null; }
   if (el._leaflet_id) { el._leaflet_id = null; }
   _geoPreviewMapa = L.map(el).setView([lat, lng], 14);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(_geoPreviewMapa);
+  createThemedTileLayer().addTo(_geoPreviewMapa);
+  const onThemeGeoPreview = () => switchMapTheme(_geoPreviewMapa);
+  document.addEventListener('themechange', onThemeGeoPreview);
+  _geoPreviewMapa.on('remove', () => document.removeEventListener('themechange', onThemeGeoPreview));
   L.marker([lat, lng]).addTo(_geoPreviewMapa);
   if (radio > 0) {
     const color = document.getElementById('geo-color').value || '#3388ff';
@@ -3138,7 +3135,10 @@ function initGeoPoligonoMapa() {
   if (!el || _geoMapa) return;
   if (el._leaflet_id) { el._leaflet_id = null; }
   _geoMapa = L.map(el).setView([6.2476, -75.5658], 13);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OSM' }).addTo(_geoMapa);
+  createThemedTileLayer().addTo(_geoMapa);
+  const onThemeGeo = () => switchMapTheme(_geoMapa);
+  document.addEventListener('themechange', onThemeGeo);
+  _geoMapa.on('remove', () => document.removeEventListener('themechange', onThemeGeo));
   _geoPoligonoLayer = L.layerGroup().addTo(_geoMapa);
   _geoMapa.on('click', e => {
     _geoPoligonoCoords.push({ lat: e.latlng.lat, lng: e.latlng.lng });

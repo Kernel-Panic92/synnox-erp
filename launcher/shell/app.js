@@ -124,6 +124,20 @@ function toggleTheme() {
     localStorage.setItem('synnox_theme', 'dark');
     document.getElementById('theme-btn').textContent = '☀️';
   }
+  document.dispatchEvent(new CustomEvent('themechange', { detail: { theme: isDark ? 'light' : 'dark' } }));
+}
+
+function createThemedTileLayer() {
+  const isDark = localStorage.getItem('synnox_theme') !== 'light';
+  return isDark
+    ? L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', { maxZoom: 19, attribution: '© CARTO' })
+    : L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19, attribution: '© OpenStreetMap' });
+}
+
+function switchMapTheme(map) {
+  if (!map) return;
+  map.eachLayer(l => { if (l instanceof L.TileLayer) map.removeLayer(l); });
+  createThemedTileLayer().addTo(map);
 }
 
 function show(id) {
@@ -2928,9 +2942,10 @@ function initMapaPinCentro() {
   const hasCoords = !isNaN(latVal) && !isNaN(lngVal);
   const center = hasCoords ? [latVal, lngVal] : [4.6097, -74.0817];
   const map = L.map(container).setView(center, hasCoords ? 16 : 5);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 19, attribution: '© OpenStreetMap'
-  }).addTo(map);
+  createThemedTileLayer().addTo(map);
+  const onThemeCentro = () => switchMapTheme(map);
+  document.addEventListener('themechange', onThemeCentro);
+  map.on('remove', () => document.removeEventListener('themechange', onThemeCentro));
   container._leafletMap = map;
   requestAnimationFrame(() => requestAnimationFrame(() => map.invalidateSize()));
   if (hasCoords) {
