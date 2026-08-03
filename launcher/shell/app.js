@@ -516,7 +516,10 @@ async function cargarModuleSummary() {
   var w = document.getElementById('module-summary-widget');
   if (!w) return;
   try {
-    var modulos = (modulosCache || []).filter(function(m) { return m.dashboard_endpoint; });
+    // Fetch fresh module list (ignore cache)
+    var modRes = await fetch('/api/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    var allMods = modRes.ok ? await modRes.json() : [];
+    var modulos = allMods.filter(function(m) { return m.dashboard_endpoint; });
     if (!modulos.length) { w.style.display = 'none'; return; }
     var promises = modulos.map(function(m) {
       return fetch(m.dashboard_endpoint, { headers: { 'Authorization': 'Bearer ' + jwtToken } })
@@ -1409,6 +1412,7 @@ async function saveModulo() {
     });
     if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Error'); }
     closeModuloForm();
+    sessionStorage.removeItem('synnox_modulos_cache');
     loadModulos();
   } catch (e) { showError(errEl, e.message); }
 }
@@ -1430,6 +1434,7 @@ async function deleteModulo(id) {
       headers: { 'Authorization': 'Bearer ' + jwtToken }
     });
     if (!res.ok) throw new Error('Error');
+    sessionStorage.removeItem('synnox_modulos_cache');
     loadModulos();
   } catch (e) { toast(e.message, 'error'); }
 }
@@ -1466,6 +1471,7 @@ async function ejecutarScaffold() {
     if (data.npm) resultEl.textContent += '\n📦 npm: ' + data.npm;
     resultEl.textContent += '\n▶️ Inicia con: pm2 start ' + INSTALL_DIR + '/modules/' + id + '/backend/server.js --name ' + id;
     cerrarModal('modal-scaffold');
+    sessionStorage.removeItem('synnox_modulos_cache');
     setTimeout(() => loadModulos(), 500);
   } catch (e) {
     resultEl.textContent = '❌ ' + e.message;
