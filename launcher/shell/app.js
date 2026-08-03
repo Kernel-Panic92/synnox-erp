@@ -354,6 +354,20 @@ async function showLauncher() {
     if (res.ok) { const data = await res.json(); user = data; }
   } catch {}
 
+  // CHECK: If user has no modules and is not admin, show activation modal
+  if (user?.rol !== 'admin' && (!user?.modulos || user.modulos.length === 0)) {
+    show('launcher-screen');
+    document.getElementById('launcher-user').innerHTML = esc(user?.nombre || '');
+    document.getElementById('launcher-role').textContent = user?.rol || '';
+    const emailEl = document.getElementById('new-user-email');
+    if (emailEl) emailEl.textContent = user?.email || '';
+    setTimeout(() => {
+      const modal = document.getElementById('new-user-modal');
+      if (modal) modal.style.display = 'flex';
+    }, 500);
+    return;
+  }
+
   updatePostLoginStatus('Cargando perfil...', 60);
   document.getElementById('launcher-user').innerHTML = esc(user?.nombre || '') + (launcherVersion ? ' <span style="font-size:11px;color:var(--muted);font-weight:400;">v' + launcherVersion + '</span>' : '');
   document.getElementById('launcher-role').textContent = user?.perfil_nombre || user?.rol || '';

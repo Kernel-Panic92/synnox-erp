@@ -323,18 +323,21 @@
   </div>
 </div>
 
-<div id="new-user-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:var(--surface,#1e1e2e);border:1px solid var(--border,#2e3548);border-radius:16px;padding:32px;max-width:400px;width:90%;text-align:center;">
-    <div style="font-size:48px;margin-bottom:16px;">👋</div>
-    <div style="font-size:18px;font-weight:700;margin-bottom:8px;color:var(--text,#e8ecf4);">Bienvenido a SynnoxERP</div>
+<div id="new-user-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:10000;align-items:center;justify-content:center;">
+  <div style="background:var(--surface,#1e1e2e);border:1px solid var(--border,#2e3548);border-radius:16px;padding:32px;max-width:420px;width:90%;text-align:center;">
+    <div style="font-size:48px;margin-bottom:16px;">🔒</div>
+    <div style="font-size:18px;font-weight:700;margin-bottom:8px;color:var(--text,#e8ecf4);">Cuenta pendiente de activación</div>
     <div style="font-size:13px;color:var(--muted,#8892a8);margin-bottom:20px;line-height:1.6;">
-      Tu cuenta ha sido creada exitosamente. Para acceder a los módulos del sistema, necesitas que un administrador active tu perfil y te asigne permisos.
+      Tu cuenta ha sido creada pero aún no tienes módulos asignados. Un administrador debe configurar tu acceso antes de que puedas usar el sistema.
     </div>
     <div style="background:var(--surface2,#222738);border-radius:10px;padding:16px;margin-bottom:20px;text-align:left;">
-      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Siguiente paso</div>
-      <div style="font-size:13px;color:var(--text);">📞 Ponte en contacto con tu administrador de sistemas para que configure tu acceso.</div>
+      <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;">Qué hacer</div>
+      <div style="font-size:13px;color:var(--text);line-height:1.6;">
+        📞 Contacta a tu administrador de sistemas y solicita que te asigne módulos y permisos en <strong>Admin → Usuarios</strong>.
+      </div>
     </div>
-    <button onclick="document.getElementById('new-user-modal').style.display='none'" style="width:100%;padding:12px;background:var(--accent,#00A86B);color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Entendido</button>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px;">Tu cuenta: <strong id="new-user-email"></strong></div>
+    <button onclick="logout()" style="width:100%;padding:12px;background:var(--surface2,#222738);color:var(--text);border:1px solid var(--border,#2e3548);border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;">Cerrar sesión</button>
   </div>
 </div>
 
