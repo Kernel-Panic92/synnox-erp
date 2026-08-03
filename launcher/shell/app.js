@@ -27,11 +27,11 @@ function cacheGet(key, ttlMs) {
   try {
     const c = JSON.parse(localStorage.getItem('w_' + key) || 'null');
     if (c && Date.now() - c.ts < ttlMs) return c.data;
-  } catch {}
+  } catch(e) {}
   return null;
 }
 function cacheSet(key, data) {
-  try { localStorage.setItem('w_' + key, JSON.stringify({ data, ts: Date.now() })); } catch {}
+  try { localStorage.setItem('w_' + key, JSON.stringify({ data, ts: Date.now() })); } catch(e) {}
 }
 function cleanExpiredWidgetCache() {
   const keys = Object.keys(localStorage).filter(k => k.startsWith('w_'));
@@ -39,7 +39,7 @@ function cleanExpiredWidgetCache() {
     try {
       const c = JSON.parse(localStorage.getItem(key));
       if (c && c.ts && (Date.now() - c.ts > 300000)) localStorage.removeItem(key); // 5 min
-    } catch { localStorage.removeItem(key); }
+    } catch(e) { localStorage.removeItem(key); }
   }
 }
 
@@ -180,7 +180,7 @@ function oauthLogin(provider) {
       }
       window.location.href = '/auth/' + provider;
     }).catch(() => { window.location.href = '/auth/' + provider; });
-  } catch { window.location.href = '/auth/' + provider; }
+  } catch(e) { window.location.href = '/auth/' + provider; }
 }
 
 // Check for OAuth error on page load
@@ -270,14 +270,14 @@ async function loadModulosDinamicos(sig) {
         return modulosCache;
       }
     }
-  } catch {}
+  } catch(e) {}
   // Fetch fresh data
   try {
     const res = await fetch('/api/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken }, signal: sig || AbortSignal.timeout(15000) });
     if (!res.ok) throw new Error('Error al cargar módulos');
     modulosCache = res.json ? await res.json() : [];
     // Cache in sessionStorage for instant reload
-    try { sessionStorage.setItem('synnox_modulos_cache', JSON.stringify({ data: modulosCache, ts: Date.now() })); } catch {}
+    try { sessionStorage.setItem('synnox_modulos_cache', JSON.stringify({ data: modulosCache, ts: Date.now() })); } catch(e) {}
   } catch (e) {
     if (e.name !== 'AbortError') modulosCache = [];
   }
@@ -353,7 +353,7 @@ async function showLauncher() {
   try {
     const res = await fetch('/api/auth/me', { signal: AbortSignal.timeout(5000), headers: { 'Authorization': 'Bearer ' + jwtToken } });
     if (res.ok) { const data = await res.json(); user = data; }
-  } catch {}
+  } catch(e) {}
 
   // CHECK: If user has no modules and is not admin, show activation modal
   if (user?.rol !== 'admin' && (!user?.modulos || user.modulos.length === 0)) {
@@ -431,7 +431,7 @@ async function getTopSubmodules(limit = 6) {
   try {
     const res = await fetch('/api/track');
     serverUsage = await res.json();
-  } catch {}
+  } catch(e) {}
   // Merge: max of local and server counts
   const merged = {};
   for (const [k, v] of Object.entries(localUsage)) merged[k] = Math.max(merged[k] || 0, v);
@@ -542,7 +542,7 @@ async function cargarModuleSummary() {
           ${c.stats.map(s => `<div style="display:flex;justify-content:space-between;font-size:13px;padding:3px 0;"><span style="color:var(--muted);">${s.label}</span><strong>${s.value}</strong></div>`).join('')}
         </div>`).join('')}
       </div>`;
-  } catch { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
+  } catch(e) { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
 }
 
 async function cargarPendingTasks() {
@@ -572,7 +572,7 @@ async function cargarPendingTasks() {
           <span style="font-size:16px;">${t.icon}</span> ${t.text}
         </a>`).join('')}
       </div>`;
-  } catch { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
+  } catch(e) { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
 }
 
 async function cargarAlerts() {
@@ -605,7 +605,7 @@ async function cargarAlerts() {
           <span>${a.icon}</span> ${a.text}
         </div>`).join('')}
       </div>`;
-  } catch { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
+  } catch(e) { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
 }
 
 async function cargarUpcoming() {
@@ -626,7 +626,7 @@ async function cargarUpcoming() {
           <span style="color:var(--muted);">${f.fechaVencimiento || f.fecha_vencimiento || '—'}</span>
         </div>`).join('')}
       </div>`;
-  } catch { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
+  } catch(e) { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
 }
 
 function cargarWeather() {
@@ -653,7 +653,7 @@ function cargarWeather() {
               </div>
             </div>
           </div>`;
-      } catch { w.style.display = 'none'; }
+      } catch(e) { w.style.display = 'none'; }
     }, () => { w.style.display = 'none'; }, { timeout: 5000 });
   } else { w.style.display = 'none'; }
 }
@@ -687,7 +687,7 @@ async function cargarActivity(sig) {
           </div>`;
         }).join('')}
       </div>`;
-  } catch { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
+  } catch(e) { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
 }
 
 async function cargarCommits(sig) {
@@ -718,7 +718,7 @@ async function cargarCommits(sig) {
           </div>`;
         }).join('')}
       </div>`;
-  } catch { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
+  } catch(e) { w.innerHTML = '<div class="widget-skeleton"><div style="padding:8px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar</div></div>'; }
 }
 
 async function cargarServerStats(sig) {
@@ -771,7 +771,7 @@ async function cargarServerStats(sig) {
         </div>
       </div>`;
     _serverStatsTimer = setTimeout(() => { if (document.getElementById('launcher-screen').style.display !== 'none') cargarServerStats(); }, 30000);
-  } catch { w.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar stats</div>'; _serverStatsTimer = setTimeout(() => { if (document.getElementById('launcher-screen').style.display !== 'none') cargarServerStats(); }, 30000); }
+  } catch(e) { w.innerHTML = '<div style="padding:16px;text-align:center;color:var(--muted);font-size:13px;">⚠️ Error al cargar stats</div>'; _serverStatsTimer = setTimeout(() => { if (document.getElementById('launcher-screen').style.display !== 'none') cargarServerStats(); }, 30000); }
   finally { _serverStatsInFlight = false; }
 }
 
@@ -786,7 +786,7 @@ function logout() {
   user = null;
   _ver = null;
   modulosCache = [];
-  try { sessionStorage.removeItem('synnox_modulos_cache'); } catch {}
+  try { sessionStorage.removeItem('synnox_modulos_cache'); } catch(e) {}
   if (_notifPollTimer) { clearInterval(_notifPollTimer); _notifPollTimer = null; }
   if (_versionCheckTimer) { clearInterval(_versionCheckTimer); _versionCheckTimer = null; }
   if (_serverStatsTimer) { clearTimeout(_serverStatsTimer); _serverStatsTimer = null; }
@@ -828,7 +828,7 @@ async function cargarModuleStatus(sig) {
           </div>`;
         }).join('')}
       </div>`;
-  } catch { w.style.display = 'none'; }
+  } catch(e) { w.style.display = 'none'; }
 }
 
 // ── Widget: Notificaciones recientes ──
@@ -868,7 +868,7 @@ async function showAdmin() {
   try {
     const res = await fetch('/api/auth/me', { signal: AbortSignal.timeout(5000), headers: { 'Authorization': 'Bearer ' + jwtToken } });
     if (res.ok) { const data = await res.json(); user = data; }
-  } catch {}
+  } catch(e) {}
   const userNameEl = document.getElementById('admin-sidebar-user');
   const userRoleEl = document.getElementById('admin-sidebar-role');
   const versionEl = document.getElementById('admin-sidebar-version');
@@ -904,13 +904,13 @@ function getUsersCache() {
 function setUsersCache(data) {
   _usersCache = data;
   _usersCacheTime = Date.now();
-  try { sessionStorage.setItem('synnox_users_cache', JSON.stringify({ data, ts: _usersCacheTime })); } catch {}
+  try { sessionStorage.setItem('synnox_users_cache', JSON.stringify({ data, ts: _usersCacheTime })); } catch(e) {}
 }
 
 function invalidateUsersCache() {
   _usersCache = null;
   _usersCacheTime = 0;
-  try { sessionStorage.removeItem('synnox_users_cache'); } catch {}
+  try { sessionStorage.removeItem('synnox_users_cache'); } catch(e) {}
 }
 
 async function loadUsers(force) {
@@ -969,7 +969,7 @@ async function renderModulosCheckboxes(selectedModulos = []) {
     try {
       const res = await fetch('/api/admin/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
       cachedModulos = await res.json();
-    } catch { container.innerHTML = '<span style="color:var(--danger);font-size:13px;">Error al cargar módulos</span>'; return; }
+    } catch(e) { container.innerHTML = '<span style="color:var(--danger);font-size:13px;">Error al cargar módulos</span>'; return; }
   }
   container.innerHTML = cachedModulos.map(m => `
     <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);">
@@ -1261,7 +1261,7 @@ async function showImportCsvModal() {
         <input type="checkbox" value="${esc(m.id)}" checked /> ${esc(m.nombre)}
       </label>`
     ).join('');
-  } catch { container.innerHTML = '<span style="color:var(--danger);">Error cargando módulos</span>'; }
+  } catch(e) { container.innerHTML = '<span style="color:var(--danger);">Error cargando módulos</span>'; }
   document.getElementById('modal-import-csv').classList.add('show');
 }
 
@@ -1481,7 +1481,7 @@ async function loadMcpUrl() {
     const data = await res.json();
     el.textContent = data.url || 'No disponible';
     if (altEl) altEl.innerHTML = '';
-  } catch {
+  } catch(e) {
     el.textContent = 'No disponible';
   }
 }
@@ -2179,12 +2179,12 @@ async function checkUpdate() {
     });
     if (!res.ok) {
       let errMsg = 'Error HTTP ' + res.status;
-      try { const text = await res.text(); if (text) errMsg += ': ' + text.substring(0, 200); } catch {}
+      try { const text = await res.text(); if (text) errMsg += ': ' + text.substring(0, 200); } catch(e) {}
       statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + esc(errMsg) + '</span>';
       return;
     }
     let data;
-    try { data = await res.json(); } catch {
+    try { data = await res.json(); } catch(e) {
       statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ Respuesta no válida del servidor</span>';
       return;
     }
@@ -2234,7 +2234,7 @@ async function doUpdate() {
     });
     if (!res.ok) {
       let errMsg = 'Error HTTP ' + res.status;
-      try { const text = await res.text(); if (text) errMsg += ': ' + text.substring(0, 200); } catch {}
+      try { const text = await res.text(); if (text) errMsg += ': ' + text.substring(0, 200); } catch(e) {}
       stopUpdatePolling();
       statusEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + esc(errMsg) + '</span>';
       resetUpdateButtons();
@@ -2485,7 +2485,7 @@ async function killSession(id, nombre) {
 
 // ── Session check + refresh ──
 (async () => {
-  try { const r = await fetch('/api/version', { signal: AbortSignal.timeout(5000) }); const d = await r.json(); launcherVersion = d.version || ''; } catch {}
+  try { const r = await fetch('/api/version', { signal: AbortSignal.timeout(5000) }); const d = await r.json(); launcherVersion = d.version || ''; } catch(e) {}
   if (jwtToken) {
     try {
       // Refresh token silently to extend session
@@ -2503,7 +2503,7 @@ async function killSession(id, nombre) {
         await showLauncher();
         return;
       }
-    } catch {}
+    } catch(e) {}
     // Session invalid — show re-login modal (preserve localStorage cache)
     showSessionExpiredModal();
     return;
@@ -2525,7 +2525,7 @@ async function killSession(id, nombre) {
       await showLauncher();
       return;
     }
-  } catch {}
+  } catch(e) {}
   show('login-screen');
   const params = new URLSearchParams(window.location.search);
   if (params.get('token')) {
@@ -2565,7 +2565,7 @@ async function refreshToken() {
       if (data.jwt) { jwtToken = data.jwt; localStorage.setItem('platform_jwt', jwtToken); }
       return true;
     }
-  } catch {}
+  } catch(e) {}
   return false;
 }
 
@@ -2648,7 +2648,7 @@ async function cargarNotificaciones() {
       }
     }
     _lastNotifCount = count;
-  } catch {}
+  } catch(e) {}
 }
 
 async function toggleNotifDropdown() {
@@ -2686,7 +2686,7 @@ async function toggleNotifDropdown() {
           });
         });
       }
-    } catch {}
+    } catch(e) {}
   }
 }
 
@@ -2707,7 +2707,7 @@ async function marcarTodasLeidas() {
     await fetch('/api/notificaciones/leer-todas', { method: 'DELETE', headers: jwtToken ? { 'Authorization': 'Bearer ' + jwtToken } : {} });
     cargarNotificaciones();
     toggleNotifDropdown(); toggleNotifDropdown();
-  } catch {}
+  } catch(e) {}
 }
 
 function timeSinceNotif(date) {
@@ -3559,7 +3559,7 @@ async function loadGmapsKeyStatus() {
         ? '<span style="color:var(--success)">● Configurada</span>'
         : '<span style="color:var(--muted)">● No configurada</span>';
     }
-  } catch {}
+  } catch(e) {}
 }
 
 // ── Dynamic Table Filters ──
