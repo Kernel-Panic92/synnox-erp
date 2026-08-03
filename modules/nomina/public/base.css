@@ -251,3 +251,26 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
   .table-filters { flex-direction: column; align-items: stretch; }
   .filter-actions { margin-left: 0; justify-content: space-between; }
 }
+
+/* ── Select Buscador (combobox with search) ── */
+.select-buscador { position: relative; width: 100%; }
+.select-buscador-input {
+  width: 100%; padding: 10px 14px; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 8px; color: var(--text); font: inherit; outline: none; cursor: pointer;
+  transition: border .15s;
+}
+.select-buscador-input:focus { border-color: var(--accent); cursor: text; }
+.select-buscador-list {
+  display: none; position: absolute; top: 100%; left: 0; right: 0; z-index: 200;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 8px;
+  max-height: 220px; overflow-y: auto; margin-top: 4px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.25);
+}
+.select-buscador-option {
+  padding: 9px 14px; cursor: pointer; font-size: 13px; color: var(--text);
+  transition: background .1s;
+}
+.select-buscador-option:hover { background: var(--surface2); }
+.select-buscador-option.selected { background: rgba(0,168,107,.12); color: var(--accent); font-weight: 600; }
+.select-buscador-option.empty-msg { color: var(--muted); cursor: default; font-style: italic; }
+.select-buscador-option.empty-msg:hover { background: transparent; }
