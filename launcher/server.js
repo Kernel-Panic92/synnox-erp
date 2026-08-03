@@ -1907,9 +1907,16 @@ app.put('/api/admin/modulos/:id', verificarToken, soloAdmin, (req, res) => {
 
 app.delete('/api/admin/modulos/:id', verificarToken, soloAdmin, (req, res) => {
   const { id } = req.params;
+  const builtin = ['proveedores', 'nomina', 'logistica', 'proyectos'];
+  if (builtin.includes(id)) return res.status(400).json({ error: 'No se pueden eliminar módulos del sistema' });
   db.prepare('DELETE FROM modulos_plataforma WHERE id = ?').run(id);
   db.prepare('DELETE FROM user_modulos WHERE modulo_id = ?').run(id);
   db.prepare('DELETE FROM perfil_permisos WHERE modulo_id = ?').run(id);
+  // Delete module folder from disk
+  const modDir = path.join(__dirname, '..', 'modules', id);
+  if (fs.existsSync(modDir)) {
+    try { fs.rmSync(modDir, { recursive: true, force: true }); } catch(e) { console.error('[delete-module] Error eliminando carpeta:', e.message); }
+  }
   res.json({ ok: true });
 });
 
