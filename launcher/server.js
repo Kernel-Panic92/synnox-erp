@@ -2500,27 +2500,12 @@ ${locations}}
 
 // ── MCP connection info ──
 app.get('/api/admin/mcp/url', verificarToken, soloAdmin, (req, res) => {
-  const configPath = path.join(INSTALL_DIR, 'config.env');
-  let dominio = COMPANY_DOMAIN;
-  let mcpPort = '9443';
-  try {
-    if (fs.existsSync(configPath)) {
-      const raw = fs.readFileSync(configPath, 'utf8');
-      const dm = raw.match(/^DOMAIN=(.+)$/m);
-      if (dm) dominio = dm[1].trim();
-    }
-  } catch {}
-  // Use the Host header as dynamic domain when behind nginx
-  const host = req.headers['x-forwarded-host'] || req.headers.host || dominio;
+  const host = req.headers['x-forwarded-host'] || req.headers.host || COMPANY_DOMAIN;
   const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-  // If the request came through on a specific host, use that
   const dynamicHost = host.includes(':') ? host.split(':')[0] : host;
   res.json({
-    url_directa: `${proto}://${dynamicHost}:${mcpPort}/mcp`,
-    url_gateway: `${proto}://${dynamicHost}/mcp-gateway/mcp`,
-    dominio: dynamicHost,
-    puerto: mcpPort,
-    url: `${proto}://${dynamicHost}:${mcpPort}/mcp`
+    url: `${proto}://${dynamicHost}/mcp-gateway/mcp`,
+    dominio: dynamicHost
   });
 });
 

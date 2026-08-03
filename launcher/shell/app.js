@@ -1465,10 +1465,8 @@ async function loadMcpUrl() {
     const res = await fetch('/api/admin/mcp/url', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
     if (!res.ok) throw new Error('Error');
     const data = await res.json();
-    el.textContent = data.url || data.url_directa;
-    if (altEl && data.url_gateway) {
-      altEl.innerHTML = 'Alternativa: <code style="background:var(--surface);padding:4px 6px;border-radius:4px;font-size:12px;">' + data.url_gateway + '</code> (vía nginx)';
-    }
+    el.textContent = data.url || 'No disponible';
+    if (altEl) altEl.innerHTML = '';
   } catch {
     el.textContent = 'No disponible';
   }
