@@ -934,6 +934,13 @@
         <button class="btn btn-sm" onclick="revokeAllMcpTokens()" style="background:var(--danger);color:#fff;">🔓 Revocar todos los tokens</button>
       </div>
     </div>
+    <div class="perm-rol-section" style="margin-bottom:20px;">
+      <div class="perm-rol-titulo" style="display:flex;justify-content:space-between;align-items:center;">
+        <span>Tokens activos</span>
+        <button class="btn btn-sm" onclick="loadMcpTokens()" style="background:var(--surface2);color:var(--text);">🔄 Refrescar</button>
+      </div>
+      <div id="mcp-oauth-tokens-list"></div>
+    </div>
     <div class="perm-rol-section">
       <div class="perm-rol-titulo">URLs de descubrimiento</div>
       <div style="font-size:13px;color:var(--muted);line-height:2;">

@@ -2781,6 +2781,7 @@ async function loadMcpOAuthConfig() {
         </tr>`).join('') +
         '</tbody></table>';
     }
+    loadMcpTokens();
   } catch (e) { console.error('Error loading MCP OAuth:', e); }
 }
 
@@ -2814,7 +2815,66 @@ async function revokeAllMcpTokens() {
       method: 'POST', headers: { 'Authorization': 'Bearer ' + jwtToken }
     });
     loadMcpOAuthConfig();
+    loadMcpTokens();
     toast('Todos los tokens revocados', 'success');
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
+}
+
+// ── MCP OAuth: Token Management ──
+async function loadMcpTokens() {
+  const listEl = document.getElementById('mcp-oauth-tokens-list');
+  if (!listEl) return;
+  listEl.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:13px;">Cargando tokens...</div>';
+  try {
+    const res = await fetch('/api/admin/mcp-oauth/tokens', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const data = await res.json();
+    if (!data.tokens?.length) {
+      listEl.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:13px;">No hay tokens registrados</div>';
+      return;
+    }
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="border-bottom:1px solid var(--border);">';
+    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Token</th>';
+    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Cliente</th>';
+    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Creado</th>';
+    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Expira</th>';
+    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Estado</th>';
+    html += '<th style="padding:8px 12px;"></th>';
+    html += '</tr></thead><tbody>';
+    for (const t of data.tokens) {
+      const created = new Date(t.created_at).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      const expires = new Date(t.expires_at).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+      let statusBadge;
+      if (t.is_revoked) {
+        statusBadge = '<span style="color:var(--muted);">Revocado</span>';
+      } else if (t.is_expired) {
+        statusBadge = '<span style="color:var(--warning);">Expirado</span>';
+      } else {
+        statusBadge = '<span style="color:var(--success);">Activo</span>';
+      }
+      html += `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 12px;font-family:monospace;font-size:12px;">${esc(t.token_id)}</td>
+        <td style="padding:8px 12px;">${esc(t.client_name)}</td>
+        <td style="padding:8px 12px;font-size:12px;color:var(--muted);">${created}</td>
+        <td style="padding:8px 12px;font-size:12px;color:var(--muted);">${expires}</td>
+        <td style="padding:8px 12px;font-size:12px;">${statusBadge}</td>
+        <td style="padding:8px 12px;">${!t.is_revoked ? `<button class="btn btn-sm" onclick="revokeMcpToken('${esc(t.token_id_full)}')" style="color:var(--danger);background:none;border:none;">🗑</button>` : ''}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    listEl.innerHTML = html;
+  } catch (e) {
+    listEl.innerHTML = '<div style="padding:12px;color:var(--danger);font-size:13px;">Error: ' + e.message + '</div>';
+  }
+}
+
+async function revokeMcpToken(tokenId) {
+  if (!await confirmModal('¿Revocar este token? El cliente deberá re-autenticarse.', 'Revocar', 'delete')) return;
+  try {
+    await fetch('/api/admin/mcp-oauth/tokens/' + encodeURIComponent(tokenId), {
+      method: 'DELETE', headers: { 'Authorization': 'Bearer ' + jwtToken }
+    });
+    loadMcpTokens();
+    toast('Token revocado', 'success');
   } catch (e) { toast('Error: ' + e.message, 'error'); }
 }
 

@@ -2766,6 +2766,36 @@ app.post('/api/admin/mcp-oauth/revoke-all', verificarToken, soloAdmin, (req, res
   res.json({ ok: true });
 });
 
+// ── MCP OAuth: Token Management ──
+app.get('/api/admin/mcp-oauth/tokens', verificarToken, soloAdmin, (req, res) => {
+  const tokens = db.prepare(`
+    SELECT t.token_id, t.client_id, t.user_id, t.expires_at, t.revoked, t.created_at,
+           c.client_name
+    FROM oauth_tokens t
+    LEFT JOIN oauth_clients c ON t.client_id = c.client_id
+    ORDER BY t.created_at DESC
+    LIMIT 100
+  `).all();
+  const result = tokens.map(t => ({
+    token_id: t.token_id.slice(0, 8) + '...',
+    token_id_full: t.token_id,
+    client_name: t.client_name || 'Desconocido',
+    client_id: t.client_id,
+    expires_at: t.expires_at,
+    is_expired: t.expires_at < Date.now(),
+    is_revoked: t.revoked === 1,
+    created_at: t.created_at
+  }));
+  res.json({ tokens: result });
+});
+
+app.delete('/api/admin/mcp-oauth/tokens/:id', verificarToken, soloAdmin, (req, res) => {
+  const token = db.prepare('SELECT * FROM oauth_tokens WHERE token_id = ?').get(req.params.id);
+  if (!token) return res.status(404).json({ error: 'Token not found' });
+  db.prepare('UPDATE oauth_tokens SET revoked = 1 WHERE token_id = ?').run(req.params.id);
+  res.json({ ok: true });
+});
+
 // ── OAuth guard middleware ──
 function requireOauth(req, res, next) {
   const row = db.prepare("SELECT value FROM config WHERE key = 'mcp_oauth_enabled'").get();
