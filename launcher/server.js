@@ -567,8 +567,14 @@ try { db.exec('ALTER TABLE modulos_plataforma ADD COLUMN public_url TEXT NOT NUL
 try { db.exec('ALTER TABLE modulos_plataforma ADD COLUMN mcp_token TEXT NOT NULL DEFAULT ""'); } catch {}
 try { db.exec('ALTER TABLE modulos_plataforma ADD COLUMN proxy_prefix TEXT NOT NULL DEFAULT ""'); } catch {}
 try { db.exec("ALTER TABLE modulos_plataforma ADD COLUMN tipo TEXT NOT NULL DEFAULT 'externo'"); } catch {}
+try { db.exec("ALTER TABLE modulos_plataforma ADD COLUMN dashboard_endpoint TEXT NOT NULL DEFAULT ''"); } catch {}
 // Seed tipo for internal modules
 db.prepare("UPDATE modulos_plataforma SET tipo = 'interno' WHERE id IN ('proveedores', 'nomina', 'logistica') AND tipo = 'externo'").run();
+// Seed dashboard_endpoint for existing modules
+db.prepare("UPDATE modulos_plataforma SET dashboard_endpoint = '/proveedores/api/dashboard' WHERE id = 'proveedores' AND dashboard_endpoint = ''").run();
+db.prepare("UPDATE modulos_plataforma SET dashboard_endpoint = '/nomina/api/dashboard/resumen' WHERE id = 'nomina' AND dashboard_endpoint = ''").run();
+db.prepare("UPDATE modulos_plataforma SET dashboard_endpoint = '/logistica/api/dashboard/resumen' WHERE id = 'logistica' AND dashboard_endpoint = ''").run();
+db.prepare("UPDATE modulos_plataforma SET dashboard_endpoint = '/proyectos/api/dashboard' WHERE id = 'proyectos' AND dashboard_endpoint = ''").run();
 
 // Migrate old module IDs to new names
 try { db.prepare("UPDATE modulos_plataforma SET id = 'nomina' WHERE id = 'horix'").run(); } catch {}
@@ -584,15 +590,15 @@ db.prepare("UPDATE modulos_plataforma SET public_url = url WHERE public_url = ''
 
 // Seed modules if not present
 const modules = [
-  { id: 'proveedores', nombre: 'Proveedores', descripcion: 'Gestión documental de facturas electrónicas', url: `http://localhost:${PORT}`, icon: '📄', orden: 1, proxy_prefix: '/proveedores/', tipo: 'interno' },
-  { id: 'nomina', nombre: 'Nómina', descripcion: 'Sistema de control de novedades y horas extra', url: `http://localhost:${PORT}`, icon: '👥', orden: 2, proxy_prefix: '/nomina/', tipo: 'interno' },
-  { id: 'logistica', nombre: 'Logística', descripcion: 'Optimización de rutas y pedidos', url: `http://localhost:${PORT}`, icon: '🚚', orden: 3, proxy_prefix: '/logistica/', tipo: 'interno' },
-  { id: 'proyectos', nombre: 'Proyectos', descripcion: 'Gestión de proyectos y tareas', url: `http://localhost:${PORT}`, icon: '📋', orden: 4, proxy_prefix: '/proyectos/', tipo: 'interno' },
+  { id: 'proveedores', nombre: 'Proveedores', descripcion: 'Gestión documental de facturas electrónicas', url: `http://localhost:${PORT}`, icon: '📄', orden: 1, proxy_prefix: '/proveedores/', tipo: 'interno', dashboard_endpoint: '/proveedores/api/dashboard' },
+  { id: 'nomina', nombre: 'Nómina', descripcion: 'Sistema de control de novedades y horas extra', url: `http://localhost:${PORT}`, icon: '👥', orden: 2, proxy_prefix: '/nomina/', tipo: 'interno', dashboard_endpoint: '/nomina/api/dashboard/resumen' },
+  { id: 'logistica', nombre: 'Logística', descripcion: 'Optimización de rutas y pedidos', url: `http://localhost:${PORT}`, icon: '🚚', orden: 3, proxy_prefix: '/logistica/', tipo: 'interno', dashboard_endpoint: '/logistica/api/dashboard/resumen' },
+  { id: 'proyectos', nombre: 'Proyectos', descripcion: 'Gestión de proyectos y tareas', url: `http://localhost:${PORT}`, icon: '📋', orden: 4, proxy_prefix: '/proyectos/', tipo: 'interno', dashboard_endpoint: '/proyectos/api/dashboard' },
 ];
-const insModule = db.prepare(`INSERT OR IGNORE INTO modulos_plataforma (id, nombre, descripcion, url, public_url, icon, mcp_enabled, activo, orden, proxy_prefix, tipo)
-    VALUES (?, ?, ?, ?, '', ?, 1, 1, ?, ?, ?)`);
+const insModule = db.prepare(`INSERT OR IGNORE INTO modulos_plataforma (id, nombre, descripcion, url, public_url, icon, mcp_enabled, activo, orden, proxy_prefix, tipo, dashboard_endpoint)
+    VALUES (?, ?, ?, ?, '', ?, 1, 1, ?, ?, ?, ?)`);
 for (const m of modules) {
-  insModule.run(m.id, m.nombre, m.descripcion, m.url, m.icon, m.orden, m.proxy_prefix, m.tipo);
+  insModule.run(m.id, m.nombre, m.descripcion, m.url, m.icon, m.orden, m.proxy_prefix, m.tipo, m.dashboard_endpoint);
 }
 // Update URLs to match current PORT
 db.prepare(`UPDATE modulos_plataforma SET url = ? WHERE tipo = 'interno'`).run(`http://localhost:${PORT}`);
@@ -1269,7 +1275,7 @@ app.get('/api/modulos', verificarToken, (req, res) => {
   const userModulos = req.usuario.modulos || [];
   const allModulos = getModulos(false);
   const filtered = (req.usuario.rol === 'admin') ? allModulos : allModulos.filter(m => userModulos.includes(m.id));
-  res.json(filtered.map(m => ({ id: m.id, nombre: m.nombre, url: m.public_url || m.url, icon: m.icon, descripcion: m.descripcion, proxy_prefix: m.proxy_prefix })));
+  res.json(filtered.map(m => ({ id: m.id, nombre: m.nombre, url: m.public_url || m.url, icon: m.icon, descripcion: m.descripcion, proxy_prefix: m.proxy_prefix, dashboard_endpoint: m.dashboard_endpoint })));
 });
 
 app.get('/api/auth/me', verificarToken, (req, res) => {
@@ -1871,14 +1877,14 @@ app.get('/api/admin/modulos', verificarToken, soloAdmin, (req, res) => {
 });
 
 app.post('/api/admin/modulos', verificarToken, soloAdmin, (req, res) => {
-  const { id, nombre, url, public_url, icon, descripcion, mcp_enabled, activo, proxy_prefix, tipo } = req.body;
+  const { id, nombre, url, public_url, icon, descripcion, mcp_enabled, activo, proxy_prefix, tipo, dashboard_endpoint } = req.body;
   if (!id || !nombre) return res.status(400).json({ error: 'ID y nombre requeridos' });
-  db.prepare('INSERT OR REPLACE INTO modulos_plataforma (id, nombre, descripcion, url, public_url, icon, mcp_enabled, activo, proxy_prefix, tipo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(id, nombre, descripcion || '', url || '', public_url || url || '', icon || '📦', mcp_enabled !== false ? 1 : 0, activo !== false ? 1 : 0, proxy_prefix || '', tipo === 'interno' ? 'interno' : 'externo');
+  db.prepare('INSERT OR REPLACE INTO modulos_plataforma (id, nombre, descripcion, url, public_url, icon, mcp_enabled, activo, proxy_prefix, tipo, dashboard_endpoint) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)').run(id, nombre, descripcion || '', url || '', public_url || url || '', icon || '📦', mcp_enabled !== false ? 1 : 0, activo !== false ? 1 : 0, proxy_prefix || '', tipo === 'interno' ? 'interno' : 'externo', dashboard_endpoint || '');
   res.json({ ok: true });
 });
 
 app.put('/api/admin/modulos/:id', verificarToken, soloAdmin, (req, res) => {
-  const { nombre, url, public_url, icon, descripcion, mcp_enabled, activo, proxy_prefix, tipo } = req.body;
+  const { nombre, url, public_url, icon, descripcion, mcp_enabled, activo, proxy_prefix, tipo, dashboard_endpoint } = req.body;
   const { id } = req.params;
   if (!db.prepare('SELECT id FROM modulos_plataforma WHERE id = ?').get(id)) return res.status(404).json({ error: 'No encontrado' });
   const u = [];
@@ -1892,6 +1898,7 @@ app.put('/api/admin/modulos/:id', verificarToken, soloAdmin, (req, res) => {
   if (activo !== undefined) { u.push('activo = ?'); p.push(activo ? 1 : 0); }
   if (proxy_prefix !== undefined) { u.push('proxy_prefix = ?'); p.push(proxy_prefix); }
   if (tipo !== undefined) { u.push('tipo = ?'); p.push(tipo === 'interno' ? 'interno' : 'externo'); }
+  if (dashboard_endpoint !== undefined) { u.push('dashboard_endpoint = ?'); p.push(dashboard_endpoint); }
   if (!u.length) return res.status(400).json({ error: 'Sin cambios' });
   p.push(id);
   db.prepare(`UPDATE modulos_plataforma SET ${u.join(', ')} WHERE id = ?`).run(...p);
@@ -2200,7 +2207,8 @@ init();
     const npmResult = execSync('npm install', { cwd: modDir, timeout: 60000, encoding: 'utf8' });
 
     const prefix = '/' + id + '/';
-    db.prepare('INSERT OR REPLACE INTO modulos_plataforma (id, nombre, descripcion, url, icon, mcp_enabled, activo, proxy_prefix, tipo) VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?)').run(id, nombre, description || '', 'http://localhost:' + listenPort, '📦', prefix, isInternal ? 'interno' : 'externo');
+    const dashEndpoint = '/' + id + '/api/dashboard';
+    db.prepare('INSERT OR REPLACE INTO modulos_plataforma (id, nombre, descripcion, url, icon, mcp_enabled, activo, proxy_prefix, tipo, dashboard_endpoint) VALUES (?, ?, ?, ?, ?, 1, 1, ?, ?, ?)').run(id, nombre, description || '', 'http://localhost:' + listenPort, '📦', prefix, isInternal ? 'interno' : 'externo', dashEndpoint);
 
     res.json({ ok: true, mensaje: 'M\u00f3dulo ' + (isInternal ? 'interno' : 'externo') + ' creado en ' + modDir, npm: npmResult.trim() });
   } catch (err) {

@@ -408,6 +408,7 @@ async function showLauncher() {
   show('launcher-screen');
   // Load widgets AFTER launcher is visible — defer by 2s to let module navigation complete
   setTimeout(_deferredWidgets, 2000);
+  setTimeout(() => cargarModuleSummary(), 2500);
 }
 
 function trackModuleVisit(moduleId) {
@@ -473,53 +474,64 @@ async function cargarQuickActions() {
     </div>`;
 }
 
+// Mapeo de stats por módulo: { label, key } o función custom
+const DASHBOARD_STATS = {
+  proveedores: [
+    { label: 'Facturas', key: 'totalFacturas' },
+    { label: 'Pendientes', key: 'pendientes' },
+    { label: 'Por pagar', key: 'porPagar' },
+  ],
+  logistica: [
+    { label: 'Pedidos hoy', key: 'pedidosHoy' },
+    { label: 'En ruta', key: 'enRuta' },
+    { label: 'Entregados', key: 'entregados' },
+  ],
+  nomina: [
+    { label: 'Registros', key: 'totalRegistros' },
+    { label: 'Pendientes', key: 'pendientes' },
+    { label: 'Aprobados', key: 'aprobados' },
+  ],
+  proyectos: 'estados', // especial: extrae de array estados
+};
+
+function extractStats(modId, data) {
+  if (!data) return [];
+  const config = DASHBOARD_STATS[modId];
+  if (config === 'estados') {
+    const estados = data.estados || [];
+    return [
+      { label: 'Pendientes', value: estados.find(e => e.estado === 'pendiente')?.count || 0 },
+      { label: 'En progreso', value: estados.find(e => e.estado === 'en_progreso')?.count || 0 },
+      { label: 'Completadas', value: estados.find(e => e.estado === 'completada')?.count || 0 },
+    ];
+  }
+  if (Array.isArray(config)) {
+    return config.map(c => ({ label: c.label, value: data[c.key] || 0 }));
+  }
+  // Genérico: primeros 3 key-value pairs numéricos del objeto
+  const numEntries = Object.entries(data).filter(([, v]) => typeof v === 'number').slice(0, 3);
+  return numEntries.map(([k, v]) => ({ label: k.replace(/([A-Z])/g, ' $1').replace(/^./, s => s.toUpperCase()), value: v }));
+}
+
 async function cargarModuleSummary() {
   const w = document.getElementById('module-summary-widget');
   if (!w) return;
   try {
-    const [prov, logi, nomi, proy] = await Promise.allSettled([
-      fetch('/proveedores/api/dashboard', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
-      fetch('/logistica/api/dashboard/resumen', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
-      fetch('/nomina/api/dashboard/resumen', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
-      fetch('/proyectos/api/dashboard', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
-    ]);
-    const cards = [];
-    if (prov.status === 'fulfilled' && prov.value) {
-      const p = prov.value;
-      cards.push({ icon: '📄', title: 'Proveedores', stats: [
-        { label: 'Facturas', value: p.totalFacturas || 0 },
-        { label: 'Pendientes', value: p.pendientes || 0 },
-        { label: 'Por pagar', value: p.porPagar || 0 },
-      ]});
-    }
-    if (logi.status === 'fulfilled' && logi.value) {
-      const l = logi.value;
-      cards.push({ icon: '🚚', title: 'Logística', stats: [
-        { label: 'Pedidos hoy', value: l.pedidosHoy || 0 },
-        { label: 'En ruta', value: l.enRuta || 0 },
-        { label: 'Entregados', value: l.entregados || 0 },
-      ]});
-    }
-    if (nomi.status === 'fulfilled' && nomi.value) {
-      const n = nomi.value;
-      cards.push({ icon: '📝', title: 'Nómina', stats: [
-        { label: 'Registros', value: n.totalRegistros || 0 },
-        { label: 'Pendientes', value: n.pendientes || 0 },
-        { label: 'Aprobados', value: n.aprobados || 0 },
-      ]});
-    }
-    if (proy.status === 'fulfilled' && proy.value) {
-      const pr = proy.value;
-      const estados = pr.estados || [];
-      const pendientes = estados.find(e => e.estado === 'pendiente')?.count || 0;
-      const enProgreso = estados.find(e => e.estado === 'en_progreso')?.count || 0;
-      const completadas = estados.find(e => e.estado === 'completada')?.count || 0;
-      cards.push({ icon: '📋', title: 'Proyectos', stats: [
-        { label: 'Pendientes', value: pendientes },
-        { label: 'En progreso', value: enProgreso },
-        { label: 'Completadas', value: completadas },
-      ]});
-    }
+    const modulos = (modulosCache || []).filter(m => m.dashboard_endpoint);
+    if (!modulos.length) { w.style.display = 'none'; return; }
+    const results = await Promise.allSettled(
+      modulos.map(m => fetch(m.dashboard_endpoint, { headers: { 'Authorization': 'Bearer ' + jwtToken } })
+        .then(r => r.ok ? r.json() : null)
+        .then(data => ({ mod: m, data }))
+    );
+    const cards = results
+      .filter(r => r.status === 'fulfilled' && r.value.data)
+      .map(r => {
+        const { mod, data } = r.value;
+        const stats = extractStats(mod.id, data);
+        return { icon: mod.icon || '📦', title: mod.nombre, stats };
+      })
+      .filter(c => c.stats.length > 0);
     if (!cards.length) { w.style.display = 'none'; return; }
     w.style.display = 'block';
     w.innerHTML = `
@@ -1353,6 +1365,7 @@ function showModuloForm(data) {
   document.getElementById('modulo-form-url').value = data?.url || '';
   document.getElementById('modulo-form-public-url').value = data?.public_url || '';
   document.getElementById('modulo-form-proxy-prefix').value = data?.proxy_prefix || '';
+  document.getElementById('modulo-form-dashboard-endpoint').value = data?.dashboard_endpoint || '';
   document.getElementById('modulo-form-desc').value = data?.descripcion || '';
   document.getElementById('modulo-form-mcp').checked = data ? !!data.mcp_enabled : true;
   document.getElementById('modulo-form-tipo').checked = data ? data.tipo === 'interno' : false;
@@ -1378,6 +1391,7 @@ async function saveModulo() {
   const mcp_enabled = document.getElementById('modulo-form-mcp').checked;
   const tipo = document.getElementById('modulo-form-tipo').checked ? 'interno' : 'externo';
   const proxy_prefix = document.getElementById('modulo-form-proxy-prefix').value.trim();
+  const dashboard_endpoint = document.getElementById('modulo-form-dashboard-endpoint').value.trim();
   const errEl = document.getElementById('modulo-form-error');
   if (!id || !nombre) { showError(errEl, 'ID y nombre requeridos'); return; }
   try {
@@ -1385,7 +1399,7 @@ async function saveModulo() {
     const res = await fetch(method === 'PUT' ? `/api/admin/modulos/${id}` : '/api/admin/modulos', {
       method,
       headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
-      body: JSON.stringify({ id, nombre, url, public_url, icon, descripcion: desc, mcp_enabled, proxy_prefix, tipo })
+      body: JSON.stringify({ id, nombre, url, public_url, icon, descripcion: desc, mcp_enabled, proxy_prefix, tipo, dashboard_endpoint })
     });
     if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Error'); }
     closeModuloForm();

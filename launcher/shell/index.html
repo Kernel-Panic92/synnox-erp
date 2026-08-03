@@ -434,6 +434,7 @@
     <h2>Aplicaciones</h2>
     <p>Selecciona un módulo para abrirlo</p>
     <div class="grid" id="module-grid"></div>
+    <div id="module-summary-widget" style="margin-top:24px;display:none;"></div>
     <div id="quick-actions-widget" style="margin-top:24px;display:none;"></div>
     <div id="notif-widget" style="margin-top:24px;display:none;"></div>
   </div>
@@ -1083,6 +1084,8 @@
     <input type="text" id="modulo-form-public-url" placeholder="https://ejemplo.com">
     <label>Prefijo proxy (Nginx)</label>
     <input type="text" id="modulo-form-proxy-prefix" placeholder="ej: /nomina/">
+    <label>Endpoint dashboard (resumen para el launcher)</label>
+    <input type="text" id="modulo-form-dashboard-endpoint" placeholder="ej: /mi-modulo/api/dashboard">
     <label>Icono</label>
     <div id="modulo-form-icon-picker" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;max-height:120px;overflow-y:auto;">
     </div>
