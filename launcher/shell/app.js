@@ -147,7 +147,6 @@ function show(id) {
       el.style.display = 'none';
     }
   });
-  if (id === 'login-screen') loadOAuthProviders();
 }
 
 function showError(el, msg) {
@@ -171,23 +170,17 @@ function showModuleLoading(icon, nombre) {
 }
 
 // ── OAuth login (third-party providers) ──
-async function loadOAuthProviders() {
-  try {
-    const res = await fetch('/api/auth/oauth-providers');
-    const { providers } = await res.json();
-    for (const p of providers) {
-      const btn = document.getElementById('oauth-' + p.id);
-      if (btn) btn.style.display = 'flex';
-    }
-    if (providers.length > 0) {
-      const divider = document.querySelector('.login-divider');
-      if (divider) divider.style.display = 'flex';
-    }
-  } catch {}
-}
-
 function oauthLogin(provider) {
-  window.location.href = '/auth/' + provider;
+  try {
+    fetch('/api/auth/oauth-providers').then(r => r.json()).then(({ providers }) => {
+      if (!providers.find(p => p.id === provider)) {
+        const errEl = document.getElementById('login-error');
+        if (errEl) { errEl.textContent = 'Este proveedor no está configurado. Contacta al administrador.'; errEl.classList.add('show'); }
+        return;
+      }
+      window.location.href = '/auth/' + provider;
+    }).catch(() => { window.location.href = '/auth/' + provider; });
+  } catch { window.location.href = '/auth/' + provider; }
 }
 
 // Check for OAuth error on page load
