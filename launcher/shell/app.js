@@ -1825,6 +1825,7 @@ function showAdminTab(tab) {
    else if (tab === 'auditoria') loadAuditoria();
    else if (tab === 'actualizar') { loadUpdaterStatus(); loadUpdaterLogs(); }
     else if (tab === 'mcp-modules') { loadMcpModulesStatus(); }
+    else if (tab === 'mcp-logs') { mcpLogsOffset = 0; loadMcpLogs(); loadMcpLogsStats(); }
     else if (tab === 'respaldo') { document.getElementById('import-result').style.display = 'none'; }
     else if (tab === 'acerca-de') loadAcercaDe();
 
@@ -2614,6 +2615,66 @@ async function restartMcpModule(moduleId) {
     }
     setTimeout(loadMcpModulesStatus, 2000);
   } catch (e) { listEl.innerHTML = '<span style="color:var(--danger);font-size:13px;">❌ ' + e.message + '</span>'; }
+}
+
+// ── MCP Logs ──
+let mcpLogsOffset = 0;
+const mcpLogsLimit = 30;
+
+async function loadMcpLogs() {
+  const moduleId = document.getElementById('mcp-log-filter-module')?.value || '';
+  const success = document.getElementById('mcp-log-filter-success')?.value || '';
+  let url = `/api/admin/mcp-logs?limit=${mcpLogsLimit}&offset=${mcpLogsOffset}`;
+  if (moduleId) url += `&module_id=${moduleId}`;
+  if (success) url += `&success=${success}`;
+  try {
+    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const data = await res.json();
+    const tbody = document.getElementById('mcp-logs-table');
+    if (!data.logs?.length) {
+      tbody.innerHTML = '<tr><td colspan="5" style="padding:24px;text-align:center;color:var(--muted);">No hay logs registrados</td></tr>';
+    } else {
+      tbody.innerHTML = data.logs.map(r => {
+        const date = new Date(r.created_at).toLocaleString('es-ES', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+        const statusBadge = r.success
+          ? '<span style="color:var(--success);">✓ OK</span>'
+          : `<span style="color:var(--danger);">✗ ${esc(r.error_message || 'Error')}</span>`;
+        const duration = r.duration_ms != null ? r.duration_ms + 'ms' : '-';
+        return `<tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px 12px;white-space:nowrap;font-size:12px;color:var(--muted);">${date}</td>
+          <td style="padding:8px 12px;"><span style="background:var(--surface2);padding:2px 8px;border-radius:6px;font-size:12px;">${esc(r.module_id)}</span></td>
+          <td style="padding:8px 12px;font-weight:500;">${esc(r.tool_name)}</td>
+          <td style="padding:8px 12px;font-size:12px;">${statusBadge}</td>
+          <td style="padding:8px 12px;font-size:12px;color:var(--muted);">${duration}</td>
+        </tr>`;
+      }).join('');
+    }
+    const totalPages = Math.ceil((data.total || 0) / mcpLogsLimit);
+    const currentPage = Math.floor(mcpLogsOffset / mcpLogsLimit) + 1;
+    document.getElementById('mcp-logs-page-info').textContent = `Página ${currentPage} de ${totalPages || 1}`;
+    document.getElementById('mcp-logs-prev').disabled = mcpLogsOffset === 0;
+    document.getElementById('mcp-logs-next').disabled = currentPage >= totalPages;
+  } catch (e) {
+    console.error('Error loading MCP logs:', e);
+  }
+}
+
+async function loadMcpLogsStats() {
+  try {
+    const res = await fetch('/api/admin/mcp-logs/stats', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const data = await res.json();
+    document.getElementById('mcp-stat-total').textContent = data.totalCalls || 0;
+    document.getElementById('mcp-stat-success').textContent = data.successCalls || 0;
+    document.getElementById('mcp-stat-errors').textContent = data.errorCalls || 0;
+    document.getElementById('mcp-stat-today').textContent = data.todayCalls || 0;
+  } catch (e) {
+    console.error('Error loading MCP stats:', e);
+  }
+}
+
+function mcpLogsPage(dir) {
+  mcpLogsOffset = Math.max(0, mcpLogsOffset + dir * mcpLogsLimit);
+  loadMcpLogs();
 }
 
 // ── Backup general del sistema ──

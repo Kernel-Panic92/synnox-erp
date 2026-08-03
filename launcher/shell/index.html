@@ -451,6 +451,7 @@
         <div class="nav-item" data-page="modulos" onclick="showAdminTab('modulos')"><span class="icon">📦</span> Módulos</div>
         <div class="nav-item" data-page="mcp" onclick="showAdminTab('mcp')"><span class="icon">🤖</span> MCP</div>
         <div class="nav-item" data-page="mcp-modules" onclick="showAdminTab('mcp-modules')"><span class="icon">🔌</span> Servicios MCP</div>
+        <div class="nav-item" data-page="mcp-logs" onclick="showAdminTab('mcp-logs')"><span class="icon">📋</span> Logs MCP</div>
         <div class="nav-item" data-page="smtp" onclick="showAdminTab('smtp')"><span class="icon">📧</span> SMTP</div>
         <div class="nav-item" data-page="oauth" onclick="showAdminTab('oauth')"><span class="icon">🔑</span> OAuth</div>
         <div class="nav-item" data-page="email-notif" onclick="showAdminTab('email-notif')"><span class="icon">🔔</span> Notificaciones</div>
@@ -843,6 +844,65 @@
         <span style="font-size:13px;color:var(--accent);">Volver</span>
       </div>
       <div id="mcp-module-detail-content"></div>
+    </div>
+  </div>
+  <div class="tab-content" id="tab-mcp-logs">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
+      <div style="font-size:var(--fs);font-weight:600;">Logs de herramientas MCP</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-sm" onclick="loadMcpLogs()">🔄 Refrescar</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:16px;">
+      <div class="table-wrap" style="padding:16px;text-align:center;">
+        <div style="font-size:24px;font-weight:700;" id="mcp-stat-total">0</div>
+        <div style="font-size:12px;color:var(--muted);">Total llamadas</div>
+      </div>
+      <div class="table-wrap" style="padding:16px;text-align:center;">
+        <div style="font-size:24px;font-weight:700;color:var(--success);" id="mcp-stat-success">0</div>
+        <div style="font-size:12px;color:var(--muted);">Exitosas</div>
+      </div>
+      <div class="table-wrap" style="padding:16px;text-align:center;">
+        <div style="font-size:24px;font-weight:700;color:var(--danger);" id="mcp-stat-errors">0</div>
+        <div style="font-size:12px;color:var(--muted);">Errores</div>
+      </div>
+      <div class="table-wrap" style="padding:16px;text-align:center;">
+        <div style="font-size:24px;font-weight:700;" id="mcp-stat-today">0</div>
+        <div style="font-size:12px;color:var(--muted);">Hoy</div>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+      <select id="mcp-log-filter-module" class="filter-select" onchange="loadMcpLogs()">
+        <option value="">Todos los módulos</option>
+        <option value="nomina">Nómina</option>
+        <option value="logistica">Logística</option>
+        <option value="proveedores">Proveedores</option>
+        <option value="proyectos">Proyectos</option>
+      </select>
+      <select id="mcp-log-filter-success" class="filter-select" onchange="loadMcpLogs()">
+        <option value="">Todos</option>
+        <option value="true">Exitosos</option>
+        <option value="false">Con error</option>
+      </select>
+    </div>
+    <div class="table-wrap">
+      <table style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border);">
+            <th style="padding:10px 12px;text-align:left;color:var(--muted);font-weight:600;">Fecha</th>
+            <th style="padding:10px 12px;text-align:left;color:var(--muted);font-weight:600;">Módulo</th>
+            <th style="padding:10px 12px;text-align:left;color:var(--muted);font-weight:600;">Herramienta</th>
+            <th style="padding:10px 12px;text-align:left;color:var(--muted);font-weight:600;">Estado</th>
+            <th style="padding:10px 12px;text-align:left;color:var(--muted);font-weight:600;">Tiempo</th>
+          </tr>
+        </thead>
+        <tbody id="mcp-logs-table"></tbody>
+      </table>
+    </div>
+    <div style="display:flex;justify-content:center;gap:8px;margin-top:12px;">
+      <button class="btn btn-sm" id="mcp-logs-prev" onclick="mcpLogsPage(-1)" disabled>← Anterior</button>
+      <span style="font-size:13px;color:var(--muted);padding:6px 12px;" id="mcp-logs-page-info">Página 1</span>
+      <button class="btn btn-sm" id="mcp-logs-next" onclick="mcpLogsPage(1)">Siguiente →</button>
     </div>
   </div>
   <div class="tab-content" id="tab-respaldo">

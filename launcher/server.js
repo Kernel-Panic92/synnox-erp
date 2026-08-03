@@ -364,6 +364,40 @@ db.exec(`
 db.exec("CREATE INDEX IF NOT EXISTS idx_oauth_accounts_email ON oauth_accounts(email)");
 db.exec("CREATE INDEX IF NOT EXISTS idx_oauth_accounts_user ON oauth_accounts(user_id)");
 
+// ── MCP Tool Logging ──
+db.exec(`
+  CREATE TABLE IF NOT EXISTS mcp_tool_logs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    session_id TEXT,
+    module_id TEXT NOT NULL,
+    tool_name TEXT NOT NULL,
+    arguments TEXT,
+    success INTEGER DEFAULT 1,
+    error_message TEXT,
+    duration_ms INTEGER,
+    created_at INTEGER NOT NULL
+  )
+`);
+db.exec("CREATE INDEX IF NOT EXISTS idx_mcp_logs_tool ON mcp_tool_logs(module_id, tool_name)");
+db.exec("CREATE INDEX IF NOT EXISTS idx_mcp_logs_time ON mcp_tool_logs(created_at)");
+
+function mcpLogTool(sessionId, moduleId, toolName, args, success, errorMsg, durationMs) {
+  try {
+    db.prepare(`INSERT INTO mcp_tool_logs
+      (session_id, module_id, tool_name, arguments, success, error_message, duration_ms, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      sessionId || null, moduleId, toolName,
+      args ? JSON.stringify(args).slice(0, 2000) : null,
+      success ? 1 : 0, errorMsg || null, durationMs || null, Date.now()
+    );
+  } catch {}
+}
+
+// Cleanup old logs (>30 days) every hour
+setInterval(() => {
+  try { db.prepare('DELETE FROM mcp_tool_logs WHERE created_at < ?').run(Date.now() - 30 * 86400000); } catch {}
+}, 3600000);
+
 // ── OAuth DB helpers ──
 function oauthSaveClient(c) {
   db.prepare(`INSERT OR REPLACE INTO oauth_clients
@@ -2537,9 +2571,17 @@ async function processMcpMessage(msg) {
     const modulos = getModulos(true);
     const mod = modulos.find(m => m.id === prefix);
     if (!mod) return rpcError(id, -32601, 'Unknown or disabled module: ' + prefix);
+    const toolName = parts.slice(1).join('_');
+    const startTime = Date.now();
     try {
-      return await forwardMcpRequest(mod, { jsonrpc: '2.0', id, method: 'tools/call', params: { name: parts.slice(1).join('_'), arguments: args } }, 30000);
+      const result = await forwardMcpRequest(mod, { jsonrpc: '2.0', id, method: 'tools/call', params: { name: toolName, arguments: args } }, 30000);
+      const duration = Date.now() - startTime;
+      const success = !result.error;
+      mcpLogTool(sessionId, prefix, toolName, args, success, result.error?.message || null, duration);
+      return result;
     } catch (e) {
+      const duration = Date.now() - startTime;
+      mcpLogTool(sessionId, prefix, toolName, args, false, e.message, duration);
       return rpcError(id, -32000, 'Error contacting ' + prefix + ': ' + e.message);
     }
   }
@@ -2574,6 +2616,62 @@ app.options('/mcp', (req, res) => {
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', '*');
   res.status(204).end();
+});
+
+// ── MCP Admin: Logs ──
+app.get('/api/admin/mcp-logs', verificarToken, soloAdmin, (req, res) => {
+  const { module_id, tool_name, success, limit: lim, offset: off } = req.query;
+  let sql = 'SELECT * FROM mcp_tool_logs WHERE 1=1';
+  const params = [];
+  if (module_id) { sql += ' AND module_id = ?'; params.push(module_id); }
+  if (tool_name) { sql += ' AND tool_name = ?'; params.push(tool_name); }
+  if (success !== undefined) { sql += ' AND success = ?'; params.push(success === 'true' ? 1 : 0); }
+  sql += ' ORDER BY created_at DESC';
+  const limit = Math.min(parseInt(lim) || 50, 200);
+  const offset = parseInt(off) || 0;
+  sql += ` LIMIT ${limit} OFFSET ${offset}`;
+  const rows = db.prepare(sql).all(...params);
+  const total = db.prepare('SELECT COUNT(*) as c FROM mcp_tool_logs').get().c;
+  res.json({ logs: rows, total });
+});
+
+app.get('/api/admin/mcp-logs/stats', verificarToken, soloAdmin, (req, res) => {
+  const totalCalls = db.prepare('SELECT COUNT(*) as c FROM mcp_tool_logs').get().c;
+  const successCalls = db.prepare('SELECT COUNT(*) as c FROM mcp_tool_logs WHERE success = 1').get().c;
+  const errorCalls = totalCalls - successCalls;
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const todayCalls = db.prepare('SELECT COUNT(*) as c FROM mcp_tool_logs WHERE created_at >= ?').get(todayStart.getTime()).c;
+  const topTools = db.prepare('SELECT module_id, tool_name, COUNT(*) as calls, AVG(duration_ms) as avg_ms FROM mcp_tool_logs GROUP BY module_id, tool_name ORDER BY calls DESC LIMIT 10').all();
+  const recentErrors = db.prepare('SELECT module_id, tool_name, error_message, created_at FROM mcp_tool_logs WHERE success = 0 ORDER BY created_at DESC LIMIT 5').all();
+  res.json({ totalCalls, successCalls, errorCalls, todayCalls, topTools, recentErrors });
+});
+
+// ── MCP Admin: Sessions ──
+app.get('/api/admin/mcp-sessions', verificarToken, soloAdmin, (req, res) => {
+  const sessions = [];
+  for (const [sid, s] of mcpGatewaySessions) {
+    sessions.push({ id: sid, createdAt: s.createdAt, age: Date.now() - s.createdAt });
+  }
+  res.json({ sessions, total: sessions.length });
+});
+
+app.delete('/api/admin/mcp-sessions/:id', verificarToken, soloAdmin, (req, res) => {
+  if (mcpGatewaySessions.delete(req.params.id)) {
+    res.json({ ok: true });
+  } else {
+    res.status(404).json({ error: 'Session not found' });
+  }
+});
+
+// ── MCP Admin: Stats ──
+app.get('/api/admin/mcp/stats', verificarToken, soloAdmin, (req, res) => {
+  const modulos = getModulos(true);
+  const totalTools = db.prepare('SELECT COUNT(DISTINCT module_id || tool_name) as c FROM mcp_tool_logs').get().c;
+  const activeSessions = mcpGatewaySessions.size;
+  const todayStart = new Date(); todayStart.setHours(0, 0, 0, 0);
+  const todayCalls = db.prepare('SELECT COUNT(*) as c FROM mcp_tool_logs WHERE created_at >= ?').get(todayStart.getTime()).c;
+  const enabledModules = modulos.length;
+  res.json({ enabledModules, totalTools, activeSessions, todayCalls });
 });
 
 // ── OAuth guard middleware ──
