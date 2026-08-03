@@ -2846,6 +2846,17 @@ app.delete('/api/admin/oauth-accounts/:id', verificarToken, soloAdmin, (req, res
   res.json({ ok: true });
 });
 
+app.put('/api/admin/oauth-accounts/:id/link', verificarToken, soloAdmin, (req, res) => {
+  const { user_id } = req.body;
+  if (!user_id) return res.status(400).json({ error: 'user_id required' });
+  const account = db.prepare('SELECT * FROM oauth_accounts WHERE id = ?').get(req.params.id);
+  if (!account) return res.status(404).json({ error: 'Account not found' });
+  const user = db.prepare('SELECT id FROM usuarios WHERE id = ?').get(user_id);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+  db.prepare('UPDATE oauth_accounts SET user_id = ?, updated_at = ? WHERE id = ?').run(user_id, Date.now(), req.params.id);
+  res.json({ ok: true });
+});
+
 // ── User Blacklist ──
 app.get('/api/admin/blacklist', verificarToken, soloAdmin, (req, res) => {
   const entries = db.prepare(`

@@ -1827,8 +1827,12 @@ async function loadOAuthAccounts() {
   if (!listEl) return;
   listEl.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:13px;">Cargando cuentas...</div>';
   try {
-    const res = await fetch('/api/admin/oauth-accounts', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
-    const data = await res.json();
+    const [accountsRes, usersRes] = await Promise.all([
+      fetch('/api/admin/oauth-accounts', { headers: { 'Authorization': 'Bearer ' + jwtToken } }),
+      fetch('/api/admin/usuarios', { headers: { 'Authorization': 'Bearer ' + jwtToken } })
+    ]);
+    const data = await accountsRes.json();
+    const users = await usersRes.json();
     if (!data.accounts?.length) {
       listEl.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:13px;">No hay cuentas OAuth vinculadas</div>';
       return;
@@ -1836,17 +1840,26 @@ async function loadOAuthAccounts() {
     const providerIcons = { google: '🔵', github: '⚫', microsoft: '🟦' };
     let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="border-bottom:1px solid var(--border);">';
     html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Proveedor</th>';
-    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Email</th>';
-    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Usuario</th>';
+    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Email OAuth</th>';
+    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Vincular a usuario</th>';
     html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Vinculado</th>';
     html += '<th style="padding:8px 12px;"></th>';
     html += '</tr></thead><tbody>';
     for (const a of data.accounts) {
       const date = new Date(a.created_at).toLocaleDateString('es-ES');
+      const userOptions = users.map(u => `<option value="${u.id}" ${u.id === a.user_id ? 'selected' : ''}>${esc(u.nombre)} (${esc(u.email)})</option>`).join('');
       html += `<tr style="border-bottom:1px solid var(--border);">
         <td style="padding:8px 12px;">${providerIcons[a.provider] || '🔗'} ${esc(a.provider)}</td>
         <td style="padding:8px 12px;">${esc(a.email)}</td>
-        <td style="padding:8px 12px;">${esc(a.user_nombre || 'Sin vincular')} <span style="color:var(--muted);font-size:11px;">(${esc(a.user_email || '')})</span></td>
+        <td style="padding:8px 12px;">
+          <div style="display:flex;gap:4px;align-items:center;">
+            <select id="oauth-link-${a.id}" style="flex:1;padding:4px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:12px;">
+              <option value="">Sin vincular</option>
+              ${userOptions}
+            </select>
+            <button class="btn btn-sm" onclick="linkOAuthAccount(${a.id})" title="Vincular" style="padding:4px 8px;">✓</button>
+          </div>
+        </td>
         <td style="padding:8px 12px;font-size:12px;color:var(--muted);">${date}</td>
         <td style="padding:8px 12px;"><button class="btn btn-sm" onclick="unlinkOAuthAccount(${a.id})" style="color:var(--danger);background:none;border:none;">🗑</button></td>
       </tr>`;
@@ -1864,6 +1877,21 @@ async function unlinkOAuthAccount(id) {
     await fetch('/api/admin/oauth-accounts/' + id, { method: 'DELETE', headers: { 'Authorization': 'Bearer ' + jwtToken } });
     loadOAuthAccounts();
     toast('Cuenta desvinculada', 'success');
+  } catch (e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function linkOAuthAccount(id) {
+  const select = document.getElementById('oauth-link-' + id);
+  const userId = select?.value;
+  if (!userId) { toast('Selecciona un usuario', 'error'); return; }
+  try {
+    await fetch('/api/admin/oauth-accounts/' + id + '/link', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken },
+      body: JSON.stringify({ user_id: parseInt(userId) })
+    });
+    loadOAuthAccounts();
+    toast('Cuenta vinculada', 'success');
   } catch (e) { toast('Error: ' + e.message, 'error'); }
 }
 
