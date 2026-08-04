@@ -1619,6 +1619,14 @@ app.put('/api/admin/usuarios/:id/modulos', verificarToken, soloAdmin, (req, res)
   res.json({ ok: true, modulos, sesionInvalidada: true });
 });
 
+// ── API: User OAuth accounts + MCP tokens ──
+app.get('/api/admin/usuarios/:id/oauth', verificarToken, soloAdmin, (req, res) => {
+  const userId = parseInt(req.params.id);
+  const accounts = db.prepare('SELECT id, provider, email, nombre, created_at FROM oauth_accounts WHERE user_id = ?').all(userId);
+  const mcpTokens = db.prepare('SELECT token_id, client_id, expires_at, created_at FROM oauth_tokens WHERE user_id = ? AND revoked = 0 AND expires_at > ?').all(userId, Date.now());
+  res.json({ accounts, mcpTokens });
+});
+
 // ── API: Perfiles ──
 app.get('/api/admin/perfiles', verificarToken, soloAdmin, (req, res) => {
   const perfiles = db.prepare('SELECT * FROM perfiles ORDER BY nombre').all();

@@ -1016,13 +1016,57 @@ function showUserForm(data) {
   if (data?.id) {
     fetch('/api/admin/usuarios/' + data.id + '/modulos', { headers: { 'Authorization': 'Bearer ' + jwtToken } })
       .then(r => r.json()).then(mods => renderModulosCheckboxes(mods)).catch(() => renderModulosCheckboxes([]));
+    // Load OAuth accounts and MCP tokens
+    loadUserOAuthInfo(data.id);
   } else {
     renderModulosCheckboxes([]);
+    document.getElementById('user-oauth-info').innerHTML = '';
   }
 }
 
 function closeForm() {
   document.getElementById('admin-form-overlay').style.display = 'none';
+}
+
+async function loadUserOAuthInfo(userId) {
+  const el = document.getElementById('user-oauth-info');
+  if (!el) return;
+  try {
+    const res = await fetch('/api/admin/usuarios/' + userId + '/oauth', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const data = await res.json();
+    const providerIcons = { google: '🔵', github: '⚫', microsoft: '🟦' };
+    let html = '';
+
+    // OAuth accounts section
+    html += '<div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">';
+    html += '<div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">🔗 Cuentas OAuth</div>';
+    if (data.accounts?.length) {
+      for (const a of data.accounts) {
+        html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 0;font-size:13px;">
+          <span>${providerIcons[a.provider] || '🔗'}</span>
+          <span style="font-weight:500;">${esc(a.provider)}</span>
+          <span style="color:var(--muted);">(${esc(a.email)})</span>
+        </div>`;
+      }
+    } else {
+      html += '<div style="font-size:13px;color:var(--muted);">Sin cuentas OAuth vinculadas</div>';
+    }
+    html += '</div>';
+
+    // MCP tokens section
+    html += '<div style="margin-top:12px;">';
+    html += '<div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:8px;">🔐 Tokens MCP activos</div>';
+    if (data.mcpTokens?.length) {
+      html += `<div style="font-size:13px;color:var(--success);">${data.mcpTokens.length} token(es) activo(s)</div>`;
+    } else {
+      html += '<div style="font-size:13px;color:var(--muted);">Sin tokens MCP activos</div>';
+    }
+    html += '</div>';
+
+    el.innerHTML = html;
+  } catch (e) {
+    el.innerHTML = '<div style="font-size:13px;color:var(--danger);">Error: ' + e.message + '</div>';
+  }
 }
 
 async function saveUser() {
