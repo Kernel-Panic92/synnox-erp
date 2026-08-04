@@ -2693,6 +2693,21 @@ app.use('/mcp', mcpLimiter);
 // MCP POST handler
 app.post('/mcp', async (req, res) => {
   const msg = req.body;
+
+  // OAuth check: if enabled, require valid token (except for initialize)
+  const oauthEnabled = db.prepare("SELECT value FROM config WHERE key = 'mcp_oauth_enabled'").get()?.value === 'true';
+  if (oauthEnabled && msg?.method !== 'initialize') {
+    const auth = req.headers.authorization;
+    if (!auth?.startsWith('Bearer ')) {
+      return res.status(401).json({ jsonrpc: '2.0', error: { code: -32001, message: 'Authentication required' }, id: msg?.id ?? null });
+    }
+    const token = auth.slice(7);
+    const tokenRow = oauthGetToken(token);
+    if (!tokenRow) {
+      return res.status(401).json({ jsonrpc: '2.0', error: { code: -32001, message: 'Invalid or expired token' }, id: msg?.id ?? null });
+    }
+  }
+
   const sessionId = req.headers['mcp-session-id'] || '';
   if (msg && typeof msg === 'object') msg.sessionId = sessionId;
   const result = await processMcpMessage(msg);
