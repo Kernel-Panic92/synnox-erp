@@ -1,5 +1,32 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (4 Ago 2026 — sesión 36)
+
+### Cambios Sesión 36 — Fix permisos granulares en /api/auth/me
+
+#### Bug: `/api/auth/me` no retornaba `modulos_permisos`
+- **Causa raíz**: Los endpoints `/api/auth/me` de nómina y logística no incluían `modulos_permisos` en la respuesta, mientras que las funciones frontend (`hasPerm()`, `tienePermiso()`) lo buscaban en `sesion.usuario.modulos_permisos.moduloId`
+- **Efecto**: TODOS los usuarios no-admin fallaban silenciosamente en verificaciones de permisos del frontend (nav items ocultos, botones deshabilitados, formularios bloqueados)
+- **Alcance**: Nómina (registros, empleados, nominas, etc.) y Logística (Widetech, Configuración)
+
+#### Archivos modificados
+- `modules/nomina/src/middleware/auth.js` — Almacena `modulos_permisos` del JWT en `req.usuario` (antes solo guardaba `nominaPermisos`)
+- `modules/nomina/src/routes/auth.js` — `/api/auth/me` ahora retorna `modulos_permisos` + `perfil_nombre`
+- `modules/nomina/src/routes/misc.js` — `/api/me` (alias) ahora retorna `modulos_permisos`
+- `modules/logistica/backend/server.js` — `/api/auth/me` ahora retorna `modulos_permisos` en ambas ramas (INSERT y UPDATE)
+
+#### Verificación de otros módulos
+- **Proveedores**: OK — ya retornaba `modulos_permisos` en `src/routes/auth.js:47,56`
+- **Proyectos**: OK — ya retornaba `modulos_permisos` en `backend/server.js:74-75`
+- **Launcher**: OK — `getUserWithPermissions()` construye `modulos_permisos` desde DB
+
+#### Convención confirmada
+- **`/api/auth/me` DEBE retornar `modulos_permisos`**: Todos los módulos que usen `hasPerm()` / `tienePermiso()` en el frontend necesitan este campo en la respuesta del endpoint de sesión
+- **`req.user.modulos_permisos`** viene del JWT via `verifyToken` (framework/auth.mjs) o `autenticar()` (nómina middleware)
+- **Patrón correcto**: `res.json({ ...userData, modulos_permisos: req.user.modulos_permisos || {} })`
+
+---
+
 ## Estado (4 Ago 2026 — sesión 35)
 
 ### Cambios Sesión 35 — OAuth login, MCP tools, notificaciones, fixes
@@ -71,6 +98,7 @@
 - **API**: Todas las rutas usan `verificarToken, soloAdmin`. Respuestas: `{ ok: true }` o `{ error: 'msg' }`.
 - **DB**: Migraciones con `try { db.exec("ALTER TABLE...") } catch {}` para columnas nuevas. Seeds con `INSERT OR IGNORE`.
 - **Auth**: Siempre via `verificarToken` middleware. JWT incluye `modulos_permisos` para permisos granulares.
+- **`/api/auth/me`**: DEBE retornar `modulos_permisos` para que el frontend pueda verificar permisos via `hasPerm()` / `tienePermiso()`. Patrón: `res.json({ ...userData, modulos_permisos: req.user.modulos_permisos || {} })`. Sin esto, TODOS los usuarios no-admin fallan en verificaciones de permisos.
 - **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`.
 - **Footer del sidebar (MANDATORIO)**: DEBE seguir esta estructura HTML: `<div class="sidebar-footer"><a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a><div class="user-name" id="sidebar-user-name"></div><div class="user-role" id="sidebar-user-role"></div><div class="version" id="app-version">v—</div><button class="btn-logout" onclick="...">⏻ Cerrar sesión</button></div>`. Poblar `sidebar-user-name` y `sidebar-user-role` desde `/api/auth/me`. NO usar `injectSidebarHome()` — el Home link es HTML estático. Orden: Home → Usuario → Versión → Logout.
 - **Sidebar secciones**: Usar `.sidebar-section` con `.sidebar-section-title` para agrupar nav items. Ejemplo: `<div class="sidebar-section"><div class="sidebar-section-title">Grupo</div><div class="nav-item">...</div></div>`.
