@@ -2479,15 +2479,7 @@ async function loadLoginLogs() {
 // ── Auditoría ──
 async function loadAuditoria() {
   try {
-    const [dashRes, sesionesRes] = await Promise.all([
-      fetch('/api/admin/telemetry/dashboard', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
-      fetch('/api/admin/sesiones', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null),
-    ]);
-    if (dashRes) {
-      document.getElementById('aud-sesiones').textContent = dashRes.sesionesActivas || 0;
-      document.getElementById('aud-logins').textContent = dashRes.loginHoy || 0;
-      document.getElementById('aud-fallidos').textContent = dashRes.loginFallidosHoy || 0;
-    }
+    const sesionesRes = await fetch('/api/admin/sesiones', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null);
     if (sesionesRes?.sesiones) {
       const tbody = document.querySelector('#sesiones-table tbody');
       tbody.innerHTML = sesionesRes.sesiones.map(s => `
