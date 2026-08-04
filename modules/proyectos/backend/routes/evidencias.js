@@ -5,6 +5,9 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
+import { notificar, getTareaCompleta, getEmailBaseUrl } from '../utils/notify.js';
+import { enviarCorreo } from '../utils/email.js';
+import { templateGenerico } from '../../../../framework/email-templates.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -71,6 +74,40 @@ router.post('/:id/evidencias', requirePermiso('comentar', 'proyectos'), upload.s
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [tareaId, req.user.id, descripcion, archivoNombre, archivoPath, archivoTipo, archivoTamanio]
     );
+
+    // Notificar al asignado y reportero
+    try {
+      const tareaCompleta = await getTareaCompleta(pool, tareaId);
+      if (tareaCompleta) {
+        const emailBase = await getEmailBaseUrl();
+        const notifBase = { modulo: 'proyectos', tipo: 'evidencia_subida', url: '/proyectos/#tareas', enviarCorreo };
+        const emailHtml = templateGenerico({ titulo: 'Evidencia subida', mensaje: `${req.user.nombre} subió evidencia en "${tareaCompleta.titulo}"`, detallesExtra: archivoNombre || 'Archivo adjunto', url: `${emailBase}/#tareas`, module: 'proyectos', baseUrl: emailBase });
+        // Notificar al asignado
+        if (tareaCompleta.asignado_a && tareaCompleta.asignado_a !== req.user.id) {
+          notificar({
+            ...notifBase,
+            usuario_id: tareaCompleta.asignado_a,
+            titulo: 'Evidencia subida',
+            mensaje: `${req.user.nombre} subió evidencia en "${tareaCompleta.titulo}"`,
+            email: tareaCompleta.asignado_email,
+            emailAsunto: `[Proyectos] Evidencia subida: ${tareaCompleta.titulo}`,
+            emailHtml
+          });
+        }
+        // Notificar al reportero si es diferente
+        if (tareaCompleta.reportero && tareaCompleta.reportero !== req.user.id && tareaCompleta.reportero !== tareaCompleta.asignado_a) {
+          notificar({
+            ...notifBase,
+            usuario_id: tareaCompleta.reportero,
+            titulo: 'Evidencia subida',
+            mensaje: `${req.user.nombre} subió evidencia en "${tareaCompleta.titulo}"`,
+            email: tareaCompleta.reportero_email,
+            emailAsunto: `[Proyectos] Evidencia subida: ${tareaCompleta.titulo}`,
+            emailHtml
+          });
+        }
+      }
+    } catch (e) { console.warn('[notify] Error evidencia:', e.message); }
 
     res.status(201).json({ exitosa: true, evidencia: result.rows[0] });
   } catch (err) {

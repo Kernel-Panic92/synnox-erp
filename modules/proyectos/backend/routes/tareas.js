@@ -80,10 +80,11 @@ router.get('/:id', requirePermiso('ver', 'proyectos'), async (req, res) => {
 
 router.post('/', requirePermiso('crear_tarea', 'proyectos'), async (req, res) => {
   try {
-    const { proyecto_id, titulo, descripcion, tipo, prioridad, asignado_a, reportero, fecha_limite, estimacion_horas, columna } = req.body;
+    const { proyecto_id, titulo, descripcion, tipo, prioridad, asignado_a, fecha_limite, estimacion_horas, columna } = req.body;
     if (!titulo) return res.status(400).json({ error: 'El título es requerido' });
     const col = columna || 'pendiente';
     const est = COLUMNA_A_ESTADO[col] || 'pendiente';
+    const reportero = req.user.id; // El creador siempre es el reportero
     const result = await pool.query(
       `INSERT INTO projects.tareas (proyecto_id, titulo, descripcion, tipo, prioridad, estado, columna, asignado_a, reportero, fecha_limite, estimacion_horas)
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
