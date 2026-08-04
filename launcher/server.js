@@ -493,7 +493,7 @@ function oauthRevokeToken(tokenId) {
 function oauthCleanupExpired() {
   db.prepare('DELETE FROM oauth_codes WHERE expires_at < ? OR used = 1').run(Date.now());
   db.prepare('DELETE FROM oauth_tokens WHERE revoked = 1 AND created_at < ?').run(Date.now() - 86400000);
-  db.prepare('DELETE FROM oauth_accounts WHERE expires_at IS NOT NULL AND expires_at < ?').run(Date.now());
+  // NOTE: Do NOT delete from oauth_accounts — expires_at there is the provider token expiry, not account expiry
 }
 
 // Cleanup every 10 min
