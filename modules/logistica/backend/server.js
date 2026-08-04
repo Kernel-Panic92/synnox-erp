@@ -133,7 +133,7 @@ app.get('/api/auth/me', protect, async (req, res) => {
          RETURNING id, nombre, email, rol, activo`,
         [nombre, req.user.email, rolInsert]
       );
-      return res.json({ ...r.rows[0], perfil_nombre });
+      return res.json({ ...r.rows[0], perfil_nombre, modulos_permisos: req.user.modulos_permisos || {} });
     }
     const rolesValidos = ['admin', 'operador', 'visor'];
     const updateRol = rolesValidos.includes(rol) ? rol : 'operador';
@@ -142,7 +142,7 @@ app.get('/api/auth/me', protect, async (req, res) => {
       user.nombre = nombre;
       user.rol = updateRol;
     }
-    res.json({ ...user, perfil_nombre });
+    res.json({ ...user, perfil_nombre, modulos_permisos: req.user.modulos_permisos || {} });
   } catch (err) {
     console.error('[auth/me]', err);
     res.status(500).json({ error: 'Error interno' });
