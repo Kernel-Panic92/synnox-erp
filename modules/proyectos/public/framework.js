@@ -384,7 +384,7 @@ let _notifPollTimer = null;
 
 async function cargarNotificaciones() {
   try {
-    const res = await fetch(HF.API + '/notificaciones/no-leidas', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    const res = await fetch('/api/notificaciones/no-leidas', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     if (!res.ok) return;
     const { count } = await res.json();
     const badge = document.getElementById('notif-count');
@@ -399,7 +399,7 @@ async function toggleNotifDropdown() {
   dd.classList.toggle('show');
   if (!isOpen) {
     try {
-      const res = await fetch(HF.API + '/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+      const res = await fetch('/api/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
       if (!res.ok) return;
       const { notificaciones } = await res.json();
       const list = dd.querySelector('.notif-list');
@@ -425,7 +425,7 @@ async function toggleNotifDropdown() {
 
 async function marcarNotifLeida(id, url) {
   try {
-    await fetch(HF.API + '/notificaciones/' + id + '/leer', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    await fetch('/api/notificaciones/' + id + '/leer', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     cargarNotificaciones();
     if (url) window.location.href = url;
     const dd = document.getElementById('notif-dropdown');
@@ -435,7 +435,7 @@ async function marcarNotifLeida(id, url) {
 
 async function marcarTodasLeidas() {
   try {
-    await fetch(HF.API + '/notificaciones/leer-todas', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    await fetch('/api/notificaciones/leer-todas', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     cargarNotificaciones();
     toggleNotifDropdown();
     toggleNotifDropdown();
