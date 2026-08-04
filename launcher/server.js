@@ -331,7 +331,8 @@ db.exec(`
     code_challenge TEXT DEFAULT '',
     code_challenge_method TEXT DEFAULT '',
     expires_at INTEGER NOT NULL,
-    used INTEGER DEFAULT 0
+    used INTEGER DEFAULT 0,
+    user_id INTEGER
   )
 `);
 db.exec(`
@@ -347,6 +348,7 @@ db.exec(`
 `);
 db.exec("CREATE INDEX IF NOT EXISTS idx_oauth_codes_client ON oauth_codes(client_id)");
 db.exec("CREATE INDEX IF NOT EXISTS idx_oauth_tokens_client ON oauth_tokens(client_id)");
+try { db.exec("ALTER TABLE oauth_codes ADD COLUMN user_id INTEGER"); } catch {}
 
 // ── Third-party OAuth accounts (Google, GitHub, Microsoft login) ──
 db.exec(`
@@ -461,11 +463,11 @@ function oauthGetClient(clientId) {
 }
 function oauthSaveCode(code) {
   db.prepare(`INSERT OR REPLACE INTO oauth_codes
-    (code, client_id, redirect_uri, code_challenge, code_challenge_method, expires_at)
-    VALUES (?, ?, ?, ?, ?, ?)`).run(
+    (code, client_id, redirect_uri, code_challenge, code_challenge_method, expires_at, user_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?)`).run(
     code.code, code.client_id, code.redirect_uri,
     code.code_challenge || '', code.code_challenge_method || '',
-    code.expires_at
+    code.expires_at, code.user_id || null
   );
 }
 function oauthGetCode(code) {
@@ -3030,12 +3032,31 @@ app.get('/mcp/oauth/authorize', requireOauth, (req, res) => {
   if (!isValidRedirectUri(rUri)) {
     return res.status(400).json({ error: 'invalid_request', error_description: 'Invalid redirect_uri protocol' });
   }
+
+  // Check if user is logged in via cookie
+  let userId = null;
+  const cookies = parseCookies(req);
+  const jwtToken = cookies.launcher_jwt;
+  if (jwtToken) {
+    try {
+      const decoded = jwt.verify(jwtToken, JWT_SECRET);
+      userId = decoded.id;
+    } catch {}
+  }
+
+  // If not logged in, redirect to login with return URL
+  if (!userId) {
+    const returnUrl = encodeURIComponent('/mcp/oauth/authorize?' + new URLSearchParams(req.query).toString());
+    return res.redirect(`/?return=${returnUrl}`);
+  }
+
   const code = crypto.randomUUID();
   oauthSaveCode({
     code, client_id, redirect_uri: rUri,
     code_challenge,
     code_challenge_method: code_challenge_method || 'S256',
-    expires_at: Date.now() + 600000
+    expires_at: Date.now() + 600000,
+    user_id: userId
   });
   const url = new URL(rUri);
   url.searchParams.set('code', code);
@@ -3078,7 +3099,7 @@ function handleTokenAuthCode(req, res) {
   const refreshToken = crypto.randomUUID();
   oauthSaveToken({
     token_id: accessToken, refresh_token: refreshToken,
-    client_id: stored.client_id, user_id: null,
+    client_id: stored.client_id, user_id: stored.user_id || null,
     expires_at: Date.now() + 86400000
   });
   res.json({
