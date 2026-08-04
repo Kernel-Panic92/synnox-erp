@@ -1,5 +1,65 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (4 Ago 2026 — sesión 33)
+
+### Cambios Sesión 33 — Login: versión + responsive
+
+#### Login: versión + último commit
+- **Backend**: `GET /api/version` ahora es `async` y retorna `{ v, version, commit }` (hash corto vía `git rev-parse --short HEAD`)
+- **Frontend**: Subtítulo del login reemplazado — de "Accede a todos los módulos del sistema" a `v1.1.0 - abc1234`
+- **Variable**: `launcherCommit` agregada junto a `launcherVersion` en `app.js`
+
+#### Login responsive
+- **Padding**: Reducido de `48px 44px` a `36px 36px`, ancho de `420px` a `400px`
+- **`@media(max-height:740px)`**: Para laptops — reduce padding (`24px 28px`), logo (80px→56px), divider margins, OAuth buttons padding
+- **`@media(max-height:740px) and (max-width:440px)`**: Phones — reduce input padding/margin y botón
+- **Fix**: Ya no se necesita scroll en laptops con pantalla de 768px de alto
+
+#### Archivos modificados
+- `launcher/server.js` — endpoint `/api/version` async con commit hash
+- `launcher/shell/app.js` — variable `launcherCommit`, display en login
+- `launcher/shell/index.html` — `#login-version`, media queries responsive
+
+### Cambios Sesión 34 — Scheduler de vencimientos + fixes seguridad
+
+#### Scheduler de vencimientos (Proyectos)
+- **Migración**: `006_add_last_notified_at.sql` — columna `last_notified_at TIMESTAMPTZ` en `projects.tareas`
+- **Scheduler**: `utils/scheduler.js` — check diario de tareas por vencer (7, 3, 1 día)
+- **Notificaciones**: In-app + email automático por cada tarea asignada dentro de umbral
+- **Dedup**: `last_notified_at` previene re-notificación el mismo día
+- **Umbrales**: 📅 7 días, ⏰ 3 días, 🚨 1 día / vencida
+- **Idempotency**: Key por tarea + umbral + fecha (`recordatorio_vencimiento_{id}_{d}d_{fecha}`)
+- **Email config**: Evento `recordatorio_vencimiento` agregado a `email_notif_config`
+- **Ejecución**: `setInterval(24h)` + run on startup en `proyectos/server.js`
+
+#### Fixes seguridad (Issues #91, #92, #95, #96, #97)
+- **#91**: JWT expiry 24h→1h en login, OAuth y refresh token
+- **#92**: State parameter en OAuth (Google, GitHub, Microsoft) — previene CSRF
+- **#95**: PKCE requerido en MCP OAuth — rechaza sin code_challenge/code_verifier
+- **#96**: DCR requiere JWT autenticado + rate limit 5/hora
+- **#97**: OAuth tokens con expiración — columna `expires_at`, cleanup periódico, invalidación en logout
+
+#### Archivos modificados (sesión 34)
+- `launcher/server.js` — JWT expiry fix, state OAuth, DCR auth, token expiry, event recordatorio_vencimiento
+- `launcher/middleware/auth.js` — JWT expiry 24h→1h en firmarToken
+- `modules/proyectos/backend/server.js` — scheduler import + setInterval
+- `modules/proyectos/backend/utils/scheduler.js` — (nuevo) scheduler de vencimientos
+- `modules/proyectos/backend/migrations/006_add_last_notified_at.sql` — (nuevo)
+- `AGENTS.md` — actualizado con sesión 34
+
+### Pendientes issues abiertos (GitHub)
+- [ ] **#97** — Access tokens OAuth sin expiración en DB (security)
+- [ ] **#96** — Dynamic Client Registration sin autenticación (security)
+- [ ] **#95** — PKCE opcional en MCP OAuth — debería ser requerido (security)
+- [ ] **#94** — @hono/node-server path traversal en Windows (Dependabot)
+- [ ] **#93** — brace-expansion DoS — 3 Dependabot alerts HIGH
+- [ ] **#92** — CSRF en OAuth de terceros — falta state parameter (security)
+- [ ] **#91** — JWT expiry regresión a 24h en OAuth y login (security)
+- [ ] **#71** — Backup nómina no encuentra `backup_horasextra.sh`
+- [ ] **#70** — Investigar backup nómina más pesado que backup launcher
+- [ ] **#68** — Migrar Launcher a GCM + separar secretos
+- [ ] **#65** — Implementar fail2ban óptimo — evitar falsos positivos
+
 ## Estado (3 Ago 2026 — sesión 32)
 
 ### Cambios Sesión 32 — OAuth, MCP para IA, Framework sync

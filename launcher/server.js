@@ -693,6 +693,7 @@ const emailNotifDefaults = [
     ['proyecto_rechazado', 'Proyecto rechazado'],
     ['nuevo_comentario', 'Nuevo comentario en tarea'],
     ['alerta_vencimiento', 'Alerta de vencimiento de tarea'],
+    ['recordatorio_vencimiento', 'Recordatorios automáticos de vencimiento (7, 3, 1 día)'],
     ['resumen_semanal', 'Resumen semanal de actividades']
   ]},
   { modulo: 'nomina', eventos: [

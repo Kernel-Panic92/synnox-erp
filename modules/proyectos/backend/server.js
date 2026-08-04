@@ -127,6 +127,10 @@ app.get('/api/version', (req, res) => {
 import { createMiddleware } from './mcp/index.js';
 app.use('/mcp', createMiddleware());
 
+import { checkDueDateNotifications } from './utils/scheduler.js';
+checkDueDateNotifications();
+setInterval(checkDueDateNotifications, 24 * 60 * 60 * 1000);
+
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
