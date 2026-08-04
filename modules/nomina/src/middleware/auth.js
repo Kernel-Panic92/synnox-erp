@@ -45,6 +45,7 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
         req.perfil_nombre = payload.perfil_nombre || null;
         const modPermisos = payload.modulos_permisos || {};
         req.usuario.nominaPermisos = modPermisos.nomina || [];
+        req.usuario.modulos_permisos = modPermisos;
         next();
       } catch (err) {
         return res.status(500).json({ error: 'Error interno de autenticación' });

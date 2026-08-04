@@ -6,7 +6,7 @@ module.exports = function({ db, fs, path, __dirname, permisosPorRol, middlewares
 
   router.get('/me', todosRoles, (req, res) => {
     const u = req.usuario;
-    res.json({ id: u.id, nombre: u.nombre, email: u.email, rol: u.rol, perfil_nombre: req.perfil_nombre || null, sede: u.sede, permisos: permisosPorRol(u.rol) });
+    res.json({ id: u.id, nombre: u.nombre, email: u.email, rol: u.rol, perfil_nombre: req.perfil_nombre || null, sede: u.sede, permisos: permisosPorRol(u.rol), modulos_permisos: u.modulos_permisos || {} });
   });
 
   router.get('/sedes', todosRoles, (req, res) => {
