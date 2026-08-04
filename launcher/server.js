@@ -3003,6 +3003,7 @@ app.post('/register', requireOauth, express.json(), handleDcr);
 app.get('/mcp/oauth/authorize', requireOauth, (req, res) => {
   const { state, client_id, redirect_uri, response_type, code_challenge, code_challenge_method } = req.query;
   if (response_type !== 'code') return res.status(400).json({ error: 'invalid_request', error_description: 'response_type must be code' });
+  if (!code_challenge) return res.status(400).json({ error: 'invalid_request', error_description: 'code_challenge required (PKCE)' });
   const client = oauthGetClient(client_id);
   if (!client) return res.status(400).json({ error: 'invalid_client', error_description: 'Unknown client_id' });
   const rUri = redirect_uri || client.redirect_uris[0];
@@ -3015,8 +3016,8 @@ app.get('/mcp/oauth/authorize', requireOauth, (req, res) => {
   const code = crypto.randomUUID();
   oauthSaveCode({
     code, client_id, redirect_uri: rUri,
-    code_challenge: code_challenge || '',
-    code_challenge_method: code_challenge_method || '',
+    code_challenge,
+    code_challenge_method: code_challenge_method || 'S256',
     expires_at: Date.now() + 600000
   });
   const url = new URL(rUri);
@@ -3034,7 +3035,7 @@ app.post('/mcp/oauth/token', requireOauth, express.urlencoded({ extended: false 
 });
 
 function handleTokenAuthCode(req, res) {
-  const { code, redirect_uri } = req.body;
+  const { code, redirect_uri, code_verifier } = req.body;
   let client_id = req.body.client_id;
   const auth = req.headers['authorization'] || '';
   if (auth.startsWith('Basic ')) {
@@ -3044,13 +3045,17 @@ function handleTokenAuthCode(req, res) {
   const stored = oauthGetCode(code);
   if (!stored) return res.status(400).json({ error: 'invalid_grant' });
   oauthUseCode(code);
-  // Validate PKCE
-  if (stored.code_challenge && req.body.code_verifier) {
-    const verifierHash = crypto.createHash('sha256').update(req.body.code_verifier).digest();
-    const expected = Buffer.from(verifierHash).toString('base64url');
-    if (expected !== stored.code_challenge) {
-      return res.status(400).json({ error: 'invalid_grant', error_description: 'PKCE verification failed' });
-    }
+  // Require PKCE
+  if (!stored.code_challenge) {
+    return res.status(400).json({ error: 'invalid_grant', error_description: 'PKCE required — no code_challenge in authorize' });
+  }
+  if (!code_verifier) {
+    return res.status(400).json({ error: 'invalid_grant', error_description: 'code_verifier required' });
+  }
+  const verifierHash = crypto.createHash('sha256').update(code_verifier).digest();
+  const expected = Buffer.from(verifierHash).toString('base64url');
+  if (expected !== stored.code_challenge) {
+    return res.status(400).json({ error: 'invalid_grant', error_description: 'PKCE verification failed' });
   }
   const accessToken = crypto.randomUUID();
   const refreshToken = crypto.randomUUID();
