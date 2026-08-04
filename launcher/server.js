@@ -878,6 +878,26 @@ app.get('/logout', (req, res) => {
   res.redirect('/');
 });
 
+// ── Session heartbeat ──
+app.post('/api/heartbeat', verificarToken, (req, res) => {
+  try {
+    const userId = req.usuario.id;
+    const nombre = req.usuario.nombre || '';
+    const ip = req.ip || req.connection?.remoteAddress || '';
+    const userAgent = req.headers['user-agent'] || '';
+    // Upsert session
+    const existing = db.prepare('SELECT id FROM sesiones_activas WHERE usuario_id = ?').get(userId);
+    if (existing) {
+      db.prepare("UPDATE sesiones_activas SET ultimo_heartbeat = datetime('now','localtime'), ip = ?, user_agent = ? WHERE usuario_id = ?").run(ip, userAgent, userId);
+    } else {
+      db.prepare('INSERT INTO sesiones_activas (usuario_id, usuario_nombre, ip, user_agent) VALUES (?, ?, ?, ?)').run(userId, nombre, ip, userAgent);
+    }
+    res.json({ ok: true });
+  } catch (e) {
+    res.json({ ok: false });
+  }
+});
+
 // ── Refresh token (sliding session) ──
 app.post('/api/auth/refresh', verificarToken, (req, res) => {
   const userWithPerms = getUserWithPermissions(db, req.usuario.id);

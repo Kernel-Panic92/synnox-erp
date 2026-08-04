@@ -405,6 +405,7 @@ async function showLauncher() {
   };
   initNotifPolling();
   initVersionCheck();
+  initHeartbeat();
   updatePostLoginStatus('Listo ✓', 100);
   show('launcher-screen');
   // Load widgets AFTER launcher is visible — defer by 2s to let module navigation complete
@@ -2839,6 +2840,21 @@ function initVersionCheck() {
   checkVersion();
   if (_versionCheckTimer) clearInterval(_versionCheckTimer);
   _versionCheckTimer = setInterval(checkVersion, 30000);
+}
+
+// ── Session heartbeat ──
+let _heartbeatTimer = null;
+function initHeartbeat() {
+  sendHeartbeat();
+  if (_heartbeatTimer) clearInterval(_heartbeatTimer);
+  _heartbeatTimer = setInterval(sendHeartbeat, 30000);
+}
+function sendHeartbeat() {
+  if (!jwtToken) return;
+  fetch('/api/heartbeat', {
+    method: 'POST',
+    headers: { 'Authorization': 'Bearer ' + jwtToken }
+  }).catch(() => {});
 }
 
 // ── MCP Modules management (generic) ──
