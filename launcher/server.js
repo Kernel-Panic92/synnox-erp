@@ -944,14 +944,20 @@ function oauthIssueJwt(user, req, res) {
 app.get('/auth/google', (req, res) => {
   const cfg = getOAuthConfig('google');
   if (!cfg.enabled || !cfg.clientId) return res.status(404).json({ error: 'Google OAuth not configured' });
+  const state = crypto.randomBytes(32).toString('hex');
+  const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
+  res.cookie('oauth_state', state, { httpOnly: true, secure: isSecure, sameSite: 'lax', path: '/', maxAge: 600000 });
   const redirectUri = encodeURIComponent(getOAuthBaseUrl() + '/auth/google/callback');
   const scope = encodeURIComponent('openid email profile');
-  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?client_id=${cfg.clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline`);
+  res.redirect(`https://accounts.google.com/o/oauth2/v2/auth?client_id=${cfg.clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&access_type=offline&state=${state}`);
 });
 
 app.get('/auth/google/callback', async (req, res) => {
-  const { code, error } = req.query;
+  const { code, error, state } = req.query;
+  const cookies = parseCookies(req);
   if (error || !code) return res.redirect('/?error=oauth_denied');
+  if (!state || state !== cookies.oauth_state) return res.redirect('/?error=invalid_state');
+  res.clearCookie('oauth_state', { path: '/' });
   const cfg = getOAuthConfig('google');
   try {
     const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -975,14 +981,20 @@ app.get('/auth/google/callback', async (req, res) => {
 app.get('/auth/github', (req, res) => {
   const cfg = getOAuthConfig('github');
   if (!cfg.enabled || !cfg.clientId) return res.status(404).json({ error: 'GitHub OAuth not configured' });
+  const state = crypto.randomBytes(32).toString('hex');
+  const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
+  res.cookie('oauth_state', state, { httpOnly: true, secure: isSecure, sameSite: 'lax', path: '/', maxAge: 600000 });
   const redirectUri = encodeURIComponent(getOAuthBaseUrl() + '/auth/github/callback');
   const scope = encodeURIComponent('read:user user:email');
-  res.redirect(`https://github.com/login/oauth/authorize?client_id=${cfg.clientId}&redirect_uri=${redirectUri}&scope=${scope}`);
+  res.redirect(`https://github.com/login/oauth/authorize?client_id=${cfg.clientId}&redirect_uri=${redirectUri}&scope=${scope}&state=${state}`);
 });
 
 app.get('/auth/github/callback', async (req, res) => {
-  const { code, error } = req.query;
+  const { code, error, state } = req.query;
+  const cookies = parseCookies(req);
   if (error || !code) return res.redirect('/?error=oauth_denied');
+  if (!state || state !== cookies.oauth_state) return res.redirect('/?error=invalid_state');
+  res.clearCookie('oauth_state', { path: '/' });
   const cfg = getOAuthConfig('github');
   try {
     const tokenRes = await fetch('https://github.com/login/oauth/access_token', {
@@ -1014,14 +1026,20 @@ app.get('/auth/github/callback', async (req, res) => {
 app.get('/auth/microsoft', (req, res) => {
   const cfg = getOAuthConfig('microsoft');
   if (!cfg.enabled || !cfg.clientId) return res.status(404).json({ error: 'Microsoft OAuth not configured' });
+  const state = crypto.randomBytes(32).toString('hex');
+  const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
+  res.cookie('oauth_state', state, { httpOnly: true, secure: isSecure, sameSite: 'lax', path: '/', maxAge: 600000 });
   const redirectUri = encodeURIComponent(getOAuthBaseUrl() + '/auth/microsoft/callback');
   const scope = encodeURIComponent('openid email profile User.Read');
-  res.redirect(`https://login.microsoftonline.com/${cfg.tenantId}/oauth2/v2.0/authorize?client_id=${cfg.clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}`);
+  res.redirect(`https://login.microsoftonline.com/${cfg.tenantId}/oauth2/v2.0/authorize?client_id=${cfg.clientId}&redirect_uri=${redirectUri}&response_type=code&scope=${scope}&state=${state}`);
 });
 
 app.get('/auth/microsoft/callback', async (req, res) => {
-  const { code, error } = req.query;
+  const { code, error, state } = req.query;
+  const cookies = parseCookies(req);
   if (error || !code) return res.redirect('/?error=oauth_denied');
+  if (!state || state !== cookies.oauth_state) return res.redirect('/?error=invalid_state');
+  res.clearCookie('oauth_state', { path: '/' });
   const cfg = getOAuthConfig('microsoft');
   try {
     const tokenRes = await fetch(`https://login.microsoftonline.com/${cfg.tenantId}/oauth2/v2.0/token`, {
