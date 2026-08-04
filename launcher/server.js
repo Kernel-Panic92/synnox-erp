@@ -3015,8 +3015,8 @@ function handleDcr(req, res) {
   });
 }
 
-app.post('/mcp/oauth/register', requireOauth, verificarToken, dcrLimiter, express.json(), handleDcr);
-app.post('/register', requireOauth, verificarToken, dcrLimiter, express.json(), handleDcr);
+app.post('/mcp/oauth/register', requireOauth, dcrLimiter, express.json(), handleDcr);
+app.post('/register', requireOauth, dcrLimiter, express.json(), handleDcr);
 
 // Authorize endpoint
 app.get('/mcp/oauth/authorize', requireOauth, (req, res) => {
