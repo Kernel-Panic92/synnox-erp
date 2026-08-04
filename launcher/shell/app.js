@@ -256,6 +256,7 @@ async function login() {
 }
 
 let launcherVersion = '';
+let launcherCommit = '';
 
 let modulosCache = [];
 
@@ -2497,7 +2498,9 @@ async function killSession(id, nombre) {
 
 // ── Session check + refresh ──
 (async () => {
-  try { const r = await fetch('/api/version', { signal: AbortSignal.timeout(5000) }); const d = await r.json(); launcherVersion = d.version || ''; } catch(e) {}
+  try { const r = await fetch('/api/version', { signal: AbortSignal.timeout(5000) }); const d = await r.json(); launcherVersion = d.version || ''; launcherCommit = d.commit || ''; } catch(e) {}
+  const loginVersionEl = document.getElementById('login-version');
+  if (loginVersionEl) loginVersionEl.textContent = launcherVersion ? 'v' + launcherVersion + (launcherCommit ? ' - ' + launcherCommit : '') : '';
   if (jwtToken) {
     try {
       // Refresh token silently to extend session

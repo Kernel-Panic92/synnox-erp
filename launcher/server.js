@@ -60,8 +60,10 @@ const APP_VER = require('../package.json').version;
 
 app.use('/api', apiLimiter);
 
-app.get('/api/version', (req, res) => {
-  res.json({ v: SERVER_START, version: APP_VER });
+app.get('/api/version', async (req, res) => {
+  let commit = '';
+  try { const { stdout } = await execFileAsync('git', ['rev-parse', '--short', 'HEAD'], { cwd: LAUNCHER_DIR, timeout: 5000 }); commit = stdout.trim(); } catch {}
+  res.json({ v: SERVER_START, version: APP_VER, commit });
 });
 
 // Track submodule visits from modules
