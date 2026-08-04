@@ -17,6 +17,7 @@ const { createLoginRateLimit, getLoginAttempts } = require('./services/rateLimit
 const { debeEnviarEmail } = require('../framework/email-check');
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 const mcpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+const dcrLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiados registros de clientes — intenta más tarde' } });
 const publicLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 30, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 
 const app = express();
@@ -2996,8 +2997,8 @@ function handleDcr(req, res) {
   });
 }
 
-app.post('/mcp/oauth/register', requireOauth, express.json(), handleDcr);
-app.post('/register', requireOauth, express.json(), handleDcr);
+app.post('/mcp/oauth/register', requireOauth, verificarToken, dcrLimiter, express.json(), handleDcr);
+app.post('/register', requireOauth, verificarToken, dcrLimiter, express.json(), handleDcr);
 
 // Authorize endpoint
 app.get('/mcp/oauth/authorize', requireOauth, (req, res) => {
