@@ -358,6 +358,7 @@ db.exec(`
     nombre TEXT,
     access_token TEXT,
     refresh_token TEXT,
+    expires_at INTEGER,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     UNIQUE(provider, provider_user_id)
@@ -365,6 +366,7 @@ db.exec(`
 `);
 db.exec("CREATE INDEX IF NOT EXISTS idx_oauth_accounts_email ON oauth_accounts(email)");
 db.exec("CREATE INDEX IF NOT EXISTS idx_oauth_accounts_user ON oauth_accounts(user_id)");
+try { db.exec("ALTER TABLE oauth_accounts ADD COLUMN expires_at INTEGER"); } catch {}
 
 // ── User Blacklist ──
 db.exec(`
@@ -488,6 +490,7 @@ function oauthRevokeToken(tokenId) {
 function oauthCleanupExpired() {
   db.prepare('DELETE FROM oauth_codes WHERE expires_at < ? OR used = 1').run(Date.now());
   db.prepare('DELETE FROM oauth_tokens WHERE revoked = 1 AND created_at < ?').run(Date.now() - 86400000);
+  db.prepare('DELETE FROM oauth_accounts WHERE expires_at IS NOT NULL AND expires_at < ?').run(Date.now());
 }
 
 // Cleanup every 10 min
@@ -856,7 +859,10 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
 });
 
 // ── Logout (clear httpOnly cookie) ──
-app.post('/api/auth/logout', (req, res) => {
+app.post('/api/auth/logout', verificarToken, (req, res) => {
+  if (req.usuario && req.usuario.id) {
+    db.prepare("UPDATE oauth_accounts SET access_token = NULL, expires_at = NULL WHERE user_id = ?").run(req.usuario.id);
+  }
   const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
   res.setHeader('Set-Cookie', `launcher_jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax${isSecure ? '; Secure' : ''}`);
   res.json({ ok: true });
@@ -896,6 +902,7 @@ function getOAuthBaseUrl() {
 function oauthFindOrCreateUser(profile) {
   let isNew = false;
   let user = null;
+  const expiresAt = profile.expiresIn ? Date.now() + (profile.expiresIn * 1000) : null;
 
   // 1. FIRST: Check if there's an existing OAuth link
   const existingLink = db.prepare('SELECT * FROM oauth_accounts WHERE provider = ? AND provider_user_id = ?').get(profile.provider, profile.id);
@@ -903,7 +910,7 @@ function oauthFindOrCreateUser(profile) {
     user = db.prepare('SELECT * FROM usuarios WHERE id = ?').get(existingLink.user_id);
     if (user) {
       // Update tokens on existing link
-      db.prepare("UPDATE oauth_accounts SET access_token = ?, nombre = ?, email = ?, updated_at = ? WHERE id = ?").run(profile.accessToken || null, profile.name || null, profile.email, Date.now(), existingLink.id);
+      db.prepare("UPDATE oauth_accounts SET access_token = ?, nombre = ?, email = ?, expires_at = ?, updated_at = ? WHERE id = ?").run(profile.accessToken || null, profile.name || null, profile.email, expiresAt, Date.now(), existingLink.id);
     }
   }
 
@@ -922,7 +929,7 @@ function oauthFindOrCreateUser(profile) {
 
   // 4. Link or update oauth_account (if not already linked above)
   if (!existingLink) {
-    db.prepare("INSERT INTO oauth_accounts (user_id, provider, provider_user_id, email, nombre, access_token, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)").run(user.id, profile.provider, profile.id, profile.email, profile.name || null, profile.accessToken || null, Date.now(), Date.now());
+    db.prepare("INSERT INTO oauth_accounts (user_id, provider, provider_user_id, email, nombre, access_token, expires_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)").run(user.id, profile.provider, profile.id, profile.email, profile.name || null, profile.accessToken || null, expiresAt, Date.now(), Date.now());
   }
 
   // Check if user has modules assigned
@@ -969,7 +976,7 @@ app.get('/auth/google/callback', async (req, res) => {
     const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: 'Bearer ' + tokenData.access_token } });
     const profile = await userInfoRes.json();
     if (!profile.email) return res.redirect('/?error=no_email');
-    const user = oauthFindOrCreateUser({ provider: 'google', id: profile.id, email: profile.email, name: profile.name, accessToken: tokenData.access_token });
+    const user = oauthFindOrCreateUser({ provider: 'google', id: profile.id, email: profile.email, name: profile.name, accessToken: tokenData.access_token, expiresIn: tokenData.expires_in });
     if (isUserBlacklisted(user.user.id)) return res.redirect('/?error=blacklisted');
     const token = oauthIssueJwt(user.user, req, res);
     if (!token) return res.redirect('/?error=auth_failed');
@@ -1014,7 +1021,7 @@ app.get('/auth/github/callback', async (req, res) => {
       email = primary?.email;
     }
     if (!email) return res.redirect('/?error=no_email');
-    const user = oauthFindOrCreateUser({ provider: 'github', id: String(ghUser.id), email, name: ghUser.name || ghUser.login, accessToken: tokenData.access_token });
+    const user = oauthFindOrCreateUser({ provider: 'github', id: String(ghUser.id), email, name: ghUser.name || ghUser.login, accessToken: tokenData.access_token, expiresIn: tokenData.expires_in });
     if (isUserBlacklisted(user.user.id)) return res.redirect('/?error=blacklisted');
     const token = oauthIssueJwt(user.user, req, res);
     if (!token) return res.redirect('/?error=auth_failed');
@@ -1052,7 +1059,7 @@ app.get('/auth/microsoft/callback', async (req, res) => {
     const msUser = await userRes.json();
     const email = msUser.mail || msUser.userPrincipalName;
     if (!email) return res.redirect('/?error=no_email');
-    const user = oauthFindOrCreateUser({ provider: 'microsoft', id: msUser.id, email, name: msUser.displayName, accessToken: tokenData.access_token });
+    const user = oauthFindOrCreateUser({ provider: 'microsoft', id: msUser.id, email, name: msUser.displayName, accessToken: tokenData.access_token, expiresIn: tokenData.expires_in });
     if (isUserBlacklisted(user.user.id)) return res.redirect('/?error=blacklisted');
     const token = oauthIssueJwt(user.user, req, res);
     if (!token) return res.redirect('/?error=auth_failed');
