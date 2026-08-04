@@ -147,6 +147,7 @@ function show(id) {
       el.style.display = 'none';
     }
   });
+  if (id === 'login-screen') loadOAuthProviders();
 }
 
 function showError(el, msg) {
@@ -171,16 +172,19 @@ function showModuleLoading(icon, nombre) {
 
 // ── OAuth login (third-party providers) ──
 function oauthLogin(provider) {
-  try {
-    fetch('/api/auth/oauth-providers').then(r => r.json()).then(({ providers }) => {
-      if (!providers.find(p => p.id === provider)) {
-        const errEl = document.getElementById('login-error');
-        if (errEl) { errEl.textContent = 'Este proveedor no está configurado. Contacta al administrador.'; errEl.classList.add('show'); }
-        return;
-      }
-      window.location.href = '/auth/' + provider;
-    }).catch(() => { window.location.href = '/auth/' + provider; });
-  } catch(e) { window.location.href = '/auth/' + provider; }
+  window.location.href = '/auth/' + provider;
+}
+
+function loadOAuthProviders() {
+  fetch('/api/auth/oauth-providers').then(r => r.json()).then(({ providers }) => {
+    const ids = (providers || []).map(p => p.id);
+    ['google', 'github', 'microsoft'].forEach(id => {
+      const btn = document.getElementById('oauth-' + id);
+      if (btn) btn.style.display = ids.includes(id) ? 'flex' : 'none';
+    });
+    const divider = document.querySelector('.login-divider');
+    if (divider) divider.style.display = ids.length > 0 ? 'flex' : 'none';
+  }).catch(() => {});
 }
 
 // Check for OAuth error on page load
