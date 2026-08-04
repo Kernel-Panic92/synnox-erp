@@ -1,8 +1,100 @@
 # SynnoxERP — Contexto del proyecto
 
-## Estado (4 Ago 2026 — sesión 33)
+## Estado (4 Ago 2026 — sesión 35)
 
-### Cambios Sesión 33 — Login: versión + responsive
+### Cambios Sesión 35 — OAuth login, MCP tools, notificaciones, fixes
+
+#### OAuth Login (Google, GitHub, Microsoft)
+- **Login buttons**: Solo muestran providers habilitados (fetch dinámico)
+- **Modal activación**: Muestra para usuarios sin módulos (cualquier login, no solo OAuth)
+- **Vinculación manual**: Admin puede vincular cuentas OAuth a usuarios existentes
+- **Auto-limpieza**: Elimina usuario OAuth-huérfano al vincular (rol=operador, sin módulos, sin perfil)
+- **Fix OAuth accounts**: Eliminada limpieza de `oauth_accounts` en `oauthCleanupExpired()` (causaba desaparición de cuentas)
+- **Fix DCR**: Eliminado `verificarToken` del endpoint de registro (clientes no tienen token aún)
+
+#### MCP para IA
+- **Proyectos MCP**: 15 herramientas implementadas (dashboard, proyectos, tareas, comentarios, aprobaciones)
+- **OAuth MCP**: Habilitado por defecto, vincula tokens a usuarios internos
+- **Validación OAuth**: Endpoint `POST /mcp` valida token Bearer cuando OAuth está habilitado
+- **Fix mcpUrl()**: Usa `proxy_prefix` para construir URL interna correctamente
+- **Fix well-known**: URL base sin puerto hardcodeado (usa headers de nginx)
+- **Fix DCR**: Sin autenticación requerida (clientes se registran por primera vez)
+- **Admin UI**: Tab "🔐 OAuth MCP" con gestión de clientes y tokens
+- **Control por herramienta**: Tab "🛠 Herramientas" por módulo para habilitar/deshabilitar
+- **Logging**: Tab "📋 Logs MCP" con stats y filtros
+- **Documentación**: `MCP.md` con instrucciones para Claude, ChatGPT, Cursor
+
+#### Notificaciones
+- **Evidencia subida**: Notificación in-app + email al asignado y reportero
+- **Task creation**: `reportero` se establece automáticamente con `req.user.id`
+- **Fix HTTP methods**: Framework usa `DELETE` (no `PUT`) para marcar notificaciones leídas
+- **Fix URLs**: Framework usa `/api/notificaciones/*` directamente (no `HF.API`)
+- **Fix evidence upload**: Agregada notificación al subir evidencia a una tarea
+
+#### Fixes varios
+- **Session expired modal**: Ahora bloquea UI completamente (overlay 85%, z-index 10000)
+- **OAuth login redirect**: Session check prueba cookie httpOnly cuando localStorage vacío
+- **Dark mode maps**: CSS filter `invert(100%) hue-rotate(180deg)` para mapas coloridos
+- **MCP tools error handling**: Endpoint retorna error y URL cuando falla conexión
+- **Proyectos MCP queries**: Eliminados JOIN con `usuarios` (tabla en SQLite, no PostgreSQL)
+- **Session tracking**: Restaurado heartbeat cada 30s + endpoint `POST /api/heartbeat`
+- **Telemetry cleanup**: Eliminado código muerto de telemetry en Auditoría
+- **User edit modal**: Muestra cuentas OAuth vinculadas y tokens MCP activos
+- **Framework sync**: `framework.js` sincronizado a logística y proyectos
+
+#### Archivos modificados
+- `launcher/server.js` — OAuth endpoints, MCP validation, heartbeat, cleanup fix
+- `launcher/shell/app.js` — OAuth buttons dinámicos, heartbeat, notification fixes
+- `launcher/shell/index.html` — OAuth buttons, stats cards removidos
+- `modules/proyectos/backend/mcp/index.js` — 15 herramientas MCP
+- `modules/proyectos/backend/routes/evidencias.js` — notificación al subir evidencia
+- `modules/proyectos/backend/routes/tareas.js` — reportero automático
+- `modules/proyectos/public/framework.js` — notification URLs + HTTP methods
+- `modules/logistica/public/framework.js` — sincronizado con canonical
+- `framework/base.css` — select-buscador, map-dark CSS
+- `MCP.md` — documentación MCP completa
+
+### Convenciones del Framework (SEGUIR SIEMPRE)
+
+- **Modales**: Definir en HTML con `class="modal-overlay"`, mostrar/ocultar con `display: block/none`. NO crear modales dinámicamente con `document.createElement`.
+- **Z-index modales**: `#modal-overlay` (confirmaciones/acciones) SIEMPRE z-index MAYOR que `#modal-detalle` (panel de detalle). Framework: overlay=300, detalle=200. Evita que confirmaciones queden detrás del modal de detalle.
+- **Leaflet en modales**: Al re-crear mapas Leaflet dentro de modales, limpiar `el._leaflet_id = null` antes de `L.map(el)`. Leaflet guarda un ID en el contenedor DOM; si no se limpierra, lanza "Map container is also initialized". Usar `invalidateSize()` con timeout (200ms + 500ms) después de crear el mapa para que calcule tamaño correctamente dentro del modal.
+- **Confirmaciones**: Usar `confirmModal(msg, title, type)` del framework, NUNCA `confirm()` del navegador. Tipos: `'delete'` (default, rojo 🗑️), `'update'` (azul 🔄), `'restart'` (amarillo ♻️), `'info'` (gris ℹ️).
+- **Mensajes**: Usar `toast(msg, type)` del framework para feedback al usuario.
+- **CSS**: Usar variables del framework (`var(--surface)`, `var(--border)`, `var(--text)`, `var(--muted)`, `var(--accent)`, `var(--success)`, `var(--danger)`).
+- **Botones**: Seguir clases existentes: `btn`, `btn-sm`, `btn-secondary`, `btn-danger`.
+- **Tablas**: Usar estructura `<table id="xxx-table"><thead><tr>...</tr></thead><tbody></tbody></table>` con `overflow-x:auto`.
+- **Layout `.main`**: Siempre `margin-left: var(--sidebar-w)` cuando el sidebar es `position:fixed`. NO usar `padding-right` ni `width:calc`.
+- **Grids**: Siempre `repeat(auto-fit, minmax(Xpx, 1fr))`. NUNCA `repeat(N, 1fr)` fijo. Usar `auto-fit` para pocos items, `auto-fill` para muchos.
+- **Tablas overflow**: `.table-wrap` siempre `overflow-x:auto`, NUNCA `overflow:hidden`.
+- **Skeletons**: Widgets con fetch deben mostrar skeleton loader mientras cargan.
+- **API**: Todas las rutas usan `verificarToken, soloAdmin`. Respuestas: `{ ok: true }` o `{ error: 'msg' }`.
+- **DB**: Migraciones con `try { db.exec("ALTER TABLE...") } catch {}` para columnas nuevas. Seeds con `INSERT OR IGNORE`.
+- **Auth**: Siempre via `verificarToken` middleware. JWT incluye `modulos_permisos` para permisos granulares.
+- **Sidebar (módulos nuevos)**: Usar `<aside class="sidebar">`, importar `base.css` + `framework.js`, llamar `initFramework({ themeKey: 'synnox_theme' })`. Incluir `<div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>`. Nav items con `.nav-item[data-page]`. Overlay con `.sidebar-overlay.show`. Colapsado persistido en `localStorage('sidebar_collapsed')`.
+- **Footer del sidebar (MANDATORIO)**: DEBE seguir esta estructura HTML: `<div class="sidebar-footer"><a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a><div class="user-name" id="sidebar-user-name"></div><div class="user-role" id="sidebar-user-role"></div><div class="version" id="app-version">v—</div><button class="btn-logout" onclick="...">⏻ Cerrar sesión</button></div>`. Poblar `sidebar-user-name` y `sidebar-user-role` desde `/api/auth/me`. NO usar `injectSidebarHome()` — el Home link es HTML estático. Orden: Home → Usuario → Versión → Logout.
+- **Sidebar secciones**: Usar `.sidebar-section` con `.sidebar-section-title` para agrupar nav items. Ejemplo: `<div class="sidebar-section"><div class="sidebar-section-title">Grupo</div><div class="nav-item">...</div></div>`.
+- **Error splash**: Cuando un módulo falle al cargar (auth, red), mostrar `.error-splash` en vez de redirigir al launcher. Usar clases `.error-splash`, `.error-splash-card`, `.error-splash-icon`, `.error-splash-title`, `.error-splash-msg`, `.error-splash-btn`.
+- **Navegación same-tab**: Módulos y Home button SIEMPRE abren en la misma pestaña (`href="/"` sin `target="_blank"`). Launcher también abre módulos en la misma pestaña.
+- **Versión**: Todos los módulos leen `/api/version` del root `package.json` (versión unificada `1.0.0`). NO usar `package.json` del módulo. NO mostrar rama git. Frontend: `el.textContent = 'v' + data.version`.
+- **Instalación**: `install.sh` usa `$(pwd)` como INSTALL_DIR — ejecutar desde el directorio del repo clonado. NO copiar a otro path.
+- **Centros de operación**: Launcher es fuente única de verdad. CRUD en launcher, módulos consumen via `GET /api/centros` (caché 30s). NO crear tablas locales de centros. Mismos IDs en footer del sidebar: `sidebar-user-name`, `sidebar-user-role`.
+- **Roles**: `admin` (acceso total), `gerente` (aprobaciones + acceso completo), `operador` (usa perfiles). CSV import mapea `gerencia` → `gerente`.
+- **Telemetría**: Todos los módulos DEBEN incluir `<script src="/telemetry.js"></script>` antes de `</body>`. Script trackea page_view, errores JS y heartbeats. Endpoints públicos (sin auth). Datos centralizados en launcher.db.
+- **Licencia**: Propietaria (LICENSE.md). NO redistribuir código fuente.
+- **Combobox searchable**: Para selects con búsqueda, usar `selectBuscador()` + `initSelectBuscador()` en vez de `<select size="4">` con `filtrarSelectUsuarios()`. El size=4 rompe por CSS global.
+- **Deploy SSH**: Llave read-only en `/root/.ssh/id_ed25519_synnox`. Configurar `GIT_SSH_COMMAND` en `.env` para que PM2 (root) pueda hacer git fetch.
+- **Dark mode maps**: CSS filter `invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%)` en `.map-dark`. Auto-switch via evento `themechange`.
+- **OAuth login**: Botones siempre visibles, verifican provider al click. Admin gestiona en Admin → OAuth.
+- **MCP OAuth**: Habilitado por defecto. Tokens vinculados a usuarios internos via login cookie.
+
+### Pendientes issues abiertos (GitHub)
+- [ ] **#94** — @hono/node-server path traversal en Windows (Dependabot)
+- [ ] **#93** — brace-expansion DoS — 3 Dependabot alerts HIGH
+- [ ] **#71** — Backup nómina no encuentra `backup_horasextra.sh`
+- [ ] **#70** — Investigar backup nómina más pesado que backup launcher
+- [ ] **#68** — Migrar Launcher a GCM + separar secretos
+- [ ] **#65** — Implementar fail2ban óptimo — evitar falsos positivos
 
 #### Login: versión + último commit
 - **Backend**: `GET /api/version` ahora es `async` y retorna `{ v, version, commit }` (hash corto vía `git rev-parse --short HEAD`)
