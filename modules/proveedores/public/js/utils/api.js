@@ -25,16 +25,7 @@ function showSessionExpiredModal() {
   if (_sessionExpiredShown) return;
   _sessionExpiredShown = true;
   stopSyncPoll?.();
-  const overlay = document.createElement('div');
-  overlay.id = 'session-expired-overlay';
-  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center';
-  overlay.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:32px;max-width:400px;text-align:center">
-    <div style="font-size:48px;margin-bottom:16px">🔒</div>
-    <div style="font-size:18px;font-weight:700;margin-bottom:8px">Sesión expirada</div>
-    <div style="color:var(--muted);margin-bottom:20px">Tu sesión ha expirado. Inicia sesión nuevamente para continuar.</div>
-    <button class="btn btn-primary" onclick="window.location.href='/'">Volver al inicio</button>
-  </div>`;
-  document.body.appendChild(overlay);
+  window.location.href = '/';
 }
 
 async function api(m,p,b,isF){

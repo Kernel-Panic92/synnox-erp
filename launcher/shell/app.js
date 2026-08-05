@@ -2560,8 +2560,8 @@ async function killSession(id, nombre) {
         return;
       }
     } catch(e) {}
-    // Session invalid — show re-login modal (preserve localStorage cache)
-    showSessionExpiredModal();
+    // Session invalid — show main login screen
+    show('login-screen');
     return;
   }
   // No JWT in localStorage — try httpOnly cookie (from OAuth login)
@@ -2599,8 +2599,6 @@ setTimeout(() => {
   const ls = document.getElementById('loading-screen');
   if (ls && ls.style.display !== 'none') {
     ls.style.display = 'none';
-    const sessionModal = document.getElementById('session-expired-modal');
-    if (sessionModal && sessionModal.style.display === 'flex') return;
     if (!document.getElementById('login-screen').style.display || document.getElementById('login-screen').style.display === 'none') {
       show('login-screen');
     }
@@ -2630,8 +2628,7 @@ setInterval(async () => {
   if (!jwtToken) return;
   const ok = await refreshToken();
   if (!ok) {
-    // Don't logout — show re-login modal instead (preserves localStorage)
-    showSessionExpiredModal();
+    show('login-screen');
   }
 }, 15 * 60 * 1000);
 
@@ -2642,45 +2639,12 @@ document.addEventListener('visibilitychange', async () => {
     _refreshInFlight = true;
     try {
       const ok = await refreshToken();
-      if (!ok) showSessionExpiredModal();
+      if (!ok) show('login-screen');
     } finally { _refreshInFlight = false; }
   }
 });
 
-function showSessionExpiredModal() {
-  // Hide all screens so only the modal is visible
-  show(null);
-  const modal = document.getElementById('session-expired-modal');
-  if (modal) modal.style.display = 'flex';
-}
 
-function hideSessionExpiredModal() {
-  const modal = document.getElementById('session-expired-modal');
-  if (modal) modal.style.display = 'none';
-}
-
-async function reanudarSesion() {
-  const email = document.getElementById('reanudar-email')?.value?.trim();
-  const pass = document.getElementById('reanudar-pass')?.value;
-  const errEl = document.getElementById('reanudar-error');
-  if (!email || !pass) { if (errEl) errEl.textContent = 'Ingresa tus credenciales'; return; }
-  try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password: pass })
-    });
-    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Credenciales inválidas'); }
-    const data = await res.json();
-    jwtToken = data.jwt;
-    user = data.usuario;
-    localStorage.setItem('platform_jwt', jwtToken);
-    hideSessionExpiredModal();
-    await showLauncher();
-  } catch (e) {
-    if (errEl) errEl.textContent = e.message;
-  }
-}
 
 // ── Notifications ──
 
