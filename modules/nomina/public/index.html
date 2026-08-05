@@ -40,6 +40,7 @@
 
   /* ── PAGE HEADER ── */
   .page-header{margin-bottom:12px;}
+  .page-header-actions{display:flex;gap:8px;padding-right:140px;}
   .page-title{font-family:var(--font-head);font-size:20px;font-weight:700;letter-spacing:-0.2px;margin-bottom:2px;}
   .page-sub{color:var(--muted);font-size:14px;}
 
@@ -765,7 +766,7 @@
     <div class="page" id="page-empleados">
       <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
         <div><div class="page-title">Empleados</div><div class="page-sub">Gestión del directorio de empleados</div></div>
-        <div style="display:flex;gap:8px;">
+        <div class="page-header-actions">
   <button class="btn btn-secondary" id="btn-importar-emp" onclick="abrirModalImportarEmp()" style="display:none;">📥 Importar CSV</button>
   <button class="btn btn-primary" id="btn-nuevo-emp" onclick="abrirModalEmpleado()">+ Nuevo Empleado</button>
 </div>
@@ -793,7 +794,7 @@
     <div class="page" id="page-nomina">
       <div class="page-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
         <div><div class="page-title">Períodos de Nómina</div><div class="page-sub">Administra los cortes de liquidación</div></div>
-        <div style="display:flex;gap:10px;" id="nom-btns">
+        <div class="page-header-actions" id="nom-btns">
           <button class="btn btn-secondary" id="btn-generar-nom" onclick="abrirModalGenerarNomina()">⚡ Generar Año</button>
           <button class="btn btn-primary"   id="btn-nuevo-nom"   onclick="abrirModalNomina()">+ Nuevo Período</button>
         </div>
