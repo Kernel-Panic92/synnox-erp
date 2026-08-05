@@ -2561,6 +2561,8 @@ async function killSession(id, nombre) {
       }
     } catch(e) {}
     // Session invalid — show main login screen
+    jwtToken = null;
+    user = null;
     show('login-screen');
     return;
   }
@@ -2600,6 +2602,8 @@ setTimeout(() => {
   if (ls && ls.style.display !== 'none') {
     ls.style.display = 'none';
     if (!document.getElementById('login-screen').style.display || document.getElementById('login-screen').style.display === 'none') {
+      jwtToken = null;
+      user = null;
       show('login-screen');
     }
   }
@@ -2628,6 +2632,8 @@ setInterval(async () => {
   if (!jwtToken) return;
   const ok = await refreshToken();
   if (!ok) {
+    jwtToken = null;
+    user = null;
     show('login-screen');
   }
 }, 15 * 60 * 1000);
@@ -2639,7 +2645,11 @@ document.addEventListener('visibilitychange', async () => {
     _refreshInFlight = true;
     try {
       const ok = await refreshToken();
-      if (!ok) show('login-screen');
+      if (!ok) {
+        jwtToken = null;
+        user = null;
+        show('login-screen');
+      }
     } finally { _refreshInFlight = false; }
   }
 });
