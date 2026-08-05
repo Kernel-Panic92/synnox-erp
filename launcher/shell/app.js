@@ -139,7 +139,6 @@ function switchMapTheme(map) {
 }
 
 function show(id) {
-  if (id === 'login-screen') console.trace('[LOGIN-DEBUG] show("login-screen") called');
   ['loading-screen', 'post-login-screen', 'login-screen', 'launcher-screen', 'admin-screen', 'admin-form-overlay', 'modulo-form-overlay'].forEach(s => {
     const el = document.getElementById(s);
     if (s === id) {
