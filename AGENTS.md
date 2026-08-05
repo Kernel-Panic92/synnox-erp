@@ -1,5 +1,49 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (5 Ago 2026 — sesión 37)
+
+### Cambios Sesión 37 — Submódulo de Devoluciones en Logística
+
+#### Nuevo feature: Devoluciones (CRUD + import Smart2Go + dashboard)
+- **Migración**: `019_create_devoluciones.sql` — tabla `logistics.devoluciones` + 8 índices
+- **Parser**: `utils/smart2goDevolucionesParser.js` — parseo CSV/Excel de Smart2Go
+  - Normalización de causas: `F.v`, `Fecha` → `Fecha vencimiento`
+  - Parseo de productos: `"Filete basa(3)\nCamarón 650g"` → `[{nombre:"Filete basa",cantidad:3},{nombre:"Camarón 650g",cantidad:1}]`
+  - Valores monetarios: `$134.598` → `134598.00`
+  - Coordenadas GPS: `"7.0618402, -73.1176042"` → lat/lng
+  - Upsert por `fuente_id` para evitar duplicados
+  - Match parcial con `pedidos_logistica.numero_factura`
+- **Backend**: `routes/devoluciones.js` — 10 endpoints
+  - CRUD: GET (lista con filtros/paginación), GET /:id, POST, PUT /:id, DELETE /:id, DELETE /seleccionados (bulk)
+  - Stats: GET /resumen (total, por causa, por cliente, tendencia, por estado)
+  - Import: POST /importar-smart2go (multer upload, upsert, log en importaciones)
+  - Utils: GET /clientes, GET /centros (para filtros), PUT /:id/estado
+- **Frontend**: Dashboard completo con:
+  - Stats cards: Total devoluciones, Valor total, Top causa, Con conductor
+  - Gráficas canvas: Barras por causa + tendencia temporal
+  - Tabla paginada con filtros (fecha, cliente, causa, estado, búsqueda)
+  - Ordenamiento por columnas
+  - Selección múltiple + bulk delete
+  - Modales: Crear/Editar, Detalle (con cambio de estado), Importar Excel (drag & drop)
+- **Sidebar**: Nav item "↩️ Devoluciones" visible para todos los usuarios
+
+#### Archivos creados
+- `modules/logistica/backend/migrations/019_create_devoluciones.sql`
+- `modules/logistica/backend/routes/devoluciones.js`
+- `modules/logistica/backend/utils/smart2goDevolucionesParser.js`
+
+#### Archivos modificados
+- `modules/logistica/backend/server.js` — import + mount `/api/devoluciones`
+- `modules/logistica/public/index.html` — página devoluciones + 3 modales
+- `modules/logistica/public/app.js` — sidebar + navigate + ~300 líneas lógica
+
+#### Pendiente: Google Forms
+- Fase 2: cuando se tenga la estructura del Google Forms, crear parser similar
+- Schema JSONB de `productos` soporta estructuras diferentes
+- Mismo endpoint de import o uno separado
+
+---
+
 ## Estado (4 Ago 2026 — sesión 36)
 
 ### Cambios Sesión 36 — Fix permisos granulares en /api/auth/me

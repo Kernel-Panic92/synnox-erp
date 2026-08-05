@@ -112,6 +112,7 @@ function navigate(page) {
   else if (page === 'sedes') cargarSedes();
   else if (page === 'widetech') rWidetech();
   else if (page === 'geocercas') cargarGeocercas();
+  else if (page === 'devoluciones') cargarDevoluciones();
 }
 
 /* ── Init ── */
@@ -128,6 +129,7 @@ function renderSidebar(usuario) {
     { page: 'reportes', icon: '📈', label: 'Reportes', show: true },
     { page: 'mapa', icon: '🗺️', label: 'Mapa', show: true },
     { page: 'geocercas', icon: '📍', label: 'Geocercas', show: true },
+    { page: 'devoluciones', icon: '↩️', label: 'Devoluciones', show: true },
     { page: 'widetech', icon: '🛰️', label: 'Widetech', show: isAdmin || modPermisos.includes('configurar') },
     { page: 'config', icon: '⚙️', label: 'Configuración', show: isAdmin || modPermisos.includes('configurar') },
   ];
@@ -3323,6 +3325,467 @@ function toggleGeocercasMapaPrincipal() {
     mapInstance.removeLayer(mapInstance._geocercasLayer);
     mapInstance._geocercasLayer = null;
   }
+}
+
+/* ══════════════════════════════════════════
+   DEVOLUCIONES
+   ══════════════════════════════════════════ */
+
+let devPage = 1;
+let devSort = 'fecha_reporte';
+let devOrder = 'DESC';
+let devSeleccionadas = new Set();
+
+async function cargarDevoluciones() {
+  devPage = 1;
+  devSeleccionadas.clear();
+  renderBulkActions();
+  await Promise.all([cargarDevolucionesLista(), cargarDevolucionesResumen(), cargarDevolucionesClientes()]);
+}
+
+async function cargarDevolucionesLista() {
+  try {
+    const fi = document.getElementById('dev-fecha-inicio')?.value || '';
+    const ff = document.getElementById('dev-fecha-fin')?.value || '';
+    const cliente = document.getElementById('dev-filtro-cliente')?.value || '';
+    const causa = document.getElementById('dev-filtro-causa')?.value || '';
+    const estado = document.getElementById('dev-filtro-estado')?.value || '';
+    const busqueda = document.getElementById('dev-busqueda')?.value || '';
+    const limit = document.getElementById('dev-limit')?.value || '50';
+
+    const params = new URLSearchParams({ page: devPage, limit, sort: devSort, order: devOrder });
+    if (fi) params.set('fecha_inicio', fi);
+    if (ff) params.set('fecha_fin', ff);
+    if (cliente) params.set('cliente', cliente);
+    if (causa) params.set('causa', causa);
+    if (estado) params.set('estado', estado);
+    if (busqueda) params.set('busqueda', busqueda);
+
+    const data = await api('/devoluciones?' + params.toString());
+    const tbody = document.getElementById('dev-tbody');
+    if (!data.rows || data.rows.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted);">No hay devoluciones registradas</td></tr>';
+    } else {
+      tbody.innerHTML = data.rows.map(r => `
+        <tr>
+          <td><input type="checkbox" class="dev-check" value="${r.id}" onchange="toggleDevSeleccion(${r.id},this.checked)" ${devSeleccionadas.has(r.id)?'checked':''}></td>
+          <td style="white-space:nowrap;">${r.fecha_reporte ? new Date(r.fecha_reporte+'T12:00:00').toLocaleDateString('es-CO') : '-'}</td>
+          <td><b>${esc(r.cliente_nombre)}</b>${r.sucursal ? '<br><span style="font-size:12px;color:var(--muted);">' + esc(r.sucursal) + '</span>' : ''}</td>
+          <td style="font-size:13px;">${esc(r.sucursal || '-')}</td>
+          <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(r.productos_texto || '')}">${esc((r.productos_texto || '').substring(0, 60))}${(r.productos_texto||'').length > 60 ? '...' : ''}</td>
+          <td style="white-space:nowrap;font-weight:600;">$${Number(r.valor_total || 0).toLocaleString('es-CO')}</td>
+          <td><span class="badge badge-${r.causa === 'Calidad' ? 'warning' : r.causa === 'Fecha vencimiento' ? 'info' : r.causa === 'Mal estado' ? 'danger' : r.causa === 'Rotura' ? 'danger' : 'muted'}" style="font-size:11px;">${esc(r.causa)}</span></td>
+          <td><span class="badge badge-${r.estado === 'resuelta' || r.estado === 'cerrada' ? 'success' : r.estado === 'en_proceso' ? 'info' : 'muted'}" style="font-size:11px;">${esc(r.estado || 'registrada')}</span></td>
+          <td>
+            <button class="btn-icon btn-sm" title="Ver detalle" onclick="verDetalleDevolucion(${r.id})">👁️</button>
+            <button class="btn-icon btn-sm" title="Editar" onclick="editarDevolucion(${r.id})">✏️</button>
+            <button class="btn-icon btn-sm btn-icon-danger" title="Eliminar" onclick="eliminarDevolucion(${r.id})">🗑️</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+    renderDevPagination(data.total, data.totalPages);
+  } catch (err) {
+    console.error('[devoluciones]', err);
+    toast('Error cargando devoluciones: ' + err.message, 'error');
+  }
+}
+
+async function cargarDevolucionesResumen() {
+  try {
+    const fi = document.getElementById('dev-fecha-inicio')?.value || '';
+    const ff = document.getElementById('dev-fecha-fin')?.value || '';
+    const params = new URLSearchParams();
+    if (fi) params.set('fecha_inicio', fi);
+    if (ff) params.set('fecha_fin', ff);
+
+    const data = await api('/devoluciones/resumen?' + params.toString());
+    const statsEl = document.getElementById('dev-stats');
+    statsEl.innerHTML = `
+      <div class="stat-card"><div class="stat-label">Total devoluciones</div><div class="stat-value">${data.total}</div></div>
+      <div class="stat-card"><div class="stat-label">Valor total</div><div class="stat-value">$${Number(data.valor_total || 0).toLocaleString('es-CO')}</div></div>
+      <div class="stat-card"><div class="stat-label">Top causa</div><div class="stat-value">${data.por_causa?.[0] ? esc(data.por_causa[0].causa) : '-'}</div><div class="stat-sub">${data.por_causa?.[0] ? data.por_causa[0].cantidad + ' registros' : ''}</div></div>
+      <div class="stat-card"><div class="stat-label">Con conductor</div><div class="stat-value">${data.con_conductor}</div></div>
+    `;
+    renderChartCausa(data.por_causa || []);
+    renderChartTendencia(data.tendencia || []);
+  } catch (err) { console.error('[devoluciones resumen]', err); }
+}
+
+async function cargarDevolucionesClientes() {
+  try {
+    const data = await api('/devoluciones/clientes');
+    const sel = document.getElementById('dev-filtro-cliente');
+    const current = sel.value;
+    sel.innerHTML = '<option value="">Todos los clientes</option>' +
+      (data.rows || []).map(c => `<option value="${esc(c)}" ${c === current ? 'selected' : ''}>${esc(c)}</option>`).join('');
+  } catch {}
+}
+
+function renderDevPagination(total, totalPages) {
+  const el = document.getElementById('dev-pagination');
+  if (totalPages <= 1) { el.innerHTML = `<span style="font-size:12px;color:var(--muted);">${total} registros</span>`; return; }
+  let html = `<span style="font-size:12px;color:var(--muted);">${total} registros</span>`;
+  html += '<div style="display:flex;gap:4px;">';
+  if (devPage > 1) html += `<button class="btn btn-sm btn-secondary" onclick="devPage=1;cargarDevolucionesLista()">«</button>`;
+  if (devPage > 1) html += `<button class="btn btn-sm btn-secondary" onclick="devPage--;cargarDevolucionesLista()">‹</button>`;
+  const start = Math.max(1, devPage - 2);
+  const end = Math.min(totalPages, devPage + 2);
+  for (let i = start; i <= end; i++) {
+    html += `<button class="btn btn-sm ${i === devPage ? 'btn-primary' : 'btn-secondary'}" onclick="devPage=${i};cargarDevolucionesLista()">${i}</button>`;
+  }
+  if (devPage < totalPages) html += `<button class="btn btn-sm btn-secondary" onclick="devPage++;cargarDevolucionesLista()">›</button>`;
+  if (devPage < totalPages) html += `<button class="btn btn-sm btn-secondary" onclick="devPage=${totalPages};cargarDevolucionesLista()">»</button>`;
+  html += '</div>';
+  el.innerHTML = html;
+}
+
+function ordenarDevoluciones(col) {
+  if (devSort === col) { devOrder = devOrder === 'DESC' ? 'ASC' : 'DESC'; }
+  else { devSort = col; devOrder = 'DESC'; }
+  document.querySelectorAll('[id^="sort-dev-"]').forEach(el => el.textContent = '');
+  const indicator = document.getElementById('sort-dev-' + col.replace('_', '-'));
+  if (indicator) indicator.textContent = devOrder === 'DESC' ? '▼' : '▲';
+  cargarDevolucionesLista();
+}
+
+function toggleDevSeleccion(id, checked) {
+  if (checked) devSeleccionadas.add(id); else devSeleccionadas.delete(id);
+  renderBulkActions();
+}
+
+function toggleAllDevoluciones(checked) {
+  document.querySelectorAll('.dev-check').forEach(cb => {
+    cb.checked = checked;
+    const id = parseInt(cb.value);
+    if (checked) devSeleccionadas.add(id); else devSeleccionadas.delete(id);
+  });
+  renderBulkActions();
+}
+
+function renderBulkActions() {
+  const el = document.getElementById('dev-bulk-actions');
+  const countEl = document.getElementById('dev-seleccion-count');
+  if (devSeleccionadas.size > 0) {
+    el.style.display = 'flex';
+    countEl.textContent = devSeleccionadas.size + ' seleccionada(s)';
+  } else {
+    el.style.display = 'none';
+  }
+}
+
+function limpiarFiltrosDevoluciones() {
+  document.getElementById('dev-fecha-inicio').value = '';
+  document.getElementById('dev-fecha-fin').value = '';
+  document.getElementById('dev-filtro-cliente').value = '';
+  document.getElementById('dev-filtro-causa').value = '';
+  document.getElementById('dev-filtro-estado').value = '';
+  document.getElementById('dev-busqueda').value = '';
+  cargarDevoluciones();
+}
+
+function abrirModalDevolucion(dev = null) {
+  document.getElementById('modal-dev-title').textContent = dev ? 'Editar Devolución' : 'Nueva Devolución';
+  document.getElementById('dev-edit-id').value = dev?.id || '';
+  document.getElementById('dev-fecha').value = dev?.fecha_reporte || new Date().toISOString().split('T')[0];
+  document.getElementById('dev-hora').value = dev?.hora_reporte ? dev.hora_reporte.substring(0, 5) : '';
+  document.getElementById('dev-centro').value = dev?.centro_operaciones || '';
+  document.getElementById('dev-cliente').value = dev?.cliente_nombre || '';
+  document.getElementById('dev-sucursal').value = dev?.sucursal || '';
+  document.getElementById('dev-documento').value = dev?.documento_devolucion || '';
+  document.getElementById('dev-quien-recibe').value = dev?.quien_recibe || '';
+  document.getElementById('dev-mercaderista').value = dev?.mercaderista || '';
+  document.getElementById('dev-productos-texto').value = dev?.productos_texto || '';
+  document.getElementById('dev-valor').value = dev?.valor_total || '';
+  document.getElementById('dev-causa').value = dev?.causa || '';
+  document.getElementById('dev-causa-detalle').value = dev?.causa_detalle || '';
+  const hasConductor = dev?.entregado_conductor;
+  document.getElementById('dev-conductor-check').checked = !!hasConductor;
+  document.getElementById('dev-conductor-fields').style.display = hasConductor ? 'block' : 'none';
+  document.getElementById('dev-conductor-nombre').value = dev?.conductor_nombre || '';
+  document.getElementById('dev-conductor-placa').value = dev?.conductor_placa || '';
+  document.getElementById('modal-devolucion').classList.add('show');
+}
+
+async function guardarDevolucion() {
+  const id = document.getElementById('dev-edit-id').value;
+  const body = {
+    fecha_reporte: document.getElementById('dev-fecha').value,
+    hora_reporte: document.getElementById('dev-hora').value || null,
+    centro_operaciones: document.getElementById('dev-centro').value || null,
+    cliente_nombre: document.getElementById('dev-cliente').value,
+    sucursal: document.getElementById('dev-sucursal').value || null,
+    documento_devolucion: document.getElementById('dev-documento').value || null,
+    quien_recibe: document.getElementById('dev-quien-recibe').value || null,
+    mercaderista: document.getElementById('dev-mercaderista').value || null,
+    productos_texto: document.getElementById('dev-productos-texto').value || null,
+    valor_total: parseFloat(document.getElementById('dev-valor').value) || 0,
+    causa: document.getElementById('dev-causa').value,
+    causa_detalle: document.getElementById('dev-causa-detalle').value || null,
+    entregado_conductor: document.getElementById('dev-conductor-check').checked,
+    conductor_nombre: document.getElementById('dev-conductor-nombre').value || null,
+    conductor_placa: document.getElementById('dev-conductor-placa').value || null,
+  };
+
+  if (!body.fecha_reporte || !body.cliente_nombre || !body.causa) {
+    return toast('Falta campos requeridos: fecha, cliente y causa', 'error');
+  }
+
+  try {
+    if (id) {
+      await api('/devoluciones/' + id, { method: 'PUT', body: JSON.stringify(body) });
+      toast('Devolución actualizada', 'success');
+    } else {
+      await api('/devoluciones', { method: 'POST', body: JSON.stringify(body) });
+      toast('Devolución creada', 'success');
+    }
+    document.getElementById('modal-devolucion').classList.remove('show');
+    cargarDevoluciones();
+  } catch (err) {
+    toast('Error guardando: ' + err.message, 'error');
+  }
+}
+
+async function editarDevolucion(id) {
+  try {
+    const data = await api('/devoluciones/' + id);
+    abrirModalDevolucion(data.row);
+  } catch (err) {
+    toast('Error cargando devolución: ' + err.message, 'error');
+  }
+}
+
+async function verDetalleDevolucion(id) {
+  try {
+    const data = await api('/devoluciones/' + id);
+    const r = data.row;
+    const productos = Array.isArray(r.productos) ? r.productos : [];
+    const productosHtml = productos.length > 0
+      ? productos.map(p => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);"><span>${esc(p.nombre)}</span><span style="font-weight:600;">x${p.cantidad}</span></div>`).join('')
+      : '<div style="color:var(--muted);font-size:13px;">Sin productos parseados</div>';
+
+    document.getElementById('dev-detalle-body').innerHTML = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;">
+        <div><b>Fecha:</b> ${r.fecha_reporte ? new Date(r.fecha_reporte+'T12:00:00').toLocaleDateString('es-CO') : '-'}</div>
+        <div><b>Hora:</b> ${r.hora_reporte || '-'}</div>
+        <div><b>Centro:</b> ${esc(r.centro_operaciones || '-')}</div>
+        <div><b>Cliente:</b> ${esc(r.cliente_nombre)}</div>
+        <div><b>Sucursal:</b> ${esc(r.sucursal || '-')}</div>
+        <div><b>Documento:</b> ${esc(r.documento_devolucion || '-')}</div>
+        <div><b>Mercaderista:</b> ${esc(r.mercaderista || '-')}</div>
+        <div><b>Quien recibe:</b> ${esc(r.quien_recibe || '-')}</div>
+        <div style="grid-column:1/-1;"><b>Valor:</b> <span style="font-size:16px;font-weight:700;">$${Number(r.valor_total || 0).toLocaleString('es-CO')}</span></div>
+        <div><b>Causa:</b> <span class="badge badge-${r.causa === 'Calidad' ? 'warning' : r.causa === 'Fecha vencimiento' ? 'info' : 'muted'}">${esc(r.causa)}</span></div>
+        <div><b>Fuente:</b> ${esc(r.fuente || 'manual')}</div>
+      </div>
+      ${r.causa_detalle ? `<div style="margin-top:10px;"><b>Observaciones:</b><p style="font-size:13px;color:var(--muted);">${esc(r.causa_detalle)}</p></div>` : ''}
+      <div style="margin-top:10px;"><b>Productos:</b>${productosHtml}</div>
+      ${r.productos_texto ? `<div style="margin-top:6px;font-size:12px;color:var(--muted);white-space:pre-wrap;">${esc(r.productos_texto)}</div>` : ''}
+      ${r.entregado_conductor ? `<div style="margin-top:10px;padding:8px;background:var(--surface2);border-radius:8px;"><b>🚚 Conductor:</b> ${esc(r.conductor_nombre || '-')} ${r.conductor_placa ? '| Placa: ' + esc(r.conductor_placa) : ''}</div>` : ''}
+      ${r.foto_url ? `<div style="margin-top:10px;"><a href="${esc(r.foto_url)}" target="_blank" rel="noopener" style="color:var(--accent);font-size:13px;">📷 Ver foto</a></div>` : ''}
+      ${r.latitud && r.longitud ? `<div style="margin-top:10px;"><a href="https://www.google.com/maps?q=${r.latitud},${r.longitud}" target="_blank" rel="noopener" style="color:var(--accent);font-size:13px;">📍 Ver ubicación (${r.latitud}, ${r.longitud})</a></div>` : ''}
+    `;
+    document.getElementById('dev-detalle-estado').value = r.estado || 'registrada';
+    document.getElementById('dev-detalle-body').dataset.devId = r.id;
+    document.getElementById('modal-dev-detalle').classList.add('show');
+  } catch (err) {
+    toast('Error cargando detalle: ' + err.message, 'error');
+  }
+}
+
+async function cambiarEstadoDevolucion() {
+  const id = document.getElementById('dev-detalle-body').dataset.devId;
+  const estado = document.getElementById('dev-detalle-estado').value;
+  try {
+    await api('/devoluciones/' + id + '/estado', { method: 'PUT', body: JSON.stringify({ estado }) });
+    toast('Estado actualizado', 'success');
+    document.getElementById('modal-dev-detalle').classList.remove('show');
+    cargarDevoluciones();
+  } catch (err) {
+    toast('Error actualizando estado: ' + err.message, 'error');
+  }
+}
+
+async function eliminarDevolucion(id) {
+  const ok = await confirmModal('¿Eliminar esta devolución?', 'Eliminar', 'delete');
+  if (!ok) return;
+  try {
+    await api('/devoluciones/' + id, { method: 'DELETE' });
+    toast('Devolución eliminada', 'success');
+    cargarDevoluciones();
+  } catch (err) {
+    toast('Error eliminando: ' + err.message, 'error');
+  }
+}
+
+async function eliminarDevolucionesSeleccionadas() {
+  if (devSeleccionadas.size === 0) return;
+  const ok = await confirmModal(`¿Eliminar ${devSeleccionadas.size} devoluciones seleccionadas?`, 'Eliminar selección', 'delete');
+  if (!ok) return;
+  try {
+    await api('/devoluciones/seleccionados', { method: 'DELETE', body: JSON.stringify({ ids: [...devSeleccionadas] }) });
+    toast(`${devSeleccionadas.size} devoluciones eliminadas`, 'success');
+    devSeleccionadas.clear();
+    cargarDevoluciones();
+  } catch (err) {
+    toast('Error eliminando: ' + err.message, 'error');
+  }
+}
+
+function abrirImportarDevoluciones() {
+  document.getElementById('file-dev-import').value = '';
+  document.getElementById('file-dev-import-name').textContent = '';
+  document.getElementById('importar-dev-resultado').innerHTML = '';
+  document.getElementById('btn-importar-dev').disabled = true;
+  document.getElementById('modal-importar-dev').classList.add('show');
+  const dz = document.getElementById('drop-dev-import');
+  dz.ondragover = e => { e.preventDefault(); dz.style.borderColor = 'var(--accent)'; };
+  dz.ondragleave = () => { dz.style.borderColor = 'var(--border)'; };
+  dz.ondrop = e => {
+    e.preventDefault(); dz.style.borderColor = 'var(--border)';
+    if (e.dataTransfer.files.length) {
+      document.getElementById('file-dev-import').files = e.dataTransfer.files;
+      document.getElementById('file-dev-import-name').textContent = e.dataTransfer.files[0].name;
+      document.getElementById('btn-importar-dev').disabled = false;
+    }
+  };
+}
+
+document.addEventListener('change', e => {
+  if (e.target.id === 'file-dev-import') {
+    document.getElementById('btn-importar-dev').disabled = !e.target.files.length;
+  }
+});
+
+async function ejecutarImportarDevoluciones() {
+  const file = document.getElementById('file-dev-import').files[0];
+  if (!file) return;
+  const btn = document.getElementById('btn-importar-dev');
+  const resultEl = document.getElementById('importar-dev-resultado');
+  btn.disabled = true;
+  btn.textContent = 'Importando...';
+  resultEl.innerHTML = '<div style="color:var(--muted);font-size:13px;">Procesando archivo...</div>';
+
+  try {
+    const fd = new FormData();
+    fd.append('archivo', file);
+    const res = await fetch(API + '/devoluciones/importar-smart2go', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error en importación');
+
+    resultEl.innerHTML = `
+      <div style="padding:10px;background:var(--surface2);border-radius:8px;font-size:13px;">
+        <div style="color:var(--success);font-weight:600;margin-bottom:6px;">✅ Importación completada</div>
+        <div>Importadas: <b>${data.importadas}</b></div>
+        <div>Duplicadas (omitidas): <b>${data.duplicadas}</b></div>
+        <div>Errores parseo: <b>${data.errores_parseo}</b></div>
+        <div>Errores BD: <b>${data.errores_db}</b></div>
+        <div>Total registros archivo: <b>${data.total_registros}</b></div>
+      </div>`;
+    toast(`${data.importadas} devoluciones importadas`, 'success');
+    setTimeout(() => {
+      document.getElementById('modal-importar-dev').classList.remove('show');
+      cargarDevoluciones();
+    }, 1500);
+  } catch (err) {
+    resultEl.innerHTML = `<div style="padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;font-size:13px;color:var(--danger);">❌ ${esc(err.message)}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Importar';
+  }
+}
+
+function renderChartCausa(data) {
+  const canvas = document.getElementById('chart-dev-causa');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.parentElement.clientWidth - 32;
+  canvas.width = w;
+  canvas.height = 200;
+  ctx.clearRect(0, 0, w, 200);
+
+  if (!data.length) {
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#7a85a0';
+    ctx.font = '13px DM Sans, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Sin datos', w / 2, 100);
+    return;
+  }
+
+  const colors = ['#00A86B', '#f7944f', '#f7614f', '#f7d44f', '#4fbe96', '#8b5cf6'];
+  const maxVal = Math.max(...data.map(d => parseInt(d.cantidad)));
+  const barW = Math.min(60, (w - 40) / data.length - 10);
+  const chartH = 160;
+  const startX = (w - (barW + 10) * data.length) / 2;
+
+  data.forEach((d, i) => {
+    const barH = maxVal > 0 ? (parseInt(d.cantidad) / maxVal) * (chartH - 30) : 0;
+    const x = startX + i * (barW + 10);
+    const y = chartH - barH - 20;
+    ctx.fillStyle = colors[i % colors.length];
+    ctx.beginPath();
+    ctx.roundRect(x, y, barW, barH, [4, 4, 0, 0]);
+    ctx.fill();
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#e8ecf5';
+    ctx.font = 'bold 11px DM Sans, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(d.cantidad, x + barW / 2, y - 4);
+    ctx.font = '10px DM Sans, sans-serif';
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#7a85a0';
+    const label = d.causa.length > 12 ? d.causa.substring(0, 10) + '...' : d.causa;
+    ctx.fillText(label, x + barW / 2, chartH - 4);
+  });
+}
+
+function renderChartTendencia(data) {
+  const canvas = document.getElementById('chart-dev-tendencia');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const w = canvas.parentElement.clientWidth - 32;
+  canvas.width = w;
+  canvas.height = 200;
+  ctx.clearRect(0, 0, w, 200);
+
+  if (!data.length) {
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#7a85a0';
+    ctx.font = '13px DM Sans, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Sin datos', w / 2, 100);
+    return;
+  }
+
+  const maxVal = Math.max(...data.map(d => parseInt(d.cantidad)));
+  const chartH = 160;
+  const padding = 40;
+  const chartW = w - padding * 2;
+  const stepX = data.length > 1 ? chartW / (data.length - 1) : chartW / 2;
+
+  ctx.strokeStyle = '#00A86B';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  data.forEach((d, i) => {
+    const x = padding + i * stepX;
+    const y = maxVal > 0 ? chartH - (parseInt(d.cantidad) / maxVal) * (chartH - 30) - 20 : chartH / 2;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+
+  data.forEach((d, i) => {
+    const x = padding + i * stepX;
+    const y = maxVal > 0 ? chartH - (parseInt(d.cantidad) / maxVal) * (chartH - 30) - 20 : chartH / 2;
+    ctx.fillStyle = '#00A86B';
+    ctx.beginPath();
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#7a85a0';
+    ctx.font = '10px DM Sans, sans-serif';
+    ctx.textAlign = 'center';
+    const label = d.fecha ? d.fecha.substring(5) : '';
+    ctx.fillText(label, x, chartH - 4);
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#e8ecf5';
+    ctx.font = 'bold 10px DM Sans, sans-serif';
+    ctx.fillText(d.cantidad, x, y - 8);
+  });
 }
 
 init();

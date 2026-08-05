@@ -616,6 +616,95 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
         <div id="geocercas-table"></div>
       </div>
 
+      <!-- Devoluciones -->
+      <div class="page" id="page-devoluciones">
+        <div class="page-header flex" style="justify-content:space-between;align-items:center;">
+          <div><h3>↩️ Devoluciones</h3><p>Gestión y análisis de devoluciones de productos</p></div>
+          <div class="flex gap-sm">
+            <button class="btn btn-secondary btn-sm" onclick="abrirImportarDevoluciones()">📥 Importar Excel</button>
+            <button class="btn btn-primary btn-sm" onclick="abrirModalDevolucion()">+ Nueva</button>
+          </div>
+        </div>
+        <!-- Stats -->
+        <div id="dev-stats" class="stats-row" style="margin-bottom:16px;"></div>
+        <!-- Charts -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;">
+            <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">Devoluciones por causa</h4>
+            <canvas id="chart-dev-causa" height="200"></canvas>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;">
+            <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">Tendencia temporal</h4>
+            <canvas id="chart-dev-tendencia" height="200"></canvas>
+          </div>
+        </div>
+        <!-- Filtros -->
+        <div class="flex gap-sm mb-12" style="flex-wrap:wrap;align-items:center;">
+          <input type="date" id="dev-fecha-inicio" onchange="cargarDevoluciones()" style="width:auto;">
+          <span style="color:var(--muted);">a</span>
+          <input type="date" id="dev-fecha-fin" onchange="cargarDevoluciones()" style="width:auto;">
+          <select id="dev-filtro-cliente" onchange="cargarDevoluciones()" style="width:auto;min-width:140px;">
+            <option value="">Todos los clientes</option>
+          </select>
+          <select id="dev-filtro-causa" onchange="cargarDevoluciones()" style="width:auto;min-width:140px;">
+            <option value="">Todas las causas</option>
+            <option value="Fecha vencimiento">Fecha vencimiento</option>
+            <option value="Calidad">Calidad</option>
+            <option value="Mal estado">Mal estado</option>
+            <option value="Rotura">Rotura</option>
+          </select>
+          <select id="dev-filtro-estado" onchange="cargarDevoluciones()" style="width:auto;min-width:130px;">
+            <option value="">Todos los estados</option>
+            <option value="registrada">Registrada</option>
+            <option value="en_proceso">En proceso</option>
+            <option value="resuelta">Resuelta</option>
+            <option value="cerrada">Cerrada</option>
+          </select>
+          <div style="position:relative;flex:1;min-width:180px;max-width:300px;">
+            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;">🔍</span>
+            <input type="text" id="dev-busqueda" placeholder="Buscar cliente, mercaderista..."
+                   oninput="cargarDevoluciones()"
+                   style="width:100%;padding:7px 12px 7px 32px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
+          </div>
+          <button class="btn btn-outline btn-sm" onclick="limpiarFiltrosDevoluciones()">🗑️ Limpiar</button>
+          <div style="margin-left:auto;display:flex;gap:6px;align-items:center;">
+            <label style="font-size:13px;color:var(--muted);">Mostrar</label>
+            <select id="dev-limit" onchange="cargarDevoluciones()" style="width:70px;">
+              <option value="25">25</option>
+              <option value="50" selected>50</option>
+              <option value="100">100</option>
+            </select>
+          </div>
+        </div>
+        <!-- Bulk actions -->
+        <div id="dev-bulk-actions" class="flex gap-sm mb-12" style="display:none;align-items:center;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;">
+          <input type="checkbox" id="dev-toggle-all" onchange="toggleAllDevoluciones(this.checked)" style="accent-color:var(--accent);">
+          <span id="dev-seleccion-count" style="font-size:13px;font-weight:600;"></span>
+          <div style="flex:1"></div>
+          <button class="btn btn-sm btn-danger" onclick="eliminarDevolucionesSeleccionadas()">🗑️ Eliminar</button>
+        </div>
+        <!-- Table -->
+        <div class="tbl-wrap">
+          <table class="tbl" id="tbl-devoluciones">
+            <thead>
+              <tr>
+                <th style="width:30px;"><input type="checkbox" id="dev-check-all" onchange="toggleAllDevoluciones(this.checked)" style="accent-color:var(--accent);"></th>
+                <th class="sortable" onclick="ordenarDevoluciones('fecha_reporte')">Fecha <span id="sort-dev-fecha" class="sort-indicator"></span></th>
+                <th class="sortable" onclick="ordenarDevoluciones('cliente_nombre')">Cliente <span id="sort-dev-cliente" class="sort-indicator"></span></th>
+                <th>Sucursal</th>
+                <th>Productos</th>
+                <th class="sortable" onclick="ordenarDevoluciones('valor_total')">Valor <span id="sort-dev-valor" class="sort-indicator"></span></th>
+                <th class="sortable" onclick="ordenarDevoluciones('causa')">Causa <span id="sort-dev-causa" class="sort-indicator"></span></th>
+                <th>Estado</th>
+                <th style="width:80px;">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="dev-tbody"></tbody>
+          </table>
+        </div>
+        <div id="dev-pagination" style="display:flex;justify-content:center;align-items:center;gap:8px;margin-top:12px;"></div>
+      </div>
+
       <!-- Configuración -->
       <div class="page" id="page-config">
         <div class="page-header">
@@ -735,6 +824,91 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
 
 <!-- Toast -->
 <div class="toast-container" id="toast-container"></div>
+
+<!-- Modal Devolución -->
+<div class="modal-overlay" id="modal-devolucion" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal" style="max-width:560px;max-height:90vh;overflow-y:auto;">
+    <h3 id="modal-dev-title">Nueva Devolución</h3>
+    <input type="hidden" id="dev-edit-id">
+    <div class="form-grid" style="gap:12px;margin-top:16px;">
+      <div><label>Fecha reporte *</label><input type="date" id="dev-fecha"></div>
+      <div><label>Hora</label><input type="time" id="dev-hora"></div>
+      <div><label>Centro operaciones</label><input type="text" id="dev-centro" placeholder="200 BOGOTÁ"></div>
+      <div><label>Cliente *</label><input type="text" id="dev-cliente" placeholder="Nombre del cliente"></div>
+      <div><label>Sucursal</label><input type="text" id="dev-sucursal" placeholder="Sucursal"></div>
+      <div><label>Documento devolución</label><input type="text" id="dev-documento" placeholder="N° documento"></div>
+      <div><label>Quien recibe</label><input type="text" id="dev-quien-recibe" placeholder="Nombre de quien recibe"></div>
+      <div><label>Mercaderista</label><input type="text" id="dev-mercaderista" placeholder="Mercaderista"></div>
+      <div style="grid-column:1/-1;"><label>Productos (referencias a devolver)</label><textarea id="dev-productos-texto" rows="3" placeholder="Un producto por línea, cantidad entre paréntesis ej: Filete basa(3)"></textarea></div>
+      <div><label>Valor devolución ($)</label><input type="number" id="dev-valor" placeholder="0" step="100"></div>
+      <div><label>Causa *</label>
+        <select id="dev-causa">
+          <option value="">Seleccionar...</option>
+          <option value="Fecha vencimiento">Fecha vencimiento</option>
+          <option value="Calidad">Calidad</option>
+          <option value="Mal estado">Mal estado</option>
+          <option value="Rotura">Rotura</option>
+          <option value="Otra">Otra</option>
+        </select>
+      </div>
+      <div style="grid-column:1/-1;"><label>Observaciones</label><textarea id="dev-causa-detalle" rows="2" placeholder="Detalles adicionales..."></textarea></div>
+      <div><label><input type="checkbox" id="dev-conductor-check" onchange="document.getElementById('dev-conductor-fields').style.display=this.checked?'block':'none'"> Entregado a conductor</label></div>
+      <div id="dev-conductor-fields" style="display:none;grid-column:1/-1;">
+        <div class="form-grid" style="gap:12px;">
+          <div><label>Nombre conductor</label><input type="text" id="dev-conductor-nombre" placeholder="Nombre"></div>
+          <div><label>Placa vehículo</label><input type="text" id="dev-conductor-placa" placeholder="ABC123"></div>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-devolucion').classList.remove('show')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarDevolucion()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Detalle Devolución -->
+<div class="modal-overlay" id="modal-dev-detalle" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal" style="max-width:520px;max-height:90vh;overflow-y:auto;">
+    <h3>Detalle de Devolución</h3>
+    <div id="dev-detalle-body" style="margin-top:12px;"></div>
+    <div style="margin-top:12px;"><label>Estado</label>
+      <select id="dev-detalle-estado" style="width:100%;">
+        <option value="registrada">Registrada</option>
+        <option value="en_proceso">En proceso</option>
+        <option value="resuelta">Resuelta</option>
+        <option value="cerrada">Cerrada</option>
+      </select>
+    </div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-dev-detalle').classList.remove('show')">Cerrar</button>
+      <button class="btn btn-primary" onclick="cambiarEstadoDevolucion()">Actualizar Estado</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Importar Excel -->
+<div class="modal-overlay" id="modal-importar-dev" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal" style="max-width:420px;">
+    <h3>📥 Importar Excel Smart2Go</h3>
+    <p style="font-size:13px;color:var(--muted);margin-top:4px;">Selecciona el archivo CSV o Excel exportado desde Smart2Go</p>
+    <div style="margin-top:16px;">
+      <div class="drop-zone" id="drop-dev-import" onclick="document.getElementById('file-dev-import').click()"
+           style="padding:24px;border:2px dashed var(--border);border-radius:10px;text-align:center;cursor:pointer;transition:border-color .15s;">
+        <div style="font-size:28px;margin-bottom:8px;">📊</div>
+        <p style="font-size:13px;color:var(--muted);">Arrastra el archivo aquí o haz clic</p>
+        <div id="file-dev-import-name" style="font-size:13px;color:var(--accent);margin-top:6px;"></div>
+      </div>
+      <input type="file" id="file-dev-import" accept=".csv,.xlsx,.xls" style="display:none"
+             onchange="document.getElementById('file-dev-import-name').textContent=this.files[0]?.name||''">
+    </div>
+    <div id="importar-dev-resultado" style="margin-top:12px;"></div>
+    <div class="modal-actions" style="margin-top:16px;">
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-importar-dev').classList.remove('show')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-importar-dev" onclick="ejecutarImportarDevoluciones()" disabled>Importar</button>
+    </div>
+  </div>
+</div>
 
 <!-- Modal genérico -->
 <div class="modal-overlay" id="modal-overlay">
