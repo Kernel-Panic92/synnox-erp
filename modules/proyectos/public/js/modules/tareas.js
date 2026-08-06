@@ -76,9 +76,11 @@ async function cargarMiembrosProyecto(proyectoId) {
     const data = await api('/proyectos/' + proyectoId + '/miembros');
     const miembros = data.miembros || [];
     const asignado = data.asignado_a;
-    const usuarioIds = new Set(miembros.map(m => m.usuario_id));
-    if (asignado) usuarioIds.add(asignado);
-    const lista = _todosUsuarios.filter(u => usuarioIds.has(u.id));
+    const usuarioIds = new Set();
+    for (const m of miembros) usuarioIds.add(Number(m.usuario_id));
+    if (asignado) usuarioIds.add(Number(asignado));
+    if (usuarioIds.size === 0) return _todosUsuarios;
+    const lista = _todosUsuarios.filter(u => usuarioIds.has(Number(u.id)));
     _miembrosProyectoCache[proyectoId] = lista.length ? lista : _todosUsuarios;
     return _miembrosProyectoCache[proyectoId];
   } catch { return _todosUsuarios; }
@@ -210,6 +212,7 @@ async function abrirModalTarea(id) {
   }
 
   const proyectoSel = t?.proyecto_id || proyectoDefault || '';
+  if (proyectoSel) delete _miembrosProyectoCache[proyectoSel];
   const usuariosAsignados = proyectoSel ? await cargarMiembrosProyecto(proyectoSel) : _todosUsuarios;
 
   const body = `
