@@ -234,15 +234,15 @@ function renderMiembrosModal(filtro = '') {
     const rol = _miembrosRoles[u.id] || 'miembro';
     const nombre = u.nombre || u.name || `Usuario #${u.id}`;
     const email = u.email || '';
-    return `<div style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:7px;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='transparent'">
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:7px;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='transparent'">
       <input type="checkbox" value="${u.id}" ${checked ? 'checked' : ''} onchange="toggleMiembro(${u.id},this.checked)"
         style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0">
-      <div style="flex:1;min-width:0">
-        <div style="font-size:13px;font-weight:500">${esc(nombre)}</div>
-        ${email ? `<div style="font-size:11px;color:var(--muted)">${esc(email)}</div>` : ''}
+      <div style="flex:1;min-width:0;overflow:hidden">
+        <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nombre)}</div>
+        ${email ? `<div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(email)}</div>` : ''}
       </div>
       <select ${!checked ? 'disabled' : ''} onchange="setMiembroRol(${u.id},this.value)"
-        style="font-size:12px;padding:4px 8px;border-radius:4px;border:1px solid var(--border);flex-shrink:0;background:var(--surface);color:var(--text);${!checked ? 'opacity:0.4' : ''}">
+        style="font-size:12px;padding:4px 6px;border-radius:4px;border:1px solid var(--border);flex-shrink:0;background:var(--surface);color:var(--text);width:90px;${!checked ? 'opacity:0.4' : ''}">
         <option value="miembro" ${rol === 'miembro' ? 'selected' : ''}>Miembro</option>
         <option value="lider" ${rol === 'lider' ? 'selected' : ''}>Líder</option>
         <option value="observador" ${rol === 'observador' ? 'selected' : ''}>Observador</option>
