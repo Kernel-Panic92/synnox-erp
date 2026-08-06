@@ -92,7 +92,12 @@ function closeSidebar() {
 let _dashRefreshInterval = null;
 
 /* ── Navigation ── */
+const LOG_PAGINAS_VALIDAS = ['dashboard','vehiculos','pedidos','rutas','reportes','config','mapa','clientes','sedes','widetech','geocercas','devoluciones'];
+
 function navigate(page) {
+  if (!LOG_PAGINAS_VALIDAS.includes(page)) page = 'dashboard';
+  localStorage.setItem('lg_last_page', page);
+
   if (_dashRefreshInterval) { clearInterval(_dashRefreshInterval); _dashRefreshInterval = null; }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -182,7 +187,11 @@ async function init() {
     if (footerRole) footerRole.textContent = data.perfil_nombre || data.rol || '';
     renderSidebar(data);
     cargarVersion();
-    cargarDashboard();
+    const hash = location.hash.slice(1);
+    const saved = localStorage.getItem('lg_last_page');
+    const page = hash || saved || 'dashboard';
+    if (page === 'dashboard') cargarDashboard();
+    else navigate(page);
     initNotifications(60000);
   } catch (e) {
     document.getElementById('app-screen').style.display = 'none';
