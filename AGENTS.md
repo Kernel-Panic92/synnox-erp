@@ -88,7 +88,24 @@
 #### Restricción de aprobación de proyectos
 - `routes/aprobacion.js:152-168` — antes de aprobar, verifica `COUNT(*) FILTER (WHERE estado != 'completada')` en tareas del proyecto
 - Si hay tareas pendientes, retorna 400 con mensaje descriptivo
+- Botón de aprobar solo se muestra cuando `total_tareas === 0 || tareas_completadas === total_tareas`
 - Aplica para todos los usuarios sin importar rol o perfil
+
+#### UI de miembros estilo nómina
+- Modal con checkbox list + filtro de texto + selector de rol por fila
+- Botones "Todos" / "Ninguno" para selección masiva
+- PUT `/proyectos/:id/miembros` para reemplazar todos los miembros en transacción
+- Solo el creador o admin/gerente pueden gestionar miembros
+
+#### Notificaciones de miembros
+- Al agregar un miembro: notifica con mensaje según rol (líder=responsable, miembro=hace parte)
+- Bulk: solo notifica a miembros nuevos
+
+#### Fixes varios
+- Email evidencia: `detallesExtra` debe ser objeto, no string
+- Templates email: gramática correcta el/la según género de la entidad
+- Label "Asignado a" → "Responsable del proyecto"
+- Modal miembros z-index:350 (sobre modal de proyecto)
 
 ---
 
@@ -201,6 +218,13 @@
 - **OAuth login**: Botones siempre visibles, verifican provider al click.
 - **MCP OAuth**: Habilitado por defecto. Tokens vinculados a usuarios internos via login cookie.
 - **Workflow de módulos**: Scaffold (Admin → Módulos → ⚡ Crear) → Desarrollo → Built-in (mover al repo, registrar en `builtin` array, montar como sub-app).
+- **Multi-selección (checkbox list)**: Para seleccionar múltiples elementos, usar modal con checkboxes + filtro de texto + botones "Todos/Ninguno". NO usar `<select multiple>`. Ejemplo: `routes/miembros.js` + `proyectos.js:abrirModalMiembros()`.
+- **Notificaciones por rol/contexto**: Personalizar mensaje según el rol del usuario. Ej: líder → "eres el responsable", miembro → "haces parte del proyecto". Usar `notificar()` de `utils/notify.js`.
+- **Templates de email (género)**: `templateAsignacion()` y `templateCambioEstado()` detectan género según entidad. "proyecto" = el/Asignado, "tarea" = la/Asignada. Siempre pasar `entidad` en minúsculas.
+- **Queries resilientes**: Si una tabla puede no existir (migración pendiente), verificar con `SELECT 1 FROM tabla LIMIT 1` antes de usar. Ejemplo: `routes/proyectos.js` con `proyecto_miembros`.
+- **Aprobación condicional**: Botón de aprobar solo se muestra cuando se cumplen las condiciones. Ej: proyecto solo cuando todas las tareas están completadas. Validación backend como red de seguridad.
+- **Auto-cambio de estado**: Al realizar una acción en un elemento pendiente, cambiarlo automáticamente a "en progreso". Ej: comentar o subir evidencia en tarea pendiente → `en_progreso`.
+- **Variables de contexto para pre-selección**: Usar variables globales como `_proyectoFiltroActual` para pasar contexto entre vistas. Setear en la vista origen, leer y limpiar en el modal destino.
 
 ---
 
