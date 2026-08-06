@@ -27,7 +27,6 @@ async function loadCentros() {
   })();
   return _centrosCache.length ? _centrosCache : _centrosPromise;
 }
-}
 
 // Theme Management
 function aplicarTema() {
