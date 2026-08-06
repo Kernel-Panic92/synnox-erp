@@ -126,7 +126,7 @@ async function abrirModalProyecto(id) {
     </div>
     <div class="form-row">
       <div class="form-group"><label>Fecha Limite</label><input type="date" id="proy-fecha" value="${p?.fecha_limite ? p.fecha_limite.split('T')[0] : ''}"></div>
-      <div class="form-group"><label>Asignado a</label>${selectBuscador('proy-asignado', _todosUsuarios, p?.asignado_a, 'Buscar usuario...')}</div>
+      <div class="form-group"><label>Responsable del proyecto</label>${selectBuscador('proy-asignado', _todosUsuarios, p?.asignado_a, 'Buscar usuario...')}</div>
     </div>
     ${miembrosHtml}
   `;
