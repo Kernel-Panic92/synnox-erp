@@ -1021,15 +1021,24 @@ async function cargarRutas() {
 
 let _sedesCache = null;
 let _sedesCacheTs = 0;
-const SEDES_CACHE_TTL = 300000; // 5 minutos
+const SEDES_CACHE_TTL = 30000; // 30 segundos
+let _sedesPromise = null;
+
 async function poblarSedesRutas() {
   const select = document.getElementById('filtro-rutas-sede');
   if (!select) return;
   try {
-    if (!_sedesCache || (Date.now() - _sedesCacheTs) >= SEDES_CACHE_TTL) {
-      const centros = await api('/centros');
-      _sedesCache = Array.isArray(centros) ? centros : [];
-      _sedesCacheTs = Date.now();
+    const age = Date.now() - _sedesCacheTs;
+    if (!_sedesCache || age >= SEDES_CACHE_TTL) {
+      if (!_sedesPromise) {
+        _sedesPromise = (async () => {
+          const centros = await api('/centros');
+          _sedesCache = Array.isArray(centros) ? centros : [];
+          _sedesCacheTs = Date.now();
+          _sedesPromise = null;
+        })();
+      }
+      await _sedesPromise;
     }
     const actual = select.value;
     select.innerHTML = '<option value="">Todas las sedes</option>' +

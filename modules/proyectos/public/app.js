@@ -4,7 +4,8 @@ let _currentPage = 'dashboard';
 let _nombresUsuarios = {};
 let _todosUsuarios = [];
 let _todosUsuariosTs = 0;
-const USUARIOS_CACHE_TTL = 300000; // 5 minutos
+const USUARIOS_CACHE_TTL = 30000; // 30 segundos
+let _usuariosPromise = null;
 
 initFramework({
   basePath: BASE,
@@ -35,14 +36,20 @@ function mostrarAppInterno() {
 }
 
 async function cargarTodosLosUsuarios() {
-  if (_todosUsuarios.length && (Date.now() - _todosUsuariosTs) < USUARIOS_CACHE_TTL) return _todosUsuarios;
-  try {
-    const data = await api('/usuarios');
-    _todosUsuarios = data.usuarios || [];
-    _todosUsuariosTs = Date.now();
-    for (const u of _todosUsuarios) _nombresUsuarios[u.id] = u.nombre;
+  const age = Date.now() - _todosUsuariosTs;
+  if (_todosUsuarios.length && age < USUARIOS_CACHE_TTL) return _todosUsuarios;
+  if (_usuariosPromise) return _usuariosPromise;
+  _usuariosPromise = (async () => {
+    try {
+      const data = await api('/usuarios');
+      _todosUsuarios = data.usuarios || [];
+      _todosUsuariosTs = Date.now();
+      for (const u of _todosUsuarios) _nombresUsuarios[u.id] = u.nombre;
+    } catch {}
+    _usuariosPromise = null;
     return _todosUsuarios;
-  } catch { return []; }
+  })();
+  return _todosUsuarios.length ? _todosUsuarios : _usuariosPromise;
 }
 
 async function cargarNombresUsuarios(ids) {

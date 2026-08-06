@@ -1,7 +1,8 @@
 let _proyectos = [];
 let _centrosCache = null;
 let _centrosCacheTs = 0;
-const CENTROS_CACHE_TTL = 300000; // 5 minutos
+const CENTROS_CACHE_TTL = 30000; // 30 segundos
+let _centrosPromise = null;
 let _proyectoMiembrosActual = null;
 let _miembrosSeleccionados = new Set();
 let _miembrosRoles = {};
@@ -83,12 +84,18 @@ function verTareasProyecto(proyectoId) {
 }
 
 async function cargarCentrosProyectos() {
-  if (_centrosCache && (Date.now() - _centrosCacheTs) < CENTROS_CACHE_TTL) return;
-  try {
-    const centros = await api('/centros');
-    _centrosCache = Array.isArray(centros) ? centros : [];
-    _centrosCacheTs = Date.now();
-  } catch { _centrosCache = []; }
+  const age = Date.now() - _centrosCacheTs;
+  if (_centrosCache && age < CENTROS_CACHE_TTL) return;
+  if (_centrosPromise) return _centrosPromise;
+  _centrosPromise = (async () => {
+    try {
+      const centros = await api('/centros');
+      _centrosCache = Array.isArray(centros) ? centros : [];
+      _centrosCacheTs = Date.now();
+    } catch { _centrosCache = []; }
+    _centrosPromise = null;
+  })();
+  return _centrosPromise;
 }
 
 async function abrirModalProyecto(id) {

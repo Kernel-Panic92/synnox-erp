@@ -7,14 +7,26 @@ function paginaSegura(hash) {
 
 let _centrosCache = [];
 let _centrosCacheTs = 0;
-const CENTROS_CACHE_TTL = 300000; // 5 minutos
+const CENTROS_CACHE_TTL = 30000; // 30 segundos
+let _centrosPromise = null;
+
 async function loadCentros() {
-  if (_centrosCache.length && (Date.now() - _centrosCacheTs) < CENTROS_CACHE_TTL) return _centrosCache;
-  try {
-    const res = await GET('/api/centros');
-    if (res.ok) { _centrosCache = await res.json(); _centrosCacheTs = Date.now(); }
-  } catch {}
-  return _centrosCache;
+  const age = Date.now() - _centrosCacheTs;
+  // Si el cache es fresco (<30s), devolverlo
+  if (_centrosCache.length && age < CENTROS_CACHE_TTL) return _centrosCache;
+  // Si ya hay un fetch en curso, esperarlo
+  if (_centrosPromise) return _centrosPromise;
+  // Fetch en background — devolver cache viejo mientras tanto
+  _centrosPromise = (async () => {
+    try {
+      const res = await GET('/api/centros');
+      if (res.ok) { _centrosCache = await res.json(); _centrosCacheTs = Date.now(); }
+    } catch {}
+    _centrosPromise = null;
+    return _centrosCache;
+  })();
+  return _centrosCache.length ? _centrosCache : _centrosPromise;
+}
 }
 
 // Theme Management
