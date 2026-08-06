@@ -44,9 +44,44 @@
 
 ---
 
+## Estado (6 Ago 2026 — sesión 39)
+
+### Cambios Sesión 39 — Proyectos: fixes y mejoras
+
+#### Fix: Cambiar proyecto al editar tarea
+- **Bug**: El endpoint `PUT /tareas/:id` no desestructuraba `proyecto_id` del body ni lo incluía en el query UPDATE.
+- **Fix**: `routes/tareas.js:197` — agregado `proyecto_id` a desestructuración + línea 249 nuevo `if` para actualizarlo.
+
+#### Feature: Auto-cambiar estado a "en_progreso"
+- Al comentar o subir evidencia en una tarea con estado `pendiente`, esta se cambia automáticamente a `en_progreso`.
+- **Backend**: `routes/comentarios.js:41-46` — verifica `tarea.estado === 'pendiente'` y ejecuta UPDATE.
+- **Backend**: `routes/evidencias.js:60,77-81` — misma lógica, SELECT ahora trae `estado`.
+
+#### Feature: Pre-seleccionar proyecto al crear tarea
+- Al hacer clic en un proyecto y luego en "+ Nueva Tarea", el modal pre-selecciona el proyecto padre.
+- **Frontend**: `tareas.js:3` — nueva variable global `_proyectoFiltroActual`.
+- **Frontend**: `proyectos.js:69` — `verTareasProyecto()` setea `_proyectoFiltroActual`.
+- **Frontend**: `tareas.js:174-175,182` — `abrirModalTarea()` usa la variable para pre-seleccionar y la limpia.
+
+#### Feature: Creador puede aprobar/rechazar sus proyectos
+- Antes solo admin/gerente podían aprobar. Ahora el usuario asignado (`asignado_a`) también puede.
+- **Backend**: `routes/aprobacion.js:152-157,196-201` —两端点 verifican `esAdminGerente || esCreador`.
+- **Frontend**: `proyectos.js:54-55` — botones se muestran si `['admin','gerente'].includes(rol) || p.asignado_a === usuario?.id`.
+
+#### Archivos modificados
+- `modules/proyectos/backend/routes/tareas.js` — fix `proyecto_id` en PUT
+- `modules/proyectos/backend/routes/comentarios.js` — auto en_progreso
+- `modules/proyectos/backend/routes/evidencias.js` — auto en_progreso
+- `modules/proyectos/backend/routes/aprobacion.js` — permisos de creador
+- `modules/proyectos/public/js/modules/tareas.js` — variable contexto + pre-selección
+- `modules/proyectos/public/js/modules/proyectos.js` — setear contexto + botones
+
+---
+
 ## Estado actual (5 Ago 2026)
 
 ### Últimos cambios
+- **Sesión 39**: Fixes y mejoras en Proyectos — cambiar proyecto al editar tarea, auto-en_progreso al comentar/evidencia, pre-seleccionar proyecto padre, creador aprueba sus proyectos.
 - **Sesión 38**: Fix OAuth error feedback (invalid_state message + logging + stack traces). MCP OAuth admin: mostrar usuario propietario de tokens y clientes activos.
 - **Sesión 37**: Eliminado login de sesión expirada del launcher, se usa el login principal. Proveedores redirige a `/` en vez de overlay propio. Limpiado `jwtToken`/`user` al mostrar login por expiración.
 - **Sesión 36**: Fix `/api/auth/me` — ahora retorna `modulos_permisos` en todos los módulos (nómina, logística, proveedores, proyectos).
