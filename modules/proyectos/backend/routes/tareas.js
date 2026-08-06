@@ -194,7 +194,7 @@ router.put('/reordenar', requirePermiso('editar_tarea', 'proyectos'), async (req
 
 router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res) => {
   try {
-    const { titulo, descripcion, tipo, prioridad, estado, columna, asignado_a, fecha_limite, estimacion_horas, horas_invertidas } = req.body;
+    const { titulo, descripcion, tipo, prioridad, estado, columna, asignado_a, fecha_limite, estimacion_horas, horas_invertidas, proyecto_id } = req.body;
 
     const esAdminGerente = req.user?.rol === 'admin' || req.user?.rol === 'gerente';
 
@@ -246,6 +246,7 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
     if (fecha_limite !== undefined) { updates.push(`fecha_limite = $${idx++}`); params.push(fecha_limite); }
     if (estimacion_horas !== undefined) { updates.push(`estimacion_horas = $${idx++}`); params.push(estimacion_horas); }
     if (horas_invertidas !== undefined) { updates.push(`horas_invertidas = $${idx++}`); params.push(horas_invertidas); }
+    if (proyecto_id !== undefined) { updates.push(`proyecto_id = $${idx++}`); params.push(proyecto_id); }
 
     if (updates.length === 0) return res.status(400).json({ error: 'No hay campos para actualizar' });
 
