@@ -214,6 +214,7 @@ async function abrirModalTarea(id) {
   const proyectoSel = t?.proyecto_id || proyectoDefault || '';
   if (proyectoSel) delete _miembrosProyectoCache[proyectoSel];
   const usuariosAsignados = proyectoSel ? await cargarMiembrosProyecto(proyectoSel) : _todosUsuarios;
+  const esAdmin = usuario?.rol === 'admin' || usuario?.rol === 'gerente';
 
   const body = `
     <div class="form-group"><label>Proyecto</label><select id="tarea-proyecto" onchange="actualizarSelectAsignadoTarea(this.value)">${_tareasProyectos.map(p => `<option value="${p.id}" ${(t?.proyecto_id == p.id || (!t && proyectoDefault == p.id)) ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}</select></div>
@@ -251,7 +252,7 @@ async function abrirModalTarea(id) {
       <div class="form-group"><label>Asignado a</label>${selectBuscador('tarea-asignado', usuariosAsignados, id ? t?.asignado_a : usuario?.id, 'Buscar usuario...')}</div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>Fecha Limite</label><input type="date" id="tarea-fecha" value="${t?.fecha_limite ? t.fecha_limite.split('T')[0] : ''}"></div>
+      <div class="form-group"><label>Fecha Limite</label><input type="date" id="tarea-fecha" value="${t?.fecha_limite ? t.fecha_limite.split('T')[0] : ''}" ${(id && t?.asignado_a === usuario?.id && !esAdmin) ? 'disabled' : ''}></div>
       <div class="form-group"><label>Estimacion (horas)</label><input type="number" id="tarea-estimacion" value="${t?.estimacion_horas || ''}" step="0.5" min="0"></div>
     </div>
   `;

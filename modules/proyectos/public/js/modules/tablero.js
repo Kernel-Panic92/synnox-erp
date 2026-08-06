@@ -68,6 +68,16 @@ async function soltarTarea(event, columnaDestino) {
     return;
   }
 
+  // Obtener tarea actual para validar movimiento
+  try {
+    const tareaData = await api('/tareas/' + tareaId);
+    const tarea = tareaData.tarea;
+    if (tarea?.estado === 'en_progreso' && columnaDestino === 'pendiente') {
+      toast('No se puede devolver una tarea de en progreso a pendiente', 'error');
+      return;
+    }
+  } catch {}
+
   try {
     await api('/tareas/reordenar', { method: 'PUT', body: JSON.stringify({ tarea_id: tareaId, columna: columnaDestino, orden: 0 }) });
     toast('Tarea movida a ' + (_columnas.find(c => c.id === columnaDestino)?.label || columnaDestino), 'success');

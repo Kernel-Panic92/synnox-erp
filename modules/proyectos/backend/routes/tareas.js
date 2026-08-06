@@ -235,6 +235,17 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
     const oldAsignado = tareaAntes.rows[0]?.asignado_a;
     const tareaTitulo = titulo || tareaAntes.rows[0]?.titulo;
 
+    // El asignado no puede modificar la fecha límite
+    if (fecha_limite !== undefined && !esAdminGerente && oldAsignado === req.user.id) {
+      return res.status(403).json({ error: 'No puedes modificar la fecha límite de una tarea asignada a ti' });
+    }
+
+    // No se puede volver de en_progreso a pendiente
+    const nuevoEstado = columna ? COLUMNA_A_ESTADO[columna] : estado;
+    if (nuevoEstado === 'pendiente' && oldEstado === 'en_progreso') {
+      return res.status(400).json({ error: 'No se puede devolver una tarea de en progreso a pendiente' });
+    }
+
     const updates = [];
     const params = [];
     let idx = 1;
