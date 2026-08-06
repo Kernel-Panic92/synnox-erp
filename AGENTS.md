@@ -3,6 +3,7 @@
 ## Estado actual (5 Ago 2026)
 
 ### Últimos cambios
+- **Sesión 38**: Fix OAuth error feedback (invalid_state message + logging + stack traces). MCP OAuth admin: mostrar usuario propietario de tokens y clientes activos.
 - **Sesión 37**: Eliminado login de sesión expirada del launcher, se usa el login principal. Proveedores redirige a `/` en vez de overlay propio. Limpiado `jwtToken`/`user` al mostrar login por expiración.
 - **Sesión 36**: Fix `/api/auth/me` — ahora retorna `modulos_permisos` en todos los módulos (nómina, logística, proveedores, proyectos).
 - **Sesión 35**: OAuth login (Google, GitHub, Microsoft), MCP para IA (15 herramientas), notificaciones in-app, session expired modal mejorado.
@@ -21,7 +22,7 @@
 #### Técnicos
 - [ ] Observabilidad centralizada (tabla `auditoria_central`)
 - [ ] APIs internas entre módulos
-- [ ] Dividir `launcher/server.js` (~2800 líneas → routers separados)
+- [ ] Dividir `launcher/server.js` (~3700 líneas → routers separados)
 - [ ] SSH `execSync` → `ssh2` (test-ssh)
 - [ ] CSP nonce en proveedores
 - [ ] Ofuscar builds frontend
