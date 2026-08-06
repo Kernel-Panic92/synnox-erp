@@ -188,13 +188,15 @@ async function init() {
     document.getElementById('app-screen').style.display = 'none';
     const isModuleDenied = e.message?.includes('acceso al módulo') || e.message?.includes('Acceso denegado');
     const isSessionInvalid = e.message?.includes('Sesión invalidada') || e.message?.includes('Sesión expirada');
-    const icon = isModuleDenied ? '🔒' : isSessionInvalid ? '🔑' : '⚠️';
-    const title = isModuleDenied ? 'Acceso denegado' : isSessionInvalid ? 'Sesión expirada' : 'Error al cargar Logística';
+    if (isSessionInvalid) {
+      logout();
+      return;
+    }
+    const icon = isModuleDenied ? '🔒' : '⚠️';
+    const title = isModuleDenied ? 'Acceso denegado' : 'Error al cargar Logística';
     const msg = isModuleDenied
       ? 'No tienes permisos para acceder al módulo de Logística. Contacta al administrador.'
-      : isSessionInvalid
-        ? 'Tu sesión fue actualizada. Vuelve al Launcher e inicia sesión nuevamente.'
-        : (e.message || 'No se pudo conectar con el servidor. Verifica tu sesión e intenta de nuevo.');
+      : (e.message || 'No se pudo conectar con el servidor. Verifica tu sesión e intenta de nuevo.');
     document.body.insertAdjacentHTML('beforeend', `
       <div class="error-splash">
         <div class="error-splash-card">

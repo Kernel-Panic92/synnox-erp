@@ -1028,7 +1028,7 @@ app.get('/auth/github/callback', async (req, res) => {
   const { code, error, state } = req.query;
   const cookies = parseCookies(req);
   if (error || !code) return res.redirect('/?error=oauth_denied');
-  if (!state || state !== cookies.oauth_state) return res.redirect('/?error=invalid_state');
+  if (!state || state !== cookies.oauth_state) { console.warn('[OAuth GitHub] State mismatch — session:', cookies.oauth_state ? 'present' : 'missing', 'query:', state ? 'present' : 'missing'); return res.redirect('/?error=invalid_state'); }
   res.clearCookie('oauth_state', { path: '/' });
   const cfg = getOAuthConfig('github');
   try {
@@ -1037,7 +1037,7 @@ app.get('/auth/github/callback', async (req, res) => {
       body: JSON.stringify({ client_id: cfg.clientId, client_secret: cfg.clientSecret, code })
     });
     const tokenData = await tokenRes.json();
-    if (!tokenData.access_token) return res.redirect('/?error=token_exchange_failed');
+    if (!tokenData.access_token) { console.error('[OAuth GitHub] Token exchange failed:', tokenData); return res.redirect('/?error=token_exchange_failed'); }
     const userRes = await fetch('https://api.github.com/user', { headers: { Authorization: 'Bearer ' + tokenData.access_token, Accept: 'application/json' } });
     const ghUser = await userRes.json();
     // Get primary email
@@ -1054,7 +1054,7 @@ app.get('/auth/github/callback', async (req, res) => {
     const token = oauthIssueJwt(user.user, req, res);
     if (!token) return res.redirect('/?error=auth_failed');
     res.redirect((user.isNew || !user.hasModules) ? '/?new_user=1' : '/');
-  } catch (e) { console.error('[OAuth GitHub]', e.message); res.redirect('/?error=oauth_error'); }
+  } catch (e) { console.error('[OAuth GitHub]', e.stack || e.message); res.redirect('/?error=oauth_error'); }
 });
 
 // ── Microsoft OAuth ──
@@ -1073,7 +1073,7 @@ app.get('/auth/microsoft/callback', async (req, res) => {
   const { code, error, state } = req.query;
   const cookies = parseCookies(req);
   if (error || !code) return res.redirect('/?error=oauth_denied');
-  if (!state || state !== cookies.oauth_state) return res.redirect('/?error=invalid_state');
+  if (!state || state !== cookies.oauth_state) { console.warn('[OAuth Microsoft] State mismatch — session:', cookies.oauth_state ? 'present' : 'missing', 'query:', state ? 'present' : 'missing'); return res.redirect('/?error=invalid_state'); }
   res.clearCookie('oauth_state', { path: '/' });
   const cfg = getOAuthConfig('microsoft');
   try {
@@ -1082,7 +1082,7 @@ app.get('/auth/microsoft/callback', async (req, res) => {
       body: new URLSearchParams({ code, client_id: cfg.clientId, client_secret: cfg.clientSecret, redirect_uri: getOAuthBaseUrl() + '/auth/microsoft/callback', grant_type: 'authorization_code' }).toString()
     });
     const tokenData = await tokenRes.json();
-    if (!tokenData.access_token) return res.redirect('/?error=token_exchange_failed');
+    if (!tokenData.access_token) { console.error('[OAuth Microsoft] Token exchange failed:', tokenData); return res.redirect('/?error=token_exchange_failed'); }
     const userRes = await fetch('https://graph.microsoft.com/v1.0/me', { headers: { Authorization: 'Bearer ' + tokenData.access_token } });
     const msUser = await userRes.json();
     const email = msUser.mail || msUser.userPrincipalName;
@@ -1092,7 +1092,7 @@ app.get('/auth/microsoft/callback', async (req, res) => {
     const token = oauthIssueJwt(user.user, req, res);
     if (!token) return res.redirect('/?error=auth_failed');
     res.redirect((user.isNew || !user.hasModules) ? '/?new_user=1' : '/');
-  } catch (e) { console.error('[OAuth Microsoft]', e.message); res.redirect('/?error=oauth_error'); }
+  } catch (e) { console.error('[OAuth Microsoft]', e.stack || e.message); res.redirect('/?error=oauth_error'); }
 });
 
 // ── Public: list enabled OAuth providers (for login screen) ──
@@ -2867,8 +2867,18 @@ app.post('/api/admin/mcp/:id/tools/reset', verificarToken, soloAdmin, (req, res)
 // ── MCP OAuth Admin ──
 app.get('/api/admin/mcp-oauth', verificarToken, soloAdmin, (req, res) => {
   const enabled = db.prepare("SELECT value FROM config WHERE key = 'mcp_oauth_enabled'").get()?.value === 'true';
-  const clients = db.prepare('SELECT client_id, client_name, redirect_uris, created_at FROM oauth_clients ORDER BY created_at DESC').all();
-  const tokenCount = db.prepare('SELECT COUNT(*) as c FROM oauth_tokens WHERE revoked = 0 AND expires_at > ?').get(Date.now()).c;
+  const now = Date.now();
+  const clients = db.prepare(`
+    SELECT c.client_id, c.client_name, c.redirect_uris, c.created_at,
+           GROUP_CONCAT(DISTINCT u.nombre) as user_names,
+           COUNT(DISTINCT CASE WHEN t.revoked = 0 AND t.expires_at > ? THEN t.token_id END) as active_tokens
+    FROM oauth_clients c
+    LEFT JOIN oauth_tokens t ON c.client_id = t.client_id
+    LEFT JOIN usuarios u ON t.user_id = u.id
+    GROUP BY c.client_id
+    ORDER BY c.created_at DESC
+  `).all(now);
+  const tokenCount = db.prepare('SELECT COUNT(*) as c FROM oauth_tokens WHERE revoked = 0 AND expires_at > ?').get(now).c;
   res.json({ enabled, clients, tokenCount });
 });
 
@@ -2894,9 +2904,11 @@ app.post('/api/admin/mcp-oauth/revoke-all', verificarToken, soloAdmin, (req, res
 app.get('/api/admin/mcp-oauth/tokens', verificarToken, soloAdmin, (req, res) => {
   const tokens = db.prepare(`
     SELECT t.token_id, t.client_id, t.user_id, t.expires_at, t.revoked, t.created_at,
-           c.client_name
+           c.client_name,
+           u.nombre as user_nombre, u.email as user_email
     FROM oauth_tokens t
     LEFT JOIN oauth_clients c ON t.client_id = c.client_id
+    LEFT JOIN usuarios u ON t.user_id = u.id
     ORDER BY t.created_at DESC
     LIMIT 100
   `).all();
@@ -2905,6 +2917,8 @@ app.get('/api/admin/mcp-oauth/tokens', verificarToken, soloAdmin, (req, res) => 
     token_id_full: t.token_id,
     client_name: t.client_name || 'Desconocido',
     client_id: t.client_id,
+    user_nombre: t.user_nombre || null,
+    user_email: t.user_email || null,
     expires_at: t.expires_at,
     is_expired: t.expires_at < Date.now(),
     is_revoked: t.revoked === 1,

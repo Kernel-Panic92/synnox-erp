@@ -194,7 +194,7 @@ function loadOAuthProviders() {
   if (error) {
     const messages = {
       oauth_denied: 'Acceso denegado. Debes autorizar para continuar.',
-      invalid_state: 'Sesión OAuth inválida. Intenta de nuevo.',
+      invalid_state: 'Sesión OAuth inválida. Intenta iniciar sesión nuevamente.',
       token_exchange_failed: 'Error al intercambiar token con el proveedor.',
       no_email: 'El proveedor no devolvió un correo electrónico.',
       auth_failed: 'Error al crear la sesión.',
@@ -2619,9 +2619,9 @@ setTimeout(() => {
   const ls = document.getElementById('loading-screen');
   if (ls && ls.style.display !== 'none') {
     ls.style.display = 'none';
-    const sessionModal = document.getElementById('session-expired-modal');
-    if (sessionModal && sessionModal.style.display === 'flex') return;
     if (!document.getElementById('login-screen').style.display || document.getElementById('login-screen').style.display === 'none') {
+      jwtToken = null;
+      user = null;
       show('login-screen');
     }
   }
@@ -2662,8 +2662,9 @@ setInterval(async () => {
   if (!jwtToken) return;
   const ok = await refreshToken();
   if (!ok) {
-    // Don't logout — show re-login modal instead (preserves localStorage)
-    showSessionExpiredModal();
+    jwtToken = null;
+    user = null;
+    show('login-screen');
   }
 }, 15 * 60 * 1000);
 
@@ -2674,45 +2675,16 @@ document.addEventListener('visibilitychange', async () => {
     _refreshInFlight = true;
     try {
       const ok = await refreshToken();
-      if (!ok) showSessionExpiredModal();
+      if (!ok) {
+        jwtToken = null;
+        user = null;
+        show('login-screen');
+      }
     } finally { _refreshInFlight = false; }
   }
 });
 
-function showSessionExpiredModal() {
-  // Hide all screens so only the modal is visible
-  show(null);
-  const modal = document.getElementById('session-expired-modal');
-  if (modal) modal.style.display = 'flex';
-}
 
-function hideSessionExpiredModal() {
-  const modal = document.getElementById('session-expired-modal');
-  if (modal) modal.style.display = 'none';
-}
-
-async function reanudarSesion() {
-  const email = document.getElementById('reanudar-email')?.value?.trim();
-  const pass = document.getElementById('reanudar-pass')?.value;
-  const errEl = document.getElementById('reanudar-error');
-  if (!email || !pass) { if (errEl) errEl.textContent = 'Ingresa tus credenciales'; return; }
-  try {
-    const res = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password: pass })
-    });
-    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Credenciales inválidas'); }
-    const data = await res.json();
-    jwtToken = data.jwt;
-    user = data.usuario;
-    localStorage.setItem('platform_jwt', jwtToken);
-    hideSessionExpiredModal();
-    await showLauncher();
-  } catch (e) {
-    if (errEl) errEl.textContent = e.message;
-  }
-}
 
 // ── Notifications ──
 
@@ -3040,10 +3012,12 @@ async function loadMcpOAuthConfig() {
     if (!data.clients?.length) {
       listEl.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:13px;">No hay clientes registrados</div>';
     } else {
-      listEl.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="border-bottom:1px solid var(--border);"><th style="padding:8px 12px;text-align:left;color:var(--muted);">Cliente</th><th style="padding:8px 12px;text-align:left;color:var(--muted);">Client ID</th><th style="padding:8px 12px;text-align:left;color:var(--muted);">Registrado</th><th style="padding:8px 12px;"></th></tr></thead><tbody>' +
+      listEl.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="border-bottom:1px solid var(--border);"><th style="padding:8px 12px;text-align:left;color:var(--muted);">Cliente</th><th style="padding:8px 12px;text-align:left;color:var(--muted);">Client ID</th><th style="padding:8px 12px;text-align:left;color:var(--muted);">Usuarios</th><th style="padding:8px 12px;text-align:left;color:var(--muted);">Tokens</th><th style="padding:8px 12px;text-align:left;color:var(--muted);">Registrado</th><th style="padding:8px 12px;"></th></tr></thead><tbody>' +
         data.clients.map(c => `<tr style="border-bottom:1px solid var(--border);">
           <td style="padding:8px 12px;font-weight:500;">${esc(c.client_name)}</td>
           <td style="padding:8px 12px;font-family:monospace;font-size:12px;">${esc(c.client_id.slice(0, 8))}...</td>
+          <td style="padding:8px 12px;font-size:12px;">${c.user_names ? esc(c.user_names) : '<span style="color:var(--muted);">—</span>'}</td>
+          <td style="padding:8px 12px;font-size:12px;">${c.active_tokens}</td>
           <td style="padding:8px 12px;color:var(--muted);font-size:12px;">${new Date(c.created_at).toLocaleDateString('es-ES')}</td>
           <td style="padding:8px 12px;"><button class="btn btn-sm" onclick="revokeMcpClient('${esc(c.client_id)}')" style="color:var(--danger);background:none;border:none;">🗑</button></td>
         </tr>`).join('') +
@@ -3103,6 +3077,7 @@ async function loadMcpTokens() {
     let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="border-bottom:1px solid var(--border);">';
     html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Token</th>';
     html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Cliente</th>';
+    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Usuario</th>';
     html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Creado</th>';
     html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Expira</th>';
     html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Estado</th>';
@@ -3119,9 +3094,13 @@ async function loadMcpTokens() {
       } else {
         statusBadge = '<span style="color:var(--success);">Activo</span>';
       }
+      const userDisplay = t.user_nombre
+        ? `${esc(t.user_nombre)}<div style="font-size:11px;color:var(--muted);">${esc(t.user_email || '')}</div>`
+        : '<span style="color:var(--muted);">—</span>';
       html += `<tr style="border-bottom:1px solid var(--border);">
         <td style="padding:8px 12px;font-family:monospace;font-size:12px;">${esc(t.token_id)}</td>
         <td style="padding:8px 12px;">${esc(t.client_name)}</td>
+        <td style="padding:8px 12px;font-size:12px;">${userDisplay}</td>
         <td style="padding:8px 12px;font-size:12px;color:var(--muted);">${created}</td>
         <td style="padding:8px 12px;font-size:12px;color:var(--muted);">${expires}</td>
         <td style="padding:8px 12px;font-size:12px;">${statusBadge}</td>

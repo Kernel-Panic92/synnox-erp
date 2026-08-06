@@ -324,19 +324,6 @@
   </div>
 </div>
 
-<!-- Session expired modal -->
-<div id="session-expired-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;align-items:center;justify-content:center;">
-  <div style="background:var(--surface,#1e1e2e);border:1px solid var(--border,#2e3548);border-radius:16px;padding:32px;max-width:380px;width:90%;text-align:center;">
-    <div style="font-size:32px;margin-bottom:12px;">🔑</div>
-    <div style="font-size:18px;font-weight:700;margin-bottom:8px;color:var(--text,#e8ecf4);">Sesión expirada</div>
-    <div style="font-size:13px;color:var(--muted,#8892a8);margin-bottom:20px;">Tu sesión expiró. Inicia sesión de nuevo para continuar. Tus datos se mantendrán.</div>
-    <div id="reanudar-error" style="color:#ef4444;font-size:13px;margin-bottom:12px;display:none;"></div>
-    <input type="email" id="reanudar-email" placeholder="Correo electrónico" style="width:100%;padding:10px 14px;background:var(--surface2,#222738);border:1px solid var(--border,#2e3548);border-radius:8px;color:var(--text,#e8ecf4);font-size:14px;margin-bottom:8px;box-sizing:border-box;">
-    <input type="password" id="reanudar-pass" placeholder="Contraseña" style="width:100%;padding:10px 14px;background:var(--surface2,#222738);border:1px solid var(--border,#2e3548);border-radius:8px;color:var(--text,#e8ecf4);font-size:14px;margin-bottom:16px;box-sizing:border-box;">
-    <button onclick="reanudarSesion()" style="width:100%;padding:12px;background:#e67e22;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;">Reanudar sesión</button>
-  </div>
-</div>
-
 <div id="new-user-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:10000;align-items:center;justify-content:center;">
   <div style="background:var(--surface,#1e1e2e);border:1px solid var(--border,#2e3548);border-radius:16px;padding:32px;max-width:420px;width:90%;text-align:center;">
     <div style="font-size:48px;margin-bottom:16px;">🔒</div>
