@@ -101,17 +101,24 @@ router.post('/:id/miembros', requirePermiso('editar', 'proyectos'), async (req, 
     try {
       const proyecto = await getProyectoCompleto(pool, req.params.id);
       if (proyecto) {
-        const rolLabel = miembroRol === 'lider' ? 'líder' : miembroRol === 'observador' ? 'observador' : 'miembro';
+        const esLider = miembroRol === 'lider';
+        const titulo = esLider ? 'Responsable de proyecto' : 'Agregado a proyecto';
+        const mensaje = esLider
+          ? `Ahora eres el responsable del proyecto "${proyecto.nombre}" — asignado por ${req.user.nombre}`
+          : `Ahora haces parte del proyecto "${proyecto.nombre}" como ${miembroRol} — asignado por ${req.user.nombre}`;
+        const emailAsunto = esLider
+          ? `[Proyectos] Responsable asignado: ${proyecto.nombre}`
+          : `[Proyectos] Agregado a: ${proyecto.nombre}`;
         notificar({
           usuario_id,
           modulo: 'proyectos',
           tipo: 'proyecto_miembro',
-          titulo: 'Agregado a proyecto',
-          mensaje: `Fuiste agregado como ${rolLabel} del proyecto "${proyecto.nombre}" por ${req.user.nombre}`,
+          titulo,
+          mensaje,
           url: '/proyectos/#proyectos',
           email: (await getLauncherUsers()).find(u => u.id === usuario_id)?.email,
-          emailAsunto: `[Proyectos] Agregado a: ${proyecto.nombre}`,
-          emailHtml: templateAsignacion({ entidad: 'proyecto', nombre: proyecto.nombre, asignador: req.user.nombre, descripcion: `Rol: ${rolLabel}`, url: `${await getEmailBaseUrl()}/#proyectos`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+          emailAsunto,
+          emailHtml: templateAsignacion({ entidad: 'proyecto', nombre: proyecto.nombre, asignador: req.user.nombre, descripcion: esLider ? 'Rol: Responsable' : `Rol: ${miembroRol}`, url: `${await getEmailBaseUrl()}/#proyectos`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
           enviarCorreo
         });
       }
@@ -230,18 +237,25 @@ router.put('/:id/miembros', requirePermiso('editar', 'proyectos'), async (req, r
           const users = await getLauncherUsers();
           for (const uid of nuevosIds) {
             const m = miembros.find(x => x.usuario_id === uid);
-            const rolLabel = m?.rol === 'lider' ? 'líder' : m?.rol === 'observador' ? 'observador' : 'miembro';
+            const esLider = m?.rol === 'lider';
+            const titulo = esLider ? 'Responsable de proyecto' : 'Agregado a proyecto';
+            const mensaje = esLider
+              ? `Ahora eres el responsable del proyecto "${proyecto.nombre}" — asignado por ${req.user.nombre}`
+              : `Ahora haces parte del proyecto "${proyecto.nombre}" como ${m?.rol || 'miembro'} — asignado por ${req.user.nombre}`;
+            const emailAsunto = esLider
+              ? `[Proyectos] Responsable asignado: ${proyecto.nombre}`
+              : `[Proyectos] Agregado a: ${proyecto.nombre}`;
             const user = users.find(u => u.id === uid);
             notificar({
               usuario_id: uid,
               modulo: 'proyectos',
               tipo: 'proyecto_miembro',
-              titulo: 'Agregado a proyecto',
-              mensaje: `Fuiste agregado como ${rolLabel} del proyecto "${proyecto.nombre}" por ${req.user.nombre}`,
+              titulo,
+              mensaje,
               url: '/proyectos/#proyectos',
               email: user?.email,
-              emailAsunto: `[Proyectos] Agregado a: ${proyecto.nombre}`,
-              emailHtml: templateAsignacion({ entidad: 'proyecto', nombre: proyecto.nombre, asignador: req.user.nombre, descripcion: `Rol: ${rolLabel}`, url: `${await getEmailBaseUrl()}/#proyectos`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+              emailAsunto,
+              emailHtml: templateAsignacion({ entidad: 'proyecto', nombre: proyecto.nombre, asignador: req.user.nombre, descripcion: esLider ? 'Rol: Responsable' : `Rol: ${m?.rol || 'miembro'}`, url: `${await getEmailBaseUrl()}/#proyectos`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
               enviarCorreo
             });
           }
