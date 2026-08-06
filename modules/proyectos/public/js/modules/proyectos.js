@@ -189,6 +189,10 @@ async function rechazarProyecto(id) {
 // ── Gestión de miembros (checkbox list) ──
 async function abrirModalMiembros(proyectoId) {
   await cargarTodosLosUsuarios();
+  if (!_todosUsuarios.length) {
+    toast('No se pudieron cargar los usuarios', 'error');
+    return;
+  }
   const p = _proyectos.find(x => x.id === proyectoId);
   _proyectoMiembrosActual = proyectoId;
   _miembrosSeleccionados = new Set();
@@ -204,7 +208,7 @@ async function abrirModalMiembros(proyectoId) {
   if (searchEl) searchEl.value = '';
 
   renderMiembrosModal();
-  document.getElementById('modal-miembros').classList.add('show');
+  document.getElementById('modal-miembros').style.display = 'flex';
 }
 
 function renderMiembrosModal(filtro = '') {
@@ -296,7 +300,7 @@ async function guardarMiembrosProyecto() {
       body: JSON.stringify({ miembros })
     });
     toast('Miembros actualizados', 'success');
-    document.getElementById('modal-miembros').classList.remove('show');
+    document.getElementById('modal-miembros').style.display = 'none';
     await cargarProyectos();
     abrirModalProyecto(_proyectoMiembrosActual);
   } catch (err) { toast(err.message, 'error'); }
