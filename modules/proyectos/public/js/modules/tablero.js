@@ -29,8 +29,9 @@ async function cargarTablero() {
           ${items.map(t => `
             <div class="kanban-card" draggable="true" data-tarea-id="${t.id}"
               ondragstart="event.dataTransfer.setData('text/plain', '${t.id}');event.target.classList.add('dragging')"
-              ondragend="event.target.classList.remove('dragging')">
-              <div class="card-title" onclick="abrirModalDetalleTarea(${t.id})" style="cursor:pointer">${esc(t.titulo)}</div>
+              ondragend="event.target.classList.remove('dragging')"
+              onclick="if(!event.target.closest('button'))abrirModalDetalleTarea(${t.id})">
+              <div class="card-title">${esc(t.titulo)}</div>
               <div class="card-meta">
                 ${badgePrioridad(t.prioridad)}
                 ${!proyectoId && t.proyecto_nombre ? `<span>&#x1F4C1; ${esc(t.proyecto_nombre)}</span>` : ''}
