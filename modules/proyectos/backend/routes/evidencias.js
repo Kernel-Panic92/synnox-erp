@@ -56,7 +56,7 @@ router.get('/:id/evidencias', requirePermiso('ver', 'proyectos'), async (req, re
 router.post('/:id/evidencias', requirePermiso('comentar', 'proyectos'), upload.single('archivo'), async (req, res) => {
   try {
     const tareaId = req.params.id;
-    const tarea = await pool.query('SELECT id FROM projects.tareas WHERE id = $1', [tareaId]);
+    const tarea = await pool.query('SELECT id, estado FROM projects.tareas WHERE id = $1', [tareaId]);
     if (tarea.rows.length === 0) return res.status(404).json({ error: 'Tarea no encontrada' });
 
     const descripcion = req.body.descripcion || '';
@@ -74,6 +74,14 @@ router.post('/:id/evidencias', requirePermiso('comentar', 'proyectos'), upload.s
        VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING *`,
       [tareaId, req.user.id, descripcion, archivoNombre, archivoPath, archivoTipo, archivoTamanio]
     );
+
+    // Auto-cambiar estado de pendiente a en_progreso
+    if (tarea.rows[0]?.estado === 'pendiente') {
+      await pool.query(
+        `UPDATE projects.tareas SET estado = 'en_progreso', columna = 'en_progreso', updated_at = NOW() WHERE id = $1`,
+        [tareaId]
+      );
+    }
 
     // Notificar al asignado y reportero
     try {

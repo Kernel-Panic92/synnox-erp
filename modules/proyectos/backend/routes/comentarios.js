@@ -38,6 +38,14 @@ router.post('/:id/comentarios', requirePermiso('comentar', 'proyectos'), async (
       [req.params.id, usuario_id, contenido]
     );
 
+    // Auto-cambiar estado de pendiente a en_progreso
+    if (tarea.estado === 'pendiente') {
+      await pool.query(
+        `UPDATE projects.tareas SET estado = 'en_progreso', columna = 'en_progreso', updated_at = NOW() WHERE id = $1`,
+        [req.params.id]
+      );
+    }
+
     // Notificar al asignado de la tarea (siempre)
     const emailBase = await getEmailBaseUrl();
     if (tarea.asignado_a) {

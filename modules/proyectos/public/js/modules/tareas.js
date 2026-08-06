@@ -1,5 +1,6 @@
 let _tareasPage = 1;
 let _tareasProyectos = [];
+let _proyectoFiltroActual = null;
 
 async function cargarProyectosSelect() {
   if (_tareasProyectos.length) return;
@@ -172,13 +173,15 @@ async function eliminarEvidencia(id) {
 
 async function abrirModalTarea(id) {
   await cargarProyectosSelect();
+  const proyectoDefault = _proyectoFiltroActual;
+  _proyectoFiltroActual = null;
   let t = null;
   if (id) {
     try { const d = await api('/tareas/' + id); t = d.tarea; } catch {}
   }
 
   const body = `
-    <div class="form-group"><label>Proyecto</label><select id="tarea-proyecto">${_tareasProyectos.map(p => `<option value="${p.id}" ${(t?.proyecto_id == p.id) ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}</select></div>
+    <div class="form-group"><label>Proyecto</label><select id="tarea-proyecto">${_tareasProyectos.map(p => `<option value="${p.id}" ${(t?.proyecto_id == p.id || (!t && proyectoDefault == p.id)) ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}</select></div>
     <div class="form-group"><label>Titulo *</label><input id="tarea-titulo" value="${esc(t?.titulo || '')}"></div>
     <div class="form-group"><label>Descripcion</label><textarea id="tarea-desc">${esc(t?.descripcion || '')}</textarea></div>
     <div class="form-row">
