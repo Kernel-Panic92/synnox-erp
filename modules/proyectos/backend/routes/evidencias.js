@@ -89,7 +89,7 @@ router.post('/:id/evidencias', requirePermiso('comentar', 'proyectos'), upload.s
       if (tareaCompleta) {
         const emailBase = await getEmailBaseUrl();
         const notifBase = { modulo: 'proyectos', tipo: 'evidencia_subida', url: '/proyectos/#tareas', enviarCorreo };
-        const emailHtml = templateGenerico({ titulo: 'Evidencia subida', mensaje: `${req.user.nombre} subió evidencia en "${tareaCompleta.titulo}"`, detallesExtra: archivoNombre || 'Archivo adjunto', url: `${emailBase}/#tareas`, module: 'proyectos', baseUrl: emailBase });
+        const emailHtml = templateGenerico({ titulo: 'Evidencia subida', mensaje: `${req.user.nombre} subió evidencia en "${tareaCompleta.titulo}"`, detallesExtra: archivoNombre ? { Archivo: archivoNombre } : null, url: `${emailBase}/#tareas`, module: 'proyectos', baseUrl: emailBase });
         // Notificar al asignado
         if (tareaCompleta.asignado_a && tareaCompleta.asignado_a !== req.user.id) {
           notificar({
