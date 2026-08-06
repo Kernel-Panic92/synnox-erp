@@ -152,4 +152,46 @@ router.delete('/:id/miembros/:userId', requirePermiso('editar', 'proyectos'), as
   }
 });
 
+// PUT /api/proyectos/:id/miembros — reemplazar todos los miembros (bulk)
+router.put('/:id/miembros', requirePermiso('editar', 'proyectos'), async (req, res) => {
+  try {
+    const { miembros } = req.body;
+    if (!Array.isArray(miembros)) return res.status(400).json({ error: 'miembros debe ser un array' });
+
+    const esAdmin = req.user.rol === 'admin' || req.user.rol === 'gerente';
+    const esCreador = await pool.query(
+      'SELECT 1 FROM projects.proyectos WHERE id = $1 AND asignado_a = $2',
+      [req.params.id, req.user.id]
+    );
+    if (!esAdmin && esCreador.rows.length === 0) {
+      return res.status(403).json({ error: 'Solo el creador o un admin pueden gestionar miembros' });
+    }
+
+    const validRoles = ['lider', 'miembro', 'observador'];
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      await client.query('DELETE FROM projects.proyecto_miembros WHERE proyecto_id = $1', [req.params.id]);
+      for (const m of miembros) {
+        if (!m.usuario_id) continue;
+        const rol = validRoles.includes(m.rol) ? m.rol : 'miembro';
+        await client.query(
+          `INSERT INTO projects.proyecto_miembros (proyecto_id, usuario_id, rol) VALUES ($1, $2, $3)`,
+          [req.params.id, m.usuario_id, rol]
+        );
+      }
+      await client.query('COMMIT');
+    } catch (e) {
+      await client.query('ROLLBACK');
+      throw e;
+    } finally {
+      client.release();
+    }
+
+    res.json({ exitosa: true, mensaje: 'Miembros actualizados' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 export default router;

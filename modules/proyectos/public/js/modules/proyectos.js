@@ -1,5 +1,8 @@
 let _proyectos = [];
 let _centrosCache = null;
+let _proyectoMiembrosActual = null;
+let _miembrosSeleccionados = new Set();
+let _miembrosRoles = {};
 
 async function cargarProyectos() {
   try {
@@ -96,25 +99,14 @@ async function abrirModalProyecto(id) {
   const miembrosHtml = id ? `
     <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <strong style="font-size:13px">Miembros del proyecto</strong>
-        <button class="btn btn-xs btn-secondary" onclick="agregarMiembroProyecto(${id})">+ Agregar</button>
+        <strong style="font-size:13px">Miembros del proyecto <span style="font-weight:400;color:var(--muted)">(${(p?.miembros || []).length})</span></strong>
+        <button class="btn btn-xs btn-secondary" onclick="abrirModalMiembros(${id})">Gestionar miembros</button>
       </div>
-      <div id="proy-miembros-list">
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
         ${(p?.miembros || []).map(m => {
           const rolBadge = m.rol === 'lider' ? 'badge-info' : m.rol === 'miembro' ? 'badge-muted' : 'badge-warning';
-          return `<div style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid var(--border)">
-            <div style="display:flex;align-items:center;gap:8px">
-              <span style="font-size:13px">${esc(nombreUsuario(m.usuario_id))}</span>
-              <span class="badge ${rolBadge}" style="font-size:10px">${m.rol}</span>
-            </div>
-            <div style="display:flex;gap:4px">
-              ${m.rol !== 'lider' ? `<button class="btn btn-xs btn-secondary" onclick="cambiarRolMiembro(${id},${m.usuario_id},'lider')" title="Hacer líder">&#x1F451;</button>` : ''}
-              ${m.rol !== 'miembro' ? `<button class="btn btn-xs btn-secondary" onclick="cambiarRolMiembro(${id},${m.usuario_id},'miembro')" title="Hacer miembro">&#x1F464;</button>` : ''}
-              ${m.rol !== 'observador' ? `<button class="btn btn-xs btn-secondary" onclick="cambiarRolMiembro(${id},${m.usuario_id},'observador')" title="Hacer observador">&#x1F441;</button>` : ''}
-              <button class="btn btn-xs btn-danger" onclick="quitarMiembroProyecto(${id},${m.usuario_id})" title="Quitar">&#10005;</button>
-            </div>
-          </div>`;
-        }).join('') || '<p style="font-size:12px;color:var(--muted)">Sin miembros</p>'}
+          return `<span class="badge ${rolBadge}" style="font-size:11px">${esc(nombreUsuario(m.usuario_id))} · ${m.rol}</span>`;
+        }).join('') || '<span style="font-size:12px;color:var(--muted)">Sin miembros</span>'}
       </div>
     </div>
   ` : '';
@@ -194,56 +186,119 @@ async function rechazarProyecto(id) {
   } catch (err) { toast(err.message, 'error'); }
 }
 
-// ── Gestión de miembros ──
-async function agregarMiembroProyecto(proyectoId) {
+// ── Gestión de miembros (checkbox list) ──
+async function abrirModalMiembros(proyectoId) {
+  await cargarTodosLosUsuarios();
   const p = _proyectos.find(x => x.id === proyectoId);
-  const miembrosActuales = (p?.miembros || []).map(m => m.usuario_id);
-  const disponibles = _todosUsuarios.filter(u => !miembrosActuales.includes(u.id));
-  if (!disponibles.length) return toast('Todos los usuarios ya son miembros', 'warning');
-  const options = disponibles.map(u => `<option value="${u.id}">${esc(u.nombre)}</option>`).join('');
-  const body = `
-    <div class="form-group"><label>Usuario</label><select id="nuevo-miembro-usuario">${options}</select></div>
-    <div class="form-group"><label>Rol</label><select id="nuevo-miembro-rol">
-      <option value="miembro">Miembro</option>
-      <option value="lider">Líder</option>
-      <option value="observador">Observador</option>
-    </select></div>
-  `;
-  const actions = `<button class="btn btn-sm btn-secondary" onclick="cerrarModal()">Cancelar</button>
-    <button class="btn btn-sm btn-primary" onclick="confirmarAgregarMiembro(${proyectoId})">Agregar</button>`;
-  abrirModal('Agregar Miembro', '', body, actions);
+  _proyectoMiembrosActual = proyectoId;
+  _miembrosSeleccionados = new Set();
+  _miembrosRoles = {};
+
+  const miembros = p?.miembros || [];
+  for (const m of miembros) {
+    _miembrosSeleccionados.add(m.usuario_id);
+    _miembrosRoles[m.usuario_id] = m.rol;
+  }
+
+  const searchEl = document.getElementById('miembro-search');
+  if (searchEl) searchEl.value = '';
+
+  renderMiembrosModal();
+  document.getElementById('modal-miembros').classList.add('show');
 }
 
-async function confirmarAgregarMiembro(proyectoId) {
-  const usuario_id = parseInt(document.getElementById('nuevo-miembro-usuario').value);
-  const rol = document.getElementById('nuevo-miembro-rol').value;
-  if (!usuario_id) return toast('Selecciona un usuario', 'error');
-  try {
-    await api('/proyectos/' + proyectoId + '/miembros', { method: 'POST', body: JSON.stringify({ usuario_id, rol }) });
-    toast('Miembro agregado', 'success');
-    cerrarModal();
-    await cargarProyectos();
-    abrirModalProyecto(proyectoId);
-  } catch (err) { toast(err.message, 'error'); }
+function renderMiembrosModal(filtro = '') {
+  const q = filtro.toLowerCase();
+  const lista = q
+    ? _todosUsuarios.filter(u =>
+        u.nombre.toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q)
+      )
+    : _todosUsuarios;
+
+  const container = document.getElementById('miembros-list');
+  if (!container) return;
+
+  if (!lista.length) {
+    container.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:12px;padding:12px;">Sin resultados</div>';
+    actualizarContadorMiembros();
+    return;
+  }
+
+  container.innerHTML = lista.map(u => {
+    const checked = _miembrosSeleccionados.has(u.id);
+    const rol = _miembrosRoles[u.id] || 'miembro';
+    return `<label style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:7px;cursor:pointer;transition:background 0.1s;" onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='transparent'">
+      <input type="checkbox" value="${u.id}" ${checked ? 'checked' : ''} onchange="toggleMiembro(${u.id},this.checked)"
+        style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
+      <span style="flex:1;min-width:0;">
+        <span style="font-size:13px;font-weight:500;">${esc(u.nombre)}</span>
+        <span style="font-size:11px;color:var(--muted);margin-left:6px;">${esc(u.email || '')}</span>
+      </span>
+      <select ${!checked ? 'disabled' : ''} onchange="setMiembroRol(${u.id},this.value)"
+        style="font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid var(--border);${!checked ? 'opacity:0.4;' : ''}">
+        <option value="miembro" ${rol === 'miembro' ? 'selected' : ''}>Miembro</option>
+        <option value="lider" ${rol === 'lider' ? 'selected' : ''}>Líder</option>
+        <option value="observador" ${rol === 'observador' ? 'selected' : ''}>Observador</option>
+      </select>
+    </label>`;
+  }).join('');
+  actualizarContadorMiembros();
 }
 
-async function cambiarRolMiembro(proyectoId, usuarioId, nuevoRol) {
-  try {
-    await api('/proyectos/' + proyectoId + '/miembros/' + usuarioId, { method: 'PUT', body: JSON.stringify({ rol: nuevoRol }) });
-    toast('Rol actualizado', 'success');
-    await cargarProyectos();
-    abrirModalProyecto(proyectoId);
-  } catch (err) { toast(err.message, 'error'); }
+function toggleMiembro(id, checked) {
+  if (checked) {
+    _miembrosSeleccionados.add(id);
+    if (!_miembrosRoles[id]) _miembrosRoles[id] = 'miembro';
+  } else {
+    _miembrosSeleccionados.delete(id);
+    delete _miembrosRoles[id];
+  }
+  renderMiembrosModal(document.getElementById('miembro-search')?.value || '');
 }
 
-async function quitarMiembroProyecto(proyectoId, usuarioId) {
-  const ok = await confirmarModal('Quitar Miembro', '¿Eliminar este miembro del proyecto?');
-  if (!ok) return;
+function setMiembroRol(id, rol) {
+  _miembrosRoles[id] = rol;
+}
+
+function filtrarMiembrosModal() {
+  const q = document.getElementById('miembro-search')?.value || '';
+  renderMiembrosModal(q);
+}
+
+function seleccionarTodosMiembros(todos) {
+  if (todos) {
+    for (const u of _todosUsuarios) {
+      _miembrosSeleccionados.add(u.id);
+      if (!_miembrosRoles[u.id]) _miembrosRoles[u.id] = 'miembro';
+    }
+  } else {
+    _miembrosSeleccionados.clear();
+    _miembrosRoles = {};
+  }
+  renderMiembrosModal(document.getElementById('miembro-search')?.value || '');
+}
+
+function actualizarContadorMiembros() {
+  const el = document.getElementById('miembros-count');
+  if (el) el.textContent = `${_miembrosSeleccionados.size} seleccionado(s)`;
+}
+
+async function guardarMiembrosProyecto() {
+  if (!_proyectoMiembrosActual) return;
+  const miembros = [..._miembrosSeleccionados].map(id => ({
+    usuario_id: id,
+    rol: _miembrosRoles[id] || 'miembro'
+  }));
   try {
-    await api('/proyectos/' + proyectoId + '/miembros/' + usuarioId, { method: 'DELETE' });
-    toast('Miembro eliminado', 'success');
+    await api('/proyectos/' + _proyectoMiembrosActual + '/miembros', {
+      method: 'PUT',
+      body: JSON.stringify({ miembros })
+    });
+    toast('Miembros actualizados', 'success');
+    document.getElementById('modal-miembros').classList.remove('show');
     await cargarProyectos();
-    abrirModalProyecto(proyectoId);
+    abrirModalProyecto(_proyectoMiembrosActual);
   } catch (err) { toast(err.message, 'error'); }
 }
 
