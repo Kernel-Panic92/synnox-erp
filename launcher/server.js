@@ -2863,8 +2863,18 @@ app.post('/api/admin/mcp/:id/tools/reset', verificarToken, soloAdmin, (req, res)
 // ── MCP OAuth Admin ──
 app.get('/api/admin/mcp-oauth', verificarToken, soloAdmin, (req, res) => {
   const enabled = db.prepare("SELECT value FROM config WHERE key = 'mcp_oauth_enabled'").get()?.value === 'true';
-  const clients = db.prepare('SELECT client_id, client_name, redirect_uris, created_at FROM oauth_clients ORDER BY created_at DESC').all();
-  const tokenCount = db.prepare('SELECT COUNT(*) as c FROM oauth_tokens WHERE revoked = 0 AND expires_at > ?').get(Date.now()).c;
+  const now = Date.now();
+  const clients = db.prepare(`
+    SELECT c.client_id, c.client_name, c.redirect_uris, c.created_at,
+           GROUP_CONCAT(DISTINCT u.nombre) as user_names,
+           COUNT(DISTINCT CASE WHEN t.revoked = 0 AND t.expires_at > ? THEN t.token_id END) as active_tokens
+    FROM oauth_clients c
+    LEFT JOIN oauth_tokens t ON c.client_id = t.client_id
+    LEFT JOIN usuarios u ON t.user_id = u.id
+    GROUP BY c.client_id
+    ORDER BY c.created_at DESC
+  `).all(now);
+  const tokenCount = db.prepare('SELECT COUNT(*) as c FROM oauth_tokens WHERE revoked = 0 AND expires_at > ?').get(now).c;
   res.json({ enabled, clients, tokenCount });
 });
 
@@ -2890,9 +2900,11 @@ app.post('/api/admin/mcp-oauth/revoke-all', verificarToken, soloAdmin, (req, res
 app.get('/api/admin/mcp-oauth/tokens', verificarToken, soloAdmin, (req, res) => {
   const tokens = db.prepare(`
     SELECT t.token_id, t.client_id, t.user_id, t.expires_at, t.revoked, t.created_at,
-           c.client_name
+           c.client_name,
+           u.nombre as user_nombre, u.email as user_email
     FROM oauth_tokens t
     LEFT JOIN oauth_clients c ON t.client_id = c.client_id
+    LEFT JOIN usuarios u ON t.user_id = u.id
     ORDER BY t.created_at DESC
     LIMIT 100
   `).all();
@@ -2901,6 +2913,8 @@ app.get('/api/admin/mcp-oauth/tokens', verificarToken, soloAdmin, (req, res) => 
     token_id_full: t.token_id,
     client_name: t.client_name || 'Desconocido',
     client_id: t.client_id,
+    user_nombre: t.user_nombre || null,
+    user_email: t.user_email || null,
     expires_at: t.expires_at,
     is_expired: t.expires_at < Date.now(),
     is_revoked: t.revoked === 1,
