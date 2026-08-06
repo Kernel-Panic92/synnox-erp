@@ -1,6 +1,11 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
+import { notificar, getProyectoCompleto, getEmailBaseUrl } from '../utils/notify.js';
+import { enviarCorreo } from '../utils/email.js';
+import { createRequire } from 'module';
+const require = createRequire(import.meta.url);
+const { templateAsignacion } = require('../../../../framework/email-templates');
 
 const router = express.Router();
 
@@ -92,6 +97,26 @@ router.post('/:id/miembros', requirePermiso('editar', 'proyectos'), async (req, 
       [req.params.id, usuario_id, miembroRol]
     );
 
+    // Notificar al usuario agregado
+    try {
+      const proyecto = await getProyectoCompleto(pool, req.params.id);
+      if (proyecto) {
+        const rolLabel = miembroRol === 'lider' ? 'líder' : miembroRol === 'observador' ? 'observador' : 'miembro';
+        notificar({
+          usuario_id,
+          modulo: 'proyectos',
+          tipo: 'proyecto_miembro',
+          titulo: 'Agregado a proyecto',
+          mensaje: `Fuiste agregado como ${rolLabel} del proyecto "${proyecto.nombre}" por ${req.user.nombre}`,
+          url: '/proyectos/#proyectos',
+          email: (await getLauncherUsers()).find(u => u.id === usuario_id)?.email,
+          emailAsunto: `[Proyectos] Agregado a: ${proyecto.nombre}`,
+          emailHtml: templateAsignacion({ entidad: 'proyecto', nombre: proyecto.nombre, asignador: req.user.nombre, descripcion: `Rol: ${rolLabel}`, url: `${await getEmailBaseUrl()}/#proyectos`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+          enviarCorreo
+        });
+      }
+    } catch (e) { console.warn('[notify] Error:', e.message); }
+
     res.status(201).json({ exitosa: true, miembro: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -168,6 +193,15 @@ router.put('/:id/miembros', requirePermiso('editar', 'proyectos'), async (req, r
     }
 
     const validRoles = ['lider', 'miembro', 'observador'];
+
+    // Obtener miembros actuales para comparar
+    const miembrosActuales = await pool.query(
+      'SELECT usuario_id FROM projects.proyecto_miembros WHERE proyecto_id = $1',
+      [req.params.id]
+    );
+    const idsActuales = new Set(miembrosActuales.rows.map(m => m.usuario_id));
+    const nuevosIds = miembros.filter(m => m.usuario_id && !idsActuales.has(m.usuario_id)).map(m => m.usuario_id);
+
     const client = await pool.connect();
     try {
       await client.query('BEGIN');
@@ -186,6 +220,33 @@ router.put('/:id/miembros', requirePermiso('editar', 'proyectos'), async (req, r
       throw e;
     } finally {
       client.release();
+    }
+
+    // Notificar solo a los miembros nuevos
+    if (nuevosIds.length) {
+      try {
+        const proyecto = await getProyectoCompleto(pool, req.params.id);
+        if (proyecto) {
+          const users = await getLauncherUsers();
+          for (const uid of nuevosIds) {
+            const m = miembros.find(x => x.usuario_id === uid);
+            const rolLabel = m?.rol === 'lider' ? 'líder' : m?.rol === 'observador' ? 'observador' : 'miembro';
+            const user = users.find(u => u.id === uid);
+            notificar({
+              usuario_id: uid,
+              modulo: 'proyectos',
+              tipo: 'proyecto_miembro',
+              titulo: 'Agregado a proyecto',
+              mensaje: `Fuiste agregado como ${rolLabel} del proyecto "${proyecto.nombre}" por ${req.user.nombre}`,
+              url: '/proyectos/#proyectos',
+              email: user?.email,
+              emailAsunto: `[Proyectos] Agregado a: ${proyecto.nombre}`,
+              emailHtml: templateAsignacion({ entidad: 'proyecto', nombre: proyecto.nombre, asignador: req.user.nombre, descripcion: `Rol: ${rolLabel}`, url: `${await getEmailBaseUrl()}/#proyectos`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+              enviarCorreo
+            });
+          }
+        }
+      } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
     res.json({ exitosa: true, mensaje: 'Miembros actualizados' });
