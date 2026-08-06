@@ -44,6 +44,48 @@
 
 ---
 
+## Estado (6 Ago 2026 — sesión 40)
+
+### Cambios Sesión 40 — Miembros de Proyecto con Roles
+
+#### Nuevo feature: Gestión de miembros de proyecto
+- **Migración**: `007_create_proyecto_miembros.sql` — tabla `projects.proyecto_miembros` con roles
+- **Backend**: `routes/miembros.js` — CRUD completo de miembros
+  - GET /proyectos/:id/miembros — listar miembros con nombres
+  - POST /proyectos/:id/miembros — agregar miembro (body: `{ usuario_id, rol }`)
+  - PUT /proyectos/:id/miembros/:userId — cambiar rol
+  - DELETE /proyectos/:id/miembros/:userId — quitar miembro
+  - Solo el creador o admin/gerente pueden gestionar miembros
+- **Roles**: `lider` (puede todo), `miembro` (crea/edita tareas), `observador` (solo ve)
+- **Backend**: `routes/proyectos.js`
+  - GET /proyectos retorna array de miembros por proyecto
+  - POST /proyecto crea al asignado automáticamente como `lider`
+  - ver_propios ahora incluye proyectos donde el usuario es miembro
+- **Backend**: `routes/tareas.js`
+  - ver_propios ahora incluye tareas de proyectos donde el usuario es miembro
+- **Backend**: `server.js` — dashboard incluye tareas de proyectos miembro
+- **Frontend**: `proyectos.js`
+  - Cards muestran badges de miembros (máx 4 + "+N")
+  - Modal de edición incluye sección de gestión de miembros
+  - Funciones: agregarMiembroProyecto, cambiarRolMiembro, quitarMiembroProyecto
+- **Frontend**: `tareas.js`
+  - Select "Asignado a" filtra por miembros del proyecto seleccionado
+  - onchange en select de proyecto actualiza el select de asignado
+  - Cache de miembros por proyecto
+
+#### Archivos creados
+- `modules/proyectos/backend/migrations/007_create_proyecto_miembros.sql`
+- `modules/proyectos/backend/routes/miembros.js`
+
+#### Archivos modificados
+- `modules/proyectos/backend/server.js` — import + mount miembrosRoutes
+- `modules/proyectos/backend/routes/proyectos.js` — GET retorna miembros, POST crea lider, ver_propios incluye miembros
+- `modules/proyectos/backend/routes/tareas.js` — ver_propios incluye miembros
+- `modules/proyectos/public/js/modules/proyectos.js` — cards miembros + modal gestión + funciones CRUD
+- `modules/proyectos/public/js/modules/tareas.js` — filtrar select por miembros del proyecto
+
+---
+
 ## Estado (6 Ago 2026 — sesión 39)
 
 ### Cambios Sesión 39 — Proyectos: fixes y mejoras
@@ -81,6 +123,7 @@
 ## Estado actual (5 Ago 2026)
 
 ### Últimos cambios
+- **Sesión 40**: Miembros de proyecto con roles (lider/miembro/observador), filtrado de tareas por miembros, gestión de miembros en modal.
 - **Sesión 39**: Fixes y mejoras en Proyectos — cambiar proyecto al editar tarea, auto-en_progreso al comentar/evidencia, pre-seleccionar proyecto padre, creador aprueba sus proyectos.
 - **Sesión 38**: Fix OAuth error feedback (invalid_state message + logging + stack traces). MCP OAuth admin: mostrar usuario propietario de tokens y clientes activos.
 - **Sesión 37**: Eliminado login de sesión expirada del launcher, se usa el login principal. Proveedores redirige a `/` en vez de overlay propio. Limpiado `jwtToken`/`user` al mostrar login por expiración.
