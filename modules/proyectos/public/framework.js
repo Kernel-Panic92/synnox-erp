@@ -231,7 +231,12 @@ function toggleSidebarCollapse() {
 }
 
 // ── Navigation ──
+const PAGINAS_VALIDAS = ['dashboard', 'proyectos', 'tareas', 'tablero', 'reportes', 'actas'];
+
 function navigate(page) {
+  if (!PAGINAS_VALIDAS.includes(page)) page = 'dashboard';
+  localStorage.setItem('sy_last_page', page);
+
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const pageEl = document.getElementById('page-' + page);
@@ -243,6 +248,7 @@ function navigate(page) {
   const titleEl = document.getElementById('page-title');
   if (titleEl) titleEl.textContent = navEl?.textContent?.trim() || page;
 
+  window._currentPage = page;
   if (HF.routeMap[page]) HF.routeMap[page]();
 }
 

@@ -27,7 +27,9 @@ function getToken() {
 
 function mostrarAppInterno() {
   document.getElementById('app-screen').style.display = 'block';
-  navigate(HF.themePages[0] || 'dashboard');
+  const hash = location.hash.slice(1);
+  const saved = localStorage.getItem('sy_last_page');
+  navigate(hash || saved || 'dashboard');
 }
 
 async function cargarTodosLosUsuarios() {
