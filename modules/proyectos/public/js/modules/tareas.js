@@ -31,7 +31,8 @@ async function cargarTareas() {
     const data = await api('/tareas?' + params.toString());
     const tareas = data.tareas || [];
     const ids = tareas.map(t => t.asignado_a).filter(Boolean);
-    await cargarNombresUsuarios(ids);
+    const reporteroIds = tareas.map(t => t.reportero).filter(Boolean);
+    await cargarNombresUsuarios([...new Set([...ids, ...reporteroIds])]);
 
     document.getElementById('tareas-tbody').innerHTML = tareas.map(t => `
       <tr>
@@ -40,6 +41,7 @@ async function cargarTareas() {
         <td>${badgeEstado(t.estado)} ${t.estado === 'revision' ? badgeAprobacion(t.estado_aprobacion) : ''}</td>
         <td>${badgePrioridad(t.prioridad)}</td>
         <td class="nombre-asignado">${t.asignado_a ? esc(nombreUsuario(t.asignado_a)) : '<span style="color:var(--muted)">Sin asignar</span>'}</td>
+        <td style="font-size:12px;color:var(--muted)">${t.reportero ? esc(nombreUsuario(t.reportero)) : '—'}</td>
         <td style="font-size:12px;color:var(--muted)">${formatDate(t.fecha_limite)}</td>
     <td>
       ${t.estado === 'en_progreso' ? `<button class="btn btn-xs btn-info" onclick="abrirModalSolicitarRevision(${t.id})" title="Solicitar revisión">&#x1F4CB;</button>` : ''}
@@ -51,14 +53,14 @@ async function cargarTareas() {
       ${tienePermiso('eliminar_tarea') && (t.estado !== 'revision' || (usuario?.rol === 'admin' || usuario?.rol === 'gerente')) ? `<button class="btn btn-xs btn-danger" onclick="eliminarTarea(${t.id})" title="Eliminar">&#10005;</button>` : ''}
     </td>
       </tr>
-    `).join('') || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">No se encontraron tareas</td></tr>';
+    `).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">No se encontraron tareas</td></tr>';
 
     const total = data.total || 0;
     const desde = total === 0 ? 0 : (_tareasPage - 1) * 20 + 1;
     const hasta = Math.min(_tareasPage * 20, total);
     document.getElementById('tareas-info').textContent = `Mostrando ${desde}-${hasta} de ${total} tareas`;
   } catch (err) {
-    document.getElementById('tareas-tbody').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">Error al cargar tareas</td></tr>';
+    document.getElementById('tareas-tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">Error al cargar tareas</td></tr>';
   }
 }
 

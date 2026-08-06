@@ -112,6 +112,7 @@
             <th class="sortable" data-sort="proyecto_nombre" onclick="dashSort('proyecto_nombre')">Proyecto<span class="sort-indicator"></span></th>
             <th class="sortable" data-sort="estado" onclick="dashSort('estado')">Estado<span class="sort-indicator"></span></th>
             <th class="sortable" data-sort="prioridad" onclick="dashSort('prioridad')">Prioridad<span class="sort-indicator"></span></th>
+            <th>Asignado por</th>
             <th class="sortable" data-sort="fecha_limite" onclick="dashSort('fecha_limite')">Fecha Limite<span class="sort-indicator"></span></th>
           </tr></thead><tbody id="dash-recientes"></tbody></table></div>
         </div>
@@ -139,7 +140,7 @@
           <button class="btn btn-primary btn-sm" onclick="abrirModalTarea()">+ Nueva Tarea</button>
         </div>
         <div class="tbl-wrap">
-          <table class="tbl"><thead><tr><th>Titulo</th><th>Proyecto</th><th>Estado</th><th>Prioridad</th><th>Asignado</th><th>Fecha Limite</th><th></th></tr></thead><tbody id="tareas-tbody"></tbody></table>
+          <table class="tbl"><thead><tr><th>Titulo</th><th>Proyecto</th><th>Estado</th><th>Prioridad</th><th>Asignado</th><th>Asignado por</th><th>Fecha Limite</th><th></th></tr></thead><tbody id="tareas-tbody"></tbody></table>
         </div>
         <div class="flex mt-12" style="justify-content:space-between"><span class="text-muted" id="tareas-info" style="font-size:12px"></span><div class="flex gap-sm"><button class="btn btn-secondary btn-sm" onclick="tareasPagina(-1)">Anterior</button><button class="btn btn-secondary btn-sm" onclick="tareasPagina(1)">Siguiente</button></div></div>
       </div>

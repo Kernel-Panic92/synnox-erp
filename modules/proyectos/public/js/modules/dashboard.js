@@ -105,7 +105,8 @@ async function cargarDashboard() {
 
     const idsAsignados = recientes.map(r => r.asignado_a).filter(Boolean);
     const idsAsignadosActivos = porAsignado.map(r => r.asignado_a).filter(Boolean);
-    await cargarNombresUsuarios([...new Set([...idsAsignados, ...idsAsignadosActivos])]);
+    const idsReporteros = recientes.map(r => r.reportero).filter(Boolean);
+    await cargarNombresUsuarios([...new Set([...idsAsignados, ...idsAsignadosActivos, ...idsReporteros])]);
 
     _dashRecientes = recientes;
     await cargarProyectosSelect();
@@ -201,7 +202,7 @@ function renderDashRecientes() {
   });
 
   if (!filtradas.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state" style="padding:32px;text-align:center"><div class="icon">&#x1F4CB;</div><p>No se encontraron tareas recientes</p></td></tr>';
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state" style="padding:32px;text-align:center"><div class="icon">&#x1F4CB;</div><p>No se encontraron tareas recientes</p></td></tr>';
     return;
   }
 
@@ -211,6 +212,7 @@ function renderDashRecientes() {
       <td><span style="font-size:12px;color:var(--muted)">${esc(t.proyecto_nombre || '—')}</span></td>
       <td>${badgeEstado(t.estado)} ${t.estado === 'revision' ? badgeAprobacion(t.estado_aprobacion) : ''}</td>
       <td>${badgePrioridad(t.prioridad)}</td>
+      <td style="font-size:12px;color:var(--muted)">${t.reportero ? esc(nombreUsuario(t.reportero)) : '—'}</td>
       <td style="font-size:12px;color:var(--muted)">${formatDate(t.fecha_limite)}</td>
     </tr>
   `).join('');
