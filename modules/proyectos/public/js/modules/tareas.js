@@ -6,11 +6,13 @@ let _miembrosProyectoCache = {};
 async function cargarProyectosSelect() {
   try {
     const sel = document.getElementById('filtro-proyecto');
-    const currentVal = sel?.value || '';
+    const savedVal = localStorage.getItem('sy_tareas_proyecto') || '';
     const data = await api('/proyectos');
     _tareasProyectos = data.proyectos || [];
-    if (sel) sel.innerHTML = '<option value="">Todos los proyectos</option>' + _tareasProyectos.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
-    if (sel && currentVal) sel.value = currentVal;
+    if (sel) {
+      sel.innerHTML = '<option value="">Todos los proyectos</option>' + _tareasProyectos.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
+      if (savedVal) sel.value = savedVal;
+    }
   } catch {}
 }
 
@@ -21,6 +23,10 @@ async function cargarTareas() {
   const estado = document.getElementById('filtro-estado')?.value;
   const prioridad = document.getElementById('filtro-prioridad')?.value;
   const q = document.getElementById('filtro-busqueda')?.value;
+
+  if (proyecto) localStorage.setItem('sy_tareas_proyecto', proyecto);
+  else localStorage.removeItem('sy_tareas_proyecto');
+
   if (proyecto) params.set('proyecto_id', proyecto);
   if (estado) params.set('estado', estado);
   if (prioridad) params.set('prioridad', prioridad);

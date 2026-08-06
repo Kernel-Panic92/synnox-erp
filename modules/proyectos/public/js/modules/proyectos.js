@@ -72,6 +72,7 @@ async function cargarProyectos() {
 
 function verTareasProyecto(proyectoId) {
   _proyectoFiltroActual = proyectoId;
+  localStorage.setItem('sy_tareas_proyecto', proyectoId);
   navigate('tareas');
   setTimeout(() => {
     const sel = document.getElementById('filtro-proyecto');
