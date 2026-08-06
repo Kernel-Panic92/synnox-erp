@@ -194,6 +194,7 @@ function loadOAuthProviders() {
   if (error) {
     const messages = {
       oauth_denied: 'Acceso denegado. Debes autorizar para continuar.',
+      invalid_state: 'Sesión OAuth inválida. Intenta iniciar sesión nuevamente.',
       token_exchange_failed: 'Error al intercambiar token con el proveedor.',
       no_email: 'El proveedor no devolvió un correo electrónico.',
       auth_failed: 'Error al crear la sesión.',

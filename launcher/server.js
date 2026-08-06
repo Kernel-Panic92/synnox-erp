@@ -987,7 +987,7 @@ app.get('/auth/google/callback', async (req, res) => {
   const { code, error, state } = req.query;
   const cookies = parseCookies(req);
   if (error || !code) return res.redirect('/?error=oauth_denied');
-  if (!state || state !== cookies.oauth_state) return res.redirect('/?error=invalid_state');
+  if (!state || state !== cookies.oauth_state) { console.warn('[OAuth Google] State mismatch — session:', cookies.oauth_state ? 'present' : 'missing', 'query:', state ? 'present' : 'missing'); return res.redirect('/?error=invalid_state'); }
   res.clearCookie('oauth_state', { path: '/' });
   const cfg = getOAuthConfig('google');
   try {
@@ -996,7 +996,7 @@ app.get('/auth/google/callback', async (req, res) => {
       body: JSON.stringify({ code, client_id: cfg.clientId, client_secret: cfg.clientSecret, redirect_uri: getOAuthBaseUrl() + '/auth/google/callback', grant_type: 'authorization_code' })
     });
     const tokenData = await tokenRes.json();
-    if (!tokenData.access_token) return res.redirect('/?error=token_exchange_failed');
+    if (!tokenData.access_token) { console.error('[OAuth Google] Token exchange failed:', tokenData); return res.redirect('/?error=token_exchange_failed'); }
     const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: 'Bearer ' + tokenData.access_token } });
     const profile = await userInfoRes.json();
     if (!profile.email) return res.redirect('/?error=no_email');
@@ -1005,7 +1005,7 @@ app.get('/auth/google/callback', async (req, res) => {
     const token = oauthIssueJwt(user.user, req, res);
     if (!token) return res.redirect('/?error=auth_failed');
     res.redirect((user.isNew || !user.hasModules) ? '/?new_user=1' : '/');
-  } catch (e) { console.error('[OAuth Google]', e.message); res.redirect('/?error=oauth_error'); }
+  } catch (e) { console.error('[OAuth Google]', e.stack || e.message); res.redirect('/?error=oauth_error'); }
 });
 
 // ── GitHub OAuth ──
@@ -1024,7 +1024,7 @@ app.get('/auth/github/callback', async (req, res) => {
   const { code, error, state } = req.query;
   const cookies = parseCookies(req);
   if (error || !code) return res.redirect('/?error=oauth_denied');
-  if (!state || state !== cookies.oauth_state) return res.redirect('/?error=invalid_state');
+  if (!state || state !== cookies.oauth_state) { console.warn('[OAuth GitHub] State mismatch — session:', cookies.oauth_state ? 'present' : 'missing', 'query:', state ? 'present' : 'missing'); return res.redirect('/?error=invalid_state'); }
   res.clearCookie('oauth_state', { path: '/' });
   const cfg = getOAuthConfig('github');
   try {
@@ -1033,7 +1033,7 @@ app.get('/auth/github/callback', async (req, res) => {
       body: JSON.stringify({ client_id: cfg.clientId, client_secret: cfg.clientSecret, code })
     });
     const tokenData = await tokenRes.json();
-    if (!tokenData.access_token) return res.redirect('/?error=token_exchange_failed');
+    if (!tokenData.access_token) { console.error('[OAuth GitHub] Token exchange failed:', tokenData); return res.redirect('/?error=token_exchange_failed'); }
     const userRes = await fetch('https://api.github.com/user', { headers: { Authorization: 'Bearer ' + tokenData.access_token, Accept: 'application/json' } });
     const ghUser = await userRes.json();
     // Get primary email
@@ -1050,7 +1050,7 @@ app.get('/auth/github/callback', async (req, res) => {
     const token = oauthIssueJwt(user.user, req, res);
     if (!token) return res.redirect('/?error=auth_failed');
     res.redirect((user.isNew || !user.hasModules) ? '/?new_user=1' : '/');
-  } catch (e) { console.error('[OAuth GitHub]', e.message); res.redirect('/?error=oauth_error'); }
+  } catch (e) { console.error('[OAuth GitHub]', e.stack || e.message); res.redirect('/?error=oauth_error'); }
 });
 
 // ── Microsoft OAuth ──
@@ -1069,7 +1069,7 @@ app.get('/auth/microsoft/callback', async (req, res) => {
   const { code, error, state } = req.query;
   const cookies = parseCookies(req);
   if (error || !code) return res.redirect('/?error=oauth_denied');
-  if (!state || state !== cookies.oauth_state) return res.redirect('/?error=invalid_state');
+  if (!state || state !== cookies.oauth_state) { console.warn('[OAuth Microsoft] State mismatch — session:', cookies.oauth_state ? 'present' : 'missing', 'query:', state ? 'present' : 'missing'); return res.redirect('/?error=invalid_state'); }
   res.clearCookie('oauth_state', { path: '/' });
   const cfg = getOAuthConfig('microsoft');
   try {
@@ -1078,7 +1078,7 @@ app.get('/auth/microsoft/callback', async (req, res) => {
       body: new URLSearchParams({ code, client_id: cfg.clientId, client_secret: cfg.clientSecret, redirect_uri: getOAuthBaseUrl() + '/auth/microsoft/callback', grant_type: 'authorization_code' }).toString()
     });
     const tokenData = await tokenRes.json();
-    if (!tokenData.access_token) return res.redirect('/?error=token_exchange_failed');
+    if (!tokenData.access_token) { console.error('[OAuth Microsoft] Token exchange failed:', tokenData); return res.redirect('/?error=token_exchange_failed'); }
     const userRes = await fetch('https://graph.microsoft.com/v1.0/me', { headers: { Authorization: 'Bearer ' + tokenData.access_token } });
     const msUser = await userRes.json();
     const email = msUser.mail || msUser.userPrincipalName;
@@ -1088,7 +1088,7 @@ app.get('/auth/microsoft/callback', async (req, res) => {
     const token = oauthIssueJwt(user.user, req, res);
     if (!token) return res.redirect('/?error=auth_failed');
     res.redirect((user.isNew || !user.hasModules) ? '/?new_user=1' : '/');
-  } catch (e) { console.error('[OAuth Microsoft]', e.message); res.redirect('/?error=oauth_error'); }
+  } catch (e) { console.error('[OAuth Microsoft]', e.stack || e.message); res.redirect('/?error=oauth_error'); }
 });
 
 // ── Public: list enabled OAuth providers (for login screen) ──
