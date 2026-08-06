@@ -5,10 +5,12 @@ let _miembrosProyectoCache = {};
 
 async function cargarProyectosSelect() {
   try {
+    const sel = document.getElementById('filtro-proyecto');
+    const currentVal = sel?.value || '';
     const data = await api('/proyectos');
     _tareasProyectos = data.proyectos || [];
-    const sel = document.getElementById('filtro-proyecto');
     if (sel) sel.innerHTML = '<option value="">Todos los proyectos</option>' + _tareasProyectos.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
+    if (sel && currentVal) sel.value = currentVal;
   } catch {}
 }
 
