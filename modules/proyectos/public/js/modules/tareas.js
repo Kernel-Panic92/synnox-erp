@@ -4,7 +4,6 @@ let _proyectoFiltroActual = null;
 let _miembrosProyectoCache = {};
 
 async function cargarProyectosSelect() {
-  if (_tareasProyectos.length) return;
   try {
     const data = await api('/proyectos');
     _tareasProyectos = data.proyectos || [];
