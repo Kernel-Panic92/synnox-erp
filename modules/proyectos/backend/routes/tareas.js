@@ -27,7 +27,7 @@ router.get('/', requirePermiso('ver', 'proyectos'), async (req, res) => {
     const soloPropios = permisos.includes('ver_propios');
     if (soloPropios) {
       params.push(req.user.id);
-      conditions.push(`t.asignado_a = $${idx++}`);
+      conditions.push(`(t.asignado_a = $${idx++} OR t.proyecto_id IN (SELECT proyecto_id FROM projects.proyecto_miembros WHERE usuario_id = $${idx - 1}))`);
     }
 
     if (proyecto_id) { params.push(proyecto_id); conditions.push(`t.proyecto_id = $${idx++}`); }
@@ -67,7 +67,7 @@ router.get('/:id', requirePermiso('ver', 'proyectos'), async (req, res) => {
     const permisos = req.user?.modulos_permisos?.proyectos || [];
     const soloPropios = permisos.includes('ver_propios');
     const query = soloPropios
-      ? `SELECT t.*, p.nombre AS proyecto_nombre FROM projects.tareas t LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id WHERE t.id = $1 AND t.asignado_a = $2`
+      ? `SELECT t.*, p.nombre AS proyecto_nombre FROM projects.tareas t LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id WHERE t.id = $1 AND (t.asignado_a = $2 OR t.proyecto_id IN (SELECT proyecto_id FROM projects.proyecto_miembros WHERE usuario_id = $2))`
       : `SELECT t.*, p.nombre AS proyecto_nombre FROM projects.tareas t LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id WHERE t.id = $1`;
     const params = soloPropios ? [req.params.id, req.user.id] : [req.params.id];
     const result = await pool.query(query, params);

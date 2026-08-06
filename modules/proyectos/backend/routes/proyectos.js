@@ -26,6 +26,7 @@ router.get('/', requirePermiso('ver', 'proyectos'), async (req, res) => {
         FROM projects.proyectos p
         LEFT JOIN projects.tareas t ON t.proyecto_id = p.id
         WHERE p.asignado_a = $1
+           OR p.id IN (SELECT proyecto_id FROM projects.proyecto_miembros WHERE usuario_id = $1)
         GROUP BY p.id
         ORDER BY p.created_at DESC
       `, [req.user.id]);
@@ -43,7 +44,28 @@ router.get('/', requirePermiso('ver', 'proyectos'), async (req, res) => {
         ORDER BY p.created_at DESC
       `);
     }
-    res.json({ exitosa: true, proyectos: result.rows });
+
+    const proyectoIds = result.rows.map(p => p.id);
+    let miembrosMap = {};
+    if (proyectoIds.length) {
+      const miembrosResult = await pool.query(
+        `SELECT pm.proyecto_id, pm.usuario_id, pm.rol
+         FROM projects.proyecto_miembros pm
+         WHERE pm.proyecto_id = ANY($1)`,
+        [proyectoIds]
+      );
+      for (const m of miembrosResult.rows) {
+        if (!miembrosMap[m.proyecto_id]) miembrosMap[m.proyecto_id] = [];
+        miembrosMap[m.proyecto_id].push({ usuario_id: m.usuario_id, rol: m.rol });
+      }
+    }
+
+    const proyectos = result.rows.map(p => ({
+      ...p,
+      miembros: miembrosMap[p.id] || []
+    }));
+
+    res.json({ exitosa: true, proyectos });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -65,7 +87,8 @@ router.get('/:id', requirePermiso('ver', 'proyectos'), async (req, res) => {
           COUNT(t.id) AS total_tareas
         FROM projects.proyectos p
         LEFT JOIN projects.tareas t ON t.proyecto_id = p.id
-        WHERE p.id = $1 AND p.asignado_a = $2
+        WHERE p.id = $1 AND (p.asignado_a = $2
+           OR p.id IN (SELECT proyecto_id FROM projects.proyecto_miembros WHERE usuario_id = $2))
         GROUP BY p.id`,
         [req.params.id, req.user.id]
       );
@@ -85,7 +108,14 @@ router.get('/:id', requirePermiso('ver', 'proyectos'), async (req, res) => {
       );
     }
     if (result.rows.length === 0) return res.status(404).json({ error: 'Proyecto no encontrado' });
-    res.json({ exitosa: true, proyecto: result.rows[0] });
+
+    const miembrosResult = await pool.query(
+      `SELECT pm.usuario_id, pm.rol FROM projects.proyecto_miembros pm WHERE pm.proyecto_id = $1`,
+      [req.params.id]
+    );
+    const proyecto = { ...result.rows[0], miembros: miembrosResult.rows };
+
+    res.json({ exitosa: true, proyecto });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -100,6 +130,16 @@ router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
        VALUES ($1, $2, $3, $4, $5) RETURNING *`,
       [nombre, descripcion || '', fecha_limite || null, centro_id || null, asignado_a || null]
     );
+
+    // Crear al asignado como lider del proyecto
+    if (asignado_a) {
+      await pool.query(
+        `INSERT INTO projects.proyecto_miembros (proyecto_id, usuario_id, rol)
+         VALUES ($1, $2, 'lider')
+         ON CONFLICT (proyecto_id, usuario_id) DO NOTHING`,
+        [result.rows[0].id, asignado_a]
+      );
+    }
 
     // Notificar al asignado
     if (asignado_a) {

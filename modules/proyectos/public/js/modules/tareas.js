@@ -1,6 +1,7 @@
 let _tareasPage = 1;
 let _tareasProyectos = [];
 let _proyectoFiltroActual = null;
+let _miembrosProyectoCache = {};
 
 async function cargarProyectosSelect() {
   if (_tareasProyectos.length) return;
@@ -64,6 +65,32 @@ async function cargarTareas() {
 function tareasPagina(dir) {
   _tareasPage = Math.max(1, _tareasPage + dir);
   cargarTareas();
+}
+
+async function cargarMiembrosProyecto(proyectoId) {
+  if (!proyectoId) return _todosUsuarios;
+  if (_miembrosProyectoCache[proyectoId]) return _miembrosProyectoCache[proyectoId];
+  try {
+    const data = await api('/proyectos/' + proyectoId + '/miembros');
+    const miembros = data.miembros || [];
+    const asignado = data.asignado_a;
+    const usuarioIds = new Set(miembros.map(m => m.usuario_id));
+    if (asignado) usuarioIds.add(asignado);
+    const lista = _todosUsuarios.filter(u => usuarioIds.has(u.id));
+    _miembrosProyectoCache[proyectoId] = lista.length ? lista : _todosUsuarios;
+    return _miembrosProyectoCache[proyectoId];
+  } catch { return _todosUsuarios; }
+}
+
+async function actualizarSelectAsignadoTarea(proyectoId) {
+  const usuarios = await cargarMiembrosProyecto(proyectoId);
+  const wrapper = document.getElementById('tarea-asignado-wrapper');
+  if (!wrapper) return;
+  const hidden = document.getElementById('tarea-asignado');
+  const currentVal = hidden?.value || '';
+  const newHtml = selectBuscador('tarea-asignado', usuarios, currentVal, 'Buscar usuario...');
+  wrapper.outerHTML = newHtml;
+  initSelectBuscador('tarea-asignado');
 }
 
 async function abrirModalSolicitarRevision(tareaId) {
@@ -180,8 +207,11 @@ async function abrirModalTarea(id) {
     try { const d = await api('/tareas/' + id); t = d.tarea; } catch {}
   }
 
+  const proyectoSel = t?.proyecto_id || proyectoDefault || '';
+  const usuariosAsignados = proyectoSel ? await cargarMiembrosProyecto(proyectoSel) : _todosUsuarios;
+
   const body = `
-    <div class="form-group"><label>Proyecto</label><select id="tarea-proyecto">${_tareasProyectos.map(p => `<option value="${p.id}" ${(t?.proyecto_id == p.id || (!t && proyectoDefault == p.id)) ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}</select></div>
+    <div class="form-group"><label>Proyecto</label><select id="tarea-proyecto" onchange="actualizarSelectAsignadoTarea(this.value)">${_tareasProyectos.map(p => `<option value="${p.id}" ${(t?.proyecto_id == p.id || (!t && proyectoDefault == p.id)) ? 'selected' : ''}>${esc(p.nombre)}</option>`).join('')}</select></div>
     <div class="form-group"><label>Titulo *</label><input id="tarea-titulo" value="${esc(t?.titulo || '')}"></div>
     <div class="form-group"><label>Descripcion</label><textarea id="tarea-desc">${esc(t?.descripcion || '')}</textarea></div>
     <div class="form-row">
@@ -213,7 +243,7 @@ async function abrirModalTarea(id) {
         <option value="revision" ${t?.estado === 'revision' ? 'selected' : ''}>Revision</option>
         ${(usuario?.rol === 'admin' || usuario?.rol === 'gerente') ? `<option value="completada" ${t?.estado === 'completada' ? 'selected' : ''}>Completada</option>` : ''}
       </select></div>
-      <div class="form-group"><label>Asignado a</label>${selectBuscador('tarea-asignado', _todosUsuarios, id ? t?.asignado_a : usuario?.id, 'Buscar usuario...')}</div>
+      <div class="form-group"><label>Asignado a</label>${selectBuscador('tarea-asignado', usuariosAsignados, id ? t?.asignado_a : usuario?.id, 'Buscar usuario...')}</div>
     </div>
     <div class="form-row">
       <div class="form-group"><label>Fecha Limite</label><input type="date" id="tarea-fecha" value="${t?.fecha_limite ? t.fecha_limite.split('T')[0] : ''}"></div>
