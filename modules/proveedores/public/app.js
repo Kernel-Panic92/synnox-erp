@@ -75,11 +75,13 @@ window.addEventListener('popstate',()=>{
 
 // ─── CENTROS DE OPERACIÓN (sincronizados desde Launcher) ───────────────────
 let _centrosCache = [];
+let _centrosCacheTs = 0;
+const CENTROS_CACHE_TTL = 300000; // 5 minutos
 async function loadCentros() {
-  if (_centrosCache.length) return _centrosCache;
+  if (_centrosCache.length && (Date.now() - _centrosCacheTs) < CENTROS_CACHE_TTL) return _centrosCache;
   try {
     const centros = await api('GET', '/centros');
-    _centrosCache = centros || [];
+    if (centros) { _centrosCache = centros; _centrosCacheTs = Date.now(); }
   } catch {}
   return _centrosCache;
 }

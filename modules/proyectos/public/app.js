@@ -3,6 +3,8 @@ let usuario = null;
 let _currentPage = 'dashboard';
 let _nombresUsuarios = {};
 let _todosUsuarios = [];
+let _todosUsuariosTs = 0;
+const USUARIOS_CACHE_TTL = 300000; // 5 minutos
 
 initFramework({
   basePath: BASE,
@@ -33,10 +35,11 @@ function mostrarAppInterno() {
 }
 
 async function cargarTodosLosUsuarios() {
-  if (_todosUsuarios.length) return _todosUsuarios;
+  if (_todosUsuarios.length && (Date.now() - _todosUsuariosTs) < USUARIOS_CACHE_TTL) return _todosUsuarios;
   try {
     const data = await api('/usuarios');
     _todosUsuarios = data.usuarios || [];
+    _todosUsuariosTs = Date.now();
     for (const u of _todosUsuarios) _nombresUsuarios[u.id] = u.nombre;
     return _todosUsuarios;
   } catch { return []; }

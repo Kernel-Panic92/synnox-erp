@@ -6,11 +6,13 @@ function paginaSegura(hash) {
 }
 
 let _centrosCache = [];
+let _centrosCacheTs = 0;
+const CENTROS_CACHE_TTL = 300000; // 5 minutos
 async function loadCentros() {
-  if (_centrosCache.length) return _centrosCache;
+  if (_centrosCache.length && (Date.now() - _centrosCacheTs) < CENTROS_CACHE_TTL) return _centrosCache;
   try {
     const res = await GET('/api/centros');
-    if (res.ok) _centrosCache = await res.json();
+    if (res.ok) { _centrosCache = await res.json(); _centrosCacheTs = Date.now(); }
   } catch {}
   return _centrosCache;
 }
