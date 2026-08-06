@@ -46,7 +46,7 @@
 
 ## Estado (6 Ago 2026 — sesión 40)
 
-### Cambios Sesión 40 — Miembros de Proyecto con Roles
+### Cambios Sesión 40 — Miembros de Proyecto con Roles + Restricción de Aprobación
 
 #### Nuevo feature: Gestión de miembros de proyecto
 - **Migración**: `007_create_proyecto_miembros.sql` — tabla `projects.proyecto_miembros` con roles
@@ -81,8 +81,14 @@
 - `modules/proyectos/backend/server.js` — import + mount miembrosRoutes
 - `modules/proyectos/backend/routes/proyectos.js` — GET retorna miembros, POST crea lider, ver_propios incluye miembros
 - `modules/proyectos/backend/routes/tareas.js` — ver_propios incluye miembros
+- `modules/proyectos/backend/routes/aprobacion.js` — restricción: no aprobar si hay tareas pendientes
 - `modules/proyectos/public/js/modules/proyectos.js` — cards miembros + modal gestión + funciones CRUD
 - `modules/proyectos/public/js/modules/tareas.js` — filtrar select por miembros del proyecto
+
+#### Restricción de aprobación de proyectos
+- `routes/aprobacion.js:152-168` — antes de aprobar, verifica `COUNT(*) FILTER (WHERE estado != 'completada')` en tareas del proyecto
+- Si hay tareas pendientes, retorna 400 con mensaje descriptivo
+- Aplica para todos los usuarios sin importar rol o perfil
 
 ---
 
