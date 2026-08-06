@@ -228,20 +228,20 @@ function renderMiembrosModal(filtro = '') {
   container.innerHTML = lista.map(u => {
     const checked = _miembrosSeleccionados.has(u.id);
     const rol = _miembrosRoles[u.id] || 'miembro';
-    return `<label style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:7px;cursor:pointer;transition:background 0.1s;" onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='transparent'">
+    return `<div style="display:flex;align-items:center;gap:10px;padding:6px 8px;border-radius:7px;transition:background 0.1s;" onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='transparent'">
       <input type="checkbox" value="${u.id}" ${checked ? 'checked' : ''} onchange="toggleMiembro(${u.id},this.checked)"
         style="width:15px;height:15px;accent-color:var(--accent);cursor:pointer;flex-shrink:0;">
-      <span style="flex:1;min-width:0;">
-        <span style="font-size:13px;font-weight:500;">${esc(u.nombre)}</span>
-        <span style="font-size:11px;color:var(--muted);margin-left:6px;">${esc(u.email || '')}</span>
-      </span>
+      <div style="flex:1;min-width:0;overflow:hidden">
+        <div style="font-size:13px;font-weight:500;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.nombre)}</div>
+        <div style="font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.email || '')}</div>
+      </div>
       <select ${!checked ? 'disabled' : ''} onchange="setMiembroRol(${u.id},this.value)"
-        style="font-size:11px;padding:2px 4px;border-radius:4px;border:1px solid var(--border);${!checked ? 'opacity:0.4;' : ''}">
+        style="font-size:11px;padding:4px 6px;border-radius:4px;border:1px solid var(--border);flex-shrink:0;${!checked ? 'opacity:0.4;' : ''}">
         <option value="miembro" ${rol === 'miembro' ? 'selected' : ''}>Miembro</option>
         <option value="lider" ${rol === 'lider' ? 'selected' : ''}>Líder</option>
         <option value="observador" ${rol === 'observador' ? 'selected' : ''}>Observador</option>
       </select>
-    </label>`;
+    </div>`;
   }).join('');
   actualizarContadorMiembros();
 }
