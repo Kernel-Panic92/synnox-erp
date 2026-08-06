@@ -302,6 +302,7 @@ async function guardarMiembrosProyecto() {
       body: JSON.stringify({ miembros })
     });
     toast('Miembros actualizados', 'success');
+    delete _miembrosProyectoCache[_proyectoMiembrosActual];
     document.getElementById('modal-miembros').style.display = 'none';
     await cargarProyectos();
     abrirModalProyecto(_proyectoMiembrosActual);
