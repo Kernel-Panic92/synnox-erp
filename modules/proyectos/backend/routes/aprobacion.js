@@ -150,8 +150,12 @@ router.put('/tareas/:id/rechazar', async (req, res) => {
 });
 
 router.put('/proyectos/:id/aprobar', async (req, res) => {
-  if (!canApprove(req)) return res.status(403).json({ error: 'Solo administradores o gerentes pueden aprobar proyectos' });
   try {
+    const check = await pool.query('SELECT asignado_a FROM projects.proyectos WHERE id = $1', [req.params.id]);
+    if (check.rows.length === 0) return res.status(404).json({ error: 'Proyecto no encontrado' });
+    const esAdminGerente = req.user.rol === 'admin' || req.user.rol === 'gerente';
+    const esCreador = check.rows[0].asignado_a === req.user.id;
+    if (!esAdminGerente && !esCreador) return res.status(403).json({ error: 'Solo administradores, gerentes o el creador del proyecto pueden aprobarlo' });
     const result = await pool.query(
       `UPDATE projects.proyectos
        SET estado_aprobacion = 'aprobada',
@@ -194,8 +198,12 @@ router.put('/proyectos/:id/aprobar', async (req, res) => {
 });
 
 router.put('/proyectos/:id/rechazar', async (req, res) => {
-  if (!canApprove(req)) return res.status(403).json({ error: 'Solo administradores o gerentes pueden rechazar proyectos' });
   try {
+    const check = await pool.query('SELECT asignado_a FROM projects.proyectos WHERE id = $1', [req.params.id]);
+    if (check.rows.length === 0) return res.status(404).json({ error: 'Proyecto no encontrado' });
+    const esAdminGerente = req.user.rol === 'admin' || req.user.rol === 'gerente';
+    const esCreador = check.rows[0].asignado_a === req.user.id;
+    if (!esAdminGerente && !esCreador) return res.status(403).json({ error: 'Solo administradores, gerentes o el creador del proyecto pueden rechazarlo' });
     const result = await pool.query(
       `UPDATE projects.proyectos
        SET estado_aprobacion = 'rechazada',
