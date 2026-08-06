@@ -156,6 +156,20 @@ router.put('/proyectos/:id/aprobar', async (req, res) => {
     const esAdminGerente = req.user.rol === 'admin' || req.user.rol === 'gerente';
     const esCreador = check.rows[0].asignado_a === req.user.id;
     if (!esAdminGerente && !esCreador) return res.status(403).json({ error: 'Solo administradores, gerentes o el creador del proyecto pueden aprobarlo' });
+
+    // Verificar que todas las tareas estén completadas
+    const tareasCheck = await pool.query(
+      `SELECT COUNT(*) AS total,
+              COUNT(*) FILTER (WHERE estado != 'completada') AS pendientes
+       FROM projects.tareas WHERE proyecto_id = $1`,
+      [req.params.id]
+    );
+    const total = parseInt(tareasCheck.rows[0].total);
+    const pendientes = parseInt(tareasCheck.rows[0].pendientes);
+    if (total > 0 && pendientes > 0) {
+      return res.status(400).json({ error: `No se puede aprobar: hay ${pendientes} tarea(s) de ${total} sin completar` });
+    }
+
     const result = await pool.query(
       `UPDATE projects.proyectos
        SET estado_aprobacion = 'aprobada',
