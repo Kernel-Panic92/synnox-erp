@@ -145,11 +145,6 @@ function renderTareasTabla() {
   `).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">No se encontraron tareas</td></tr>';
 }
 
-function renderTareasTabla() {
-  document.getElementById('tareas-wrap').style.display = 'block';
-  document.getElementById('tareas-agrupadas').style.display = 'none';
-}
-
 function renderTareasAgrupadas() {
   document.getElementById('tareas-wrap').style.display = 'none';
   const container = document.getElementById('tareas-agrupadas');
