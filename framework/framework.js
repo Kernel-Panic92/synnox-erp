@@ -386,14 +386,21 @@ let _notifLastCount = 0;
 function solicitarPermisoNotificaciones() {
   if (!('Notification' in window)) return;
   if (Notification.permission === 'default') {
-    Notification.requestPermission();
+    Notification.requestPermission().then(perm => {
+      if (perm === 'granted') mostrarNotificacionBrowser('Notificaciones activadas', 'Recibirás alertas de tareas y proyectos', '');
+    });
   }
 }
 
 function mostrarNotificacionBrowser(titulo, mensaje, url) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
-  const notif = new Notification(titulo, { body: mensaje, icon: '/favicon.ico', tag: 'synnox-' + Date.now() });
-  notif.onclick = () => { window.focus(); if (url) window.location.href = url; notif.close(); };
+  const opts = { body: mensaje, icon: '/favicon.ico', tag: 'synnox-' + Date.now(), requireInteraction: false };
+  const notif = new Notification(titulo, opts);
+  notif.onclick = () => {
+    window.focus();
+    if (url && url !== 'undefined' && url !== 'null') window.location.href = url;
+    notif.close();
+  };
   setTimeout(() => notif.close(), 8000);
 }
 
@@ -435,9 +442,10 @@ async function toggleNotifDropdown() {
         list.innerHTML = '<div class="notif-empty">Sin notificaciones</div>';
       } else {
         list.innerHTML = notificaciones.map(n => {
-          const icons = { tarea_asignada: '📋', tarea_vencida: '⏰', proyecto_aprobado: '✅', proyecto_rechazado: '❌', comentario: '💬', factura_nueva: '📄', factura_vencida: '⚠️', ruta_asignada: '🛣️', backup: '💾', sistema: '⚙️', cambio_estado: '🔄', tarea_revision: '📋', proyecto_asignado: '📁' };
+          const icons = { tarea_asignada: '📋', tarea_vencida: '⏰', proyecto_aprobado: '✅', proyecto_rechazado: '❌', comentario: '💬', factura_nueva: '📄', factura_vencida: '⚠️', ruta_asignada: '🛣️', backup: '💾', sistema: '⚙️', cambio_estado: '🔄', tarea_revision: '📋', proyecto_asignado: '📁', recordatorio_vencimiento: '⏰', tarea_aprobada: '✅', tarea_rechazada: '❌', proyecto_aprobado: '✅', proyecto_rechazado: '❌', nuevo_comentario: '💬', evidencia_subida: '📎', tarea_asignada: '📋' };
           const timeAgo = timeSince(new Date(n.created_at));
-          return `<div class="notif-item${n.leida ? '' : ' unread'}" onclick="marcarNotifLeida(${n.id}, '${n.url || ''}')">
+          const url = n.url && n.url !== 'undefined' && n.url !== 'null' ? n.url : '';
+          return `<div class="notif-item unread" data-url="${esc(url)}" onclick="marcarNotifLeida(${n.id}, this.dataset.url)">
             <div class="notif-icon">${icons[n.tipo] || '🔔'}</div>
             <div class="notif-content">
               <div class="notif-title">${esc(n.titulo)}</div>
