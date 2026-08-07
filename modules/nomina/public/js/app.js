@@ -397,15 +397,39 @@ function toggleNotifDropdown() {
 }
 
 function marcarNotifLeida(id, url) {
-  fetch('/api/notificaciones/' + id + '/leer', { method: 'PUT', headers: { 'x-csrf-token': sesion?.csrfToken || '' } })
-    .then(() => { cargarNotificaciones(); if (url) window.location.href = url; document.getElementById('notif-dropdown')?.classList.remove('show'); })
+  const dd = document.getElementById('notif-dropdown');
+  if (dd) dd.classList.remove('show');
+  if (url && url !== 'undefined' && url !== 'null') window.location.href = url;
+  fetch('/api/notificaciones/' + id + '/leer', { method: 'DELETE', headers: { 'x-csrf-token': sesion?.csrfToken || '' } })
+    .then(() => cargarNotificaciones())
     .catch(() => {});
 }
 
 function marcarTodasLeidas() {
-  fetch('/api/notificaciones/leer-todas', { method: 'PUT', headers: { 'x-csrf-token': sesion?.csrfToken || '' } })
+  fetch('/api/notificaciones/leer-todas', { method: 'DELETE', headers: { 'x-csrf-token': sesion?.csrfToken || '' } })
     .then(() => { cargarNotificaciones(); document.getElementById('notif-dropdown')?.classList.remove('show'); })
     .catch(() => {});
+}
+
+function activarNotificaciones() {
+  if (!('Notification' in window)) return alert('Tu navegador no soporta notificaciones');
+  Notification.requestPermission().then(perm => {
+    if (perm === 'granted') {
+      alert('Notificaciones activadas');
+      checkNotifPermission();
+      new Notification('Notificaciones activadas', { body: 'Recibirás alertas del sistema', icon: '/favicon.ico' });
+    }
+  });
+}
+
+function checkNotifPermission() {
+  const banner = document.getElementById('notif-permission-banner');
+  if (!banner) return;
+  if (!('Notification' in window) || Notification.permission === 'granted' || Notification.permission === 'denied') {
+    banner.style.display = 'none';
+  } else {
+    banner.style.display = 'block';
+  }
 }
 
 function timeSinceNotif(date) {
