@@ -3,7 +3,7 @@ let _tareasLimit = 20;
 let _tareasTotal = 0;
 let _tareasProyectos = [];
 let _proyectoFiltroActual = null;
-let _vistaAgrupada = false;
+let _vistaAgrupada = localStorage.getItem('sy_tareas_vista') === 'agrupada';
 let _tareasDataCache = [];
 let _miembrosProyectoCache = {};
 let _filtroProyectoInit = false;
@@ -104,12 +104,15 @@ function tareasPagina(dir) {
 
 function toggleVistaAgrupada() {
   _vistaAgrupada = !_vistaAgrupada;
+  localStorage.setItem('sy_tareas_vista', _vistaAgrupada ? 'agrupada' : 'tabla');
   const btn = document.getElementById('btn-vista-agrupada');
   if (btn) btn.textContent = _vistaAgrupada ? '📋 Vista tabla' : '📁 Vista agrupada';
   renderTareasFromCache();
 }
 
 function renderTareasFromCache() {
+  const btn = document.getElementById('btn-vista-agrupada');
+  if (btn) btn.textContent = _vistaAgrupada ? '📋 Vista tabla' : '📁 Vista agrupada';
   if (_vistaAgrupada) {
     renderTareasAgrupadas();
   } else {
@@ -125,7 +128,7 @@ function renderTareasTabla() {
 
   tbody.innerHTML = _tareasDataCache.map(t => `
     <tr>
-      <td><a href="#" onclick="event.preventDefault();abrirModalDetalleTarea(${t.id})" style="font-weight:600">${esc(t.titulo)}</a></td>
+      <td><a href="#" onclick="event.preventDefault();abrirModalDetalleTarea(${t.id})" style="font-weight:600;color:var(--accent)">${esc(t.titulo)}</a></td>
       <td style="font-size:12px;color:var(--muted)">${esc(t.proyecto_nombre || '—')}</td>
       <td>${badgeEstado(t.estado)} ${t.estado === 'revision' ? badgeAprobacion(t.estado_aprobacion) : ''}</td>
       <td>${badgePrioridad(t.prioridad)}</td>
@@ -173,7 +176,7 @@ function renderTareasAgrupadas() {
         </tr></thead><tbody>
           ${tareas.map(t => `
             <tr>
-              <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="#" onclick="event.preventDefault();abrirModalDetalleTarea(${t.id})" style="font-weight:600">${esc(t.titulo)}</a></td>
+              <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="#" onclick="event.preventDefault();abrirModalDetalleTarea(${t.id})" style="font-weight:600;color:var(--accent)">${esc(t.titulo)}</a></td>
               <td>${badgeEstado(t.estado)}</td>
               <td>${badgePrioridad(t.prioridad)}</td>
               <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.asignado_a ? esc(nombreUsuario(t.asignado_a)) : '<span style="color:var(--muted)">Sin asignar</span>'}</td>
