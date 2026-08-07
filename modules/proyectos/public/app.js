@@ -38,7 +38,9 @@ function mostrarAppInterno() {
     const params = new URLSearchParams(query);
     const proyecto = params.get('proyecto');
     if (page === 'tareas' && proyecto) {
-      localStorage.setItem('sy_tareas_proyecto', proyecto);
+      const filtros = JSON.parse(localStorage.getItem('sy_tareas_filtros') || '{}');
+      filtros.proyecto = proyecto;
+      localStorage.setItem('sy_tareas_filtros', JSON.stringify(filtros));
     }
     navigate(page || saved || 'dashboard');
   } else {

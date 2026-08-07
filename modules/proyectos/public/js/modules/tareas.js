@@ -14,13 +14,15 @@ async function cargarProyectosSelect(forceReload = false) {
   const needsReload = forceReload || !sel || sel.options.length <= 1;
   if (_filtroProyectoInit && !needsReload) return;
   try {
-    const saved = JSON.parse(localStorage.getItem('sy_tareas_filtros') || '{}');
-    const savedVal = saved.proyecto || localStorage.getItem('sy_tareas_proyecto') || '';
     const data = await api('/proyectos');
     _tareasProyectos = data.proyectos || [];
     if (sel) {
+      const saved = JSON.parse(localStorage.getItem('sy_tareas_filtros') || '{}');
+      const savedVal = saved.proyecto || '';
       sel.innerHTML = '<option value="">Todos los proyectos</option>' + _tareasProyectos.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
-      if (savedVal) sel.value = savedVal;
+      if (savedVal && sel.querySelector(`option[value="${savedVal}"]`)) {
+        sel.value = savedVal;
+      }
     }
     _filtroProyectoInit = true;
   } catch {}
@@ -199,7 +201,6 @@ function tareasLimpiarFiltros() {
   if (asignado) asignado.value = '';
   if (display) display.value = '';
   localStorage.removeItem('sy_tareas_filtros');
-  localStorage.removeItem('sy_tareas_proyecto');
   window._tareasFiltrosRestored = false;
   _tareasPage = 1;
   cargarTareas();
