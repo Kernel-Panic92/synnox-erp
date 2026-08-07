@@ -60,6 +60,8 @@ async function cargarTareas() {
   const asignado = document.getElementById('filtro-asignado')?.value;
   const q = document.getElementById('filtro-busqueda')?.value;
 
+  console.log('Filtros:', { proyecto, estado, prioridad, asignado, q });
+
   // Guardar filtros en localStorage
   const filtros = { proyecto, estado, prioridad, asignado, q };
   localStorage.setItem('sy_tareas_filtros', JSON.stringify(filtros));
