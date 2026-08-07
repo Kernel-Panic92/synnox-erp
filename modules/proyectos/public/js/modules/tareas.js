@@ -60,8 +60,6 @@ async function cargarTareas() {
   const asignado = document.getElementById('filtro-asignado')?.value;
   const q = document.getElementById('filtro-busqueda')?.value;
 
-  console.log('Filtros:', { proyecto, estado, prioridad, asignado, q });
-
   // Guardar filtros en localStorage
   const filtros = { proyecto, estado, prioridad, asignado, q };
   localStorage.setItem('sy_tareas_filtros', JSON.stringify(filtros));
@@ -162,7 +160,7 @@ function renderTareasAgrupadas() {
   container.innerHTML = Object.entries(porProyecto).map(([proyecto, tareas], idx) => `
     <div style="margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
       <div onclick="const tb=this.nextElementSibling;tb.style.display=tb.style.display==='none'?'block':'none';this.querySelector('.toggle-icon').textContent=tb.style.display==='none'?'▶':'▼'" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:pointer;background:var(--surface2)">
-        <h3 style="font-size:14px;margin:0;color:var(--accent)">${esc(proyecto)} <span style="color:var(--muted);font-weight:400">(${tareas.length})</span></h3>
+        <h3 style="font-size:14px;margin:0;color:var(--accent2)">${esc(proyecto)} <span style="color:var(--muted);font-weight:400">(${tareas.length})</span></h3>
         <span class="toggle-icon" style="font-size:12px;color:var(--muted)">▼</span>
       </div>
       <div class="proy-tbody">
