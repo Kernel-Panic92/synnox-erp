@@ -475,6 +475,31 @@ function injectNotificationBell(headerEl) {
   const bell = document.createElement('div');
   bell.className = 'notif-bell';
   bell.onclick = toggleNotifDropdown;
-  bell.innerHTML = '🔔<span class="notif-badge" id="notif-count"></span><div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div>';
+  bell.innerHTML = '🔔<span class="notif-badge" id="notif-count"></span><div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div id="notif-permission-banner" style="padding:8px 12px;background:var(--surface2);border-radius:8px;margin-bottom:8px;font-size:12px"><p style="margin-bottom:6px">🔔 Activa las notificaciones del navegador</p><button class="btn btn-xs btn-primary" onclick="event.stopPropagation();activarNotificaciones()">Activar</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div>';
   headerEl.appendChild(bell);
+  checkNotifPermission();
+}
+
+function checkNotifPermission() {
+  const banner = document.getElementById('notif-permission-banner');
+  if (!banner) return;
+  if (!('Notification' in window) || Notification.permission === 'granted' || Notification.permission === 'denied') {
+    banner.style.display = 'none';
+  } else {
+    banner.style.display = 'block';
+  }
+}
+
+function activarNotificaciones() {
+  if (!('Notification' in window)) return toast('Tu navegador no soporta notificaciones', 'error');
+  Notification.requestPermission().then(perm => {
+    if (perm === 'granted') {
+      toast('Notificaciones activadas', 'success');
+      checkNotifPermission();
+      mostrarNotificacionBrowser('Notificaciones activadas', 'Recibirás alertas de tareas y proyectos', '');
+    } else {
+      toast('Permiso de notificaciones denegado', 'error');
+      checkNotifPermission();
+    }
+  });
 }
