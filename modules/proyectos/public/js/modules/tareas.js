@@ -161,13 +161,19 @@ function renderTareasAgrupadas() {
     <div style="margin-bottom:20px">
       <h3 style="font-size:14px;margin-bottom:8px;color:var(--accent)">${esc(proyecto)} <span style="color:var(--muted);font-weight:400">(${tareas.length})</span></h3>
       <div class="tbl-wrap">
-        <table class="tbl"><thead><tr><th>Titulo</th><th>Estado</th><th>Prioridad</th><th>Asignado</th><th>Fecha Limite</th></tr></thead><tbody>
+        <table class="tbl" style="table-layout:fixed;width:100%"><thead><tr>
+          <th style="width:40%">Titulo</th>
+          <th style="width:12%">Estado</th>
+          <th style="width:12%">Prioridad</th>
+          <th style="width:18%">Asignado</th>
+          <th style="width:12%">Fecha Limite</th>
+        </tr></thead><tbody>
           ${tareas.map(t => `
             <tr>
-              <td><a href="#" onclick="event.preventDefault();abrirModalDetalleTarea(${t.id})" style="font-weight:600">${esc(t.titulo)}</a></td>
+              <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="#" onclick="event.preventDefault();abrirModalDetalleTarea(${t.id})" style="font-weight:600">${esc(t.titulo)}</a></td>
               <td>${badgeEstado(t.estado)}</td>
               <td>${badgePrioridad(t.prioridad)}</td>
-              <td>${t.asignado_a ? esc(nombreUsuario(t.asignado_a)) : '<span style="color:var(--muted)">Sin asignar</span>'}</td>
+              <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.asignado_a ? esc(nombreUsuario(t.asignado_a)) : '<span style="color:var(--muted)">Sin asignar</span>'}</td>
               <td style="font-size:12px;color:var(--muted)">${formatDate(t.fecha_limite)}</td>
             </tr>
           `).join('')}
