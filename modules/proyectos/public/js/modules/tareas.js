@@ -106,6 +106,20 @@ function tareasPagina(dir) {
   cargarTareas();
 }
 
+function tareasLimpiarFiltros() {
+  document.getElementById('filtro-proyecto').value = '';
+  document.getElementById('filtro-estado').value = '';
+  document.getElementById('filtro-prioridad').value = '';
+  document.getElementById('filtro-busqueda').value = '';
+  const asignado = document.getElementById('filtro-asignado');
+  const display = document.getElementById('filtro-asignado-display');
+  if (asignado) asignado.value = '';
+  if (display) display.value = '';
+  localStorage.removeItem('sy_tareas_proyecto');
+  _tareasPage = 1;
+  cargarTareas();
+}
+
 async function cargarMiembrosProyecto(proyectoId) {
   if (!proyectoId) return _todosUsuarios;
   if (_miembrosProyectoCache[proyectoId]) return _miembrosProyectoCache[proyectoId];

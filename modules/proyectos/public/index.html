@@ -106,6 +106,7 @@
             <select id="dash-filtro-estado" onchange="dashAplicarFiltros()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="en_progreso">En Progreso</option><option value="revision">Revision</option><option value="completada">Completada</option></select>
             <select id="dash-filtro-prioridad" onchange="dashAplicarFiltros()"><option value="">Todas las prioridades</option><option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option><option value="critica">Critica</option></select>
             <input id="dash-filtro-busqueda" type="text" placeholder="Buscar tarea..." oninput="dashAplicarFiltros()">
+            <button class="btn btn-xs btn-secondary" onclick="dashLimpiarFiltros()" title="Limpiar filtros">&#10005; Limpiar</button>
           </div>
           <div class="tbl-wrap"><table class="tbl"><thead><tr>
             <th class="sortable" data-sort="titulo" onclick="dashSort('titulo')">Titulo<span class="sort-indicator"></span></th>
@@ -127,6 +128,7 @@
           <div id="filtro-proy-asignado-wrap" style="min-width:180px"></div>
           <select id="filtro-proy-orden" onchange="cargarProyectos()"><option value="recientes">Más recientes</option><option value="nombre">Nombre A-Z</option><option value="fecha">Fecha límite</option><option value="progreso">Mayor progreso</option></select>
           <input id="filtro-proy-busqueda" type="text" placeholder="Buscar proyecto..." oninput="cargarProyectos()">
+          <button class="btn btn-xs btn-secondary" onclick="proyectosLimpiarFiltros()" title="Limpiar filtros">&#10005; Limpiar</button>
           <div class="spacer"></div>
           <span class="text-muted" id="proyectos-count" style="font-size:12px">0 proyectos</span>
           <button class="btn btn-primary btn-sm" onclick="abrirModalProyecto()">+ Nuevo Proyecto</button>
@@ -142,6 +144,7 @@
           <select id="filtro-prioridad" onchange="cargarTareas()"><option value="">Todas las prioridades</option><option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option><option value="critica">Critica</option></select>
           <div id="filtro-asignado-wrap" style="min-width:180px"></div>
           <input id="filtro-busqueda" type="text" placeholder="Buscar tarea..." oninput="cargarTareas()">
+          <button class="btn btn-xs btn-secondary" onclick="tareasLimpiarFiltros()" title="Limpiar filtros">&#10005; Limpiar</button>
           <div class="spacer"></div>
           <button class="btn btn-primary btn-sm" onclick="abrirModalTarea()">+ Nueva Tarea</button>
         </div>

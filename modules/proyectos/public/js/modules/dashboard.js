@@ -148,6 +148,14 @@ function dashAplicarFiltros() {
   renderDashRecientes();
 }
 
+function dashLimpiarFiltros() {
+  document.getElementById('dash-filtro-proyecto').value = '';
+  document.getElementById('dash-filtro-estado').value = '';
+  document.getElementById('dash-filtro-prioridad').value = '';
+  document.getElementById('dash-filtro-busqueda').value = '';
+  dashAplicarFiltros();
+}
+
 function dashSort(col) {
   if (_dashSortCol === col) {
     _dashSortDir = _dashSortDir === 'asc' ? 'desc' : 'asc';

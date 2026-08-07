@@ -128,6 +128,19 @@ async function cargarProyectos() {
   }
 }
 
+function proyectosLimpiarFiltros() {
+  document.getElementById('filtro-proy-estado').value = '';
+  document.getElementById('filtro-proy-aprobacion').value = '';
+  document.getElementById('filtro-proy-centro').value = '';
+  document.getElementById('filtro-proy-orden').value = 'recientes';
+  document.getElementById('filtro-proy-busqueda').value = '';
+  const asignado = document.getElementById('filtro-proy-asignado');
+  const display = document.getElementById('filtro-proy-asignado-display');
+  if (asignado) asignado.value = '';
+  if (display) display.value = '';
+  cargarProyectos();
+}
+
 function verTareasProyecto(proyectoId) {
   _proyectoFiltroActual = proyectoId;
   localStorage.setItem('sy_tareas_proyecto', proyectoId);
