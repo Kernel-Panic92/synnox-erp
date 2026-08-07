@@ -189,6 +189,20 @@
 - **Frontend**: Select en modal crear/editar
 - **Filtro**: Select de prioridad en barra de filtros de proyectos
 - **Cards**: Badge de prioridad con colores (critica=danger, alta=warning, media=info, baja=muted)
+- **Ordenar**: Opción "Mayor prioridad" en select de orden
+
+#### Mejoras en vista de Tareas para escalar
+- **Filtro por defecto**: "No completadas" excluye tareas completadas automáticamente
+- **Recordar filtros**: Guarda estado, prioridad, proyecto, asignado en localStorage (`sy_tareas_filtros`)
+- **Vista agrupada por proyecto**: Botón toggle "📁 Vista agrupada" que muestra tareas agrupadas
+- **Colapsar/expandir**: Click en header del proyecto alterna visibilidad de la tabla
+- **Colores fijos**: Tareas=`#00A86B` (verde), Proyectos=`#f7944f` (naranja) - no dependen del tema
+- **Badges legibles**: Colores más oscuros en tema claro para better contrast
+
+#### Unificación de localStorage
+- Eliminada clave `sy_tareas_proyecto` (redundante)
+- Todo usa `sy_tareas_filtros` para filtros de tareas
+- `verTareasProyecto()` y `mostrarAppInterno()` guardan en `sy_tareas_filtros`
 
 ---
 
