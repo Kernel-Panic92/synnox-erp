@@ -193,6 +193,8 @@ async function ejecutarSolicitarRevision(tareaId) {
 }
 
 async function completarTareaRapida(id) {
+  const ok = await confirmarModal('Completar Tarea', '¿Marcar esta tarea como completada?');
+  if (!ok) return;
   try {
     await api('/tareas/' + id, { method: 'PUT', body: JSON.stringify({ estado: 'completada', columna: 'completada' }) });
     toast('Tarea completada', 'success');
@@ -202,6 +204,8 @@ async function completarTareaRapida(id) {
 }
 
 async function aprobarTarea(id) {
+  const ok = await confirmarModal('Aprobar Tarea', '¿Aprobar esta tarea?');
+  if (!ok) return;
   try {
     await api('/tareas/' + id + '/aprobar', { method: 'PUT' });
     toast('Tarea aprobada', 'success');

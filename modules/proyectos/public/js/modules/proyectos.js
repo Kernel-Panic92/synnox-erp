@@ -247,6 +247,8 @@ async function eliminarProyecto(id) {
 }
 
 async function aprobarProyecto(id) {
+  const ok = await confirmarModal('Aprobar Proyecto', '¿Aprobar este proyecto?');
+  if (!ok) return;
   try {
     await api('/proyectos/' + id + '/aprobar', { method: 'PUT' });
     toast('Proyecto aprobado', 'success');
@@ -255,6 +257,8 @@ async function aprobarProyecto(id) {
 }
 
 async function rechazarProyecto(id) {
+  const ok = await confirmarModal('Desaprobar Proyecto', '¿Desaprobar este proyecto? Se perderá la aprobación actual.');
+  if (!ok) return;
   try {
     await api('/proyectos/' + id + '/rechazar', { method: 'PUT' });
     toast('Proyecto desaprobado', 'warning');
