@@ -148,7 +148,7 @@
         <div class="tbl-wrap">
           <table class="tbl"><thead><tr><th>Titulo</th><th>Proyecto</th><th>Estado</th><th>Prioridad</th><th>Asignado</th><th>Asignado por</th><th>Fecha Limite</th><th></th></tr></thead><tbody id="tareas-tbody"></tbody></table>
         </div>
-        <div class="flex mt-12" style="justify-content:space-between"><span class="text-muted" id="tareas-info" style="font-size:12px"></span><div class="flex gap-sm"><button class="btn btn-secondary btn-sm" onclick="tareasPagina(-1)">Anterior</button><button class="btn btn-secondary btn-sm" onclick="tareasPagina(1)">Siguiente</button></div></div>
+        <div class="flex mt-12" style="justify-content:space-between;align-items:center"><span class="text-muted" id="tareas-info" style="font-size:12px"></span><div class="flex gap-sm" style="align-items:center"><select id="tareas-limit" onchange="cargarTareas()" style="padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option></select><button class="btn btn-secondary btn-sm" id="tareas-btn-prev" onclick="tareasPagina(-1)">Anterior</button><button class="btn btn-secondary btn-sm" id="tareas-btn-next" onclick="tareasPagina(1)">Siguiente</button></div></div>
       </div>
 
       <!-- Tablero Kanban -->

@@ -1,4 +1,6 @@
 let _tareasPage = 1;
+let _tareasLimit = 20;
+let _tareasTotal = 0;
 let _tareasProyectos = [];
 let _proyectoFiltroActual = null;
 let _miembrosProyectoCache = {};
@@ -36,6 +38,8 @@ async function cargarFiltroAsignado() {
 
 async function cargarTareas() {
   await Promise.all([cargarProyectosSelect(), cargarFiltroAsignado()]);
+  const newLimit = parseInt(document.getElementById('tareas-limit')?.value) || 20;
+  if (newLimit !== _tareasLimit) { _tareasLimit = newLimit; _tareasPage = 1; }
   const params = new URLSearchParams();
   const proyecto = document.getElementById('filtro-proyecto')?.value;
   const estado = document.getElementById('filtro-estado')?.value;
@@ -52,11 +56,12 @@ async function cargarTareas() {
   if (asignado) params.set('asignado_a', asignado);
   if (q) params.set('q', q);
   params.set('page', _tareasPage);
-  params.set('limit', '20');
+  params.set('limit', _tareasLimit);
 
   try {
     const data = await api('/tareas?' + params.toString());
     const tareas = data.tareas || [];
+    _tareasTotal = data.total || 0;
     const ids = tareas.map(t => t.asignado_a).filter(Boolean);
     const reporteroIds = tareas.map(t => t.reportero).filter(Boolean);
     await cargarNombresUsuarios([...new Set([...ids, ...reporteroIds])]);
@@ -82,17 +87,22 @@ async function cargarTareas() {
       </tr>
     `).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">No se encontraron tareas</td></tr>';
 
-    const total = data.total || 0;
-    const desde = total === 0 ? 0 : (_tareasPage - 1) * 20 + 1;
-    const hasta = Math.min(_tareasPage * 20, total);
-    document.getElementById('tareas-info').textContent = `Mostrando ${desde}-${hasta} de ${total} tareas`;
+    const desde = _tareasTotal === 0 ? 0 : (_tareasPage - 1) * _tareasLimit + 1;
+    const hasta = Math.min(_tareasPage * _tareasLimit, _tareasTotal);
+    document.getElementById('tareas-info').textContent = `Mostrando ${desde}-${hasta} de ${_tareasTotal} tareas`;
+
+    const btnPrev = document.getElementById('tareas-btn-prev');
+    const btnNext = document.getElementById('tareas-btn-next');
+    if (btnPrev) btnPrev.disabled = _tareasPage <= 1;
+    if (btnNext) btnNext.disabled = hasta >= _tareasTotal;
   } catch (err) {
     document.getElementById('tareas-tbody').innerHTML = '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">Error al cargar tareas</td></tr>';
   }
 }
 
 function tareasPagina(dir) {
-  _tareasPage = Math.max(1, _tareasPage + dir);
+  const maxPage = Math.max(1, Math.ceil(_tareasTotal / _tareasLimit));
+  _tareasPage = Math.max(1, Math.min(maxPage, _tareasPage + dir));
   cargarTareas();
 }
 
