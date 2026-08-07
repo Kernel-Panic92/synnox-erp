@@ -138,14 +138,12 @@ function proyectosLimpiarFiltros() {
   cargarProyectos();
 }
 
-function verTareasProyecto(proyectoId) {
-  _proyectoFiltroActual = proyectoId;
+async function verTareasProyecto(proyectoId) {
   localStorage.setItem('sy_tareas_proyecto', proyectoId);
   navigate('tareas');
-  setTimeout(() => {
-    const sel = document.getElementById('filtro-proyecto');
-    if (sel) { sel.value = proyectoId; cargarTareas(); }
-  }, 100);
+  await cargarProyectosSelect();
+  const sel = document.getElementById('filtro-proyecto');
+  if (sel) { sel.value = proyectoId; cargarTareas(); }
 }
 
 async function cargarCentrosProyectos() {
