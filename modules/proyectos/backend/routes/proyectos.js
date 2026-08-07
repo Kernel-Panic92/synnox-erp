@@ -176,12 +176,12 @@ router.get('/:id', requirePermiso('ver', 'proyectos'), async (req, res) => {
 
 router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
   try {
-    const { nombre, descripcion, fecha_limite, centro_id, asignado_a } = req.body;
+    const { nombre, descripcion, fecha_limite, centro_id, asignado_a, prioridad } = req.body;
     if (!nombre) return res.status(400).json({ error: 'El nombre es requerido' });
     const result = await pool.query(
-      `INSERT INTO projects.proyectos (nombre, descripcion, fecha_limite, centro_id, asignado_a)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [nombre, descripcion || '', fecha_limite || null, centro_id || null, asignado_a || null]
+      `INSERT INTO projects.proyectos (nombre, descripcion, fecha_limite, centro_id, asignado_a, prioridad)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [nombre, descripcion || '', fecha_limite || null, centro_id || null, asignado_a || null, prioridad || 'media']
     );
 
     // Crear al asignado como lider del proyecto
@@ -223,7 +223,7 @@ router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
 
 router.put('/:id', requirePermiso('editar', 'proyectos'), async (req, res) => {
   try {
-    const { nombre, descripcion, estado, fecha_limite, centro_id, asignado_a } = req.body;
+    const { nombre, descripcion, estado, fecha_limite, centro_id, asignado_a, prioridad } = req.body;
 
     // Obtener proyecto antes del update para detectar cambios
     const proyectoAntes = await pool.query('SELECT estado, asignado_a, nombre FROM projects.proyectos WHERE id = $1', [req.params.id]);
@@ -240,9 +240,10 @@ router.put('/:id', requirePermiso('editar', 'proyectos'), async (req, res) => {
            fecha_limite = COALESCE($4, fecha_limite),
            centro_id = $5,
            asignado_a = $6,
+           prioridad = COALESCE($7, prioridad),
            updated_at = NOW()
-       WHERE id = $7 RETURNING *`,
-      [nombre || null, descripcion || null, estado || null, fecha_limite || null, centro_id !== undefined ? centro_id : null, asignado_a !== undefined ? asignado_a : null, req.params.id]
+       WHERE id = $8 RETURNING *`,
+      [nombre || null, descripcion || null, estado || null, fecha_limite || null, centro_id !== undefined ? centro_id : null, asignado_a !== undefined ? asignado_a : null, prioridad || null, req.params.id]
     );
 
     // Notificar re-asignación

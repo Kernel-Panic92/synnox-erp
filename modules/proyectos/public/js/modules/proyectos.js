@@ -37,6 +37,7 @@ async function cargarProyectos() {
 
     const q = (document.getElementById('filtro-proy-busqueda')?.value || '').toLowerCase();
     const filtroEstado = document.getElementById('filtro-proy-estado')?.value || '';
+    const filtroPrioridad = document.getElementById('filtro-proy-prioridad')?.value || '';
     const filtroAprob = document.getElementById('filtro-proy-aprobacion')?.value || '';
     const filtroCentro = document.getElementById('filtro-proy-centro')?.value || '';
     const filtroAsignado = document.getElementById('filtro-proy-asignado')?.value || '';
@@ -44,6 +45,7 @@ async function cargarProyectos() {
 
     let filtrados = _proyectos.filter(p => {
       if (filtroEstado && p.estado !== filtroEstado) return false;
+      if (filtroPrioridad && (p.prioridad || 'media') !== filtroPrioridad) return false;
       if (filtroAprob && (p.estado_aprobacion || 'pendiente') !== filtroAprob) return false;
       if (filtroCentro && String(p.centro_id || '') !== filtroCentro) return false;
       if (filtroAsignado && String(p.asignado_a || '') !== filtroAsignado) return false;
@@ -86,12 +88,14 @@ async function cargarProyectos() {
       const pct = total > 0 ? Math.round((completadas / total) * 100) : 0;
       const estadoCls = p.estado === 'completado' ? 'badge-success' : p.estado === 'archivado' ? 'badge-muted' : 'badge-info';
       const aprobCls = p.estado_aprobacion === 'aprobada' ? 'badge-success' : p.estado_aprobacion === 'rechazada' ? 'badge-danger' : 'badge-muted';
+      const prioCls = p.prioridad === 'critica' ? 'badge-danger' : p.prioridad === 'alta' ? 'badge-warning' : p.prioridad === 'media' ? 'badge-info' : 'badge-muted';
       const centro = _centrosCache?.find(c => c.id === p.centro_id);
       return `
         <div class="card" style="cursor:pointer" onclick="verTareasProyecto(${p.id})">
           <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
             <strong style="font-size:15px">${esc(p.nombre)}</strong>
             <span style="display:flex;gap:6px">
+              <span class="badge ${prioCls}">${p.prioridad || 'media'}</span>
               <span class="badge ${aprobCls}">${p.estado_aprobacion || 'pendiente'}</span>
               <span class="badge ${estadoCls}">${p.estado || 'activo'}</span>
             </span>
@@ -127,6 +131,7 @@ async function cargarProyectos() {
 
 function proyectosLimpiarFiltros() {
   document.getElementById('filtro-proy-estado').value = '';
+  document.getElementById('filtro-proy-prioridad').value = '';
   document.getElementById('filtro-proy-aprobacion').value = '';
   document.getElementById('filtro-proy-centro').value = '';
   document.getElementById('filtro-proy-orden').value = 'recientes';
@@ -199,9 +204,15 @@ async function abrirModalProyecto(id) {
       </select></div>
     </div>
     <div class="form-row">
+      <div class="form-group"><label>Prioridad</label><select id="proy-prioridad">
+        <option value="baja" ${p?.prioridad === 'baja' ? 'selected' : ''}>Baja</option>
+        <option value="media" ${(!p?.prioridad || p?.prioridad === 'media') ? 'selected' : ''}>Media</option>
+        <option value="alta" ${p?.prioridad === 'alta' ? 'selected' : ''}>Alta</option>
+        <option value="critica" ${p?.prioridad === 'critica' ? 'selected' : ''}>Crítica</option>
+      </select></div>
       <div class="form-group"><label>Fecha Limite</label><input type="date" id="proy-fecha" value="${p?.fecha_limite ? p.fecha_limite.split('T')[0] : ''}"></div>
-      <div class="form-group"><label>Responsable del proyecto</label>${selectBuscador('proy-asignado', _todosUsuarios, p?.asignado_a, 'Buscar usuario...')}</div>
     </div>
+    <div class="form-group"><label>Responsable del proyecto</label>${selectBuscador('proy-asignado', _todosUsuarios, p?.asignado_a, 'Buscar usuario...')}</div>
     ${miembrosHtml}
   `;
   const actions = `<button class="btn btn-sm btn-secondary" onclick="cerrarModal()">Cancelar</button>
@@ -216,6 +227,7 @@ async function guardarProyecto(id) {
     nombre: document.getElementById('proy-nombre').value.trim(),
     descripcion: document.getElementById('proy-desc').value.trim(),
     estado: document.getElementById('proy-estado').value,
+    prioridad: document.getElementById('proy-prioridad').value,
     fecha_limite: document.getElementById('proy-fecha').value || null,
     centro_id: centroEl?.value ? Number(centroEl.value) : null,
     asignado_a: parseInt(document.getElementById('proy-asignado').value) || null
