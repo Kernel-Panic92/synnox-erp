@@ -78,8 +78,8 @@ button, .btn {
 .badge-danger { background: rgba(247,97,79,.15); color: var(--danger); }
 body.light .badge-muted { color: #7c3aed; }
 body.light .badge-success { color: #059669; }
-body.light .badge-info { color: #d97706; }
-body.light .badge-warning { color: #ea580c; }
+body.light .badge-info { color: #0284c7; }
+body.light .badge-warning { color: #c2410c; }
 body.light .badge-danger { color: #dc2626; }
 
 /* ── Role Badges (sidebar) ── */
