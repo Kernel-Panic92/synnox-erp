@@ -2,8 +2,10 @@ let _tareasPage = 1;
 let _tareasProyectos = [];
 let _proyectoFiltroActual = null;
 let _miembrosProyectoCache = {};
+let _filtroProyectoInit = false;
 
 async function cargarProyectosSelect() {
+  if (_filtroProyectoInit) return;
   try {
     const sel = document.getElementById('filtro-proyecto');
     const savedVal = localStorage.getItem('sy_tareas_proyecto') || '';
@@ -13,6 +15,7 @@ async function cargarProyectosSelect() {
       sel.innerHTML = '<option value="">Todos los proyectos</option>' + _tareasProyectos.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
       if (savedVal) sel.value = savedVal;
     }
+    _filtroProyectoInit = true;
   } catch {}
 }
 
