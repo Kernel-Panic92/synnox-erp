@@ -92,13 +92,11 @@ async function cargarProyectos() {
       const centro = _centrosCache?.find(c => c.id === p.centro_id);
       return `
         <div class="card" style="cursor:pointer" onclick="verTareasProyecto(${p.id})">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;gap:8px">
-            <strong style="font-size:15px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(p.nombre)}</strong>
-            <span style="display:flex;gap:4px;flex-wrap:wrap;flex-shrink:0;justify-content:flex-end">
-              <span class="badge ${prioCls}" style="font-size:10px">${p.prioridad || 'media'}</span>
-              <span class="badge ${aprobCls}" style="font-size:10px">${p.estado_aprobacion || 'pendiente'}</span>
-              <span class="badge ${estadoCls}" style="font-size:10px">${p.estado || 'activo'}</span>
-            </span>
+          <strong style="font-size:15px;display:block;margin-bottom:6px">${esc(p.nombre)}</strong>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
+            <span class="badge ${prioCls}" style="font-size:10px">${p.prioridad || 'media'}</span>
+            <span class="badge ${aprobCls}" style="font-size:10px">${p.estado_aprobacion || 'pendiente'}</span>
+            <span class="badge ${estadoCls}" style="font-size:10px">${p.estado || 'activo'}</span>
           </div>
           ${p.descripcion ? `<p style="font-size:12px;color:var(--muted);margin-bottom:10px">${esc(p.descripcion)}</p>` : ''}
           ${centro ? `<div style="font-size:11px;color:var(--muted);margin-bottom:4px">&#x1F3E2; ${esc(centro.nombre)}</div>` : ''}
