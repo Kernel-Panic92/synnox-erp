@@ -46,7 +46,11 @@ router.get('/', requirePermiso('ver', 'proyectos'), async (req, res) => {
     }
 
     if (proyecto_id) { params.push(proyecto_id); conditions.push(`t.proyecto_id = $${idx++}`); }
-    if (estado) { params.push(estado); conditions.push(`t.estado = $${idx++}`); }
+    if (estado === 'no-completadas') {
+      conditions.push(`t.estado != 'completada'`);
+    } else if (estado) {
+      params.push(estado); conditions.push(`t.estado = $${idx++}`);
+    }
     if (asignado_a) { params.push(asignado_a); conditions.push(`t.asignado_a = $${idx++}`); }
     if (prioridad) { params.push(prioridad); conditions.push(`t.prioridad = $${idx++}`); }
     if (columna) { params.push(columna); conditions.push(`t.columna = $${idx++}`); }

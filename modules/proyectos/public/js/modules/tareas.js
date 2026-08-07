@@ -3,6 +3,8 @@ let _tareasLimit = 20;
 let _tareasTotal = 0;
 let _tareasProyectos = [];
 let _proyectoFiltroActual = null;
+let _vistaAgrupada = false;
+let _tareasDataCache = [];
 let _miembrosProyectoCache = {};
 let _filtroProyectoInit = false;
 let _filtroAsignadoInit = false;
@@ -12,7 +14,8 @@ async function cargarProyectosSelect(forceReload = false) {
   const needsReload = forceReload || !sel || sel.options.length <= 1;
   if (_filtroProyectoInit && !needsReload) return;
   try {
-    const savedVal = localStorage.getItem('sy_tareas_proyecto') || '';
+    const saved = JSON.parse(localStorage.getItem('sy_tareas_filtros') || '{}');
+    const savedVal = saved.proyecto || localStorage.getItem('sy_tareas_proyecto') || '';
     const data = await api('/proyectos');
     _tareasProyectos = data.proyectos || [];
     if (sel) {
@@ -28,7 +31,10 @@ async function cargarFiltroAsignado() {
   await cargarTodosLosUsuarios();
   const wrap = document.getElementById('filtro-asignado-wrap');
   if (!wrap) return;
-  wrap.innerHTML = selectBuscador('filtro-asignado', _todosUsuarios, '', 'Todos los usuarios');
+
+  // Restaurar filtros guardados
+  const saved = JSON.parse(localStorage.getItem('sy_tareas_filtros') || '{}');
+  wrap.innerHTML = selectBuscador('filtro-asignado', _todosUsuarios, saved.asignado || '', 'Todos los usuarios');
   initSelectBuscador('filtro-asignado');
   document.getElementById('filtro-asignado')?.addEventListener('change', () => { _tareasPage = 1; cargarTareas(); });
   _filtroAsignadoInit = true;
@@ -36,6 +42,15 @@ async function cargarFiltroAsignado() {
 
 async function cargarTareas() {
   await Promise.all([cargarProyectosSelect(), cargarFiltroAsignado()]);
+
+  // Restaurar filtros guardados en selects (solo la primera vez)
+  if (!window._tareasFiltrosRestored) {
+    const saved = JSON.parse(localStorage.getItem('sy_tareas_filtros') || '{}');
+    if (saved.estado) document.getElementById('filtro-estado').value = saved.estado;
+    if (saved.prioridad) document.getElementById('filtro-prioridad').value = saved.prioridad;
+    window._tareasFiltrosRestored = true;
+  }
+
   const newLimit = parseInt(document.getElementById('tareas-limit')?.value) || 20;
   if (newLimit !== _tareasLimit) { _tareasLimit = newLimit; _tareasPage = 1; }
   const params = new URLSearchParams();
@@ -45,8 +60,9 @@ async function cargarTareas() {
   const asignado = document.getElementById('filtro-asignado')?.value;
   const q = document.getElementById('filtro-busqueda')?.value;
 
-  if (proyecto) localStorage.setItem('sy_tareas_proyecto', proyecto);
-  else localStorage.removeItem('sy_tareas_proyecto');
+  // Guardar filtros en localStorage
+  const filtros = { proyecto, estado, prioridad, asignado, q };
+  localStorage.setItem('sy_tareas_filtros', JSON.stringify(filtros));
 
   if (proyecto) params.set('proyecto_id', proyecto);
   if (estado) params.set('estado', estado);
@@ -60,30 +76,12 @@ async function cargarTareas() {
     const data = await api('/tareas?' + params.toString());
     const tareas = data.tareas || [];
     _tareasTotal = data.total || 0;
+    _tareasDataCache = tareas;
     const ids = tareas.map(t => t.asignado_a).filter(Boolean);
     const reporteroIds = tareas.map(t => t.reportero).filter(Boolean);
     await cargarNombresUsuarios([...new Set([...ids, ...reporteroIds])]);
 
-    document.getElementById('tareas-tbody').innerHTML = tareas.map(t => `
-      <tr>
-        <td><a href="#" onclick="event.preventDefault();abrirModalDetalleTarea(${t.id})" style="font-weight:600">${esc(t.titulo)}</a></td>
-        <td style="font-size:12px;color:var(--muted)">${esc(t.proyecto_nombre || '—')}</td>
-        <td>${badgeEstado(t.estado)} ${t.estado === 'revision' ? badgeAprobacion(t.estado_aprobacion) : ''}</td>
-        <td>${badgePrioridad(t.prioridad)}</td>
-        <td class="nombre-asignado">${t.asignado_a ? esc(nombreUsuario(t.asignado_a)) : '<span style="color:var(--muted)">Sin asignar</span>'}</td>
-        <td style="font-size:12px;color:var(--muted)">${t.reportero ? esc(nombreUsuario(t.reportero)) : '—'}</td>
-        <td style="font-size:12px;color:var(--muted)">${formatDate(t.fecha_limite)}</td>
-    <td>
-      ${t.estado === 'en_progreso' ? `<button class="btn btn-xs btn-info" onclick="abrirModalSolicitarRevision(${t.id})" title="Solicitar revisión">&#x1F4CB;</button>` : ''}
-      ${t.estado === 'revision' && (usuario?.rol === 'admin' || usuario?.rol === 'gerente') ? `<button class="btn btn-xs btn-success" onclick="aprobarTarea(${t.id})" title="Aprobar">&#10003;</button>` : ''}
-      ${t.estado === 'revision' && (usuario?.rol === 'admin' || usuario?.rol === 'gerente') ? `<button class="btn btn-xs btn-danger" onclick="rechazarTarea(${t.id})" title="Rechazar">&#10007;</button>` : ''}
-      ${t.estado === 'revision' && usuario?.rol !== 'admin' && usuario?.rol !== 'gerente' ? `<span class="badge badge-warning">Pend. aprobación</span>` : ''}
-      ${t.estado !== 'completada' && t.estado !== 'revision' && (usuario?.rol === 'admin' || usuario?.rol === 'gerente') ? `<button class="btn btn-xs btn-success" onclick="completarTareaRapida(${t.id})" title="Marcar completada">&#10003;</button>` : ''}
-      ${tienePermiso('editar_tarea') && (t.estado !== 'revision' || (usuario?.rol === 'admin' || usuario?.rol === 'gerente')) ? `<button class="btn btn-xs btn-secondary" onclick="abrirModalTarea(${t.id})" title="Editar">&#9998;</button>` : ''}
-      ${tienePermiso('eliminar_tarea') && (t.estado !== 'revision' || (usuario?.rol === 'admin' || usuario?.rol === 'gerente')) ? `<button class="btn btn-xs btn-danger" onclick="eliminarTarea(${t.id})" title="Eliminar">&#10005;</button>` : ''}
-    </td>
-      </tr>
-    `).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">No se encontraron tareas</td></tr>';
+    renderTareasFromCache();
 
     const desde = _tareasTotal === 0 ? 0 : (_tareasPage - 1) * _tareasLimit + 1;
     const hasta = Math.min(_tareasPage * _tareasLimit, _tareasTotal);
@@ -104,6 +102,86 @@ function tareasPagina(dir) {
   cargarTareas();
 }
 
+function toggleVistaAgrupada() {
+  _vistaAgrupada = !_vistaAgrupada;
+  const btn = document.getElementById('btn-vista-agrupada');
+  if (btn) btn.textContent = _vistaAgrupada ? '📋 Vista tabla' : '📁 Vista agrupada';
+  renderTareasFromCache();
+}
+
+function renderTareasFromCache() {
+  if (_vistaAgrupada) {
+    renderTareasAgrupadas();
+  } else {
+    renderTareasTabla();
+  }
+}
+
+function renderTareasTabla() {
+  document.getElementById('tareas-wrap').style.display = 'block';
+  document.getElementById('tareas-agrupadas').style.display = 'none';
+  const tbody = document.getElementById('tareas-tbody');
+  if (!tbody) return;
+
+  tbody.innerHTML = _tareasDataCache.map(t => `
+    <tr>
+      <td><a href="#" onclick="event.preventDefault();abrirModalDetalleTarea(${t.id})" style="font-weight:600">${esc(t.titulo)}</a></td>
+      <td style="font-size:12px;color:var(--muted)">${esc(t.proyecto_nombre || '—')}</td>
+      <td>${badgeEstado(t.estado)} ${t.estado === 'revision' ? badgeAprobacion(t.estado_aprobacion) : ''}</td>
+      <td>${badgePrioridad(t.prioridad)}</td>
+      <td class="nombre-asignado">${t.asignado_a ? esc(nombreUsuario(t.asignado_a)) : '<span style="color:var(--muted)">Sin asignar</span>'}</td>
+      <td style="font-size:12px;color:var(--muted)">${t.reportero ? esc(nombreUsuario(t.reportero)) : '—'}</td>
+      <td style="font-size:12px;color:var(--muted)">${formatDate(t.fecha_limite)}</td>
+      <td>
+        ${t.estado === 'en_progreso' ? `<button class="btn btn-xs btn-info" onclick="abrirModalSolicitarRevision(${t.id})" title="Solicitar revisión">&#x1F4CB;</button>` : ''}
+        ${t.estado === 'revision' && (usuario?.rol === 'admin' || usuario?.rol === 'gerente') ? `<button class="btn btn-xs btn-success" onclick="aprobarTarea(${t.id})" title="Aprobar">&#10003;</button>` : ''}
+        ${t.estado === 'revision' && (usuario?.rol === 'admin' || usuario?.rol === 'gerente') ? `<button class="btn btn-xs btn-danger" onclick="rechazarTarea(${t.id})" title="Rechazar">&#10007;</button>` : ''}
+        ${t.estado === 'revision' && usuario?.rol !== 'admin' && usuario?.rol !== 'gerente' ? `<span class="badge badge-warning">Pend. aprobación</span>` : ''}
+        ${t.estado !== 'completada' && t.estado !== 'revision' && (usuario?.rol === 'admin' || usuario?.rol === 'gerente') ? `<button class="btn btn-xs btn-success" onclick="completarTareaRapida(${t.id})" title="Marcar completada">&#10003;</button>` : ''}
+        ${tienePermiso('editar_tarea') && (t.estado !== 'revision' || (usuario?.rol === 'admin' || usuario?.rol === 'gerente')) ? `<button class="btn btn-xs btn-secondary" onclick="abrirModalTarea(${t.id})" title="Editar">&#9998;</button>` : ''}
+        ${tienePermiso('eliminar_tarea') && (t.estado !== 'revision' || (usuario?.rol === 'admin' || usuario?.rol === 'gerente')) ? `<button class="btn btn-xs btn-danger" onclick="eliminarTarea(${t.id})" title="Eliminar">&#10005;</button>` : ''}
+      </td>
+    </tr>
+  `).join('') || '<tr><td colspan="8" style="text-align:center;color:var(--muted);padding:20px">No se encontraron tareas</td></tr>';
+}
+
+function renderTareasTabla() {
+  document.getElementById('tareas-wrap').style.display = 'block';
+  document.getElementById('tareas-agrupadas').style.display = 'none';
+}
+
+function renderTareasAgrupadas() {
+  document.getElementById('tareas-wrap').style.display = 'none';
+  const container = document.getElementById('tareas-agrupadas');
+  container.style.display = 'block';
+
+  const porProyecto = {};
+  _tareasDataCache.forEach(t => {
+    const key = t.proyecto_nombre || 'Sin proyecto';
+    if (!porProyecto[key]) porProyecto[key] = [];
+    porProyecto[key].push(t);
+  });
+
+  container.innerHTML = Object.entries(porProyecto).map(([proyecto, tareas]) => `
+    <div style="margin-bottom:20px">
+      <h3 style="font-size:14px;margin-bottom:8px;color:var(--accent)">${esc(proyecto)} <span style="color:var(--muted);font-weight:400">(${tareas.length})</span></h3>
+      <div class="tbl-wrap">
+        <table class="tbl"><thead><tr><th>Titulo</th><th>Estado</th><th>Prioridad</th><th>Asignado</th><th>Fecha Limite</th></tr></thead><tbody>
+          ${tareas.map(t => `
+            <tr>
+              <td><a href="#" onclick="event.preventDefault();abrirModalDetalleTarea(${t.id})" style="font-weight:600">${esc(t.titulo)}</a></td>
+              <td>${badgeEstado(t.estado)}</td>
+              <td>${badgePrioridad(t.prioridad)}</td>
+              <td>${t.asignado_a ? esc(nombreUsuario(t.asignado_a)) : '<span style="color:var(--muted)">Sin asignar</span>'}</td>
+              <td style="font-size:12px;color:var(--muted)">${formatDate(t.fecha_limite)}</td>
+            </tr>
+          `).join('')}
+        </tbody></table>
+      </div>
+    </div>
+  `).join('') || '<p style="text-align:center;color:var(--muted);padding:40px">No se encontraron tareas</p>';
+}
+
 function tareasLimpiarFiltros() {
   document.getElementById('filtro-proyecto').value = '';
   document.getElementById('filtro-estado').value = '';
@@ -113,7 +191,9 @@ function tareasLimpiarFiltros() {
   const display = document.getElementById('filtro-asignado-display');
   if (asignado) asignado.value = '';
   if (display) display.value = '';
+  localStorage.removeItem('sy_tareas_filtros');
   localStorage.removeItem('sy_tareas_proyecto');
+  window._tareasFiltrosRestored = false;
   _tareasPage = 1;
   cargarTareas();
 }
