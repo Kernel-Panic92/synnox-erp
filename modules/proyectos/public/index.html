@@ -129,7 +129,8 @@
           <select id="filtro-proy-orden" onchange="cargarProyectos()"><option value="recientes">Más recientes</option><option value="nombre">Nombre A-Z</option><option value="fecha">Fecha límite</option><option value="progreso">Mayor progreso</option></select>
           <input id="filtro-proy-busqueda" type="text" placeholder="Buscar proyecto..." oninput="cargarProyectos()">
           <button class="btn btn-xs btn-secondary" onclick="proyectosLimpiarFiltros()" title="Limpiar filtros">&#10005; Limpiar</button>
-          <div class="spacer"></div>
+        </div>
+        <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:14px">
           <span class="text-muted" id="proyectos-count" style="font-size:12px">0 proyectos</span>
           <button class="btn btn-primary btn-sm" onclick="abrirModalProyecto()">+ Nuevo Proyecto</button>
         </div>
@@ -145,13 +146,11 @@
           <div id="filtro-asignado-wrap" style="min-width:180px"></div>
           <input id="filtro-busqueda" type="text" placeholder="Buscar tarea..." oninput="cargarTareas()">
           <button class="btn btn-xs btn-secondary" onclick="tareasLimpiarFiltros()" title="Limpiar filtros">&#10005; Limpiar</button>
-          <div class="spacer"></div>
-          <button class="btn btn-primary btn-sm" onclick="abrirModalTarea()">+ Nueva Tarea</button>
         </div>
         <div class="tbl-wrap">
           <table class="tbl"><thead><tr><th>Titulo</th><th>Proyecto</th><th>Estado</th><th>Prioridad</th><th>Asignado</th><th>Asignado por</th><th>Fecha Limite</th><th></th></tr></thead><tbody id="tareas-tbody"></tbody></table>
         </div>
-        <div class="flex mt-12" style="justify-content:space-between;align-items:center"><span class="text-muted" id="tareas-info" style="font-size:12px"></span><div class="flex gap-sm" style="align-items:center"><select id="tareas-limit" onchange="cargarTareas()" style="padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option></select><button class="btn btn-secondary btn-sm" id="tareas-btn-prev" onclick="tareasPagina(-1)">Anterior</button><button class="btn btn-secondary btn-sm" id="tareas-btn-next" onclick="tareasPagina(1)">Siguiente</button></div></div>
+        <div class="flex mt-12" style="justify-content:space-between;align-items:center"><span class="text-muted" id="tareas-info" style="font-size:12px"></span><div class="flex gap-sm" style="align-items:center"><select id="tareas-limit" onchange="cargarTareas()" style="padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)"><option value="10">10</option><option value="20" selected>20</option><option value="50">50</option><option value="100">100</option></select><button class="btn btn-secondary btn-sm" id="tareas-btn-prev" onclick="tareasPagina(-1)">Anterior</button><button class="btn btn-secondary btn-sm" id="tareas-btn-next" onclick="tareasPagina(1)">Siguiente</button><button class="btn btn-primary btn-sm" onclick="abrirModalTarea()">+ Nueva Tarea</button></div></div>
       </div>
 
       <!-- Tablero Kanban -->
