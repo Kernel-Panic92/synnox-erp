@@ -209,12 +209,14 @@ function renderDashRecientes() {
     return String(va).localeCompare(String(vb)) * dir;
   });
 
-  if (!filtradas.length) {
+  const limitadas = filtradas.slice(0, 10);
+
+  if (!limitadas.length) {
     tbody.innerHTML = '<tr><td colspan="6" class="empty-state" style="padding:32px;text-align:center"><div class="icon">&#x1F4CB;</div><p>No se encontraron tareas recientes</p></td></tr>';
     return;
   }
 
-  tbody.innerHTML = filtradas.map(t => `
+  tbody.innerHTML = limitadas.map(t => `
     <tr style="cursor:pointer" onclick="abrirModalDetalleTarea(${t.id})">
       <td><a href="#" onclick="event.preventDefault();event.stopPropagation();abrirModalDetalleTarea(${t.id})" style="font-weight:600">${esc(t.titulo)}</a></td>
       <td><span style="font-size:12px;color:var(--muted)">${esc(t.proyecto_nombre || '—')}</span></td>
