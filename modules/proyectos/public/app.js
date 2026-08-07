@@ -32,7 +32,18 @@ function mostrarAppInterno() {
   document.getElementById('app-screen').style.display = 'block';
   const hash = location.hash.slice(1);
   const saved = localStorage.getItem('sy_last_page');
-  navigate(hash || saved || 'dashboard');
+
+  if (hash && hash.includes('?')) {
+    const [page, query] = hash.split('?');
+    const params = new URLSearchParams(query);
+    const proyecto = params.get('proyecto');
+    if (page === 'tareas' && proyecto) {
+      localStorage.setItem('sy_tareas_proyecto', proyecto);
+    }
+    navigate(page || saved || 'dashboard');
+  } else {
+    navigate(hash || saved || 'dashboard');
+  }
 }
 
 async function cargarTodosLosUsuarios() {

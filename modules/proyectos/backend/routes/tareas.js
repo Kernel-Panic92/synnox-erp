@@ -9,6 +9,10 @@ const { templateAsignacion, templateCambioEstado } = require('../../../../framew
 
 const router = express.Router();
 
+function tareasUrl(base, proyectoId) {
+  return proyectoId ? `${base}/#tareas?proyecto=${proyectoId}` : `${base}/#tareas`;
+}
+
 const COLUMNA_A_ESTADO = {
   pendiente: 'pendiente',
   en_progreso: 'en_progreso',
@@ -116,16 +120,17 @@ router.post('/', requirePermiso('crear_tarea', 'proyectos'), async (req, res) =>
       try {
         const tarea = await getTareaCompleta(pool, result.rows[0].id);
         if (tarea) {
+          const baseUrl = await getEmailBaseUrl();
           notificar({
             usuario_id: asignado_a,
             modulo: 'proyectos',
             tipo: 'tarea_asignada',
             titulo: 'Tarea asignada',
             mensaje: `Se te asignó la tarea "${titulo}"`,
-            url: '/proyectos/#tareas',
+            url: proyecto_id ? `/proyectos/#tareas?proyecto=${proyecto_id}` : '/proyectos/#tareas',
             email: tarea.asignado_email,
             emailAsunto: `[Proyectos] Tarea asignada: ${titulo}`,
-            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: titulo, asignador: req.user.nombre, descripcion, prioridad, fechaLimite: fecha_limite, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: titulo, asignador: req.user.nombre, descripcion, prioridad, fechaLimite: fecha_limite, url: tareasUrl(baseUrl, proyecto_id), module: 'proyectos', baseUrl }),
             enviarCorreo
           });
         }
