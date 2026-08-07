@@ -285,6 +285,9 @@ router.put('/tareas/:id/solicitar-revision', async (req, res) => {
     try {
       const users = await getLauncherUsers();
       const admins = users.filter(u => ['admin', 'gerente'].includes(u.rol));
+      const baseUrl = await getEmailBaseUrl();
+      const urlTareas = tareasUrl(baseUrl, tarea.proyecto_id);
+      const urlNotif = tarea.proyecto_id ? `/proyectos/#tareas?proyecto=${tarea.proyecto_id}` : '/proyectos/#tareas';
       for (const admin of admins) {
         if (admin.email && admin.email !== tareaFull?.asignado_email) {
           notificar({
@@ -293,10 +296,10 @@ router.put('/tareas/:id/solicitar-revision', async (req, res) => {
             tipo: 'tarea_revision',
             titulo: 'Tarea para revisar',
             mensaje: `"${tarea.titulo}" necesita revisión`,
-            url: '/proyectos/#tareas',
+            url: urlNotif,
             email: admin.email,
             emailAsunto: `📋 Tarea pendiente de revisión: ${tarea.titulo}`,
-            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tarea.titulo, descripcion: tareaFull?.descripcion, prioridad: tarea.prioridad, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tarea.titulo, descripcion: tareaFull?.descripcion, prioridad: tarea.prioridad, url: urlTareas, module: 'proyectos', baseUrl }),
             enviarCorreo
           });
         }
@@ -309,10 +312,10 @@ router.put('/tareas/:id/solicitar-revision', async (req, res) => {
           tipo: 'tarea_revision',
           titulo: 'Tarea enviada a revisión',
           mensaje: `"${tarea.titulo}" fue enviada a revisión por ${req.user.nombre}`,
-          url: '/proyectos/#tareas',
+          url: urlNotif,
           email: tareaFull.reportero_email,
           emailAsunto: `📋 Tarea enviada a revisión: ${tarea.titulo}`,
-          emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tarea.titulo, descripcion: tareaFull?.descripcion, prioridad: tarea.prioridad, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+          emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tarea.titulo, descripcion: tareaFull?.descripcion, prioridad: tarea.prioridad, url: urlTareas, module: 'proyectos', baseUrl }),
           enviarCorreo
         });
       }

@@ -13,6 +13,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const uploadDir = path.join(__dirname, '..', '..', 'uploads', 'evidencias');
 
+function tareasUrl(base, proyectoId) {
+  return proyectoId ? `${base}/#tareas?proyecto=${proyectoId}` : `${base}/#tareas`;
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     fs.mkdirSync(uploadDir, { recursive: true });
@@ -88,8 +92,11 @@ router.post('/:id/evidencias', requirePermiso('comentar', 'proyectos'), upload.s
       const tareaCompleta = await getTareaCompleta(pool, tareaId);
       if (tareaCompleta) {
         const emailBase = await getEmailBaseUrl();
-        const notifBase = { modulo: 'proyectos', tipo: 'evidencia_subida', url: '/proyectos/#tareas', enviarCorreo };
-        const emailHtml = templateGenerico({ titulo: 'Evidencia subida', mensaje: `${req.user.nombre} subió evidencia en "${tareaCompleta.titulo}"`, detallesExtra: archivoNombre ? { Archivo: archivoNombre } : null, url: `${emailBase}/#tareas`, module: 'proyectos', baseUrl: emailBase });
+        const proyectoId = tareaCompleta.proyecto_id;
+        const urlTareas = tareasUrl(emailBase, proyectoId);
+        const urlNotif = proyectoId ? `/proyectos/#tareas?proyecto=${proyectoId}` : '/proyectos/#tareas';
+        const notifBase = { modulo: 'proyectos', tipo: 'evidencia_subida', url: urlNotif, enviarCorreo };
+        const emailHtml = templateGenerico({ titulo: 'Evidencia subida', mensaje: `${req.user.nombre} subió evidencia en "${tareaCompleta.titulo}"`, detallesExtra: archivoNombre ? { Archivo: archivoNombre } : null, url: urlTareas, module: 'proyectos', baseUrl: emailBase });
         // Notificar al asignado
         if (tareaCompleta.asignado_a && tareaCompleta.asignado_a !== req.user.id) {
           notificar({
