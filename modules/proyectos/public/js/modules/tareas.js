@@ -3,6 +3,7 @@ let _tareasProyectos = [];
 let _proyectoFiltroActual = null;
 let _miembrosProyectoCache = {};
 let _filtroProyectoInit = false;
+let _filtroAsignadoInit = false;
 
 async function cargarProyectosSelect() {
   if (_filtroProyectoInit) return;
@@ -19,12 +20,27 @@ async function cargarProyectosSelect() {
   } catch {}
 }
 
+async function cargarFiltroAsignado() {
+  if (_filtroAsignadoInit) return;
+  await cargarTodosLosUsuarios();
+  const wrap = document.getElementById('filtro-asignado-wrap');
+  if (!wrap) return;
+  wrap.innerHTML = selectBuscador('filtro-asignado', _todosUsuarios, '', 'Todos los usuarios');
+  initSelectBuscador('filtro-asignado');
+  const hidden = document.getElementById('filtro-asignado');
+  if (hidden) {
+    hidden.addEventListener('change', () => { _tareasPage = 1; cargarTareas(); });
+  }
+  _filtroAsignadoInit = true;
+}
+
 async function cargarTareas() {
-  await cargarProyectosSelect();
+  await Promise.all([cargarProyectosSelect(), cargarFiltroAsignado()]);
   const params = new URLSearchParams();
   const proyecto = document.getElementById('filtro-proyecto')?.value;
   const estado = document.getElementById('filtro-estado')?.value;
   const prioridad = document.getElementById('filtro-prioridad')?.value;
+  const asignado = document.getElementById('filtro-asignado')?.value;
   const q = document.getElementById('filtro-busqueda')?.value;
 
   if (proyecto) localStorage.setItem('sy_tareas_proyecto', proyecto);
@@ -33,6 +49,7 @@ async function cargarTareas() {
   if (proyecto) params.set('proyecto_id', proyecto);
   if (estado) params.set('estado', estado);
   if (prioridad) params.set('prioridad', prioridad);
+  if (asignado) params.set('asignado_a', asignado);
   if (q) params.set('q', q);
   params.set('page', _tareasPage);
   params.set('limit', '20');

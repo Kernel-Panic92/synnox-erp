@@ -1,26 +1,81 @@
 let _proyectos = [];
 let _centrosCache = null;
 let _centrosCacheTs = 0;
-const CENTROS_CACHE_TTL = 30000; // 30 segundos
+const CENTROS_CACHE_TTL = 30000;
 let _centrosPromise = null;
 let _proyectoMiembrosActual = null;
 let _miembrosSeleccionados = new Set();
 let _miembrosRoles = {};
+let _proyFiltroAsignadoInit = false;
+
+async function cargarFiltrosProyectos() {
+  await Promise.all([cargarCentrosProyectos(), cargarTodosLosUsuarios()]);
+  const centroSel = document.getElementById('filtro-proy-centro');
+  if (centroSel && centroSel.options.length <= 1) {
+    centroSel.innerHTML = '<option value="">Todos los centros</option>' +
+      (_centrosCache || []).map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
+  }
+  if (!_proyFiltroAsignadoInit) {
+    const wrap = document.getElementById('filtro-proy-asignado-wrap');
+    if (wrap) {
+      wrap.innerHTML = selectBuscador('filtro-proy-asignado', _todosUsuarios, '', 'Todos los usuarios');
+      initSelectBuscador('filtro-proy-asignado');
+      const hidden = document.getElementById('filtro-proy-asignado');
+      if (hidden) {
+        hidden.addEventListener('change', () => cargarProyectos());
+      }
+    }
+    _proyFiltroAsignadoInit = true;
+  }
+}
 
 async function cargarProyectos() {
   try {
+    await cargarFiltrosProyectos();
     const data = await api('/proyectos');
     _proyectos = data.proyectos || [];
-    const q = (document.getElementById('filtro-proy-busqueda')?.value || '').toLowerCase();
-    const filtrados = q ? _proyectos.filter(p =>
-      p.nombre.toLowerCase().includes(q) ||
-      (p.descripcion || '').toLowerCase().includes(q) ||
-      nombreUsuario(p.asignado_a).toLowerCase().includes(q)
-    ) : _proyectos;
-    document.getElementById('proyectos-count').textContent = `${filtrados.length} proyecto(s)`;
     const ids = _proyectos.map(p => p.asignado_a).filter(Boolean);
     const memberIds = _proyectos.flatMap(p => (p.miembros || []).map(m => m.usuario_id));
     await cargarNombresUsuarios([...new Set([...ids, ...memberIds])]);
+
+    const q = (document.getElementById('filtro-proy-busqueda')?.value || '').toLowerCase();
+    const filtroEstado = document.getElementById('filtro-proy-estado')?.value || '';
+    const filtroAprob = document.getElementById('filtro-proy-aprobacion')?.value || '';
+    const filtroCentro = document.getElementById('filtro-proy-centro')?.value || '';
+    const filtroAsignado = document.getElementById('filtro-proy-asignado')?.value || '';
+    const orden = document.getElementById('filtro-proy-orden')?.value || 'recientes';
+
+    let filtrados = _proyectos.filter(p => {
+      if (filtroEstado && p.estado !== filtroEstado) return false;
+      if (filtroAprob && (p.estado_aprobacion || 'pendiente') !== filtroAprob) return false;
+      if (filtroCentro && String(p.centro_id || '') !== filtroCentro) return false;
+      if (filtroAsignado && String(p.asignado_a || '') !== filtroAsignado) return false;
+      if (q) {
+        const match = p.nombre.toLowerCase().includes(q) ||
+          (p.descripcion || '').toLowerCase().includes(q) ||
+          nombreUsuario(p.asignado_a).toLowerCase().includes(q);
+        if (!match) return false;
+      }
+      return true;
+    });
+
+    if (orden === 'nombre') {
+      filtrados.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    } else if (orden === 'fecha') {
+      filtrados.sort((a, b) => {
+        if (!a.fecha_limite) return 1;
+        if (!b.fecha_limite) return -1;
+        return new Date(a.fecha_limite) - new Date(b.fecha_limite);
+      });
+    } else if (orden === 'progreso') {
+      filtrados.sort((a, b) => {
+        const pctA = parseInt(a.total_tareas) > 0 ? Math.round((parseInt(a.tareas_completadas) / parseInt(a.total_tareas)) * 100) : 0;
+        const pctB = parseInt(b.total_tareas) > 0 ? Math.round((parseInt(b.tareas_completadas) / parseInt(b.total_tareas)) * 100) : 0;
+        return pctB - pctA;
+      });
+    }
+
+    document.getElementById('proyectos-count').textContent = `${filtrados.length} proyecto(s)`;
     const grid = document.getElementById('proyectos-grid');
 
     if (!filtrados.length) {

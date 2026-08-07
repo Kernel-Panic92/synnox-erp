@@ -94,10 +94,11 @@ function filtrarSelectUsuarios(query, selectId) {
 
 function selectBuscador(id, usuarios, selectedId, placeholder) {
   const sel = usuarios.find(u => u.id == selectedId);
-  const displayVal = sel ? `${sel.nombre} (${sel.email})` : '';
-  const optionsHtml = usuarios.map(u =>
-    `<div class="select-buscador-option${u.id == selectedId ? ' selected' : ''}" data-value="${u.id}">${esc(u.nombre)} (${esc(u.email)})</div>`
-  ).join('');
+  const displayVal = sel ? (sel.email ? `${sel.nombre} (${sel.email})` : sel.nombre) : '';
+  const optionsHtml = usuarios.map(u => {
+    const label = u.email ? `${u.nombre} (${u.email})` : u.nombre;
+    return `<div class="select-buscador-option${u.id == selectedId ? ' selected' : ''}" data-value="${u.id}">${esc(label)}</div>`;
+  }).join('');
   return `
     <div class="select-buscador" id="${id}-wrapper">
       <input type="text" class="select-buscador-input" id="${id}-display"
