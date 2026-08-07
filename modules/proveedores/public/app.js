@@ -223,11 +223,29 @@ async function eliminarArea(id){
 
 // ── Notifications ──
 let _notifPollTimer = null;
+let _notifLastCount = 0;
+
+function mostrarNotificacionBrowser(titulo, mensaje, url) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const notif = new Notification(titulo, { body: mensaje, icon: '/favicon.ico', tag: 'synnox-' + Date.now() });
+  notif.onclick = () => { window.focus(); if (url && url !== 'undefined' && url !== 'null') window.location.href = url; notif.close(); };
+  setTimeout(() => notif.close(), 8000);
+}
 
 function cargarNotificaciones() {
   return fetch('/api/notificaciones/no-leidas')
     .then(r => r.ok ? r.json() : null)
-    .then(d => { if (d) { const b = document.getElementById('notif-count'); if (b) b.textContent = d.count > 0 ? (d.count > 99 ? '99+' : d.count) : ''; } })
+    .then(d => {
+      if (!d) return;
+      const b = document.getElementById('notif-count');
+      if (b) b.textContent = d.count > 0 ? (d.count > 99 ? '99+' : d.count) : '';
+      if (d.count > _notifLastCount && _notifLastCount > 0) {
+        fetch('/api/notificaciones')
+          .then(r => r.ok ? r.json() : null)
+          .then(nd => { if (nd?.notificaciones?.length) mostrarNotificacionBrowser(nd.notificaciones[0].titulo, nd.notificaciones[0].mensaje, nd.notificaciones[0].url); });
+      }
+      _notifLastCount = d.count;
+    })
     .catch(() => {});
 }
 
