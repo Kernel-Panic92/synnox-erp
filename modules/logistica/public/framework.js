@@ -383,15 +383,6 @@ function clearTableFilters(containerId) {
 let _notifPollTimer = null;
 let _notifLastCount = 0;
 
-function solicitarPermisoNotificaciones() {
-  if (!('Notification' in window)) return;
-  if (Notification.permission === 'default') {
-    Notification.requestPermission().then(perm => {
-      if (perm === 'granted') mostrarNotificacionBrowser('Notificaciones activadas', 'Recibirás alertas de tareas y proyectos', '');
-    });
-  }
-}
-
 function mostrarNotificacionBrowser(titulo, mensaje, url) {
   if (!('Notification' in window) || Notification.permission !== 'granted') return;
   const opts = { body: mensaje, icon: '/favicon.ico', tag: 'synnox-' + Date.now(), requireInteraction: false };
@@ -433,6 +424,10 @@ async function toggleNotifDropdown() {
   const isOpen = dd.classList.contains('show');
   dd.classList.toggle('show');
   if (!isOpen) {
+    const banner = document.getElementById('notif-permission-banner');
+    if (banner) {
+      banner.style.display = ('Notification' in window && Notification.permission === 'default') ? 'block' : 'none';
+    }
     try {
       const res = await fetch(HF.API + '/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
       if (!res.ok) return;
@@ -460,12 +455,14 @@ async function toggleNotifDropdown() {
 }
 
 async function marcarNotifLeida(id, url) {
+  const dd = document.getElementById('notif-dropdown');
+  if (dd) dd.classList.remove('show');
+  if (url && url !== 'undefined' && url !== 'null') {
+    window.location.href = url;
+  }
   try {
     await fetch(HF.API + '/notificaciones/' + id + '/leer', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     cargarNotificaciones();
-    if (url) window.location.href = url;
-    const dd = document.getElementById('notif-dropdown');
-    if (dd) dd.classList.remove('show');
   } catch {}
 }
 
@@ -490,7 +487,6 @@ function timeSince(date) {
 }
 
 function initNotifications(pollMs) {
-  solicitarPermisoNotificaciones();
   cargarNotificaciones();
   if (_notifPollTimer) clearInterval(_notifPollTimer);
   _notifPollTimer = setInterval(cargarNotificaciones, pollMs || 60000);
@@ -506,6 +502,19 @@ function injectNotificationBell(headerEl) {
   const bell = document.createElement('div');
   bell.className = 'notif-bell';
   bell.onclick = toggleNotifDropdown;
-  bell.innerHTML = '🔔<span class="notif-badge" id="notif-count"></span><div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div>';
+  bell.innerHTML = '🔔<span class="notif-badge" id="notif-count"></span><div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div id="notif-permission-banner" style="display:none;padding:8px 12px;background:var(--surface2);border-radius:8px;margin-bottom:8px;font-size:12px"><p style="margin-bottom:6px">🔔 Activa las notificaciones del navegador</p><button class="btn btn-xs btn-primary" onclick="event.stopPropagation();activarNotificaciones()">Activar</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div>';
   headerEl.appendChild(bell);
+}
+
+function activarNotificaciones() {
+  if (!('Notification' in window)) return toast('Tu navegador no soporta notificaciones', 'error');
+  Notification.requestPermission().then(perm => {
+    if (perm === 'granted') {
+      toast('Notificaciones activadas', 'success');
+      document.getElementById('notif-permission-banner').style.display = 'none';
+      mostrarNotificacionBrowser('Notificaciones activadas', 'Recibirás alertas de tareas y proyectos', '');
+    } else {
+      toast('Permiso de notificaciones denegado', 'error');
+    }
+  });
 }
