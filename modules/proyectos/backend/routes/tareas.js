@@ -235,10 +235,11 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
     }
 
     // Obtener tarea antes del update para detectar cambios
-    const tareaAntes = await pool.query('SELECT estado, asignado_a, titulo FROM projects.tareas WHERE id = $1', [req.params.id]);
+    const tareaAntes = await pool.query('SELECT estado, asignado_a, titulo, proyecto_id FROM projects.tareas WHERE id = $1', [req.params.id]);
     const oldEstado = tareaAntes.rows[0]?.estado;
     const oldAsignado = tareaAntes.rows[0]?.asignado_a;
     const tareaTitulo = titulo || tareaAntes.rows[0]?.titulo;
+    const proyectoId = proyecto_id || tareaAntes.rows[0]?.proyecto_id;
 
     // El asignado no puede modificar la fecha límite
     if (fecha_limite !== undefined && !esAdminGerente && oldAsignado === req.user.id) {
@@ -302,16 +303,17 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
       try {
         const tarea = await getTareaCompleta(pool, req.params.id);
         if (tarea) {
+          const baseUrl = await getEmailBaseUrl();
           notificar({
             usuario_id: asignado_a,
             modulo: 'proyectos',
             tipo: 'tarea_asignada',
             titulo: 'Tarea re-asignada',
             mensaje: `Se te re-asignó la tarea "${tareaTitulo}"`,
-            url: '/proyectos/#tareas',
+            url: proyectoId ? `/proyectos/#tareas?proyecto=${proyectoId}` : '/proyectos/#tareas',
             email: tarea.asignado_email,
             emailAsunto: `[Proyectos] Tarea re-asignada: ${tareaTitulo}`,
-            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tareaTitulo, asignador: req.user.nombre, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tareaTitulo, asignador: req.user.nombre, url: tareasUrl(baseUrl, proyectoId), module: 'proyectos', baseUrl }),
             enviarCorreo
           });
           // Notificar al reportero
@@ -322,10 +324,10 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
               tipo: 'tarea_asignada',
               titulo: 'Tarea re-asignada',
               mensaje: `"${tareaTitulo}" fue re-asignada por ${req.user.nombre}`,
-              url: '/proyectos/#tareas',
+              url: proyectoId ? `/proyectos/#tareas?proyecto=${proyectoId}` : '/proyectos/#tareas',
               email: tarea.reportero_email,
               emailAsunto: `[Proyectos] Tarea re-asignada: ${tareaTitulo}`,
-              emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tareaTitulo, asignador: req.user.nombre, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+              emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tareaTitulo, asignador: req.user.nombre, url: tareasUrl(baseUrl, proyectoId), module: 'proyectos', baseUrl }),
               enviarCorreo
             });
           }
@@ -338,16 +340,17 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
     if (newEstado && oldEstado !== newEstado && oldAsignado) {
       try {
         const tarea = await getTareaCompleta(pool, req.params.id);
+        const baseUrl = await getEmailBaseUrl();
         notificar({
           usuario_id: oldAsignado,
           modulo: 'proyectos',
           tipo: 'cambio_estado',
           titulo: 'Estado de tarea cambiado',
           mensaje: `"${tareaTitulo}" cambió de ${oldEstado.replace('_', ' ')} a ${newEstado.replace('_', ' ')}`,
-          url: '/proyectos/#tareas',
+          url: proyectoId ? `/proyectos/#tareas?proyecto=${proyectoId}` : '/proyectos/#tareas',
           email: tarea?.asignado_email,
           emailAsunto: `[Proyectos] Estado cambiado: ${tareaTitulo}`,
-          emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: oldEstado.replace('_', ' '), estadoNuevo: newEstado.replace('_', ' '), url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+          emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: oldEstado.replace('_', ' '), estadoNuevo: newEstado.replace('_', ' '), url: tareasUrl(baseUrl, proyectoId), module: 'proyectos', baseUrl }),
           enviarCorreo
         });
         // Notificar al reportero si es diferente
@@ -358,10 +361,10 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
             tipo: 'cambio_estado',
             titulo: 'Estado de tarea cambiado',
             mensaje: `"${tareaTitulo}" cambió de ${oldEstado.replace('_', ' ')} a ${newEstado.replace('_', ' ')}`,
-            url: '/proyectos/#tareas',
+            url: proyectoId ? `/proyectos/#tareas?proyecto=${proyectoId}` : '/proyectos/#tareas',
             email: tarea.reportero_email,
             emailAsunto: `[Proyectos] Estado cambiado: ${tareaTitulo}`,
-            emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: oldEstado.replace('_', ' '), estadoNuevo: newEstado.replace('_', ' '), url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+            emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: oldEstado.replace('_', ' '), estadoNuevo: newEstado.replace('_', ' '), url: tareasUrl(baseUrl, proyectoId), module: 'proyectos', baseUrl }),
             enviarCorreo
           });
         }
@@ -375,16 +378,17 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
       try {
         const tarea = await getTareaCompleta(pool, req.params.id);
         if (tarea?.reportero && tarea.reportero !== req.user.id) {
+          const baseUrl = await getEmailBaseUrl();
           notificar({
             usuario_id: tarea.reportero,
             modulo: 'proyectos',
             tipo: 'cambio_estado',
             titulo: 'Tarea editada',
             mensaje: `"${tareaTitulo}" fue editada por ${req.user.nombre}`,
-            url: '/proyectos/#tareas',
+            url: proyectoId ? `/proyectos/#tareas?proyecto=${proyectoId}` : '/proyectos/#tareas',
             email: tarea.reportero_email,
             emailAsunto: `[Proyectos] Tarea editada: ${tareaTitulo}`,
-            emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: 'anterior', estadoNuevo: 'editada', url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+            emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: 'anterior', estadoNuevo: 'editada', url: tareasUrl(baseUrl, proyectoId), module: 'proyectos', baseUrl }),
             enviarCorreo
           });
         }

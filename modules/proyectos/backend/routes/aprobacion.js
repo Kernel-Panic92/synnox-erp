@@ -8,6 +8,10 @@ const { templateAprobacion, templateAsignacion } = require('../../../../framewor
 
 const router = express.Router();
 
+function tareasUrl(base, proyectoId) {
+  return proyectoId ? `${base}/#tareas?proyecto=${proyectoId}` : `${base}/#tareas`;
+}
+
 function canApprove(req) {
   return req.user.rol === 'admin' || req.user.rol === 'gerente';
 }
@@ -81,16 +85,17 @@ router.put('/tareas/:id/aprobar', async (req, res) => {
     // Notificar al asignado (in-app + email)
     if (tarea.asignado_a) {
       try {
+        const baseUrl = await getEmailBaseUrl();
         notificar({
           usuario_id: tarea.asignado_a,
           modulo: 'proyectos',
           tipo: 'tarea_aprobada',
           titulo: 'Tarea aprobada',
           mensaje: `Tu tarea "${tarea.titulo}" fue aprobada por ${req.user.nombre}`,
-          url: '/proyectos/#tareas',
+          url: tarea.proyecto_id ? `/proyectos/#tareas?proyecto=${tarea.proyecto_id}` : '/proyectos/#tareas',
           email: tareaFull?.asignado_email,
           emailAsunto: `✅ Tarea aprobada: ${tarea.titulo}`,
-          emailHtml: templateAprobacion({ entidad: 'tarea', nombre: tarea.titulo, accion: 'aprobada', aprobador: req.user.nombre, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+          emailHtml: templateAprobacion({ entidad: 'tarea', nombre: tarea.titulo, accion: 'aprobada', aprobador: req.user.nombre, url: tareasUrl(baseUrl, tarea.proyecto_id), module: 'proyectos', baseUrl }),
           enviarCorreo
         });
       } catch (e) { console.warn('[notify] Error:', e.message); }
@@ -128,16 +133,17 @@ router.put('/tareas/:id/rechazar', async (req, res) => {
     // Notificar al asignado (in-app + email)
     if (tarea.asignado_a) {
       try {
+        const baseUrl = await getEmailBaseUrl();
         notificar({
           usuario_id: tarea.asignado_a,
           modulo: 'proyectos',
           tipo: 'tarea_rechazada',
           titulo: 'Tarea rechazada',
           mensaje: `Tu tarea "${tarea.titulo}" fue rechazada: ${motivo}`,
-          url: '/proyectos/#tareas',
+          url: tarea.proyecto_id ? `/proyectos/#tareas?proyecto=${tarea.proyecto_id}` : '/proyectos/#tareas',
           email: tareaFull?.asignado_email,
           emailAsunto: `❌ Tarea rechazada: ${tarea.titulo}`,
-          emailHtml: templateAprobacion({ entidad: 'tarea', nombre: tarea.titulo, accion: 'rechazada', motivo, aprobador: req.user.nombre, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+          emailHtml: templateAprobacion({ entidad: 'tarea', nombre: tarea.titulo, accion: 'rechazada', motivo, aprobador: req.user.nombre, url: tareasUrl(baseUrl, tarea.proyecto_id), module: 'proyectos', baseUrl }),
           enviarCorreo
         });
       } catch (e) { console.warn('[notify] Error:', e.message); }
