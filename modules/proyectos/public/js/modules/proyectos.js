@@ -72,6 +72,9 @@ async function cargarProyectos() {
         const pctB = parseInt(b.total_tareas) > 0 ? Math.round((parseInt(b.tareas_completadas) / parseInt(b.total_tareas)) * 100) : 0;
         return pctB - pctA;
       });
+    } else if (orden === 'prioridad') {
+      const prioOrder = { critica: 4, alta: 3, media: 2, baja: 1 };
+      filtrados.sort((a, b) => (prioOrder[b.prioridad] || 2) - (prioOrder[a.prioridad] || 2));
     }
 
     document.getElementById('proyectos-count').textContent = `${filtrados.length} proyecto(s)`;
