@@ -160,7 +160,7 @@ function renderTareasAgrupadas() {
   container.innerHTML = Object.entries(porProyecto).map(([proyecto, tareas], idx) => `
     <div style="margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
       <div onclick="const tb=this.nextElementSibling;tb.style.display=tb.style.display==='none'?'block':'none';this.querySelector('.toggle-icon').textContent=tb.style.display==='none'?'▶':'▼'" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:pointer;background:var(--surface2)">
-        <h3 style="font-size:14px;margin:0;color:var(--text)">${esc(proyecto)} <span style="color:var(--muted);font-weight:400">(${tareas.length})</span></h3>
+        <h3 style="font-size:15px;margin:0;font-weight:700;color:var(--text)">${esc(proyecto)} <span style="color:var(--muted);font-weight:400;font-size:13px">(${tareas.length})</span></h3>
         <span class="toggle-icon" style="font-size:12px;color:var(--muted)">▼</span>
       </div>
       <div class="proy-tbody">
