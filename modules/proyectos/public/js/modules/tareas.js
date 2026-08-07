@@ -257,7 +257,8 @@ async function eliminarEvidencia(id) {
 
 async function abrirModalTarea(id) {
   await cargarProyectosSelect();
-  const proyectoDefault = _proyectoFiltroActual;
+  const proyectoFiltro = document.getElementById('filtro-proyecto')?.value || '';
+  const proyectoDefault = _proyectoFiltroActual || proyectoFiltro;
   _proyectoFiltroActual = null;
   let t = null;
   if (id) {
