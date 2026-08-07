@@ -128,7 +128,7 @@ function renderTareasTabla() {
 
   tbody.innerHTML = _tareasDataCache.map(t => `
     <tr>
-      <td><a href="#" onclick="event.preventDefault();abrirModalDetalleTarea(${t.id})" style="font-weight:600;color:var(--accent)">${esc(t.titulo)}</a></td>
+      <td><a href="#" onclick="event.preventDefault();abrirModalDetalleTarea(${t.id})" style="font-weight:600;color:#00A86B">${esc(t.titulo)}</a></td>
       <td style="font-size:12px;color:var(--muted)">${esc(t.proyecto_nombre || '—')}</td>
       <td>${badgeEstado(t.estado)} ${t.estado === 'revision' ? badgeAprobacion(t.estado_aprobacion) : ''}</td>
       <td>${badgePrioridad(t.prioridad)}</td>
@@ -163,7 +163,7 @@ function renderTareasAgrupadas() {
   container.innerHTML = Object.entries(porProyecto).map(([proyecto, tareas], idx) => `
     <div style="margin-bottom:16px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
       <div onclick="const tb=this.nextElementSibling;tb.style.display=tb.style.display==='none'?'block':'none';this.querySelector('.toggle-icon').textContent=tb.style.display==='none'?'▶':'▼'" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:pointer;background:var(--surface2)">
-        <h3 style="font-size:15px;margin:0;font-weight:700;color:var(--accent2)">${esc(proyecto)} <span style="color:var(--muted);font-weight:400;font-size:13px">(${tareas.length})</span></h3>
+        <h3 style="font-size:15px;margin:0;font-weight:700;color:#f7944f">${esc(proyecto)} <span style="color:var(--muted);font-weight:400;font-size:13px">(${tareas.length})</span></h3>
         <span class="toggle-icon" style="font-size:12px;color:var(--muted)">▼</span>
       </div>
       <div class="proy-tbody">
@@ -176,7 +176,7 @@ function renderTareasAgrupadas() {
         </tr></thead><tbody>
           ${tareas.map(t => `
             <tr>
-              <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="#" onclick="event.preventDefault();abrirModalDetalleTarea(${t.id})" style="font-weight:600;color:var(--accent)">${esc(t.titulo)}</a></td>
+              <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><a href="#" onclick="event.preventDefault();abrirModalDetalleTarea(${t.id})" style="font-weight:600;color:#00A86B">${esc(t.titulo)}</a></td>
               <td>${badgeEstado(t.estado)}</td>
               <td>${badgePrioridad(t.prioridad)}</td>
               <td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${t.asignado_a ? esc(nombreUsuario(t.asignado_a)) : '<span style="color:var(--muted)">Sin asignar</span>'}</td>
