@@ -143,9 +143,52 @@
 
 ---
 
-## Estado actual (5 Ago 2026)
+## Estado (6 Ago 2026 — sesión 41)
+
+### Cambios Sesión 41 — Filtros, paginación, deep-linking y notificaciones
+
+#### Filtros en tablas
+- **Tareas**: Filtro por usuario asignado (combobox searchable `selectBuscador()`)
+- **Proyectos**: 5 filtros nuevos (estado, aprobación, centro operación, asignado a, ordenar por)
+- **Botón "✕ Limpiar"**: En todas las tablas con filtros (Dashboard, Tareas, Proyectos)
+- **CSS**: `.filters .select-buscador` para consistencia visual
+
+#### Paginación mejorada en Tareas
+- Select para elegir 10/20/50/100 tareas por página
+- Botones Anterior/Siguiente se deshabilitan automáticamente
+- Reset a página 1 al cambiar items por página
+
+#### Deep-linking en emails
+- **Función helper**: `tareasUrl(base, proyectoId)` genera URLs con `?proyecto=X`
+- **Backend**: Todos los emails de tareas incluyen `?proyecto=id` cuando aplica
+- **Frontend**: `mostrarAppInterno()` lee parámetros de URL y aplica filtros
+- **Archivos**: `tareas.js`, `aprobacion.js`, `comentarios.js`, `evidencias.js`
+
+#### Notificaciones in-app con deep-link
+- **Fix HTTP method**: `marcarNotifLeida()` usa `DELETE` (antes usaba `PUT` y fallaba)
+- **Dropdown**: Usa `data-url` en vez de string en `onclick` (evita problemas con caracteres especiales)
+- **Navegación**: Primero navega, luego borra notificación en background
+
+#### Notificaciones del navegador
+- **Banner**: "🔔 Activa las notificaciones" en dropdown hasta que usuario active
+- **Funciones**: `mostrarNotificacionBrowser()`, `activarNotificaciones()`, `checkNotifPermission()`
+- **Polling**: Cada 15 segundos (antes 60s)
+- **Sincronización**: Todos los módulos (framework.js + nomina/proveedores app.js)
+
+#### Fixes varios
+- `selectBuscador()` soporta objetos sin campo `email`
+- `initSelectBuscador()` dispara evento `change` al seleccionar
+- `verTareasProyecto()` es async y espera a `cargarProyectosSelect(forceReload)`
+- `cargarProyectosSelect()` tiene flag `_filtroProyectoInit` para no resetear select
+- Scheduler de recordatorios usa URL correcta `/proyectos/#tareas?proyecto=X`
+- Modales de confirmación para aprobar/completar tareas y proyectos
+
+---
+
+## Estado actual (6 Ago 2026)
 
 ### Últimos cambios
+- **Sesión 41**: Filtros en tablas, paginación, deep-linking emails, notificaciones in-app + navegador.
 - **Sesión 40**: Miembros de proyecto con roles (lider/miembro/observador), filtrado de tareas por miembros, gestión de miembros en modal.
 - **Sesión 39**: Fixes y mejoras en Proyectos — cambiar proyecto al editar tarea, auto-en_progreso al comentar/evidencia, pre-seleccionar proyecto padre, creador aprueba sus proyectos.
 - **Sesión 38**: Fix OAuth error feedback (invalid_state message + logging + stack traces). MCP OAuth admin: mostrar usuario propietario de tokens y clientes activos.
@@ -226,6 +269,14 @@
 - **Auto-cambio de estado**: Al realizar una acción en un elemento pendiente, cambiarlo automáticamente a "en progreso". Ej: comentar o subir evidencia en tarea pendiente → `en_progreso`.
 - **Variables de contexto para pre-selección**: Usar variables globales como `_proyectoFiltroActual` para pasar contexto entre vistas. Setear en la vista origen, leer y limpiar en el modal destino.
 - **Persistencia de página**: Guardar `localStorage.setItem('sy_last_page', page)` en `navigate()`. Restaurar al cargar: `hash || localStorage.getItem('sy_last_page') || 'dashboard'`. Validar con array de páginas válidas.
+- **Combobox searchable en filtros**: Para filtros de usuario en tablas, usar `selectBuscador()` + `initSelectBuscador()` con flag de init para no re-renderizar.
+- **Filtros en tablas**: Todos los filtros deben tener botón "✕ Limpiar" que resetee todos los valores y recargue los datos.
+- **Paginación**: Select de items por página + botones Anterior/Siguiente que se deshabilitan automáticamente.
+- **Deep-linking en emails**: Usar función helper `tareasUrl(base, proyectoId)` para generar URLs con `?proyecto=X`. Incluir en TODOS los emails de tareas.
+- **Notificaciones in-app**: `marcarNotifLeida()` debe usar `DELETE` (no `PUT`). Primero navegar, luego borrar notificación en background.
+- **Notificaciones del navegador**: Banner en dropdown hasta que usuario active. Polling cada 15 segundos. Usar `data-url` en vez de string en `onclick`.
+- **Sincronización de framework.js**: Si se modifica `framework/framework.js`, sincronizar con `modules/*/public/framework.js` y `modules/*/public/app.js` (nomina/proveedores).
+- **selectBuscador()**: Soporta objetos sin campo `email`. El `initSelectBuscador()` dispara `change` event automáticamente.
 
 ---
 
