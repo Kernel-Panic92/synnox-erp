@@ -183,6 +183,13 @@
 - Scheduler de recordatorios usa URL correcta `/proyectos/#tareas?proyecto=X`
 - Modales de confirmación para aprobar/completar tareas y proyectos
 
+#### Prioridad en proyectos
+- **Migración**: `008_add_proyecto_prioridad.sql` — campo `prioridad` (baja/media/alta/critica)
+- **Backend**: POST y PUT soportan campo `prioridad`
+- **Frontend**: Select en modal crear/editar
+- **Filtro**: Select de prioridad en barra de filtros de proyectos
+- **Cards**: Badge de prioridad con colores (critica=danger, alta=warning, media=info, baja=muted)
+
 ---
 
 ## Estado actual (6 Ago 2026)
