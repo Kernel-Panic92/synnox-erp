@@ -321,7 +321,7 @@ function poblarSelectAprobadores() {
       document.getElementById('app').style.display = 'flex';
       document.getElementById('app-screen').classList.add('show');
       await iniciarApp();
-      try { initNotifications(60000); } catch {}
+      try { initNotifications(15000); } catch {}
     } else if (res.status === 403) {
       document.body.innerHTML = '<div class="error-splash"><div class="error-splash-card"><div class="error-splash-icon">🔒</div><div class="error-splash-title">Acceso denegado</div><div class="error-splash-msg">No tienes permisos para acceder al módulo de Nómina. Contacta al administrador.</div><a href="/" class="error-splash-btn error-splash-btn-primary">🏠 Volver al Launcher</a></div></div>';
     } else {

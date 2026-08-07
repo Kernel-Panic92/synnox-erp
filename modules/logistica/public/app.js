@@ -192,7 +192,7 @@ async function init() {
     const page = hash || saved || 'dashboard';
     if (page === 'dashboard') cargarDashboard();
     else navigate(page);
-    initNotifications(60000);
+    initNotifications(15000);
   } catch (e) {
     document.getElementById('app-screen').style.display = 'none';
     const isModuleDenied = e.message?.includes('acceso al módulo') || e.message?.includes('Acceso denegado');
