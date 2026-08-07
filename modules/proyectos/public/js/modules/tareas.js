@@ -29,10 +29,7 @@ async function cargarFiltroAsignado() {
   if (!wrap) return;
   wrap.innerHTML = selectBuscador('filtro-asignado', _todosUsuarios, '', 'Todos los usuarios');
   initSelectBuscador('filtro-asignado');
-  const hidden = document.getElementById('filtro-asignado');
-  if (hidden) {
-    hidden.addEventListener('change', () => { _tareasPage = 1; cargarTareas(); });
-  }
+  document.getElementById('filtro-asignado')?.addEventListener('change', () => { _tareasPage = 1; cargarTareas(); });
   _filtroAsignadoInit = true;
 }
 

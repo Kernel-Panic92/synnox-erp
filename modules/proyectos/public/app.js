@@ -127,7 +127,8 @@ function initSelectBuscador(id) {
     const q = display.value.toLowerCase();
     let visible = 0;
     Array.from(list.children).forEach(opt => {
-      if (!opt.dataset.value) { opt.style.display = ''; visible++; return; }
+      if (!opt.dataset.value && !q) { opt.style.display = ''; visible++; return; }
+      if (!opt.dataset.value) { opt.style.display = 'none'; return; }
       const match = opt.textContent.toLowerCase().includes(q);
       opt.style.display = match ? '' : 'none';
       if (match) visible++;
@@ -156,6 +157,7 @@ function initSelectBuscador(id) {
     list.querySelectorAll('.select-buscador-option').forEach(o => o.classList.remove('selected'));
     opt.classList.add('selected');
     list.style.display = 'none';
+    hidden.dispatchEvent(new Event('change', { bubbles: true }));
   });
 
   display.addEventListener('blur', () => {

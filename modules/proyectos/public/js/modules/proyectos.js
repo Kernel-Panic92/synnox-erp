@@ -20,10 +20,7 @@ async function cargarFiltrosProyectos() {
     if (wrap) {
       wrap.innerHTML = selectBuscador('filtro-proy-asignado', _todosUsuarios, '', 'Todos los usuarios');
       initSelectBuscador('filtro-proy-asignado');
-      const hidden = document.getElementById('filtro-proy-asignado');
-      if (hidden) {
-        hidden.addEventListener('change', () => cargarProyectos());
-      }
+      document.getElementById('filtro-proy-asignado')?.addEventListener('change', () => cargarProyectos());
     }
     _proyFiltroAsignadoInit = true;
   }
