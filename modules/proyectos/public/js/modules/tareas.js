@@ -7,10 +7,11 @@ let _miembrosProyectoCache = {};
 let _filtroProyectoInit = false;
 let _filtroAsignadoInit = false;
 
-async function cargarProyectosSelect() {
-  if (_filtroProyectoInit) return;
+async function cargarProyectosSelect(forceReload = false) {
+  const sel = document.getElementById('filtro-proyecto');
+  const needsReload = forceReload || !sel || sel.options.length <= 1;
+  if (_filtroProyectoInit && !needsReload) return;
   try {
-    const sel = document.getElementById('filtro-proyecto');
     const savedVal = localStorage.getItem('sy_tareas_proyecto') || '';
     const data = await api('/proyectos');
     _tareasProyectos = data.proyectos || [];

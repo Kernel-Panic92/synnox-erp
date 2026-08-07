@@ -141,7 +141,7 @@ function proyectosLimpiarFiltros() {
 async function verTareasProyecto(proyectoId) {
   localStorage.setItem('sy_tareas_proyecto', proyectoId);
   navigate('tareas');
-  await cargarProyectosSelect();
+  await cargarProyectosSelect(true);
   const sel = document.getElementById('filtro-proyecto');
   if (sel) { sel.value = proyectoId; cargarTareas(); }
 }
