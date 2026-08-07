@@ -381,6 +381,21 @@ function clearTableFilters(containerId) {
 
 // ── Notifications ──
 let _notifPollTimer = null;
+let _notifLastCount = 0;
+
+function solicitarPermisoNotificaciones() {
+  if (!('Notification' in window)) return;
+  if (Notification.permission === 'default') {
+    Notification.requestPermission();
+  }
+}
+
+function mostrarNotificacionBrowser(titulo, mensaje, url) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const notif = new Notification(titulo, { body: mensaje, icon: '/favicon.ico', tag: 'synnox-' + Date.now() });
+  notif.onclick = () => { window.focus(); if (url) window.location.href = url; notif.close(); };
+  setTimeout(() => notif.close(), 8000);
+}
 
 async function cargarNotificaciones() {
   try {
@@ -389,6 +404,19 @@ async function cargarNotificaciones() {
     const { count } = await res.json();
     const badge = document.getElementById('notif-count');
     if (badge) badge.textContent = count > 0 ? (count > 99 ? '99+' : count) : '';
+    if (count > _notifLastCount && _notifLastCount > 0) {
+      try {
+        const listRes = await fetch(HF.API + '/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+        if (listRes.ok) {
+          const { notificaciones } = await listRes.json();
+          if (notificaciones.length > 0) {
+            const n = notificaciones[0];
+            mostrarNotificacionBrowser(n.titulo, n.mensaje, n.url);
+          }
+        }
+      } catch {}
+    }
+    _notifLastCount = count;
   } catch {}
 }
 
@@ -425,7 +453,7 @@ async function toggleNotifDropdown() {
 
 async function marcarNotifLeida(id, url) {
   try {
-    await fetch(HF.API + '/notificaciones/' + id + '/leer', { method: 'PUT', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    await fetch(HF.API + '/notificaciones/' + id + '/leer', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     cargarNotificaciones();
     if (url) window.location.href = url;
     const dd = document.getElementById('notif-dropdown');
@@ -435,7 +463,7 @@ async function marcarNotifLeida(id, url) {
 
 async function marcarTodasLeidas() {
   try {
-    await fetch(HF.API + '/notificaciones/leer-todas', { method: 'PUT', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    await fetch(HF.API + '/notificaciones/leer-todas', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     cargarNotificaciones();
     toggleNotifDropdown();
     toggleNotifDropdown();
@@ -454,6 +482,7 @@ function timeSince(date) {
 }
 
 function initNotifications(pollMs) {
+  solicitarPermisoNotificaciones();
   cargarNotificaciones();
   if (_notifPollTimer) clearInterval(_notifPollTimer);
   _notifPollTimer = setInterval(cargarNotificaciones, pollMs || 60000);
