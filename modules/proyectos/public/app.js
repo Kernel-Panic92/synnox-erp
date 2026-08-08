@@ -51,6 +51,18 @@ function mostrarAppInterno() {
 async function cargarTodosLosUsuarios() {
   const age = Date.now() - _todosUsuariosTs;
   if (_todosUsuarios.length && age < USUARIOS_CACHE_TTL) return _todosUsuarios;
+
+  // Intentar desde localStorage
+  if (!_todosUsuarios.length) {
+    const cached = cacheGet('usuarios', 300000); // 5 min
+    if (cached) {
+      _todosUsuarios = cached;
+      _todosUsuariosTs = Date.now();
+      for (const u of _todosUsuarios) _nombresUsuarios[u.id] = u.nombre;
+      return _todosUsuarios;
+    }
+  }
+
   if (_usuariosPromise) return _usuariosPromise;
   _usuariosPromise = (async () => {
     try {
@@ -58,6 +70,7 @@ async function cargarTodosLosUsuarios() {
       _todosUsuarios = data.usuarios || [];
       _todosUsuariosTs = Date.now();
       for (const u of _todosUsuarios) _nombresUsuarios[u.id] = u.nombre;
+      cacheSet('usuarios', _todosUsuarios);
     } catch {}
     _usuariosPromise = null;
     return _todosUsuarios;

@@ -13,6 +13,29 @@ let HF = {
   centros: [],
 };
 
+// ── Cache Helpers ──
+function cacheGet(key, ttlMs) {
+  try {
+    const c = JSON.parse(localStorage.getItem('sf_' + key) || 'null');
+    if (c && c.ts && Date.now() - c.ts < ttlMs) return c.data;
+  } catch {}
+  return null;
+}
+
+function cacheSet(key, data) {
+  try { localStorage.setItem('sf_' + key, JSON.stringify({ data, ts: Date.now() })); } catch {}
+}
+
+function cacheInvalidate(key) {
+  localStorage.removeItem('sf_' + key);
+}
+
+function cacheCleanAll() {
+  Object.keys(localStorage)
+    .filter(k => k.startsWith('sf_'))
+    .forEach(k => localStorage.removeItem(k));
+}
+
 // ── Init ──
 function initFramework(opts = {}) {
   HF.API = (opts.basePath || '') + (opts.apiPrefix || '/api');
@@ -63,19 +86,35 @@ async function loadVersion() {
   const el = document.getElementById('app-version');
   if (!el) return;
   try {
+    const cached = cacheGet('version', 3600000); // 1 hora
+    if (cached) {
+      el.textContent = 'v' + cached;
+      window._appVer = 'v' + cached;
+      return;
+    }
     const data = await api('/version');
-    el.textContent = 'v' + (data.version || '1.0.0');
-    window._appVer = 'v' + (data.version || '1.0.0');
+    const ver = data.version || '1.0.0';
+    el.textContent = 'v' + ver;
+    window._appVer = 'v' + ver;
+    cacheSet('version', ver);
   } catch { el.textContent = 'v—'; window._appVer = 'v—'; }
 }
 
 // ── Centros de operación ──
 async function loadCentros() {
   if (HF.centros.length) return HF.centros;
+  const cached = cacheGet('centros', 300000); // 5 min
+  if (cached) {
+    HF.centros = cached;
+    return HF.centros;
+  }
   try {
     const basePath = HF.API.replace(/\/api$/, '');
     const res = await fetch(basePath + '/api/centros');
-    if (res.ok) HF.centros = await res.json();
+    if (res.ok) {
+      HF.centros = await res.json();
+      cacheSet('centros', HF.centros);
+    }
   } catch {}
   return HF.centros;
 }
@@ -193,9 +232,10 @@ function mostrarApp() {
 }
 
 function logout() {
-  HF.TOKEN = null; HF.USER = null;
+  HF.TOKEN = null; HF.USER = null; HF.centros = [];
   localStorage.removeItem(HF.TOKEN_KEY);
   localStorage.removeItem('synnox_theme');
+  cacheCleanAll();
   window.location.href = '/logout';
 }
 
