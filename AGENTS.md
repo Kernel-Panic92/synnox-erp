@@ -204,6 +204,28 @@
 - Todo usa `sy_tareas_filtros` para filtros de tareas
 - `verTareasProyecto()` y `mostrarAppInterno()` guardan en `sy_tareas_filtros`
 
+#### Fix sesión: refresh periódico
+- **Refresh token**: `setInterval` cada 15min llama `POST /api/auth/refresh`
+- **Visibilitychange**: Refresca token al volver visible la pestaña
+- **Problema anterior**: JWT expiraba en 1h sin refresh periódico
+
+#### Cache centralizado (mejora UX)
+- **Helpers**: `cacheGet(key, ttlMs)`, `cacheSet(key, data)`, `cacheCleanAll()`
+- **Prefijo**: `sf_` para distinguir de claves de módulo
+- **Datos cacheados**: `/api/version` (1h), centros (5min), usuarios (5min)
+- **Logout**: `cacheCleanAll()` invalida todos los caches
+
+#### Filtros recordados en todas las vistas
+- **Tareas**: `sy_tareas_filtros` + `sy_tareas_limit`
+- **Dashboard**: `sy_dash_filtros`
+- **Proyectos**: `sy_proy_filtros`
+- **Botón "✕ Limpiar"**: Limpia localStorage y resetea filtros
+
+#### Fix notificaciones (URL incorrecta)
+- `cargarNotificaciones()` usaba `/proyectos/api/notificaciones` (404)
+- **Fix**: `notifApi = HF.API.replace(/\/proyectos\/api$/, '/api')`
+- Sincronizado framework.js con logística y proyectos
+
 ---
 
 ## Estado actual (6 Ago 2026)
