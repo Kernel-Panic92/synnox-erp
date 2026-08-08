@@ -13,6 +13,29 @@ let HF = {
   centros: [],
 };
 
+// ── Cache Helpers ──
+function cacheGet(key, ttlMs) {
+  try {
+    const c = JSON.parse(localStorage.getItem('sf_' + key) || 'null');
+    if (c && c.ts && Date.now() - c.ts < ttlMs) return c.data;
+  } catch {}
+  return null;
+}
+
+function cacheSet(key, data) {
+  try { localStorage.setItem('sf_' + key, JSON.stringify({ data, ts: Date.now() })); } catch {}
+}
+
+function cacheInvalidate(key) {
+  localStorage.removeItem('sf_' + key);
+}
+
+function cacheCleanAll() {
+  Object.keys(localStorage)
+    .filter(k => k.startsWith('sf_'))
+    .forEach(k => localStorage.removeItem(k));
+}
+
 // ── Init ──
 function initFramework(opts = {}) {
   HF.API = (opts.basePath || '') + (opts.apiPrefix || '/api');
@@ -63,19 +86,35 @@ async function loadVersion() {
   const el = document.getElementById('app-version');
   if (!el) return;
   try {
+    const cached = cacheGet('version', 3600000); // 1 hora
+    if (cached) {
+      el.textContent = 'v' + cached;
+      window._appVer = 'v' + cached;
+      return;
+    }
     const data = await api('/version');
-    el.textContent = 'v' + (data.version || '1.0.0');
-    window._appVer = 'v' + (data.version || '1.0.0');
+    const ver = data.version || '1.0.0';
+    el.textContent = 'v' + ver;
+    window._appVer = 'v' + ver;
+    cacheSet('version', ver);
   } catch { el.textContent = 'v—'; window._appVer = 'v—'; }
 }
 
 // ── Centros de operación ──
 async function loadCentros() {
   if (HF.centros.length) return HF.centros;
+  const cached = cacheGet('centros', 300000); // 5 min
+  if (cached) {
+    HF.centros = cached;
+    return HF.centros;
+  }
   try {
     const basePath = HF.API.replace(/\/api$/, '');
     const res = await fetch(basePath + '/api/centros');
-    if (res.ok) HF.centros = await res.json();
+    if (res.ok) {
+      HF.centros = await res.json();
+      cacheSet('centros', HF.centros);
+    }
   } catch {}
   return HF.centros;
 }
@@ -193,9 +232,10 @@ function mostrarApp() {
 }
 
 function logout() {
-  HF.TOKEN = null; HF.USER = null;
+  HF.TOKEN = null; HF.USER = null; HF.centros = [];
   localStorage.removeItem(HF.TOKEN_KEY);
   localStorage.removeItem('synnox_theme');
+  cacheCleanAll();
   window.location.href = '/logout';
 }
 
@@ -231,12 +271,7 @@ function toggleSidebarCollapse() {
 }
 
 // ── Navigation ──
-const PAGINAS_VALIDAS = ['dashboard', 'proyectos', 'tareas', 'tablero', 'reportes', 'actas'];
-
 function navigate(page) {
-  if (!PAGINAS_VALIDAS.includes(page)) page = 'dashboard';
-  localStorage.setItem('sy_last_page', page);
-
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   const pageEl = document.getElementById('page-' + page);
@@ -248,7 +283,6 @@ function navigate(page) {
   const titleEl = document.getElementById('page-title');
   if (titleEl) titleEl.textContent = navEl?.textContent?.trim() || page;
 
-  window._currentPage = page;
   if (HF.routeMap[page]) HF.routeMap[page]();
 }
 
@@ -403,14 +437,14 @@ function mostrarNotificacionBrowser(titulo, mensaje, url) {
 
 async function cargarNotificaciones() {
   try {
-    const res = await fetch('/api/notificaciones/no-leidas', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    const res = await fetch(HF.API + '/notificaciones/no-leidas', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     if (!res.ok) return;
     const { count } = await res.json();
     const badge = document.getElementById('notif-count');
     if (badge) badge.textContent = count > 0 ? (count > 99 ? '99+' : count) : '';
     if (count > _notifLastCount && _notifLastCount > 0) {
       try {
-        const listRes = await fetch('/api/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+        const listRes = await fetch(HF.API + '/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
         if (listRes.ok) {
           const { notificaciones } = await listRes.json();
           if (notificaciones.length > 0) {
@@ -431,7 +465,7 @@ async function toggleNotifDropdown() {
   dd.classList.toggle('show');
   if (!isOpen) {
     try {
-      const res = await fetch('/api/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+      const res = await fetch(HF.API + '/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
       if (!res.ok) return;
       const { notificaciones } = await res.json();
       const list = dd.querySelector('.notif-list');
@@ -439,9 +473,10 @@ async function toggleNotifDropdown() {
         list.innerHTML = '<div class="notif-empty">Sin notificaciones</div>';
       } else {
         list.innerHTML = notificaciones.map(n => {
-          const icons = { tarea_asignada: '📋', tarea_vencida: '⏰', proyecto_aprobado: '✅', proyecto_rechazado: '❌', comentario: '💬', factura_nueva: '📄', factura_vencida: '⚠️', ruta_asignada: '🛣️', backup: '💾', sistema: '⚙️', cambio_estado: '🔄', tarea_revision: '📋', proyecto_asignado: '📁' };
+          const icons = { tarea_asignada: '📋', tarea_vencida: '⏰', proyecto_aprobado: '✅', proyecto_rechazado: '❌', comentario: '💬', factura_nueva: '📄', factura_vencida: '⚠️', ruta_asignada: '🛣️', backup: '💾', sistema: '⚙️', cambio_estado: '🔄', tarea_revision: '📋', proyecto_asignado: '📁', recordatorio_vencimiento: '⏰', tarea_aprobada: '✅', tarea_rechazada: '❌', proyecto_aprobado: '✅', proyecto_rechazado: '❌', nuevo_comentario: '💬', evidencia_subida: '📎', tarea_asignada: '📋' };
           const timeAgo = timeSince(new Date(n.created_at));
-          return `<div class="notif-item${n.leida ? '' : ' unread'}" onclick="marcarNotifLeida(${n.id}, '${n.url || ''}')">
+          const url = n.url && n.url !== 'undefined' && n.url !== 'null' ? n.url : '';
+          return `<div class="notif-item unread" data-url="${esc(url)}" onclick="marcarNotifLeida(${n.id}, this.dataset.url)">
             <div class="notif-icon">${icons[n.tipo] || '🔔'}</div>
             <div class="notif-content">
               <div class="notif-title">${esc(n.titulo)}</div>
@@ -456,18 +491,20 @@ async function toggleNotifDropdown() {
 }
 
 async function marcarNotifLeida(id, url) {
+  const dd = document.getElementById('notif-dropdown');
+  if (dd) dd.classList.remove('show');
+  if (url && url !== 'undefined' && url !== 'null') {
+    window.location.href = url;
+  }
   try {
-    await fetch('/api/notificaciones/' + id + '/leer', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    await fetch(HF.API + '/notificaciones/' + id + '/leer', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     cargarNotificaciones();
-    if (url) window.location.href = url;
-    const dd = document.getElementById('notif-dropdown');
-    if (dd) dd.classList.remove('show');
   } catch {}
 }
 
 async function marcarTodasLeidas() {
   try {
-    await fetch('/api/notificaciones/leer-todas', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    await fetch(HF.API + '/notificaciones/leer-todas', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     cargarNotificaciones();
     toggleNotifDropdown();
     toggleNotifDropdown();

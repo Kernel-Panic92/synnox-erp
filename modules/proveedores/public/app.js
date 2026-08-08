@@ -221,6 +221,25 @@ async function eliminarArea(id){
   }catch(e){toast(e.message,'error')}
 }
 
+// ── Cache Helpers ──
+function cacheGet(key, ttlMs) {
+  try {
+    const c = JSON.parse(localStorage.getItem('sf_' + key) || 'null');
+    if (c && c.ts && Date.now() - c.ts < ttlMs) return c.data;
+  } catch {}
+  return null;
+}
+
+function cacheSet(key, data) {
+  try { localStorage.setItem('sf_' + key, JSON.stringify({ data, ts: Date.now() })); } catch {}
+}
+
+function cacheCleanAll() {
+  Object.keys(localStorage)
+    .filter(k => k.startsWith('sf_'))
+    .forEach(k => localStorage.removeItem(k));
+}
+
 // ── Notifications ──
 let _notifPollTimer = null;
 let _notifLastCount = 0;
