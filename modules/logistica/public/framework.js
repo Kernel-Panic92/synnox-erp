@@ -436,15 +436,16 @@ function mostrarNotificacionBrowser(titulo, mensaje, url) {
 }
 
 async function cargarNotificaciones() {
+  const notifApi = HF.API.replace(/\/proyectos\/api$/, '/api');
   try {
-    const res = await fetch(HF.API + '/notificaciones/no-leidas', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    const res = await fetch(notifApi + '/notificaciones/no-leidas', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     if (!res.ok) return;
     const { count } = await res.json();
     const badge = document.getElementById('notif-count');
     if (badge) badge.textContent = count > 0 ? (count > 99 ? '99+' : count) : '';
     if (count > _notifLastCount && _notifLastCount > 0) {
       try {
-        const listRes = await fetch(HF.API + '/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+        const listRes = await fetch(notifApi + '/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
         if (listRes.ok) {
           const { notificaciones } = await listRes.json();
           if (notificaciones.length > 0) {
@@ -465,7 +466,7 @@ async function toggleNotifDropdown() {
   dd.classList.toggle('show');
   if (!isOpen) {
     try {
-      const res = await fetch(HF.API + '/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+      const res = await fetch(notifApi + '/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
       if (!res.ok) return;
       const { notificaciones } = await res.json();
       const list = dd.querySelector('.notif-list');
@@ -497,14 +498,14 @@ async function marcarNotifLeida(id, url) {
     window.location.href = url;
   }
   try {
-    await fetch(HF.API + '/notificaciones/' + id + '/leer', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    await fetch(notifApi + '/notificaciones/' + id + '/leer', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     cargarNotificaciones();
   } catch {}
 }
 
 async function marcarTodasLeidas() {
   try {
-    await fetch(HF.API + '/notificaciones/leer-todas', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    await fetch(notifApi + '/notificaciones/leer-todas', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     cargarNotificaciones();
     toggleNotifDropdown();
     toggleNotifDropdown();
