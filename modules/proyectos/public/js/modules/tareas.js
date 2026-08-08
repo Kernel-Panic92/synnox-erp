@@ -53,8 +53,19 @@ async function cargarTareas() {
     window._tareasFiltrosRestored = true;
   }
 
+  // Restaurar límite guardado
+  if (!window._tareasLimitRestored) {
+    const savedLimit = localStorage.getItem('sy_tareas_limit');
+    if (savedLimit) {
+      const sel = document.getElementById('tareas-limit');
+      if (sel) sel.value = savedLimit;
+    }
+    window._tareasLimitRestored = true;
+  }
+
   const newLimit = parseInt(document.getElementById('tareas-limit')?.value) || 20;
   if (newLimit !== _tareasLimit) { _tareasLimit = newLimit; _tareasPage = 1; }
+  localStorage.setItem('sy_tareas_limit', _tareasLimit);
   const params = new URLSearchParams();
   const proyecto = document.getElementById('filtro-proyecto')?.value;
   const estado = document.getElementById('filtro-estado')?.value;

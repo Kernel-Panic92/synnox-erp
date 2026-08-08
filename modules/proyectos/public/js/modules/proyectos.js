@@ -16,12 +16,20 @@ async function cargarFiltrosProyectos() {
       (_centrosCache || []).map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
   }
   if (!_proyFiltroAsignadoInit) {
+    const saved = JSON.parse(localStorage.getItem('sy_proy_filtros') || '{}');
     const wrap = document.getElementById('filtro-proy-asignado-wrap');
     if (wrap) {
-      wrap.innerHTML = selectBuscador('filtro-proy-asignado', _todosUsuarios, '', 'Todos los usuarios');
+      wrap.innerHTML = selectBuscador('filtro-proy-asignado', _todosUsuarios, saved.asignado || '', 'Todos los usuarios');
       initSelectBuscador('filtro-proy-asignado');
       document.getElementById('filtro-proy-asignado')?.addEventListener('change', () => cargarProyectos());
     }
+    // Restaurar selects
+    if (saved.estado) document.getElementById('filtro-proy-estado').value = saved.estado;
+    if (saved.prioridad) document.getElementById('filtro-proy-prioridad').value = saved.prioridad;
+    if (saved.aprobacion) document.getElementById('filtro-proy-aprobacion').value = saved.aprobacion;
+    if (saved.centro) document.getElementById('filtro-proy-centro').value = saved.centro;
+    if (saved.orden) document.getElementById('filtro-proy-orden').value = saved.orden;
+    if (saved.q) document.getElementById('filtro-proy-busqueda').value = saved.q;
     _proyFiltroAsignadoInit = true;
   }
 }
@@ -42,6 +50,12 @@ async function cargarProyectos() {
     const filtroCentro = document.getElementById('filtro-proy-centro')?.value || '';
     const filtroAsignado = document.getElementById('filtro-proy-asignado')?.value || '';
     const orden = document.getElementById('filtro-proy-orden')?.value || 'recientes';
+
+    // Guardar filtros
+    localStorage.setItem('sy_proy_filtros', JSON.stringify({
+      estado: filtroEstado, prioridad: filtroPrioridad, aprobacion: filtroAprob,
+      centro: filtroCentro, asignado: filtroAsignado, orden, q
+    }));
 
     let filtrados = _proyectos.filter(p => {
       if (filtroEstado && p.estado !== filtroEstado) return false;
@@ -141,6 +155,7 @@ function proyectosLimpiarFiltros() {
   const display = document.getElementById('filtro-proy-asignado-display');
   if (asignado) asignado.value = '';
   if (display) display.value = '';
+  localStorage.removeItem('sy_proy_filtros');
   cargarProyectos();
 }
 

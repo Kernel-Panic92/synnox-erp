@@ -203,6 +203,28 @@ async function init() {
       if (btnNuevaTarea) btnNuevaTarea.style.display = 'none';
     }
     mostrarAppInterno();
+    // Refresh periódico de sesión (cada 15 min)
+    setInterval(async () => {
+      try {
+        const res = await fetch('/api/auth/refresh', { method: 'POST', headers: { 'Authorization': 'Bearer ' + (HF.TOKEN || '') } });
+        if (res.ok) {
+          const d = await res.json();
+          if (d.jwt) localStorage.setItem('platform_jwt', d.jwt);
+        }
+      } catch {}
+    }, 15 * 60 * 1000);
+    // Refresh al volver visible la pestaña
+    document.addEventListener('visibilitychange', async () => {
+      if (!document.hidden) {
+        try {
+          const res = await fetch('/api/auth/refresh', { method: 'POST', headers: { 'Authorization': 'Bearer ' + (HF.TOKEN || '') } });
+          if (res.ok) {
+            const d = await res.json();
+            if (d.jwt) localStorage.setItem('platform_jwt', d.jwt);
+          }
+        } catch {}
+      }
+    });
   } catch (e) {
     document.getElementById('app-screen').style.display = 'none';
     const isModuleDenied = e.message?.includes('acceso al módulo') || e.message?.includes('Acceso denegado');

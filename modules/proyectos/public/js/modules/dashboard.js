@@ -114,6 +114,16 @@ async function cargarDashboard() {
     if (proySel && proySel.options.length <= 1) {
       proySel.innerHTML = '<option value="">Todos los proyectos</option>' + _tareasProyectos.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
     }
+    // Restaurar filtros guardados
+    if (!window._dashFiltrosRestored) {
+      const saved = JSON.parse(localStorage.getItem('sy_dash_filtros') || '{}');
+      if (saved.proyecto) document.getElementById('dash-filtro-proyecto').value = saved.proyecto;
+      if (saved.estado) document.getElementById('dash-filtro-estado').value = saved.estado;
+      if (saved.prioridad) document.getElementById('dash-filtro-prioridad').value = saved.prioridad;
+      if (saved.q) document.getElementById('dash-filtro-busqueda').value = saved.q;
+      if (saved.proyecto || saved.estado || saved.prioridad || saved.q) dashAplicarFiltros();
+      window._dashFiltrosRestored = true;
+    }
     renderDashRecientes();
 
     if (porAsignado.length) {
@@ -145,6 +155,10 @@ function dashAplicarFiltros() {
   _dashFiltroEstado = document.getElementById('dash-filtro-estado')?.value || '';
   _dashFiltroPrioridad = document.getElementById('dash-filtro-prioridad')?.value || '';
   _dashFiltroQ = document.getElementById('dash-filtro-busqueda')?.value?.trim() || '';
+  localStorage.setItem('sy_dash_filtros', JSON.stringify({
+    proyecto: _dashFiltroProyecto, estado: _dashFiltroEstado,
+    prioridad: _dashFiltroPrioridad, q: _dashFiltroQ
+  }));
   renderDashRecientes();
 }
 
@@ -153,6 +167,7 @@ function dashLimpiarFiltros() {
   document.getElementById('dash-filtro-estado').value = '';
   document.getElementById('dash-filtro-prioridad').value = '';
   document.getElementById('dash-filtro-busqueda').value = '';
+  localStorage.removeItem('sy_dash_filtros');
   dashAplicarFiltros();
 }
 
