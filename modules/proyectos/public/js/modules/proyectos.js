@@ -149,9 +149,11 @@ async function verTareasProyecto(proyectoId) {
   filtros.proyecto = proyectoId;
   localStorage.setItem('sy_tareas_filtros', JSON.stringify(filtros));
   navigate('tareas');
+  // Esperar a que cargarTareas() termine y luego forzar el filtro
+  await new Promise(r => setTimeout(r, 200));
   await cargarProyectosSelect(true);
   const sel = document.getElementById('filtro-proyecto');
-  if (sel) { sel.value = proyectoId; cargarTareas(); }
+  if (sel) { sel.value = proyectoId; _tareasPage = 1; cargarTareas(); }
 }
 
 async function cargarCentrosProyectos() {
