@@ -2580,8 +2580,10 @@ async function killSession(id, nombre) {
         return;
       }
     } catch(e) {}
-    // Session invalid — show re-login modal (preserve localStorage cache)
-    showSessionExpiredModal();
+    // Session invalid — clear and show login
+    jwtToken = null;
+    user = null;
+    show('login-screen');
     return;
   }
   // No JWT in localStorage — try httpOnly cookie (from OAuth login)
