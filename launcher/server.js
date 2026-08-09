@@ -3146,7 +3146,7 @@ function handleTokenAuthCode(req, res) {
   oauthSaveToken({
     token_id: accessToken, refresh_token: refreshToken,
     client_id: stored.client_id, user_id: stored.user_id || null,
-    expires_at: Date.now() + 86400000
+    expires_at: Date.now() + 86400000  // access token expires in 24h; refresh token doesn't check expires_at
   });
   res.json({
     access_token: accessToken, token_type: 'Bearer',
@@ -3163,9 +3163,9 @@ function handleTokenRefresh(req, res) {
     client_id = decoded.split(':')[0];
   }
   if (!refresh_token) return res.status(400).json({ error: 'invalid_grant', error_description: 'refresh_token required' });
-  // Find token row by refresh_token
+  // Find token row by refresh_token (refresh tokens don't expire — only revocation matters)
   const row = db.prepare('SELECT * FROM oauth_tokens WHERE refresh_token = ? AND revoked = 0').get(refresh_token);
-  if (!row || row.expires_at < Date.now()) return res.status(400).json({ error: 'invalid_grant' });
+  if (!row) return res.status(400).json({ error: 'invalid_grant' });
   // Revoke old token and issue new pair
   oauthRevokeToken(row.token_id);
   const newAccessToken = crypto.randomUUID();
@@ -3173,7 +3173,7 @@ function handleTokenRefresh(req, res) {
   oauthSaveToken({
     token_id: newAccessToken, refresh_token: newRefreshToken,
     client_id: row.client_id, user_id: row.user_id,
-    expires_at: Date.now() + 86400000
+    expires_at: Date.now() + 86400000  // access token expires in 24h; refresh token doesn't check expires_at
   });
   res.json({
     access_token: newAccessToken, token_type: 'Bearer',
