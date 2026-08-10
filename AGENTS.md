@@ -44,7 +44,196 @@
 
 ---
 
+## Estado (6 Ago 2026 — sesión 40)
+
+### Cambios Sesión 40 — Miembros de Proyecto con Roles + Restricción de Aprobación
+
+#### Nuevo feature: Gestión de miembros de proyecto
+- **Migración**: `007_create_proyecto_miembros.sql` — tabla `projects.proyecto_miembros` con roles
+- **Backend**: `routes/miembros.js` — CRUD completo de miembros
+  - GET /proyectos/:id/miembros — listar miembros con nombres
+  - POST /proyectos/:id/miembros — agregar miembro (body: `{ usuario_id, rol }`)
+  - PUT /proyectos/:id/miembros/:userId — cambiar rol
+  - DELETE /proyectos/:id/miembros/:userId — quitar miembro
+  - Solo el creador o admin/gerente pueden gestionar miembros
+- **Roles**: `lider` (puede todo), `miembro` (crea/edita tareas), `observador` (solo ve)
+- **Backend**: `routes/proyectos.js`
+  - GET /proyectos retorna array de miembros por proyecto
+  - POST /proyecto crea al asignado automáticamente como `lider`
+  - ver_propios ahora incluye proyectos donde el usuario es miembro
+- **Backend**: `routes/tareas.js`
+  - ver_propios ahora incluye tareas de proyectos donde el usuario es miembro
+- **Backend**: `server.js` — dashboard incluye tareas de proyectos miembro
+- **Frontend**: `proyectos.js`
+  - Cards muestran badges de miembros (máx 4 + "+N")
+  - Modal de edición incluye sección de gestión de miembros
+  - Funciones: agregarMiembroProyecto, cambiarRolMiembro, quitarMiembroProyecto
+- **Frontend**: `tareas.js`
+  - Select "Asignado a" filtra por miembros del proyecto seleccionado
+  - onchange en select de proyecto actualiza el select de asignado
+  - Cache de miembros por proyecto
+
+#### Archivos creados
+- `modules/proyectos/backend/migrations/007_create_proyecto_miembros.sql`
+- `modules/proyectos/backend/routes/miembros.js`
+
+#### Archivos modificados
+- `modules/proyectos/backend/server.js` — import + mount miembrosRoutes
+- `modules/proyectos/backend/routes/proyectos.js` — GET retorna miembros, POST crea lider, ver_propios incluye miembros
+- `modules/proyectos/backend/routes/tareas.js` — ver_propios incluye miembros
+- `modules/proyectos/backend/routes/aprobacion.js` — restricción: no aprobar si hay tareas pendientes
+- `modules/proyectos/public/js/modules/proyectos.js` — cards miembros + modal gestión + funciones CRUD
+- `modules/proyectos/public/js/modules/tareas.js` — filtrar select por miembros del proyecto
+
+#### Restricción de aprobación de proyectos
+- `routes/aprobacion.js:152-168` — antes de aprobar, verifica `COUNT(*) FILTER (WHERE estado != 'completada')` en tareas del proyecto
+- Si hay tareas pendientes, retorna 400 con mensaje descriptivo
+- Botón de aprobar solo se muestra cuando `total_tareas === 0 || tareas_completadas === total_tareas`
+- Aplica para todos los usuarios sin importar rol o perfil
+
+#### UI de miembros estilo nómina
+- Modal con checkbox list + filtro de texto + selector de rol por fila
+- Botones "Todos" / "Ninguno" para selección masiva
+- PUT `/proyectos/:id/miembros` para reemplazar todos los miembros en transacción
+- Solo el creador o admin/gerente pueden gestionar miembros
+
+#### Notificaciones de miembros
+- Al agregar un miembro: notifica con mensaje según rol (líder=responsable, miembro=hace parte)
+- Bulk: solo notifica a miembros nuevos
+
+#### Fixes varios
+- Email evidencia: `detallesExtra` debe ser objeto, no string
+- Templates email: gramática correcta el/la según género de la entidad
+- Label "Asignado a" → "Responsable del proyecto"
+- Modal miembros z-index:350 (sobre modal de proyecto)
+
+---
+
+## Estado (6 Ago 2026 — sesión 39)
+
+### Cambios Sesión 39 — Proyectos: fixes y mejoras
+
+#### Fix: Cambiar proyecto al editar tarea
+- **Bug**: El endpoint `PUT /tareas/:id` no desestructuraba `proyecto_id` del body ni lo incluía en el query UPDATE.
+- **Fix**: `routes/tareas.js:197` — agregado `proyecto_id` a desestructuración + línea 249 nuevo `if` para actualizarlo.
+
+#### Feature: Auto-cambiar estado a "en_progreso"
+- Al comentar o subir evidencia en una tarea con estado `pendiente`, esta se cambia automáticamente a `en_progreso`.
+- **Backend**: `routes/comentarios.js:41-46` — verifica `tarea.estado === 'pendiente'` y ejecuta UPDATE.
+- **Backend**: `routes/evidencias.js:60,77-81` — misma lógica, SELECT ahora trae `estado`.
+
+#### Feature: Pre-seleccionar proyecto al crear tarea
+- Al hacer clic en un proyecto y luego en "+ Nueva Tarea", el modal pre-selecciona el proyecto padre.
+- **Frontend**: `tareas.js:3` — nueva variable global `_proyectoFiltroActual`.
+- **Frontend**: `proyectos.js:69` — `verTareasProyecto()` setea `_proyectoFiltroActual`.
+- **Frontend**: `tareas.js:174-175,182` — `abrirModalTarea()` usa la variable para pre-seleccionar y la limpia.
+
+#### Feature: Creador puede aprobar/rechazar sus proyectos
+- Antes solo admin/gerente podían aprobar. Ahora el usuario asignado (`asignado_a`) también puede.
+- **Backend**: `routes/aprobacion.js:152-157,196-201` —两端点 verifican `esAdminGerente || esCreador`.
+- **Frontend**: `proyectos.js:54-55` — botones se muestran si `['admin','gerente'].includes(rol) || p.asignado_a === usuario?.id`.
+
+#### Archivos modificados
+- `modules/proyectos/backend/routes/tareas.js` — fix `proyecto_id` en PUT
+- `modules/proyectos/backend/routes/comentarios.js` — auto en_progreso
+- `modules/proyectos/backend/routes/evidencias.js` — auto en_progreso
+- `modules/proyectos/backend/routes/aprobacion.js` — permisos de creador
+- `modules/proyectos/public/js/modules/tareas.js` — variable contexto + pre-selección
+- `modules/proyectos/public/js/modules/proyectos.js` — setear contexto + botones
+
+---
+
+## Estado (6 Ago 2026 — sesión 41)
+
+### Cambios Sesión 41 — Filtros, paginación, deep-linking y notificaciones
+
+#### Filtros en tablas
+- **Tareas**: Filtro por usuario asignado (combobox searchable `selectBuscador()`)
+- **Proyectos**: 5 filtros nuevos (estado, aprobación, centro operación, asignado a, ordenar por)
+- **Botón "✕ Limpiar"**: En todas las tablas con filtros (Dashboard, Tareas, Proyectos)
+- **CSS**: `.filters .select-buscador` para consistencia visual
+
+#### Paginación mejorada en Tareas
+- Select para elegir 10/20/50/100 tareas por página
+- Botones Anterior/Siguiente se deshabilitan automáticamente
+- Reset a página 1 al cambiar items por página
+
+#### Deep-linking en emails
+- **Función helper**: `tareasUrl(base, proyectoId)` genera URLs con `?proyecto=X`
+- **Backend**: Todos los emails de tareas incluyen `?proyecto=id` cuando aplica
+- **Frontend**: `mostrarAppInterno()` lee parámetros de URL y aplica filtros
+- **Archivos**: `tareas.js`, `aprobacion.js`, `comentarios.js`, `evidencias.js`
+
+#### Notificaciones in-app con deep-link
+- **Fix HTTP method**: `marcarNotifLeida()` usa `DELETE` (antes usaba `PUT` y fallaba)
+- **Dropdown**: Usa `data-url` en vez de string en `onclick` (evita problemas con caracteres especiales)
+- **Navegación**: Primero navega, luego borra notificación en background
+
+#### Notificaciones del navegador
+- **Banner**: "🔔 Activa las notificaciones" en dropdown hasta que usuario active
+- **Funciones**: `mostrarNotificacionBrowser()`, `activarNotificaciones()`, `checkNotifPermission()`
+- **Polling**: Cada 15 segundos (antes 60s)
+- **Sincronización**: Todos los módulos (framework.js + nomina/proveedores app.js)
+
+#### Fixes varios
+- `selectBuscador()` soporta objetos sin campo `email`
+- `initSelectBuscador()` dispara evento `change` al seleccionar
+- `verTareasProyecto()` es async y espera a `cargarProyectosSelect(forceReload)`
+- `cargarProyectosSelect()` tiene flag `_filtroProyectoInit` para no resetear select
+- Scheduler de recordatorios usa URL correcta `/proyectos/#tareas?proyecto=X`
+- Modales de confirmación para aprobar/completar tareas y proyectos
+
+#### Prioridad en proyectos
+- **Migración**: `008_add_proyecto_prioridad.sql` — campo `prioridad` (baja/media/alta/critica)
+- **Backend**: POST y PUT soportan campo `prioridad`
+- **Frontend**: Select en modal crear/editar
+- **Filtro**: Select de prioridad en barra de filtros de proyectos
+- **Cards**: Badge de prioridad con colores (critica=danger, alta=warning, media=info, baja=muted)
+- **Ordenar**: Opción "Mayor prioridad" en select de orden
+
+#### Mejoras en vista de Tareas para escalar
+- **Filtro por defecto**: "No completadas" excluye tareas completadas automáticamente
+- **Recordar filtros**: Guarda estado, prioridad, proyecto, asignado en localStorage (`sy_tareas_filtros`)
+- **Vista agrupada por proyecto**: Botón toggle "📁 Vista agrupada" que muestra tareas agrupadas
+- **Colapsar/expandir**: Click en header del proyecto alterna visibilidad de la tabla
+- **Colores fijos**: Tareas=`#00A86B` (verde), Proyectos=`#f7944f` (naranja) - no dependen del tema
+- **Badges legibles**: Colores más oscuros en tema claro para better contrast
+
+#### Unificación de localStorage
+- Eliminada clave `sy_tareas_proyecto` (redundante)
+- Todo usa `sy_tareas_filtros` para filtros de tareas
+- `verTareasProyecto()` y `mostrarAppInterno()` guardan en `sy_tareas_filtros`
+
+#### Fix sesión: refresh periódico
+- **Refresh token**: `setInterval` cada 15min llama `POST /api/auth/refresh`
+- **Visibilitychange**: Refresca token al volver visible la pestaña
+- **Problema anterior**: JWT expiraba en 1h sin refresh periódico
+
+#### Cache centralizado (mejora UX)
+- **Helpers**: `cacheGet(key, ttlMs)`, `cacheSet(key, data)`, `cacheCleanAll()`
+- **Prefijo**: `sf_` para distinguir de claves de módulo
+- **Datos cacheados**: `/api/version` (1h), centros (5min), usuarios (5min)
+- **Logout**: `cacheCleanAll()` invalida todos los caches
+
+#### Filtros recordados en todas las vistas
+- **Tareas**: `sy_tareas_filtros` + `sy_tareas_limit`
+- **Dashboard**: `sy_dash_filtros`
+- **Proyectos**: `sy_proy_filtros`
+- **Botón "✕ Limpiar"**: Limpia localStorage y resetea filtros
+
+#### Fix notificaciones (URL incorrecta)
+- `cargarNotificaciones()` usaba `/proyectos/api/notificaciones` (404)
+- **Fix**: `notifApi = HF.API.replace(/\/proyectos\/api$/, '/api')`
+- Sincronizado framework.js con logística y proyectos
+
+---
+
+## Estado actual (6 Ago 2026)
 ### Últimos cambios
+- **Sesión 41**: Filtros en tablas, paginación, deep-linking emails, notificaciones in-app + navegador.
+- **Sesión 40**: Miembros de proyecto con roles (lider/miembro/observador), filtrado de tareas por miembros, gestión de miembros en modal.
+- **Sesión 39**: Fixes y mejoras en Proyectos — cambiar proyecto al editar tarea, auto-en_progreso al comentar/evidencia, pre-seleccionar proyecto padre, creador aprueba sus proyectos.
+- **Sesión 38**: Fix OAuth error feedback (invalid_state message + logging + stack traces). MCP OAuth admin: mostrar usuario propietario de tokens y clientes activos.
 - **Sesión 37**: Eliminado login de sesión expirada del launcher, se usa el login principal. Proveedores redirige a `/` en vez de overlay propio. Limpiado `jwtToken`/`user` al mostrar login por expiración.
 - **Sesión 36**: Fix `/api/auth/me` — ahora retorna `modulos_permisos` en todos los módulos (nómina, logística, proveedores, proyectos).
 - **Sesión 35**: OAuth login (Google, GitHub, Microsoft), MCP para IA (15 herramientas), notificaciones in-app, session expired modal mejorado.
@@ -63,7 +252,7 @@
 #### Técnicos
 - [ ] Observabilidad centralizada (tabla `auditoria_central`)
 - [ ] APIs internas entre módulos
-- [ ] Dividir `launcher/server.js` (~2800 líneas → routers separados)
+- [ ] Dividir `launcher/server.js` (~3700 líneas → routers separados)
 - [ ] SSH `execSync` → `ssh2` (test-ssh)
 - [ ] CSP nonce en proveedores
 - [ ] Ofuscar builds frontend
@@ -114,6 +303,22 @@
 - **OAuth login**: Botones siempre visibles, verifican provider al click.
 - **MCP OAuth**: Habilitado por defecto. Tokens vinculados a usuarios internos via login cookie.
 - **Workflow de módulos**: Scaffold (Admin → Módulos → ⚡ Crear) → Desarrollo → Built-in (mover al repo, registrar en `builtin` array, montar como sub-app).
+- **Multi-selección (checkbox list)**: Para seleccionar múltiples elementos, usar modal con checkboxes + filtro de texto + botones "Todos/Ninguno". NO usar `<select multiple>`. Ejemplo: `routes/miembros.js` + `proyectos.js:abrirModalMiembros()`.
+- **Notificaciones por rol/contexto**: Personalizar mensaje según el rol del usuario. Ej: líder → "eres el responsable", miembro → "haces parte del proyecto". Usar `notificar()` de `utils/notify.js`.
+- **Templates de email (género)**: `templateAsignacion()` y `templateCambioEstado()` detectan género según entidad. "proyecto" = el/Asignado, "tarea" = la/Asignada. Siempre pasar `entidad` en minúsculas.
+- **Queries resilientes**: Si una tabla puede no existir (migración pendiente), verificar con `SELECT 1 FROM tabla LIMIT 1` antes de usar. Ejemplo: `routes/proyectos.js` con `proyecto_miembros`.
+- **Aprobación condicional**: Botón de aprobar solo se muestra cuando se cumplen las condiciones. Ej: proyecto solo cuando todas las tareas están completadas. Validación backend como red de seguridad.
+- **Auto-cambio de estado**: Al realizar una acción en un elemento pendiente, cambiarlo automáticamente a "en progreso". Ej: comentar o subir evidencia en tarea pendiente → `en_progreso`.
+- **Variables de contexto para pre-selección**: Usar variables globales como `_proyectoFiltroActual` para pasar contexto entre vistas. Setear en la vista origen, leer y limpiar en el modal destino.
+- **Persistencia de página**: Guardar `localStorage.setItem('sy_last_page', page)` en `navigate()`. Restaurar al cargar: `hash || localStorage.getItem('sy_last_page') || 'dashboard'`. Validar con array de páginas válidas.
+- **Combobox searchable en filtros**: Para filtros de usuario en tablas, usar `selectBuscador()` + `initSelectBuscador()` con flag de init para no re-renderizar.
+- **Filtros en tablas**: Todos los filtros deben tener botón "✕ Limpiar" que resetee todos los valores y recargue los datos.
+- **Paginación**: Select de items por página + botones Anterior/Siguiente que se deshabilitan automáticamente.
+- **Deep-linking en emails**: Usar función helper `tareasUrl(base, proyectoId)` para generar URLs con `?proyecto=X`. Incluir en TODOS los emails de tareas.
+- **Notificaciones in-app**: `marcarNotifLeida()` debe usar `DELETE` (no `PUT`). Primero navegar, luego borrar notificación en background.
+- **Notificaciones del navegador**: Banner en dropdown hasta que usuario active. Polling cada 15 segundos. Usar `data-url` en vez de string en `onclick`.
+- **Sincronización de framework.js**: Si se modifica `framework/framework.js`, sincronizar con `modules/*/public/framework.js` y `modules/*/public/app.js` (nomina/proveedores).
+- **selectBuscador()**: Soporta objetos sin campo `email`. El `initSelectBuscador()` dispara `change` event automáticamente.
 
 ---
 

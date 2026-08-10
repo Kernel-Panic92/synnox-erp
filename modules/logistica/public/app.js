@@ -92,7 +92,12 @@ function closeSidebar() {
 let _dashRefreshInterval = null;
 
 /* ── Navigation ── */
+const LOG_PAGINAS_VALIDAS = ['dashboard','vehiculos','pedidos','rutas','reportes','config','mapa','clientes','sedes','widetech','geocercas','devoluciones'];
+
 function navigate(page) {
+  if (!LOG_PAGINAS_VALIDAS.includes(page)) page = 'dashboard';
+  localStorage.setItem('lg_last_page', page);
+
   if (_dashRefreshInterval) { clearInterval(_dashRefreshInterval); _dashRefreshInterval = null; }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -182,8 +187,12 @@ async function init() {
     if (footerRole) footerRole.textContent = data.perfil_nombre || data.rol || '';
     renderSidebar(data);
     cargarVersion();
-    cargarDashboard();
-    initNotifications(60000);
+    const hash = location.hash.slice(1);
+    const saved = localStorage.getItem('lg_last_page');
+    const page = hash || saved || 'dashboard';
+    if (page === 'dashboard') cargarDashboard();
+    else navigate(page);
+    initNotifications(15000);
   } catch (e) {
     document.getElementById('app-screen').style.display = 'none';
     const isModuleDenied = e.message?.includes('acceso al módulo') || e.message?.includes('Acceso denegado');
@@ -1011,11 +1020,26 @@ async function cargarRutas() {
 }
 
 let _sedesCache = null;
+let _sedesCacheTs = 0;
+const SEDES_CACHE_TTL = 30000; // 30 segundos
+let _sedesPromise = null;
+
 async function poblarSedesRutas() {
   const select = document.getElementById('filtro-rutas-sede');
   if (!select) return;
   try {
-    if (!_sedesCache) { const centros = await api('/centros'); _sedesCache = Array.isArray(centros) ? centros : []; }
+    const age = Date.now() - _sedesCacheTs;
+    if (!_sedesCache || age >= SEDES_CACHE_TTL) {
+      if (!_sedesPromise) {
+        _sedesPromise = (async () => {
+          const centros = await api('/centros');
+          _sedesCache = Array.isArray(centros) ? centros : [];
+          _sedesCacheTs = Date.now();
+          _sedesPromise = null;
+        })();
+      }
+      await _sedesPromise;
+    }
     const actual = select.value;
     select.innerHTML = '<option value="">Todas las sedes</option>' +
       _sedesCache.map(s => `<option value="${esc(s.nombre)}" ${s.nombre===actual?'selected':''}>${esc(s.nombre)}</option>`).join('');

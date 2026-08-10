@@ -1,19 +1,97 @@
 let _proyectos = [];
 let _centrosCache = null;
+let _centrosCacheTs = 0;
+const CENTROS_CACHE_TTL = 30000;
+let _centrosPromise = null;
+let _proyectoMiembrosActual = null;
+let _miembrosSeleccionados = new Set();
+let _miembrosRoles = {};
+let _proyFiltroAsignadoInit = false;
+
+async function cargarFiltrosProyectos() {
+  await Promise.all([cargarCentrosProyectos(), cargarTodosLosUsuarios()]);
+  const centroSel = document.getElementById('filtro-proy-centro');
+  if (centroSel && centroSel.options.length <= 1) {
+    centroSel.innerHTML = '<option value="">Todos los centros</option>' +
+      (_centrosCache || []).map(c => `<option value="${c.id}">${esc(c.nombre)}</option>`).join('');
+  }
+  if (!_proyFiltroAsignadoInit) {
+    const saved = JSON.parse(localStorage.getItem('sy_proy_filtros') || '{}');
+    const wrap = document.getElementById('filtro-proy-asignado-wrap');
+    if (wrap) {
+      wrap.innerHTML = selectBuscador('filtro-proy-asignado', _todosUsuarios, saved.asignado || '', 'Todos los usuarios');
+      initSelectBuscador('filtro-proy-asignado');
+      document.getElementById('filtro-proy-asignado')?.addEventListener('change', () => cargarProyectos());
+    }
+    // Restaurar selects
+    if (saved.estado) document.getElementById('filtro-proy-estado').value = saved.estado;
+    if (saved.prioridad) document.getElementById('filtro-proy-prioridad').value = saved.prioridad;
+    if (saved.aprobacion) document.getElementById('filtro-proy-aprobacion').value = saved.aprobacion;
+    if (saved.centro) document.getElementById('filtro-proy-centro').value = saved.centro;
+    if (saved.orden) document.getElementById('filtro-proy-orden').value = saved.orden;
+    if (saved.q) document.getElementById('filtro-proy-busqueda').value = saved.q;
+    _proyFiltroAsignadoInit = true;
+  }
+}
 
 async function cargarProyectos() {
   try {
+    await cargarFiltrosProyectos();
     const data = await api('/proyectos');
     _proyectos = data.proyectos || [];
-    const q = (document.getElementById('filtro-proy-busqueda')?.value || '').toLowerCase();
-    const filtrados = q ? _proyectos.filter(p =>
-      p.nombre.toLowerCase().includes(q) ||
-      (p.descripcion || '').toLowerCase().includes(q) ||
-      nombreUsuario(p.asignado_a).toLowerCase().includes(q)
-    ) : _proyectos;
-    document.getElementById('proyectos-count').textContent = `${filtrados.length} proyecto(s)`;
     const ids = _proyectos.map(p => p.asignado_a).filter(Boolean);
-    await cargarNombresUsuarios(ids);
+    const memberIds = _proyectos.flatMap(p => (p.miembros || []).map(m => m.usuario_id));
+    await cargarNombresUsuarios([...new Set([...ids, ...memberIds])]);
+
+    const q = (document.getElementById('filtro-proy-busqueda')?.value || '').toLowerCase();
+    const filtroEstado = document.getElementById('filtro-proy-estado')?.value || '';
+    const filtroPrioridad = document.getElementById('filtro-proy-prioridad')?.value || '';
+    const filtroAprob = document.getElementById('filtro-proy-aprobacion')?.value || '';
+    const filtroCentro = document.getElementById('filtro-proy-centro')?.value || '';
+    const filtroAsignado = document.getElementById('filtro-proy-asignado')?.value || '';
+    const orden = document.getElementById('filtro-proy-orden')?.value || 'recientes';
+
+    // Guardar filtros
+    localStorage.setItem('sy_proy_filtros', JSON.stringify({
+      estado: filtroEstado, prioridad: filtroPrioridad, aprobacion: filtroAprob,
+      centro: filtroCentro, asignado: filtroAsignado, orden, q
+    }));
+
+    let filtrados = _proyectos.filter(p => {
+      if (filtroEstado && p.estado !== filtroEstado) return false;
+      if (filtroPrioridad && (p.prioridad || 'media') !== filtroPrioridad) return false;
+      if (filtroAprob && (p.estado_aprobacion || 'pendiente') !== filtroAprob) return false;
+      if (filtroCentro && String(p.centro_id || '') !== filtroCentro) return false;
+      if (filtroAsignado && String(p.asignado_a || '') !== filtroAsignado) return false;
+      if (q) {
+        const match = p.nombre.toLowerCase().includes(q) ||
+          (p.descripcion || '').toLowerCase().includes(q) ||
+          nombreUsuario(p.asignado_a).toLowerCase().includes(q);
+        if (!match) return false;
+      }
+      return true;
+    });
+
+    if (orden === 'nombre') {
+      filtrados.sort((a, b) => a.nombre.localeCompare(b.nombre));
+    } else if (orden === 'fecha') {
+      filtrados.sort((a, b) => {
+        if (!a.fecha_limite) return 1;
+        if (!b.fecha_limite) return -1;
+        return new Date(a.fecha_limite) - new Date(b.fecha_limite);
+      });
+    } else if (orden === 'progreso') {
+      filtrados.sort((a, b) => {
+        const pctA = parseInt(a.total_tareas) > 0 ? Math.round((parseInt(a.tareas_completadas) / parseInt(a.total_tareas)) * 100) : 0;
+        const pctB = parseInt(b.total_tareas) > 0 ? Math.round((parseInt(b.tareas_completadas) / parseInt(b.total_tareas)) * 100) : 0;
+        return pctB - pctA;
+      });
+    } else if (orden === 'prioridad') {
+      const prioOrder = { critica: 4, alta: 3, media: 2, baja: 1 };
+      filtrados.sort((a, b) => (prioOrder[b.prioridad] || 2) - (prioOrder[a.prioridad] || 2));
+    }
+
+    document.getElementById('proyectos-count').textContent = `${filtrados.length} proyecto(s)`;
     const grid = document.getElementById('proyectos-grid');
 
     if (!filtrados.length) {
@@ -27,19 +105,20 @@ async function cargarProyectos() {
       const pct = total > 0 ? Math.round((completadas / total) * 100) : 0;
       const estadoCls = p.estado === 'completado' ? 'badge-success' : p.estado === 'archivado' ? 'badge-muted' : 'badge-info';
       const aprobCls = p.estado_aprobacion === 'aprobada' ? 'badge-success' : p.estado_aprobacion === 'rechazada' ? 'badge-danger' : 'badge-muted';
+      const prioCls = p.prioridad === 'critica' ? 'badge-danger' : p.prioridad === 'alta' ? 'badge-warning' : p.prioridad === 'media' ? 'badge-info' : 'badge-muted';
       const centro = _centrosCache?.find(c => c.id === p.centro_id);
       return `
         <div class="card" style="cursor:pointer" onclick="verTareasProyecto(${p.id})">
-          <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
-            <strong style="font-size:15px">${esc(p.nombre)}</strong>
-            <span style="display:flex;gap:6px">
-              <span class="badge ${aprobCls}">${p.estado_aprobacion || 'pendiente'}</span>
-              <span class="badge ${estadoCls}">${p.estado || 'activo'}</span>
-            </span>
+          <strong style="font-size:15px;display:block;margin-bottom:6px">${esc(p.nombre)}</strong>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px">
+            <span class="badge ${prioCls}" style="font-size:10px">${p.prioridad || 'media'}</span>
+            <span class="badge ${aprobCls}" style="font-size:10px">${p.estado_aprobacion || 'pendiente'}</span>
+            <span class="badge ${estadoCls}" style="font-size:10px">${p.estado || 'activo'}</span>
           </div>
           ${p.descripcion ? `<p style="font-size:12px;color:var(--muted);margin-bottom:10px">${esc(p.descripcion)}</p>` : ''}
           ${centro ? `<div style="font-size:11px;color:var(--muted);margin-bottom:4px">&#x1F3E2; ${esc(centro.nombre)}</div>` : ''}
           ${p.asignado_a ? `<div style="font-size:11px;color:var(--muted);margin-bottom:4px">&#x1F464; ${esc(nombreUsuario(p.asignado_a))}</div>` : ''}
+          ${p.miembros?.length ? `<div style="display:flex;gap:4px;flex-wrap:wrap;margin-bottom:4px">${p.miembros.slice(0, 4).map(m => `<span class="badge badge-muted" style="font-size:10px" title="${m.rol}">${esc(nombreUsuario(m.usuario_id))}</span>`).join('')}${p.miembros.length > 4 ? `<span class="badge badge-muted" style="font-size:10px">+${p.miembros.length - 4}</span>` : ''}</div>` : ''}
           ${p.fecha_limite ? `<div style="font-size:11px;color:var(--muted);margin-bottom:8px">&#x1F4C5; ${formatDate(p.fecha_limite)}</div>` : ''}
           <div style="display:flex;gap:8px;font-size:11px;margin-bottom:8px">
             <span>&#x23F3; ${parseInt(p.tareas_pendientes) || 0}</span>
@@ -51,8 +130,8 @@ async function cargarProyectos() {
           </div>
           <div style="font-size:11px;color:var(--muted);margin-bottom:8px">${pct}% completado (${completadas}/${total})</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap">
-            ${p.estado !== 'completado' && (p.estado_aprobacion !== 'aprobada') && ['admin','gerente'].includes(usuario?.rol) ? `<button class="btn btn-xs btn-success" onclick="event.stopPropagation();aprobarProyecto(${p.id})" title="Aprobar">&#10003;</button>` : ''}
-            ${p.estado_aprobacion === 'aprobada' && ['admin','gerente'].includes(usuario?.rol) ? `<button class="btn btn-xs btn-danger" onclick="event.stopPropagation();rechazarProyecto(${p.id})" title="Desaprobar">&#10007;</button>` : ''}
+            ${p.estado !== 'completado' && (p.estado_aprobacion !== 'aprobada') && (parseInt(p.total_tareas) === 0 || parseInt(p.tareas_completadas) === parseInt(p.total_tareas)) && (['admin','gerente'].includes(usuario?.rol) || p.asignado_a === usuario?.id) ? `<button class="btn btn-xs btn-success" onclick="event.stopPropagation();aprobarProyecto(${p.id})" title="Aprobar">&#10003;</button>` : ''}
+            ${p.estado_aprobacion === 'aprobada' && (['admin','gerente'].includes(usuario?.rol) || p.asignado_a === usuario?.id) ? `<button class="btn btn-xs btn-danger" onclick="event.stopPropagation();rechazarProyecto(${p.id})" title="Desaprobar">&#10007;</button>` : ''}
             ${p.estado_aprobacion === 'aprobada' && ['admin','gerente'].includes(usuario?.rol) ? `<button class="btn btn-xs btn-warning" onclick="event.stopPropagation();cerrarProyecto(${p.id})" title="Cerrar proyecto">&#x1F516;</button>` : ''}
             ${tienePermiso('editar') ? `<button class="btn btn-xs btn-secondary" onclick="event.stopPropagation();abrirModalProyecto(${p.id})" title="Editar">&#9998;</button>` : ''}
             ${tienePermiso('eliminar') ? `<button class="btn btn-xs btn-danger" onclick="event.stopPropagation();eliminarProyecto(${p.id})" title="Eliminar">&#10005;</button>` : ''}
@@ -65,20 +144,46 @@ async function cargarProyectos() {
   }
 }
 
-function verTareasProyecto(proyectoId) {
+function proyectosLimpiarFiltros() {
+  document.getElementById('filtro-proy-estado').value = '';
+  document.getElementById('filtro-proy-prioridad').value = '';
+  document.getElementById('filtro-proy-aprobacion').value = '';
+  document.getElementById('filtro-proy-centro').value = '';
+  document.getElementById('filtro-proy-orden').value = 'recientes';
+  document.getElementById('filtro-proy-busqueda').value = '';
+  const asignado = document.getElementById('filtro-proy-asignado');
+  const display = document.getElementById('filtro-proy-asignado-display');
+  if (asignado) asignado.value = '';
+  if (display) display.value = '';
+  localStorage.removeItem('sy_proy_filtros');
+  cargarProyectos();
+}
+
+async function verTareasProyecto(proyectoId) {
+  const filtros = JSON.parse(localStorage.getItem('sy_tareas_filtros') || '{}');
+  filtros.proyecto = proyectoId;
+  localStorage.setItem('sy_tareas_filtros', JSON.stringify(filtros));
   navigate('tareas');
-  setTimeout(() => {
-    const sel = document.getElementById('filtro-proyecto');
-    if (sel) { sel.value = proyectoId; cargarTareas(); }
-  }, 100);
+  // Esperar a que cargarTareas() termine y luego forzar el filtro
+  await new Promise(r => setTimeout(r, 200));
+  await cargarProyectosSelect(true);
+  const sel = document.getElementById('filtro-proyecto');
+  if (sel) { sel.value = proyectoId; _tareasPage = 1; cargarTareas(); }
 }
 
 async function cargarCentrosProyectos() {
-  if (_centrosCache) return;
-  try {
-    const centros = await api('/centros');
-    _centrosCache = Array.isArray(centros) ? centros : [];
-  } catch { _centrosCache = []; }
+  const age = Date.now() - _centrosCacheTs;
+  if (_centrosCache && age < CENTROS_CACHE_TTL) return;
+  if (_centrosPromise) return _centrosPromise;
+  _centrosPromise = (async () => {
+    try {
+      const centros = await api('/centros');
+      _centrosCache = Array.isArray(centros) ? centros : [];
+      _centrosCacheTs = Date.now();
+    } catch { _centrosCache = []; }
+    _centrosPromise = null;
+  })();
+  return _centrosPromise;
 }
 
 async function abrirModalProyecto(id) {
@@ -89,6 +194,22 @@ async function abrirModalProyecto(id) {
   const centroOpts = (_centrosCache || []).map(c =>
     `<option value="${c.id}" ${p?.centro_id === c.id ? 'selected' : ''}>${esc(c.nombre)}</option>`
   ).join('');
+
+  const miembrosHtml = id ? `
+    <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong style="font-size:13px">Miembros del proyecto <span style="font-weight:400;color:var(--muted)">(${(p?.miembros || []).length})</span></strong>
+        <button class="btn btn-xs btn-secondary" onclick="abrirModalMiembros(${id})">Gestionar miembros</button>
+      </div>
+      <div style="display:flex;gap:4px;flex-wrap:wrap">
+        ${(p?.miembros || []).map(m => {
+          const rolBadge = m.rol === 'lider' ? 'badge-info' : m.rol === 'miembro' ? 'badge-muted' : 'badge-warning';
+          return `<span class="badge ${rolBadge}" style="font-size:11px">${esc(nombreUsuario(m.usuario_id))} · ${m.rol}</span>`;
+        }).join('') || '<span style="font-size:12px;color:var(--muted)">Sin miembros</span>'}
+      </div>
+    </div>
+  ` : '';
+
   const body = `
     <div class="form-group"><label>Nombre *</label><input id="proy-nombre" value="${esc(p?.nombre || '')}"></div>
     <div class="form-group"><label>Descripcion</label><textarea id="proy-desc">${esc(p?.descripcion || '')}</textarea></div>
@@ -103,9 +224,16 @@ async function abrirModalProyecto(id) {
       </select></div>
     </div>
     <div class="form-row">
+      <div class="form-group"><label>Prioridad</label><select id="proy-prioridad">
+        <option value="baja" ${p?.prioridad === 'baja' ? 'selected' : ''}>Baja</option>
+        <option value="media" ${(!p?.prioridad || p?.prioridad === 'media') ? 'selected' : ''}>Media</option>
+        <option value="alta" ${p?.prioridad === 'alta' ? 'selected' : ''}>Alta</option>
+        <option value="critica" ${p?.prioridad === 'critica' ? 'selected' : ''}>Crítica</option>
+      </select></div>
       <div class="form-group"><label>Fecha Limite</label><input type="date" id="proy-fecha" value="${p?.fecha_limite ? p.fecha_limite.split('T')[0] : ''}"></div>
-      <div class="form-group"><label>Asignado a</label>${selectBuscador('proy-asignado', _todosUsuarios, p?.asignado_a, 'Buscar usuario...')}</div>
     </div>
+    <div class="form-group"><label>Responsable del proyecto</label>${selectBuscador('proy-asignado', _todosUsuarios, p?.asignado_a, 'Buscar usuario...')}</div>
+    ${miembrosHtml}
   `;
   const actions = `<button class="btn btn-sm btn-secondary" onclick="cerrarModal()">Cancelar</button>
     <button class="btn btn-sm btn-primary" onclick="guardarProyecto(${id || 'null'})">Guardar</button>`;
@@ -119,6 +247,7 @@ async function guardarProyecto(id) {
     nombre: document.getElementById('proy-nombre').value.trim(),
     descripcion: document.getElementById('proy-desc').value.trim(),
     estado: document.getElementById('proy-estado').value,
+    prioridad: document.getElementById('proy-prioridad').value,
     fecha_limite: document.getElementById('proy-fecha').value || null,
     centro_id: centroEl?.value ? Number(centroEl.value) : null,
     asignado_a: parseInt(document.getElementById('proy-asignado').value) || null
@@ -148,6 +277,8 @@ async function eliminarProyecto(id) {
 }
 
 async function aprobarProyecto(id) {
+  const ok = await confirmarModal('Aprobar Proyecto', '¿Aprobar este proyecto?');
+  if (!ok) return;
   try {
     await api('/proyectos/' + id + '/aprobar', { method: 'PUT' });
     toast('Proyecto aprobado', 'success');
@@ -156,10 +287,135 @@ async function aprobarProyecto(id) {
 }
 
 async function rechazarProyecto(id) {
+  const ok = await confirmarModal('Desaprobar Proyecto', '¿Desaprobar este proyecto? Se perderá la aprobación actual.');
+  if (!ok) return;
   try {
     await api('/proyectos/' + id + '/rechazar', { method: 'PUT' });
     toast('Proyecto desaprobado', 'warning');
     cargarProyectos();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
+// ── Gestión de miembros (checkbox list) ──
+async function abrirModalMiembros(proyectoId) {
+  await cargarTodosLosUsuarios();
+  if (!_todosUsuarios.length) {
+    toast('No se pudieron cargar los usuarios', 'error');
+    return;
+  }
+  const p = _proyectos.find(x => x.id === proyectoId);
+  _proyectoMiembrosActual = proyectoId;
+  _miembrosSeleccionados = new Set();
+  _miembrosRoles = {};
+
+  const miembros = p?.miembros || [];
+  for (const m of miembros) {
+    _miembrosSeleccionados.add(m.usuario_id);
+    _miembrosRoles[m.usuario_id] = m.rol;
+  }
+
+  const searchEl = document.getElementById('miembro-search');
+  if (searchEl) searchEl.value = '';
+
+  renderMiembrosModal();
+  document.getElementById('modal-miembros').style.display = 'flex';
+}
+
+function renderMiembrosModal(filtro = '') {
+  const q = filtro.toLowerCase();
+  const lista = q
+    ? _todosUsuarios.filter(u =>
+        u.nombre.toLowerCase().includes(q) ||
+        (u.email || '').toLowerCase().includes(q)
+      )
+    : _todosUsuarios;
+
+  const container = document.getElementById('miembros-list');
+  if (!container) return;
+
+  if (!lista.length) {
+    container.innerHTML = '<div style="text-align:center;color:var(--muted);font-size:12px;padding:12px;">Sin resultados</div>';
+    actualizarContadorMiembros();
+    return;
+  }
+
+  container.innerHTML = lista.map(u => {
+    const checked = _miembrosSeleccionados.has(u.id);
+    const rol = _miembrosRoles[u.id] || 'miembro';
+    const nombre = u.nombre || u.name || `Usuario #${u.id}`;
+    const email = u.email || '';
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px;border-radius:7px;border-bottom:1px solid var(--border)" onmouseover="this.style.background='var(--border)'" onmouseout="this.style.background='transparent'">
+      <input type="checkbox" value="${u.id}" ${checked ? 'checked' : ''} onchange="toggleMiembro(${u.id},this.checked)"
+        style="width:16px;height:16px;accent-color:var(--accent);cursor:pointer;flex-shrink:0">
+      <div style="flex:1;min-width:0;overflow:hidden">
+        <div style="font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nombre)}</div>
+        ${email ? `<div style="font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(email)}</div>` : ''}
+      </div>
+      <select ${!checked ? 'disabled' : ''} onchange="setMiembroRol(${u.id},this.value)"
+        style="font-size:12px;padding:4px 6px;border-radius:4px;border:1px solid var(--border);flex-shrink:0;background:var(--surface);color:var(--text);width:90px;${!checked ? 'opacity:0.4' : ''}">
+        <option value="miembro" ${rol === 'miembro' ? 'selected' : ''}>Miembro</option>
+        <option value="lider" ${rol === 'lider' ? 'selected' : ''}>Líder</option>
+        <option value="observador" ${rol === 'observador' ? 'selected' : ''}>Observador</option>
+      </select>
+    </div>`;
+  }).join('');
+  actualizarContadorMiembros();
+}
+
+function toggleMiembro(id, checked) {
+  if (checked) {
+    _miembrosSeleccionados.add(id);
+    if (!_miembrosRoles[id]) _miembrosRoles[id] = 'miembro';
+  } else {
+    _miembrosSeleccionados.delete(id);
+    delete _miembrosRoles[id];
+  }
+  renderMiembrosModal(document.getElementById('miembro-search')?.value || '');
+}
+
+function setMiembroRol(id, rol) {
+  _miembrosRoles[id] = rol;
+}
+
+function filtrarMiembrosModal() {
+  const q = document.getElementById('miembro-search')?.value || '';
+  renderMiembrosModal(q);
+}
+
+function seleccionarTodosMiembros(todos) {
+  if (todos) {
+    for (const u of _todosUsuarios) {
+      _miembrosSeleccionados.add(u.id);
+      if (!_miembrosRoles[u.id]) _miembrosRoles[u.id] = 'miembro';
+    }
+  } else {
+    _miembrosSeleccionados.clear();
+    _miembrosRoles = {};
+  }
+  renderMiembrosModal(document.getElementById('miembro-search')?.value || '');
+}
+
+function actualizarContadorMiembros() {
+  const el = document.getElementById('miembros-count');
+  if (el) el.textContent = `${_miembrosSeleccionados.size} seleccionado(s)`;
+}
+
+async function guardarMiembrosProyecto() {
+  if (!_proyectoMiembrosActual) return;
+  const miembros = [..._miembrosSeleccionados].map(id => ({
+    usuario_id: id,
+    rol: _miembrosRoles[id] || 'miembro'
+  }));
+  try {
+    await api('/proyectos/' + _proyectoMiembrosActual + '/miembros', {
+      method: 'PUT',
+      body: JSON.stringify({ miembros })
+    });
+    toast('Miembros actualizados', 'success');
+    delete _miembrosProyectoCache[_proyectoMiembrosActual];
+    document.getElementById('modal-miembros').style.display = 'none';
+    await cargarProyectos();
+    abrirModalProyecto(_proyectoMiembrosActual);
   } catch (err) { toast(err.message, 'error'); }
 }
 

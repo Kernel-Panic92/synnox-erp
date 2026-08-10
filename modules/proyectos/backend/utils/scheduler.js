@@ -78,7 +78,7 @@ export async function checkDueDateNotifications() {
       const emoji = getUmbralEmoji(diasRestantes);
       const titulo = `${emoji} ${tarea.titulo}`;
       const mensaje = `${getUmbralMensaje(diasRestantes)} — ${tarea.proyecto_nombre || 'Sin proyecto'}`;
-      const url = `/tareas?tarea=${tarea.id}`;
+      const url = `/proyectos/#tareas?proyecto=${tarea.proyecto_id || ''}`;
 
       const idempotency_key = `recordatorio_vencimiento_${tarea.id}_${umbral}d_${today.toISOString().split('T')[0]}`;
 

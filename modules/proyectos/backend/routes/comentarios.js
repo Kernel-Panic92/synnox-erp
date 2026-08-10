@@ -9,6 +9,10 @@ const { templateNuevoComentario } = require('../../../../framework/email-templat
 
 const router = express.Router();
 
+function tareasUrl(base, proyectoId) {
+  return proyectoId ? `${base}/#tareas?proyecto=${proyectoId}` : `${base}/#tareas`;
+}
+
 router.get('/:id/comentarios', requirePermiso('ver', 'proyectos'), async (req, res) => {
   try {
     const result = await pool.query(
@@ -38,6 +42,14 @@ router.post('/:id/comentarios', requirePermiso('comentar', 'proyectos'), async (
       [req.params.id, usuario_id, contenido]
     );
 
+    // Auto-cambiar estado de pendiente a en_progreso
+    if (tarea.estado === 'pendiente') {
+      await pool.query(
+        `UPDATE projects.tareas SET estado = 'en_progreso', columna = 'en_progreso', updated_at = NOW() WHERE id = $1`,
+        [req.params.id]
+      );
+    }
+
     // Notificar al asignado de la tarea (siempre)
     const emailBase = await getEmailBaseUrl();
     if (tarea.asignado_a) {
@@ -48,10 +60,10 @@ router.post('/:id/comentarios', requirePermiso('comentar', 'proyectos'), async (
           tipo: 'nuevo_comentario',
           titulo: 'Nuevo comentario',
           mensaje: `${req.user.nombre} comentó en "${tarea.titulo}"`,
-          url: '/proyectos/#tareas',
+          url: tarea.proyecto_id ? `/proyectos/#tareas?proyecto=${tarea.proyecto_id}` : '/proyectos/#tareas',
           email: tarea.asignado_email,
           emailAsunto: `[Proyectos] Nuevo comentario en: ${tarea.titulo}`,
-          emailHtml: templateNuevoComentario({ entidad: 'tarea', nombre: tarea.titulo, autor: req.user.nombre, comentario: result.rows[0].contenido, url: `${emailBase}/#tareas`, module: 'proyectos', baseUrl: emailBase }),
+          emailHtml: templateNuevoComentario({ entidad: 'tarea', nombre: tarea.titulo, autor: req.user.nombre, comentario: result.rows[0].contenido, url: tareasUrl(emailBase, tarea.proyecto_id), module: 'proyectos', baseUrl: emailBase }),
           enviarCorreo
         });
       } catch (e) { console.warn('[notify] Error:', e.message); }
@@ -66,10 +78,10 @@ router.post('/:id/comentarios', requirePermiso('comentar', 'proyectos'), async (
           tipo: 'nuevo_comentario',
           titulo: 'Nuevo comentario',
           mensaje: `${req.user.nombre} comentó en "${tarea.titulo}"`,
-          url: '/proyectos/#tareas',
+          url: tarea.proyecto_id ? `/proyectos/#tareas?proyecto=${tarea.proyecto_id}` : '/proyectos/#tareas',
           email: tarea.reportero_email,
           emailAsunto: `[Proyectos] Nuevo comentario en: ${tarea.titulo}`,
-          emailHtml: templateNuevoComentario({ entidad: 'tarea', nombre: tarea.titulo, autor: req.user.nombre, comentario: result.rows[0].contenido, url: `${emailBase}/#tareas`, module: 'proyectos', baseUrl: emailBase }),
+          emailHtml: templateNuevoComentario({ entidad: 'tarea', nombre: tarea.titulo, autor: req.user.nombre, comentario: result.rows[0].contenido, url: tareasUrl(emailBase, tarea.proyecto_id), module: 'proyectos', baseUrl: emailBase }),
           enviarCorreo
         });
       } catch (e) { console.warn('[notify] Error:', e.message); }

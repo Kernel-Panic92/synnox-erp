@@ -6,13 +6,26 @@ function paginaSegura(hash) {
 }
 
 let _centrosCache = [];
+let _centrosCacheTs = 0;
+const CENTROS_CACHE_TTL = 30000; // 30 segundos
+let _centrosPromise = null;
+
 async function loadCentros() {
-  if (_centrosCache.length) return _centrosCache;
-  try {
-    const res = await GET('/api/centros');
-    if (res.ok) _centrosCache = await res.json();
-  } catch {}
-  return _centrosCache;
+  const age = Date.now() - _centrosCacheTs;
+  // Si el cache es fresco (<30s), devolverlo
+  if (_centrosCache.length && age < CENTROS_CACHE_TTL) return _centrosCache;
+  // Si ya hay un fetch en curso, esperarlo
+  if (_centrosPromise) return _centrosPromise;
+  // Fetch en background — devolver cache viejo mientras tanto
+  _centrosPromise = (async () => {
+    try {
+      const res = await GET('/api/centros');
+      if (res.ok) { _centrosCache = await res.json(); _centrosCacheTs = Date.now(); }
+    } catch {}
+    _centrosPromise = null;
+    return _centrosCache;
+  })();
+  return _centrosCache.length ? _centrosCache : _centrosPromise;
 }
 
 // Theme Management
@@ -308,7 +321,7 @@ function poblarSelectAprobadores() {
       document.getElementById('app').style.display = 'flex';
       document.getElementById('app-screen').classList.add('show');
       await iniciarApp();
-      try { initNotifications(60000); } catch {}
+      try { initNotifications(15000); } catch {}
     } else if (res.status === 403) {
       document.body.innerHTML = '<div class="error-splash"><div class="error-splash-card"><div class="error-splash-icon">🔒</div><div class="error-splash-title">Acceso denegado</div><div class="error-splash-msg">No tienes permisos para acceder al módulo de Nómina. Contacta al administrador.</div><a href="/" class="error-splash-btn error-splash-btn-primary">🏠 Volver al Launcher</a></div></div>';
     } else {
@@ -348,13 +361,51 @@ window.addEventListener('popstate', () => {
   navigate(hash);
 });
 
+// ── Cache Helpers ──
+function cacheGet(key, ttlMs) {
+  try {
+    const c = JSON.parse(localStorage.getItem('sf_' + key) || 'null');
+    if (c && c.ts && Date.now() - c.ts < ttlMs) return c.data;
+  } catch {}
+  return null;
+}
+
+function cacheSet(key, data) {
+  try { localStorage.setItem('sf_' + key, JSON.stringify({ data, ts: Date.now() })); } catch {}
+}
+
+function cacheCleanAll() {
+  Object.keys(localStorage)
+    .filter(k => k.startsWith('sf_'))
+    .forEach(k => localStorage.removeItem(k));
+}
+
 // ── Notifications ──
 let _notifPollTimer = null;
+
+let _notifLastCount = 0;
+
+function mostrarNotificacionBrowser(titulo, mensaje, url) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const notif = new Notification(titulo, { body: mensaje, icon: '/favicon.ico', tag: 'synnox-' + Date.now() });
+  notif.onclick = () => { window.focus(); if (url && url !== 'undefined' && url !== 'null') window.location.href = url; notif.close(); };
+  setTimeout(() => notif.close(), 8000);
+}
 
 function cargarNotificaciones() {
   return fetch('/api/notificaciones/no-leidas', { headers: { 'x-csrf-token': sesion?.csrfToken || '' } })
     .then(r => r.ok ? r.json() : null)
-    .then(d => { if (d) { const b = document.getElementById('notif-count'); if (b) b.textContent = d.count > 0 ? (d.count > 99 ? '99+' : d.count) : ''; } })
+    .then(d => {
+      if (!d) return;
+      const b = document.getElementById('notif-count');
+      if (b) b.textContent = d.count > 0 ? (d.count > 99 ? '99+' : d.count) : '';
+      if (d.count > _notifLastCount && _notifLastCount > 0) {
+        fetch('/api/notificaciones', { headers: { 'x-csrf-token': sesion?.csrfToken || '' } })
+          .then(r => r.ok ? r.json() : null)
+          .then(nd => { if (nd?.notificaciones?.length) mostrarNotificacionBrowser(nd.notificaciones[0].titulo, nd.notificaciones[0].mensaje, nd.notificaciones[0].url); });
+      }
+      _notifLastCount = d.count;
+    })
     .catch(() => {});
 }
 
@@ -384,15 +435,39 @@ function toggleNotifDropdown() {
 }
 
 function marcarNotifLeida(id, url) {
-  fetch('/api/notificaciones/' + id + '/leer', { method: 'PUT', headers: { 'x-csrf-token': sesion?.csrfToken || '' } })
-    .then(() => { cargarNotificaciones(); if (url) window.location.href = url; document.getElementById('notif-dropdown')?.classList.remove('show'); })
+  const dd = document.getElementById('notif-dropdown');
+  if (dd) dd.classList.remove('show');
+  if (url && url !== 'undefined' && url !== 'null') window.location.href = url;
+  fetch('/api/notificaciones/' + id + '/leer', { method: 'DELETE', headers: { 'x-csrf-token': sesion?.csrfToken || '' } })
+    .then(() => cargarNotificaciones())
     .catch(() => {});
 }
 
 function marcarTodasLeidas() {
-  fetch('/api/notificaciones/leer-todas', { method: 'PUT', headers: { 'x-csrf-token': sesion?.csrfToken || '' } })
+  fetch('/api/notificaciones/leer-todas', { method: 'DELETE', headers: { 'x-csrf-token': sesion?.csrfToken || '' } })
     .then(() => { cargarNotificaciones(); document.getElementById('notif-dropdown')?.classList.remove('show'); })
     .catch(() => {});
+}
+
+function activarNotificaciones() {
+  if (!('Notification' in window)) return alert('Tu navegador no soporta notificaciones');
+  Notification.requestPermission().then(perm => {
+    if (perm === 'granted') {
+      alert('Notificaciones activadas');
+      checkNotifPermission();
+      new Notification('Notificaciones activadas', { body: 'Recibirás alertas del sistema', icon: '/favicon.ico' });
+    }
+  });
+}
+
+function checkNotifPermission() {
+  const banner = document.getElementById('notif-permission-banner');
+  if (!banner) return;
+  if (!('Notification' in window) || Notification.permission === 'granted' || Notification.permission === 'denied') {
+    banner.style.display = 'none';
+  } else {
+    banner.style.display = 'block';
+  }
 }
 
 function timeSinceNotif(date) {

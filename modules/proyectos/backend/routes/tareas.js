@@ -9,6 +9,10 @@ const { templateAsignacion, templateCambioEstado } = require('../../../../framew
 
 const router = express.Router();
 
+function tareasUrl(base, proyectoId) {
+  return proyectoId ? `${base}/#tareas?proyecto=${proyectoId}` : `${base}/#tareas`;
+}
+
 const COLUMNA_A_ESTADO = {
   pendiente: 'pendiente',
   en_progreso: 'en_progreso',
@@ -25,13 +29,28 @@ router.get('/', requirePermiso('ver', 'proyectos'), async (req, res) => {
 
     const permisos = req.user?.modulos_permisos?.proyectos || [];
     const soloPropios = permisos.includes('ver_propios');
+
+    let hasMiembrosTable = false;
+    try {
+      await pool.query('SELECT 1 FROM projects.proyecto_miembros LIMIT 1');
+      hasMiembrosTable = true;
+    } catch {}
+
     if (soloPropios) {
       params.push(req.user.id);
-      conditions.push(`t.asignado_a = $${idx++}`);
+      if (hasMiembrosTable) {
+        conditions.push(`(t.asignado_a = $${idx++} OR t.proyecto_id IN (SELECT proyecto_id FROM projects.proyecto_miembros WHERE usuario_id = $${idx - 1}))`);
+      } else {
+        conditions.push(`t.asignado_a = $${idx++}`);
+      }
     }
 
     if (proyecto_id) { params.push(proyecto_id); conditions.push(`t.proyecto_id = $${idx++}`); }
-    if (estado) { params.push(estado); conditions.push(`t.estado = $${idx++}`); }
+    if (estado === 'no-completadas') {
+      conditions.push(`t.estado != 'completada'`);
+    } else if (estado) {
+      params.push(estado); conditions.push(`t.estado = $${idx++}`);
+    }
     if (asignado_a) { params.push(asignado_a); conditions.push(`t.asignado_a = $${idx++}`); }
     if (prioridad) { params.push(prioridad); conditions.push(`t.prioridad = $${idx++}`); }
     if (columna) { params.push(columna); conditions.push(`t.columna = $${idx++}`); }
@@ -66,8 +85,17 @@ router.get('/:id', requirePermiso('ver', 'proyectos'), async (req, res) => {
   try {
     const permisos = req.user?.modulos_permisos?.proyectos || [];
     const soloPropios = permisos.includes('ver_propios');
+
+    let hasMiembrosTable = false;
+    try {
+      await pool.query('SELECT 1 FROM projects.proyecto_miembros LIMIT 1');
+      hasMiembrosTable = true;
+    } catch {}
+
     const query = soloPropios
-      ? `SELECT t.*, p.nombre AS proyecto_nombre FROM projects.tareas t LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id WHERE t.id = $1 AND t.asignado_a = $2`
+      ? (hasMiembrosTable
+        ? `SELECT t.*, p.nombre AS proyecto_nombre FROM projects.tareas t LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id WHERE t.id = $1 AND (t.asignado_a = $2 OR t.proyecto_id IN (SELECT proyecto_id FROM projects.proyecto_miembros WHERE usuario_id = $2))`
+        : `SELECT t.*, p.nombre AS proyecto_nombre FROM projects.tareas t LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id WHERE t.id = $1 AND t.asignado_a = $2`)
       : `SELECT t.*, p.nombre AS proyecto_nombre FROM projects.tareas t LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id WHERE t.id = $1`;
     const params = soloPropios ? [req.params.id, req.user.id] : [req.params.id];
     const result = await pool.query(query, params);
@@ -96,16 +124,17 @@ router.post('/', requirePermiso('crear_tarea', 'proyectos'), async (req, res) =>
       try {
         const tarea = await getTareaCompleta(pool, result.rows[0].id);
         if (tarea) {
+          const baseUrl = await getEmailBaseUrl();
           notificar({
             usuario_id: asignado_a,
             modulo: 'proyectos',
             tipo: 'tarea_asignada',
             titulo: 'Tarea asignada',
             mensaje: `Se te asignó la tarea "${titulo}"`,
-            url: '/proyectos/#tareas',
+            url: proyecto_id ? `/proyectos/#tareas?proyecto=${proyecto_id}` : '/proyectos/#tareas',
             email: tarea.asignado_email,
             emailAsunto: `[Proyectos] Tarea asignada: ${titulo}`,
-            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: titulo, asignador: req.user.nombre, descripcion, prioridad, fechaLimite: fecha_limite, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: titulo, asignador: req.user.nombre, descripcion, prioridad, fechaLimite: fecha_limite, url: tareasUrl(baseUrl, proyecto_id), module: 'proyectos', baseUrl }),
             enviarCorreo
           });
         }
@@ -194,7 +223,7 @@ router.put('/reordenar', requirePermiso('editar_tarea', 'proyectos'), async (req
 
 router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res) => {
   try {
-    const { titulo, descripcion, tipo, prioridad, estado, columna, asignado_a, fecha_limite, estimacion_horas, horas_invertidas } = req.body;
+    const { titulo, descripcion, tipo, prioridad, estado, columna, asignado_a, fecha_limite, estimacion_horas, horas_invertidas, proyecto_id } = req.body;
 
     const esAdminGerente = req.user?.rol === 'admin' || req.user?.rol === 'gerente';
 
@@ -210,10 +239,22 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
     }
 
     // Obtener tarea antes del update para detectar cambios
-    const tareaAntes = await pool.query('SELECT estado, asignado_a, titulo FROM projects.tareas WHERE id = $1', [req.params.id]);
+    const tareaAntes = await pool.query('SELECT estado, asignado_a, titulo, proyecto_id FROM projects.tareas WHERE id = $1', [req.params.id]);
     const oldEstado = tareaAntes.rows[0]?.estado;
     const oldAsignado = tareaAntes.rows[0]?.asignado_a;
     const tareaTitulo = titulo || tareaAntes.rows[0]?.titulo;
+    const proyectoId = proyecto_id || tareaAntes.rows[0]?.proyecto_id;
+
+    // El asignado no puede modificar la fecha límite
+    if (fecha_limite !== undefined && !esAdminGerente && oldAsignado === req.user.id) {
+      return res.status(403).json({ error: 'No puedes modificar la fecha límite de una tarea asignada a ti' });
+    }
+
+    // No se puede volver de en_progreso a pendiente
+    const nuevoEstado = columna ? COLUMNA_A_ESTADO[columna] : estado;
+    if (nuevoEstado === 'pendiente' && oldEstado === 'en_progreso') {
+      return res.status(400).json({ error: 'No se puede devolver una tarea de en progreso a pendiente' });
+    }
 
     const updates = [];
     const params = [];
@@ -246,6 +287,7 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
     if (fecha_limite !== undefined) { updates.push(`fecha_limite = $${idx++}`); params.push(fecha_limite); }
     if (estimacion_horas !== undefined) { updates.push(`estimacion_horas = $${idx++}`); params.push(estimacion_horas); }
     if (horas_invertidas !== undefined) { updates.push(`horas_invertidas = $${idx++}`); params.push(horas_invertidas); }
+    if (proyecto_id !== undefined) { updates.push(`proyecto_id = $${idx++}`); params.push(proyecto_id); }
 
     if (updates.length === 0) return res.status(400).json({ error: 'No hay campos para actualizar' });
 
@@ -265,16 +307,17 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
       try {
         const tarea = await getTareaCompleta(pool, req.params.id);
         if (tarea) {
+          const baseUrl = await getEmailBaseUrl();
           notificar({
             usuario_id: asignado_a,
             modulo: 'proyectos',
             tipo: 'tarea_asignada',
             titulo: 'Tarea re-asignada',
             mensaje: `Se te re-asignó la tarea "${tareaTitulo}"`,
-            url: '/proyectos/#tareas',
+            url: proyectoId ? `/proyectos/#tareas?proyecto=${proyectoId}` : '/proyectos/#tareas',
             email: tarea.asignado_email,
             emailAsunto: `[Proyectos] Tarea re-asignada: ${tareaTitulo}`,
-            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tareaTitulo, asignador: req.user.nombre, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tareaTitulo, asignador: req.user.nombre, url: tareasUrl(baseUrl, proyectoId), module: 'proyectos', baseUrl }),
             enviarCorreo
           });
           // Notificar al reportero
@@ -285,10 +328,10 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
               tipo: 'tarea_asignada',
               titulo: 'Tarea re-asignada',
               mensaje: `"${tareaTitulo}" fue re-asignada por ${req.user.nombre}`,
-              url: '/proyectos/#tareas',
+              url: proyectoId ? `/proyectos/#tareas?proyecto=${proyectoId}` : '/proyectos/#tareas',
               email: tarea.reportero_email,
               emailAsunto: `[Proyectos] Tarea re-asignada: ${tareaTitulo}`,
-              emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tareaTitulo, asignador: req.user.nombre, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+              emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tareaTitulo, asignador: req.user.nombre, url: tareasUrl(baseUrl, proyectoId), module: 'proyectos', baseUrl }),
               enviarCorreo
             });
           }
@@ -301,16 +344,17 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
     if (newEstado && oldEstado !== newEstado && oldAsignado) {
       try {
         const tarea = await getTareaCompleta(pool, req.params.id);
+        const baseUrl = await getEmailBaseUrl();
         notificar({
           usuario_id: oldAsignado,
           modulo: 'proyectos',
           tipo: 'cambio_estado',
           titulo: 'Estado de tarea cambiado',
           mensaje: `"${tareaTitulo}" cambió de ${oldEstado.replace('_', ' ')} a ${newEstado.replace('_', ' ')}`,
-          url: '/proyectos/#tareas',
+          url: proyectoId ? `/proyectos/#tareas?proyecto=${proyectoId}` : '/proyectos/#tareas',
           email: tarea?.asignado_email,
           emailAsunto: `[Proyectos] Estado cambiado: ${tareaTitulo}`,
-          emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: oldEstado.replace('_', ' '), estadoNuevo: newEstado.replace('_', ' '), url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+          emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: oldEstado.replace('_', ' '), estadoNuevo: newEstado.replace('_', ' '), url: tareasUrl(baseUrl, proyectoId), module: 'proyectos', baseUrl }),
           enviarCorreo
         });
         // Notificar al reportero si es diferente
@@ -321,10 +365,10 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
             tipo: 'cambio_estado',
             titulo: 'Estado de tarea cambiado',
             mensaje: `"${tareaTitulo}" cambió de ${oldEstado.replace('_', ' ')} a ${newEstado.replace('_', ' ')}`,
-            url: '/proyectos/#tareas',
+            url: proyectoId ? `/proyectos/#tareas?proyecto=${proyectoId}` : '/proyectos/#tareas',
             email: tarea.reportero_email,
             emailAsunto: `[Proyectos] Estado cambiado: ${tareaTitulo}`,
-            emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: oldEstado.replace('_', ' '), estadoNuevo: newEstado.replace('_', ' '), url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+            emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: oldEstado.replace('_', ' '), estadoNuevo: newEstado.replace('_', ' '), url: tareasUrl(baseUrl, proyectoId), module: 'proyectos', baseUrl }),
             enviarCorreo
           });
         }
@@ -338,16 +382,17 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
       try {
         const tarea = await getTareaCompleta(pool, req.params.id);
         if (tarea?.reportero && tarea.reportero !== req.user.id) {
+          const baseUrl = await getEmailBaseUrl();
           notificar({
             usuario_id: tarea.reportero,
             modulo: 'proyectos',
             tipo: 'cambio_estado',
             titulo: 'Tarea editada',
             mensaje: `"${tareaTitulo}" fue editada por ${req.user.nombre}`,
-            url: '/proyectos/#tareas',
+            url: proyectoId ? `/proyectos/#tareas?proyecto=${proyectoId}` : '/proyectos/#tareas',
             email: tarea.reportero_email,
             emailAsunto: `[Proyectos] Tarea editada: ${tareaTitulo}`,
-            emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: 'anterior', estadoNuevo: 'editada', url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+            emailHtml: templateCambioEstado({ entidad: 'tarea', nombre: tareaTitulo, estadoAnterior: 'anterior', estadoNuevo: 'editada', url: tareasUrl(baseUrl, proyectoId), module: 'proyectos', baseUrl }),
             enviarCorreo
           });
         }

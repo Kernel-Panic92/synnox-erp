@@ -13,6 +13,29 @@ let HF = {
   centros: [],
 };
 
+// ── Cache Helpers ──
+function cacheGet(key, ttlMs) {
+  try {
+    const c = JSON.parse(localStorage.getItem('sf_' + key) || 'null');
+    if (c && c.ts && Date.now() - c.ts < ttlMs) return c.data;
+  } catch {}
+  return null;
+}
+
+function cacheSet(key, data) {
+  try { localStorage.setItem('sf_' + key, JSON.stringify({ data, ts: Date.now() })); } catch {}
+}
+
+function cacheInvalidate(key) {
+  localStorage.removeItem('sf_' + key);
+}
+
+function cacheCleanAll() {
+  Object.keys(localStorage)
+    .filter(k => k.startsWith('sf_'))
+    .forEach(k => localStorage.removeItem(k));
+}
+
 // ── Init ──
 function initFramework(opts = {}) {
   HF.API = (opts.basePath || '') + (opts.apiPrefix || '/api');
@@ -63,19 +86,35 @@ async function loadVersion() {
   const el = document.getElementById('app-version');
   if (!el) return;
   try {
+    const cached = cacheGet('version', 3600000); // 1 hora
+    if (cached) {
+      el.textContent = 'v' + cached;
+      window._appVer = 'v' + cached;
+      return;
+    }
     const data = await api('/version');
-    el.textContent = 'v' + (data.version || '1.0.0');
-    window._appVer = 'v' + (data.version || '1.0.0');
+    const ver = data.version || '1.0.0';
+    el.textContent = 'v' + ver;
+    window._appVer = 'v' + ver;
+    cacheSet('version', ver);
   } catch { el.textContent = 'v—'; window._appVer = 'v—'; }
 }
 
 // ── Centros de operación ──
 async function loadCentros() {
   if (HF.centros.length) return HF.centros;
+  const cached = cacheGet('centros', 300000); // 5 min
+  if (cached) {
+    HF.centros = cached;
+    return HF.centros;
+  }
   try {
     const basePath = HF.API.replace(/\/api$/, '');
     const res = await fetch(basePath + '/api/centros');
-    if (res.ok) HF.centros = await res.json();
+    if (res.ok) {
+      HF.centros = await res.json();
+      cacheSet('centros', HF.centros);
+    }
   } catch {}
   return HF.centros;
 }
@@ -193,9 +232,10 @@ function mostrarApp() {
 }
 
 function logout() {
-  HF.TOKEN = null; HF.USER = null;
+  HF.TOKEN = null; HF.USER = null; HF.centros = [];
   localStorage.removeItem(HF.TOKEN_KEY);
   localStorage.removeItem('synnox_theme');
+  cacheCleanAll();
   window.location.href = '/logout';
 }
 
@@ -381,14 +421,41 @@ function clearTableFilters(containerId) {
 
 // ── Notifications ──
 let _notifPollTimer = null;
+let _notifLastCount = 0;
+
+function mostrarNotificacionBrowser(titulo, mensaje, url) {
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  const opts = { body: mensaje, icon: '/favicon.ico', tag: 'synnox-' + Date.now(), requireInteraction: false };
+  const notif = new Notification(titulo, opts);
+  notif.onclick = () => {
+    window.focus();
+    if (url && url !== 'undefined' && url !== 'null') window.location.href = url;
+    notif.close();
+  };
+  setTimeout(() => notif.close(), 8000);
+}
 
 async function cargarNotificaciones() {
+  const notifApi = HF.API.replace(/\/proyectos\/api$/, '/api');
   try {
-    const res = await fetch('/api/notificaciones/no-leidas', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    const res = await fetch(notifApi + '/notificaciones/no-leidas', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     if (!res.ok) return;
     const { count } = await res.json();
     const badge = document.getElementById('notif-count');
     if (badge) badge.textContent = count > 0 ? (count > 99 ? '99+' : count) : '';
+    if (count > _notifLastCount && _notifLastCount > 0) {
+      try {
+        const listRes = await fetch(notifApi + '/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+        if (listRes.ok) {
+          const { notificaciones } = await listRes.json();
+          if (notificaciones.length > 0) {
+            const n = notificaciones[0];
+            mostrarNotificacionBrowser(n.titulo, n.mensaje, n.url);
+          }
+        }
+      } catch {}
+    }
+    _notifLastCount = count;
   } catch {}
 }
 
@@ -399,7 +466,7 @@ async function toggleNotifDropdown() {
   dd.classList.toggle('show');
   if (!isOpen) {
     try {
-      const res = await fetch('/api/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+      const res = await fetch(notifApi + '/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
       if (!res.ok) return;
       const { notificaciones } = await res.json();
       const list = dd.querySelector('.notif-list');
@@ -407,9 +474,10 @@ async function toggleNotifDropdown() {
         list.innerHTML = '<div class="notif-empty">Sin notificaciones</div>';
       } else {
         list.innerHTML = notificaciones.map(n => {
-          const icons = { tarea_asignada: '📋', tarea_vencida: '⏰', proyecto_aprobado: '✅', proyecto_rechazado: '❌', comentario: '💬', factura_nueva: '📄', factura_vencida: '⚠️', ruta_asignada: '🛣️', backup: '💾', sistema: '⚙️', cambio_estado: '🔄', tarea_revision: '📋', proyecto_asignado: '📁' };
+          const icons = { tarea_asignada: '📋', tarea_vencida: '⏰', proyecto_aprobado: '✅', proyecto_rechazado: '❌', comentario: '💬', factura_nueva: '📄', factura_vencida: '⚠️', ruta_asignada: '🛣️', backup: '💾', sistema: '⚙️', cambio_estado: '🔄', tarea_revision: '📋', proyecto_asignado: '📁', recordatorio_vencimiento: '⏰', tarea_aprobada: '✅', tarea_rechazada: '❌', proyecto_aprobado: '✅', proyecto_rechazado: '❌', nuevo_comentario: '💬', evidencia_subida: '📎', tarea_asignada: '📋' };
           const timeAgo = timeSince(new Date(n.created_at));
-          return `<div class="notif-item${n.leida ? '' : ' unread'}" onclick="marcarNotifLeida(${n.id}, '${n.url || ''}')">
+          const url = n.url && n.url !== 'undefined' && n.url !== 'null' ? n.url : '';
+          return `<div class="notif-item unread" data-url="${esc(url)}" onclick="marcarNotifLeida(${n.id}, this.dataset.url)">
             <div class="notif-icon">${icons[n.tipo] || '🔔'}</div>
             <div class="notif-content">
               <div class="notif-title">${esc(n.titulo)}</div>
@@ -424,18 +492,20 @@ async function toggleNotifDropdown() {
 }
 
 async function marcarNotifLeida(id, url) {
+  const dd = document.getElementById('notif-dropdown');
+  if (dd) dd.classList.remove('show');
+  if (url && url !== 'undefined' && url !== 'null') {
+    window.location.href = url;
+  }
   try {
-    await fetch('/api/notificaciones/' + id + '/leer', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    await fetch(notifApi + '/notificaciones/' + id + '/leer', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     cargarNotificaciones();
-    if (url) window.location.href = url;
-    const dd = document.getElementById('notif-dropdown');
-    if (dd) dd.classList.remove('show');
   } catch {}
 }
 
 async function marcarTodasLeidas() {
   try {
-    await fetch('/api/notificaciones/leer-todas', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
+    await fetch(notifApi + '/notificaciones/leer-todas', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     cargarNotificaciones();
     toggleNotifDropdown();
     toggleNotifDropdown();
@@ -469,6 +539,31 @@ function injectNotificationBell(headerEl) {
   const bell = document.createElement('div');
   bell.className = 'notif-bell';
   bell.onclick = toggleNotifDropdown;
-  bell.innerHTML = '🔔<span class="notif-badge" id="notif-count"></span><div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div>';
+  bell.innerHTML = '🔔<span class="notif-badge" id="notif-count"></span><div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div id="notif-permission-banner" style="padding:8px 12px;background:var(--surface2);border-radius:8px;margin-bottom:8px;font-size:12px"><p style="margin-bottom:6px">🔔 Activa las notificaciones del navegador</p><button class="btn btn-xs btn-primary" onclick="event.stopPropagation();activarNotificaciones()">Activar</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div>';
   headerEl.appendChild(bell);
+  checkNotifPermission();
+}
+
+function checkNotifPermission() {
+  const banner = document.getElementById('notif-permission-banner');
+  if (!banner) return;
+  if (!('Notification' in window) || Notification.permission === 'granted' || Notification.permission === 'denied') {
+    banner.style.display = 'none';
+  } else {
+    banner.style.display = 'block';
+  }
+}
+
+function activarNotificaciones() {
+  if (!('Notification' in window)) return toast('Tu navegador no soporta notificaciones', 'error');
+  Notification.requestPermission().then(perm => {
+    if (perm === 'granted') {
+      toast('Notificaciones activadas', 'success');
+      checkNotifPermission();
+      mostrarNotificacionBrowser('Notificaciones activadas', 'Recibirás alertas de tareas y proyectos', '');
+    } else {
+      toast('Permiso de notificaciones denegado', 'error');
+      checkNotifPermission();
+    }
+  });
 }

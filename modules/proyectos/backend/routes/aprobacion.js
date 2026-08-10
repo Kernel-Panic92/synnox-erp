@@ -8,6 +8,10 @@ const { templateAprobacion, templateAsignacion } = require('../../../../framewor
 
 const router = express.Router();
 
+function tareasUrl(base, proyectoId) {
+  return proyectoId ? `${base}/#tareas?proyecto=${proyectoId}` : `${base}/#tareas`;
+}
+
 function canApprove(req) {
   return req.user.rol === 'admin' || req.user.rol === 'gerente';
 }
@@ -81,16 +85,17 @@ router.put('/tareas/:id/aprobar', async (req, res) => {
     // Notificar al asignado (in-app + email)
     if (tarea.asignado_a) {
       try {
+        const baseUrl = await getEmailBaseUrl();
         notificar({
           usuario_id: tarea.asignado_a,
           modulo: 'proyectos',
           tipo: 'tarea_aprobada',
           titulo: 'Tarea aprobada',
           mensaje: `Tu tarea "${tarea.titulo}" fue aprobada por ${req.user.nombre}`,
-          url: '/proyectos/#tareas',
+          url: tarea.proyecto_id ? `/proyectos/#tareas?proyecto=${tarea.proyecto_id}` : '/proyectos/#tareas',
           email: tareaFull?.asignado_email,
           emailAsunto: `✅ Tarea aprobada: ${tarea.titulo}`,
-          emailHtml: templateAprobacion({ entidad: 'tarea', nombre: tarea.titulo, accion: 'aprobada', aprobador: req.user.nombre, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+          emailHtml: templateAprobacion({ entidad: 'tarea', nombre: tarea.titulo, accion: 'aprobada', aprobador: req.user.nombre, url: tareasUrl(baseUrl, tarea.proyecto_id), module: 'proyectos', baseUrl }),
           enviarCorreo
         });
       } catch (e) { console.warn('[notify] Error:', e.message); }
@@ -128,16 +133,17 @@ router.put('/tareas/:id/rechazar', async (req, res) => {
     // Notificar al asignado (in-app + email)
     if (tarea.asignado_a) {
       try {
+        const baseUrl = await getEmailBaseUrl();
         notificar({
           usuario_id: tarea.asignado_a,
           modulo: 'proyectos',
           tipo: 'tarea_rechazada',
           titulo: 'Tarea rechazada',
           mensaje: `Tu tarea "${tarea.titulo}" fue rechazada: ${motivo}`,
-          url: '/proyectos/#tareas',
+          url: tarea.proyecto_id ? `/proyectos/#tareas?proyecto=${tarea.proyecto_id}` : '/proyectos/#tareas',
           email: tareaFull?.asignado_email,
           emailAsunto: `❌ Tarea rechazada: ${tarea.titulo}`,
-          emailHtml: templateAprobacion({ entidad: 'tarea', nombre: tarea.titulo, accion: 'rechazada', motivo, aprobador: req.user.nombre, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+          emailHtml: templateAprobacion({ entidad: 'tarea', nombre: tarea.titulo, accion: 'rechazada', motivo, aprobador: req.user.nombre, url: tareasUrl(baseUrl, tarea.proyecto_id), module: 'proyectos', baseUrl }),
           enviarCorreo
         });
       } catch (e) { console.warn('[notify] Error:', e.message); }
@@ -150,8 +156,26 @@ router.put('/tareas/:id/rechazar', async (req, res) => {
 });
 
 router.put('/proyectos/:id/aprobar', async (req, res) => {
-  if (!canApprove(req)) return res.status(403).json({ error: 'Solo administradores o gerentes pueden aprobar proyectos' });
   try {
+    const check = await pool.query('SELECT asignado_a FROM projects.proyectos WHERE id = $1', [req.params.id]);
+    if (check.rows.length === 0) return res.status(404).json({ error: 'Proyecto no encontrado' });
+    const esAdminGerente = req.user.rol === 'admin' || req.user.rol === 'gerente';
+    const esCreador = check.rows[0].asignado_a === req.user.id;
+    if (!esAdminGerente && !esCreador) return res.status(403).json({ error: 'Solo administradores, gerentes o el creador del proyecto pueden aprobarlo' });
+
+    // Verificar que todas las tareas estén completadas
+    const tareasCheck = await pool.query(
+      `SELECT COUNT(*) AS total,
+              COUNT(*) FILTER (WHERE estado != 'completada') AS pendientes
+       FROM projects.tareas WHERE proyecto_id = $1`,
+      [req.params.id]
+    );
+    const total = parseInt(tareasCheck.rows[0].total);
+    const pendientes = parseInt(tareasCheck.rows[0].pendientes);
+    if (total > 0 && pendientes > 0) {
+      return res.status(400).json({ error: `No se puede aprobar: hay ${pendientes} tarea(s) de ${total} sin completar` });
+    }
+
     const result = await pool.query(
       `UPDATE projects.proyectos
        SET estado_aprobacion = 'aprobada',
@@ -194,8 +218,12 @@ router.put('/proyectos/:id/aprobar', async (req, res) => {
 });
 
 router.put('/proyectos/:id/rechazar', async (req, res) => {
-  if (!canApprove(req)) return res.status(403).json({ error: 'Solo administradores o gerentes pueden rechazar proyectos' });
   try {
+    const check = await pool.query('SELECT asignado_a FROM projects.proyectos WHERE id = $1', [req.params.id]);
+    if (check.rows.length === 0) return res.status(404).json({ error: 'Proyecto no encontrado' });
+    const esAdminGerente = req.user.rol === 'admin' || req.user.rol === 'gerente';
+    const esCreador = check.rows[0].asignado_a === req.user.id;
+    if (!esAdminGerente && !esCreador) return res.status(403).json({ error: 'Solo administradores, gerentes o el creador del proyecto pueden rechazarlo' });
     const result = await pool.query(
       `UPDATE projects.proyectos
        SET estado_aprobacion = 'rechazada',
@@ -257,6 +285,9 @@ router.put('/tareas/:id/solicitar-revision', async (req, res) => {
     try {
       const users = await getLauncherUsers();
       const admins = users.filter(u => ['admin', 'gerente'].includes(u.rol));
+      const baseUrl = await getEmailBaseUrl();
+      const urlTareas = tareasUrl(baseUrl, tarea.proyecto_id);
+      const urlNotif = tarea.proyecto_id ? `/proyectos/#tareas?proyecto=${tarea.proyecto_id}` : '/proyectos/#tareas';
       for (const admin of admins) {
         if (admin.email && admin.email !== tareaFull?.asignado_email) {
           notificar({
@@ -265,10 +296,10 @@ router.put('/tareas/:id/solicitar-revision', async (req, res) => {
             tipo: 'tarea_revision',
             titulo: 'Tarea para revisar',
             mensaje: `"${tarea.titulo}" necesita revisión`,
-            url: '/proyectos/#tareas',
+            url: urlNotif,
             email: admin.email,
             emailAsunto: `📋 Tarea pendiente de revisión: ${tarea.titulo}`,
-            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tarea.titulo, descripcion: tareaFull?.descripcion, prioridad: tarea.prioridad, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+            emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tarea.titulo, descripcion: tareaFull?.descripcion, prioridad: tarea.prioridad, url: urlTareas, module: 'proyectos', baseUrl }),
             enviarCorreo
           });
         }
@@ -281,10 +312,10 @@ router.put('/tareas/:id/solicitar-revision', async (req, res) => {
           tipo: 'tarea_revision',
           titulo: 'Tarea enviada a revisión',
           mensaje: `"${tarea.titulo}" fue enviada a revisión por ${req.user.nombre}`,
-          url: '/proyectos/#tareas',
+          url: urlNotif,
           email: tareaFull.reportero_email,
           emailAsunto: `📋 Tarea enviada a revisión: ${tarea.titulo}`,
-          emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tarea.titulo, descripcion: tareaFull?.descripcion, prioridad: tarea.prioridad, url: `${await getEmailBaseUrl()}/#tareas`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+          emailHtml: templateAsignacion({ entidad: 'tarea', nombre: tarea.titulo, descripcion: tareaFull?.descripcion, prioridad: tarea.prioridad, url: urlTareas, module: 'proyectos', baseUrl }),
           enviarCorreo
         });
       }

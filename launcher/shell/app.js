@@ -194,7 +194,7 @@ function loadOAuthProviders() {
   if (error) {
     const messages = {
       oauth_denied: 'Acceso denegado. Debes autorizar para continuar.',
-      invalid_state: 'Sesión OAuth inválida. Intenta de nuevo.',
+      invalid_state: 'Sesión OAuth inválida. Intenta iniciar sesión nuevamente.',
       token_exchange_failed: 'Error al intercambiar token con el proveedor.',
       no_email: 'El proveedor no devolvió un correo electrónico.',
       auth_failed: 'Error al crear la sesión.',
@@ -2580,8 +2580,10 @@ async function killSession(id, nombre) {
         return;
       }
     } catch(e) {}
-    // Session invalid — show re-login modal (preserve localStorage cache)
-    showSessionExpiredModal();
+    // Session invalid — clear and show login
+    jwtToken = null;
+    user = null;
+    show('login-screen');
     return;
   }
   // No JWT in localStorage — try httpOnly cookie (from OAuth login)
@@ -3012,10 +3014,12 @@ async function loadMcpOAuthConfig() {
     if (!data.clients?.length) {
       listEl.innerHTML = '<div style="padding:12px;color:var(--muted);font-size:13px;">No hay clientes registrados</div>';
     } else {
-      listEl.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="border-bottom:1px solid var(--border);"><th style="padding:8px 12px;text-align:left;color:var(--muted);">Cliente</th><th style="padding:8px 12px;text-align:left;color:var(--muted);">Client ID</th><th style="padding:8px 12px;text-align:left;color:var(--muted);">Registrado</th><th style="padding:8px 12px;"></th></tr></thead><tbody>' +
+      listEl.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="border-bottom:1px solid var(--border);"><th style="padding:8px 12px;text-align:left;color:var(--muted);">Cliente</th><th style="padding:8px 12px;text-align:left;color:var(--muted);">Client ID</th><th style="padding:8px 12px;text-align:left;color:var(--muted);">Usuarios</th><th style="padding:8px 12px;text-align:left;color:var(--muted);">Tokens</th><th style="padding:8px 12px;text-align:left;color:var(--muted);">Registrado</th><th style="padding:8px 12px;"></th></tr></thead><tbody>' +
         data.clients.map(c => `<tr style="border-bottom:1px solid var(--border);">
           <td style="padding:8px 12px;font-weight:500;">${esc(c.client_name)}</td>
           <td style="padding:8px 12px;font-family:monospace;font-size:12px;">${esc(c.client_id.slice(0, 8))}...</td>
+          <td style="padding:8px 12px;font-size:12px;">${c.user_names ? esc(c.user_names) : '<span style="color:var(--muted);">—</span>'}</td>
+          <td style="padding:8px 12px;font-size:12px;">${c.active_tokens}</td>
           <td style="padding:8px 12px;color:var(--muted);font-size:12px;">${new Date(c.created_at).toLocaleDateString('es-ES')}</td>
           <td style="padding:8px 12px;"><button class="btn btn-sm" onclick="revokeMcpClient('${esc(c.client_id)}')" style="color:var(--danger);background:none;border:none;">🗑</button></td>
         </tr>`).join('') +
@@ -3075,6 +3079,7 @@ async function loadMcpTokens() {
     let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;"><thead><tr style="border-bottom:1px solid var(--border);">';
     html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Token</th>';
     html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Cliente</th>';
+    html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Usuario</th>';
     html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Creado</th>';
     html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Expira</th>';
     html += '<th style="padding:8px 12px;text-align:left;color:var(--muted);">Estado</th>';
@@ -3091,9 +3096,13 @@ async function loadMcpTokens() {
       } else {
         statusBadge = '<span style="color:var(--success);">Activo</span>';
       }
+      const userDisplay = t.user_nombre
+        ? `${esc(t.user_nombre)}<div style="font-size:11px;color:var(--muted);">${esc(t.user_email || '')}</div>`
+        : '<span style="color:var(--muted);">—</span>';
       html += `<tr style="border-bottom:1px solid var(--border);">
         <td style="padding:8px 12px;font-family:monospace;font-size:12px;">${esc(t.token_id)}</td>
         <td style="padding:8px 12px;">${esc(t.client_name)}</td>
+        <td style="padding:8px 12px;font-size:12px;">${userDisplay}</td>
         <td style="padding:8px 12px;font-size:12px;color:var(--muted);">${created}</td>
         <td style="padding:8px 12px;font-size:12px;color:var(--muted);">${expires}</td>
         <td style="padding:8px 12px;font-size:12px;">${statusBadge}</td>

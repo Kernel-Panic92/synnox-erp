@@ -13,6 +13,10 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const uploadDir = path.join(__dirname, '..', '..', 'uploads', 'evidencias');
 
+function tareasUrl(base, proyectoId) {
+  return proyectoId ? `${base}/#tareas?proyecto=${proyectoId}` : `${base}/#tareas`;
+}
+
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     fs.mkdirSync(uploadDir, { recursive: true });
@@ -56,7 +60,7 @@ router.get('/:id/evidencias', requirePermiso('ver', 'proyectos'), async (req, re
 router.post('/:id/evidencias', requirePermiso('comentar', 'proyectos'), upload.single('archivo'), async (req, res) => {
   try {
     const tareaId = req.params.id;
-    const tarea = await pool.query('SELECT id FROM projects.tareas WHERE id = $1', [tareaId]);
+    const tarea = await pool.query('SELECT id, estado FROM projects.tareas WHERE id = $1', [tareaId]);
     if (tarea.rows.length === 0) return res.status(404).json({ error: 'Tarea no encontrada' });
 
     const descripcion = req.body.descripcion || '';
@@ -75,13 +79,24 @@ router.post('/:id/evidencias', requirePermiso('comentar', 'proyectos'), upload.s
       [tareaId, req.user.id, descripcion, archivoNombre, archivoPath, archivoTipo, archivoTamanio]
     );
 
+    // Auto-cambiar estado de pendiente a en_progreso
+    if (tarea.rows[0]?.estado === 'pendiente') {
+      await pool.query(
+        `UPDATE projects.tareas SET estado = 'en_progreso', columna = 'en_progreso', updated_at = NOW() WHERE id = $1`,
+        [tareaId]
+      );
+    }
+
     // Notificar al asignado y reportero
     try {
       const tareaCompleta = await getTareaCompleta(pool, tareaId);
       if (tareaCompleta) {
         const emailBase = await getEmailBaseUrl();
-        const notifBase = { modulo: 'proyectos', tipo: 'evidencia_subida', url: '/proyectos/#tareas', enviarCorreo };
-        const emailHtml = templateGenerico({ titulo: 'Evidencia subida', mensaje: `${req.user.nombre} subió evidencia en "${tareaCompleta.titulo}"`, detallesExtra: archivoNombre || 'Archivo adjunto', url: `${emailBase}/#tareas`, module: 'proyectos', baseUrl: emailBase });
+        const proyectoId = tareaCompleta.proyecto_id;
+        const urlTareas = tareasUrl(emailBase, proyectoId);
+        const urlNotif = proyectoId ? `/proyectos/#tareas?proyecto=${proyectoId}` : '/proyectos/#tareas';
+        const notifBase = { modulo: 'proyectos', tipo: 'evidencia_subida', url: urlNotif, enviarCorreo };
+        const emailHtml = templateGenerico({ titulo: 'Evidencia subida', mensaje: `${req.user.nombre} subió evidencia en "${tareaCompleta.titulo}"`, detallesExtra: archivoNombre ? { Archivo: archivoNombre } : null, url: urlTareas, module: 'proyectos', baseUrl: emailBase });
         // Notificar al asignado
         if (tareaCompleta.asignado_a && tareaCompleta.asignado_a !== req.user.id) {
           notificar({

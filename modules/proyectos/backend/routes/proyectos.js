@@ -14,21 +14,45 @@ router.get('/', requirePermiso('ver', 'proyectos'), async (req, res) => {
     const permisos = req.user?.modulos_permisos?.proyectos || [];
     const soloPropios = permisos.includes('ver_propios');
 
+    // Verificar si la tabla de miembros existe
+    let hasMiembrosTable = false;
+    try {
+      await pool.query('SELECT 1 FROM projects.proyecto_miembros LIMIT 1');
+      hasMiembrosTable = true;
+    } catch {}
+
     let result;
     if (soloPropios) {
-      result = await pool.query(`
-        SELECT p.*,
-          COUNT(t.id) FILTER (WHERE t.estado = 'pendiente')   AS tareas_pendientes,
-          COUNT(t.id) FILTER (WHERE t.estado = 'en_progreso') AS tareas_en_progreso,
-          COUNT(t.id) FILTER (WHERE t.estado = 'revision')    AS tareas_revision,
-          COUNT(t.id) FILTER (WHERE t.estado = 'completada')  AS tareas_completadas,
-          COUNT(t.id) AS total_tareas
-        FROM projects.proyectos p
-        LEFT JOIN projects.tareas t ON t.proyecto_id = p.id
-        WHERE p.asignado_a = $1
-        GROUP BY p.id
-        ORDER BY p.created_at DESC
-      `, [req.user.id]);
+      if (hasMiembrosTable) {
+        result = await pool.query(`
+          SELECT p.*,
+            COUNT(t.id) FILTER (WHERE t.estado = 'pendiente')   AS tareas_pendientes,
+            COUNT(t.id) FILTER (WHERE t.estado = 'en_progreso') AS tareas_en_progreso,
+            COUNT(t.id) FILTER (WHERE t.estado = 'revision')    AS tareas_revision,
+            COUNT(t.id) FILTER (WHERE t.estado = 'completada')  AS tareas_completadas,
+            COUNT(t.id) AS total_tareas
+          FROM projects.proyectos p
+          LEFT JOIN projects.tareas t ON t.proyecto_id = p.id
+          WHERE p.asignado_a = $1
+             OR p.id IN (SELECT proyecto_id FROM projects.proyecto_miembros WHERE usuario_id = $1)
+          GROUP BY p.id
+          ORDER BY p.created_at DESC
+        `, [req.user.id]);
+      } else {
+        result = await pool.query(`
+          SELECT p.*,
+            COUNT(t.id) FILTER (WHERE t.estado = 'pendiente')   AS tareas_pendientes,
+            COUNT(t.id) FILTER (WHERE t.estado = 'en_progreso') AS tareas_en_progreso,
+            COUNT(t.id) FILTER (WHERE t.estado = 'revision')    AS tareas_revision,
+            COUNT(t.id) FILTER (WHERE t.estado = 'completada')  AS tareas_completadas,
+            COUNT(t.id) AS total_tareas
+          FROM projects.proyectos p
+          LEFT JOIN projects.tareas t ON t.proyecto_id = p.id
+          WHERE p.asignado_a = $1
+          GROUP BY p.id
+          ORDER BY p.created_at DESC
+        `, [req.user.id]);
+      }
     } else {
       result = await pool.query(`
         SELECT p.*,
@@ -43,7 +67,30 @@ router.get('/', requirePermiso('ver', 'proyectos'), async (req, res) => {
         ORDER BY p.created_at DESC
       `);
     }
-    res.json({ exitosa: true, proyectos: result.rows });
+
+    const proyectoIds = result.rows.map(p => p.id);
+    let miembrosMap = {};
+    if (proyectoIds.length && hasMiembrosTable) {
+      try {
+        const miembrosResult = await pool.query(
+          `SELECT pm.proyecto_id, pm.usuario_id, pm.rol
+           FROM projects.proyecto_miembros pm
+           WHERE pm.proyecto_id = ANY($1)`,
+          [proyectoIds]
+        );
+        for (const m of miembrosResult.rows) {
+          if (!miembrosMap[m.proyecto_id]) miembrosMap[m.proyecto_id] = [];
+          miembrosMap[m.proyecto_id].push({ usuario_id: m.usuario_id, rol: m.rol });
+        }
+      } catch {}
+    }
+
+    const proyectos = result.rows.map(p => ({
+      ...p,
+      miembros: miembrosMap[p.id] || []
+    }));
+
+    res.json({ exitosa: true, proyectos });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -54,21 +101,44 @@ router.get('/:id', requirePermiso('ver', 'proyectos'), async (req, res) => {
     const permisos = req.user?.modulos_permisos?.proyectos || [];
     const soloPropios = permisos.includes('ver_propios');
 
+    let hasMiembrosTable = false;
+    try {
+      await pool.query('SELECT 1 FROM projects.proyecto_miembros LIMIT 1');
+      hasMiembrosTable = true;
+    } catch {}
+
     let result;
     if (soloPropios) {
-      result = await pool.query(
-        `SELECT p.*,
-          COUNT(t.id) FILTER (WHERE t.estado = 'pendiente')   AS tareas_pendientes,
-          COUNT(t.id) FILTER (WHERE t.estado = 'en_progreso') AS tareas_en_progreso,
-          COUNT(t.id) FILTER (WHERE t.estado = 'revision')    AS tareas_revision,
-          COUNT(t.id) FILTER (WHERE t.estado = 'completada')  AS tareas_completadas,
-          COUNT(t.id) AS total_tareas
-        FROM projects.proyectos p
-        LEFT JOIN projects.tareas t ON t.proyecto_id = p.id
-        WHERE p.id = $1 AND p.asignado_a = $2
-        GROUP BY p.id`,
-        [req.params.id, req.user.id]
-      );
+      if (hasMiembrosTable) {
+        result = await pool.query(
+          `SELECT p.*,
+            COUNT(t.id) FILTER (WHERE t.estado = 'pendiente')   AS tareas_pendientes,
+            COUNT(t.id) FILTER (WHERE t.estado = 'en_progreso') AS tareas_en_progreso,
+            COUNT(t.id) FILTER (WHERE t.estado = 'revision')    AS tareas_revision,
+            COUNT(t.id) FILTER (WHERE t.estado = 'completada')  AS tareas_completadas,
+            COUNT(t.id) AS total_tareas
+          FROM projects.proyectos p
+          LEFT JOIN projects.tareas t ON t.proyecto_id = p.id
+          WHERE p.id = $1 AND (p.asignado_a = $2
+             OR p.id IN (SELECT proyecto_id FROM projects.proyecto_miembros WHERE usuario_id = $2))
+          GROUP BY p.id`,
+          [req.params.id, req.user.id]
+        );
+      } else {
+        result = await pool.query(
+          `SELECT p.*,
+            COUNT(t.id) FILTER (WHERE t.estado = 'pendiente')   AS tareas_pendientes,
+            COUNT(t.id) FILTER (WHERE t.estado = 'en_progreso') AS tareas_en_progreso,
+            COUNT(t.id) FILTER (WHERE t.estado = 'revision')    AS tareas_revision,
+            COUNT(t.id) FILTER (WHERE t.estado = 'completada')  AS tareas_completadas,
+            COUNT(t.id) AS total_tareas
+          FROM projects.proyectos p
+          LEFT JOIN projects.tareas t ON t.proyecto_id = p.id
+          WHERE p.id = $1 AND p.asignado_a = $2
+          GROUP BY p.id`,
+          [req.params.id, req.user.id]
+        );
+      }
     } else {
       result = await pool.query(
         `SELECT p.*,
@@ -85,7 +155,20 @@ router.get('/:id', requirePermiso('ver', 'proyectos'), async (req, res) => {
       );
     }
     if (result.rows.length === 0) return res.status(404).json({ error: 'Proyecto no encontrado' });
-    res.json({ exitosa: true, proyecto: result.rows[0] });
+
+    let miembros = [];
+    if (hasMiembrosTable) {
+      try {
+        const miembrosResult = await pool.query(
+          `SELECT pm.usuario_id, pm.rol FROM projects.proyecto_miembros pm WHERE pm.proyecto_id = $1`,
+          [req.params.id]
+        );
+        miembros = miembrosResult.rows;
+      } catch {}
+    }
+    const proyecto = { ...result.rows[0], miembros };
+
+    res.json({ exitosa: true, proyecto });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -93,13 +176,23 @@ router.get('/:id', requirePermiso('ver', 'proyectos'), async (req, res) => {
 
 router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
   try {
-    const { nombre, descripcion, fecha_limite, centro_id, asignado_a } = req.body;
+    const { nombre, descripcion, fecha_limite, centro_id, asignado_a, prioridad } = req.body;
     if (!nombre) return res.status(400).json({ error: 'El nombre es requerido' });
     const result = await pool.query(
-      `INSERT INTO projects.proyectos (nombre, descripcion, fecha_limite, centro_id, asignado_a)
-       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-      [nombre, descripcion || '', fecha_limite || null, centro_id || null, asignado_a || null]
+      `INSERT INTO projects.proyectos (nombre, descripcion, fecha_limite, centro_id, asignado_a, prioridad)
+       VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+      [nombre, descripcion || '', fecha_limite || null, centro_id || null, asignado_a || null, prioridad || 'media']
     );
+
+    // Crear al asignado como lider del proyecto
+    if (asignado_a) {
+      await pool.query(
+        `INSERT INTO projects.proyecto_miembros (proyecto_id, usuario_id, rol)
+         VALUES ($1, $2, 'lider')
+         ON CONFLICT (proyecto_id, usuario_id) DO NOTHING`,
+        [result.rows[0].id, asignado_a]
+      );
+    }
 
     // Notificar al asignado
     if (asignado_a) {
@@ -130,7 +223,7 @@ router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
 
 router.put('/:id', requirePermiso('editar', 'proyectos'), async (req, res) => {
   try {
-    const { nombre, descripcion, estado, fecha_limite, centro_id, asignado_a } = req.body;
+    const { nombre, descripcion, estado, fecha_limite, centro_id, asignado_a, prioridad } = req.body;
 
     // Obtener proyecto antes del update para detectar cambios
     const proyectoAntes = await pool.query('SELECT estado, asignado_a, nombre FROM projects.proyectos WHERE id = $1', [req.params.id]);
@@ -147,9 +240,10 @@ router.put('/:id', requirePermiso('editar', 'proyectos'), async (req, res) => {
            fecha_limite = COALESCE($4, fecha_limite),
            centro_id = $5,
            asignado_a = $6,
+           prioridad = COALESCE($7, prioridad),
            updated_at = NOW()
-       WHERE id = $7 RETURNING *`,
-      [nombre || null, descripcion || null, estado || null, fecha_limite || null, centro_id !== undefined ? centro_id : null, asignado_a !== undefined ? asignado_a : null, req.params.id]
+       WHERE id = $8 RETURNING *`,
+      [nombre || null, descripcion || null, estado || null, fecha_limite || null, centro_id !== undefined ? centro_id : null, asignado_a !== undefined ? asignado_a : null, prioridad || null, req.params.id]
     );
 
     // Notificar re-asignación

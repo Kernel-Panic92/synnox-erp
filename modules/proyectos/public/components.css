@@ -9,6 +9,7 @@ button, .btn {
 .btn-primary:hover { filter: brightness(1.15); }
 .btn-secondary { background: var(--surface2); color: var(--text); border: 1px solid var(--border); }
 .btn-secondary:hover { background: var(--border); }
+.btn:disabled, button:disabled { opacity: 0.4; cursor: not-allowed; pointer-events: none; }
 .btn-danger { background: var(--danger); color: #fff; }
 .btn-success { background: var(--success); color: #fff; }
 .btn-outline { background: transparent; color: var(--muted); border: 1px solid var(--border); }
@@ -75,6 +76,11 @@ button, .btn {
 .badge-info { background: rgba(247,212,79,.15); color: var(--warning); }
 .badge-warning { background: rgba(247,148,79,.15); color: var(--accent2); }
 .badge-danger { background: rgba(247,97,79,.15); color: var(--danger); }
+body.light .badge-muted { color: #7c3aed; }
+body.light .badge-success { color: #059669; }
+body.light .badge-info { color: #0284c7; }
+body.light .badge-warning { color: #c2410c; }
+body.light .badge-danger { color: #dc2626; }
 
 /* ── Role Badges (sidebar) ── */
 .role-badge { display: inline-block; background: var(--accent); color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 10px; margin-top: 4px; text-transform: uppercase; letter-spacing: .5px; }
@@ -88,6 +94,8 @@ button, .btn {
 /* ── Filters row ── */
 .filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
 .filters input, .filters select { width: auto; min-width: 140px; padding: 7px 12px; font-size: 13px; }
+.filters .select-buscador { min-width: 180px; width: auto; }
+.filters .select-buscador-input { padding: 7px 12px; font-size: 13px; }
 
 /* ── File upload / Drop zone ── */
 .drop-zone {

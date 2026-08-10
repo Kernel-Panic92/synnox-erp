@@ -105,13 +105,24 @@ async function cargarDashboard() {
 
     const idsAsignados = recientes.map(r => r.asignado_a).filter(Boolean);
     const idsAsignadosActivos = porAsignado.map(r => r.asignado_a).filter(Boolean);
-    await cargarNombresUsuarios([...new Set([...idsAsignados, ...idsAsignadosActivos])]);
+    const idsReporteros = recientes.map(r => r.reportero).filter(Boolean);
+    await cargarNombresUsuarios([...new Set([...idsAsignados, ...idsAsignadosActivos, ...idsReporteros])]);
 
     _dashRecientes = recientes;
     await cargarProyectosSelect();
     const proySel = document.getElementById('dash-filtro-proyecto');
     if (proySel && proySel.options.length <= 1) {
       proySel.innerHTML = '<option value="">Todos los proyectos</option>' + _tareasProyectos.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
+    }
+    // Restaurar filtros guardados
+    if (!window._dashFiltrosRestored) {
+      const saved = JSON.parse(localStorage.getItem('sy_dash_filtros') || '{}');
+      if (saved.proyecto) document.getElementById('dash-filtro-proyecto').value = saved.proyecto;
+      if (saved.estado) document.getElementById('dash-filtro-estado').value = saved.estado;
+      if (saved.prioridad) document.getElementById('dash-filtro-prioridad').value = saved.prioridad;
+      if (saved.q) document.getElementById('dash-filtro-busqueda').value = saved.q;
+      if (saved.proyecto || saved.estado || saved.prioridad || saved.q) dashAplicarFiltros();
+      window._dashFiltrosRestored = true;
     }
     renderDashRecientes();
 
@@ -144,7 +155,20 @@ function dashAplicarFiltros() {
   _dashFiltroEstado = document.getElementById('dash-filtro-estado')?.value || '';
   _dashFiltroPrioridad = document.getElementById('dash-filtro-prioridad')?.value || '';
   _dashFiltroQ = document.getElementById('dash-filtro-busqueda')?.value?.trim() || '';
+  localStorage.setItem('sy_dash_filtros', JSON.stringify({
+    proyecto: _dashFiltroProyecto, estado: _dashFiltroEstado,
+    prioridad: _dashFiltroPrioridad, q: _dashFiltroQ
+  }));
   renderDashRecientes();
+}
+
+function dashLimpiarFiltros() {
+  document.getElementById('dash-filtro-proyecto').value = '';
+  document.getElementById('dash-filtro-estado').value = '';
+  document.getElementById('dash-filtro-prioridad').value = '';
+  document.getElementById('dash-filtro-busqueda').value = '';
+  localStorage.removeItem('sy_dash_filtros');
+  dashAplicarFiltros();
 }
 
 function dashSort(col) {
@@ -200,17 +224,20 @@ function renderDashRecientes() {
     return String(va).localeCompare(String(vb)) * dir;
   });
 
-  if (!filtradas.length) {
-    tbody.innerHTML = '<tr><td colspan="5" class="empty-state" style="padding:32px;text-align:center"><div class="icon">&#x1F4CB;</div><p>No se encontraron tareas recientes</p></td></tr>';
+  const limitadas = filtradas.slice(0, 10);
+
+  if (!limitadas.length) {
+    tbody.innerHTML = '<tr><td colspan="6" class="empty-state" style="padding:32px;text-align:center"><div class="icon">&#x1F4CB;</div><p>No se encontraron tareas recientes</p></td></tr>';
     return;
   }
 
-  tbody.innerHTML = filtradas.map(t => `
+  tbody.innerHTML = limitadas.map(t => `
     <tr style="cursor:pointer" onclick="abrirModalDetalleTarea(${t.id})">
       <td><a href="#" onclick="event.preventDefault();event.stopPropagation();abrirModalDetalleTarea(${t.id})" style="font-weight:600">${esc(t.titulo)}</a></td>
       <td><span style="font-size:12px;color:var(--muted)">${esc(t.proyecto_nombre || '—')}</span></td>
       <td>${badgeEstado(t.estado)} ${t.estado === 'revision' ? badgeAprobacion(t.estado_aprobacion) : ''}</td>
       <td>${badgePrioridad(t.prioridad)}</td>
+      <td style="font-size:12px;color:var(--muted)">${t.reportero ? esc(nombreUsuario(t.reportero)) : '—'}</td>
       <td style="font-size:12px;color:var(--muted)">${formatDate(t.fecha_limite)}</td>
     </tr>
   `).join('');

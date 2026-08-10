@@ -104,11 +104,15 @@ function templateAprobacion({ entidad, nombre, accion, motivo, aprobador, detall
  */
 function templateAsignacion({ entidad, nombre, asignador, descripcion, prioridad, fechaLimite, url, module, baseUrl }) {
   const mod = MODULE_DEFAULTS[module] || {};
+  const ent = entidad.toLowerCase();
+  const esFemenino = ent === 'tarea' || ent === 'historia';
+  const article = esFemenino ? 'la' : 'el';
+  const titleWord = esFemenino ? 'Asignada' : 'Asignado';
   return baseTemplate(
-    `📋 ${entidad.charAt(0).toUpperCase() + entidad.slice(1)} asignada`,
+    `📋 ${entidad.charAt(0).toUpperCase() + entidad.slice(1)} ${titleWord}`,
     '',
     card(
-      `<div style="font-size:14px;color:#475569;">Se te ha asignado la ${entidad} <strong>${esc(nombre)}</strong>.</div>` +
+      `<div style="font-size:14px;color:#475569;">Se te ha asignado ${article} ${entidad} <strong>${esc(nombre)}</strong>.</div>` +
       `<div style="margin-top:12px;font-size:13px;color:#64748b;">${detalles({
         'Descripción': descripcion ? (descripcion.length > 200 ? descripcion.slice(0, 200) + '...' : descripcion) : null,
         'Prioridad': prioridad,
@@ -126,11 +130,13 @@ function templateAsignacion({ entidad, nombre, asignador, descripcion, prioridad
  */
 function templateCambioEstado({ entidad, nombre, estadoAnterior, estadoNuevo, url, module, baseUrl }) {
   const mod = MODULE_DEFAULTS[module] || {};
+  const ent = entidad.toLowerCase();
+  const article = (ent === 'tarea' || ent === 'historia') ? 'La' : 'El';
   return baseTemplate(
     `🔄 ${entidad.charAt(0).toUpperCase() + entidad.slice(1)} movida`,
     '',
     card(
-      `<div style="font-size:14px;color:#475569;">La ${entidad} <strong>${esc(nombre)}</strong> cambió de <strong>${esc(estadoAnterior)}</strong> a <strong>${esc(estadoNuevo)}</strong>.</div>`
+      `<div style="font-size:14px;color:#475569;">${article} ${entidad} <strong>${esc(nombre)}</strong> cambió de <strong>${esc(estadoAnterior)}</strong> a <strong>${esc(estadoNuevo)}</strong>.</div>`
     ) +
     (url ? button(`Ver ${entidad}`, url, mod.color) : ''),
     { module, baseUrl }

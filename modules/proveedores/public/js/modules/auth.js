@@ -42,7 +42,7 @@ function showApp(){
     $('header-logo').innerHTML=S.appNombre.toUpperCase();
   }
   buildNav();
-  initNotifications(60000);
+  initNotifications(15000);
   
   // Auto-sync centros from launcher (background, non-blocking)
   api('POST','/centros/sync').catch(()=>{});
