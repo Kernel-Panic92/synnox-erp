@@ -239,14 +239,17 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
     }
 
     // Obtener tarea antes del update para detectar cambios
-    const tareaAntes = await pool.query('SELECT estado, asignado_a, titulo, proyecto_id FROM projects.tareas WHERE id = $1', [req.params.id]);
+    const tareaAntes = await pool.query('SELECT estado, asignado_a, titulo, proyecto_id, fecha_limite FROM projects.tareas WHERE id = $1', [req.params.id]);
     const oldEstado = tareaAntes.rows[0]?.estado;
     const oldAsignado = tareaAntes.rows[0]?.asignado_a;
     const tareaTitulo = titulo || tareaAntes.rows[0]?.titulo;
     const proyectoId = proyecto_id || tareaAntes.rows[0]?.proyecto_id;
 
-    // El asignado no puede modificar la fecha límite
-    if (fecha_limite !== undefined && !esAdminGerente && oldAsignado === req.user.id) {
+    // El asignado no puede modificar la fecha límite (solo si realmente cambió)
+    const oldFecha = tareaAntes.rows[0]?.fecha_limite;
+    const newFecha = fecha_limite !== undefined ? (fecha_limite || null) : undefined;
+    const fechaCambio = newFecha !== undefined && newFecha !== oldFecha?.toISOString?.()?.split('T')[0] && newFecha !== oldFecha;
+    if (fechaCambio && !esAdminGerente && oldAsignado === req.user.id) {
       return res.status(403).json({ error: 'No puedes modificar la fecha límite de una tarea asignada a ti' });
     }
 
