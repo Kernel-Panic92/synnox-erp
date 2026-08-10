@@ -309,10 +309,10 @@ function marcarTodasLeidas() {
 }
 
 function activarNotificaciones() {
-  if (!('Notification' in window)) return alert('Tu navegador no soporta notificaciones');
+  if (!('Notification' in window)) return toast('Tu navegador no soporta notificaciones', 'error');
   Notification.requestPermission().then(perm => {
     if (perm === 'granted') {
-      alert('Notificaciones activadas');
+      toast('Notificaciones activadas', 'success');
       checkNotifPermission();
       new Notification('Notificaciones activadas', { body: 'Recibirás alertas del sistema', icon: '/favicon.ico' });
     }

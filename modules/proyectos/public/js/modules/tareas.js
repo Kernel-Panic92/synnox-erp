@@ -316,11 +316,26 @@ async function aprobarTarea(id) {
 }
 
 async function rechazarTarea(id) {
-  const res = await window.prompt('Motivo de rechazo:');
-  if (!res || !res.trim()) return;
+  const body = `
+    <div style="display:flex;flex-direction:column;gap:12px">
+      <label style="font-size:13px;color:var(--muted)">Motivo del rechazo</label>
+      <textarea id="rechazo-motivo" rows="4" placeholder="Describe el motivo del rechazo..." 
+        style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:14px;resize:vertical;box-sizing:border-box;font-family:inherit"></textarea>
+    </div>`;
+  const actions = `
+    <button class="btn btn-sm btn-secondary" onclick="cerrarModal()">Cancelar</button>
+    <button class="btn btn-sm btn-danger" onclick="ejecutarRechazarTarea(${id})">Rechazar</button>`;
+  abrirModal('Rechazar Tarea', '', body, actions);
+  setTimeout(() => document.getElementById('rechazo-motivo')?.focus(), 100);
+}
+
+async function ejecutarRechazarTarea(id) {
+  const motivo = document.getElementById('rechazo-motivo')?.value?.trim();
+  if (!motivo) return toast('Ingresa un motivo de rechazo', 'error');
   try {
-    await api('/tareas/' + id + '/rechazar', { method: 'PUT', body: JSON.stringify({ motivo: res.trim() }) });
+    await api('/tareas/' + id + '/rechazar', { method: 'PUT', body: JSON.stringify({ motivo }) });
     toast('Tarea rechazada', 'warning');
+    cerrarModal();
     cargarTareas();
     if (_currentPage === 'tablero') cargarTablero();
     cerrarModalDetalle();
