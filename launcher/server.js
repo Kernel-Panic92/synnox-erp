@@ -986,8 +986,9 @@ app.get('/auth/google', (req, res) => {
 app.get('/auth/google/callback', async (req, res) => {
   const { code, error, state } = req.query;
   const cookies = parseCookies(req);
+  console.log('[OAuth Google] Callback received:', { hasCode: !!code, hasError: !!error, hasState: !!state, cookieState: !!cookies.oauth_state, stateMatch: state === cookies.oauth_state });
   if (error || !code) return res.redirect('/?error=oauth_denied');
-  if (!state || state !== cookies.oauth_state) return res.redirect('/?error=invalid_state');
+  if (!state || state !== cookies.oauth_state) { console.error('[OAuth Google] State mismatch:', { state, cookieState: cookies.oauth_state }); return res.redirect('/?error=invalid_state'); }
   res.clearCookie('oauth_state', { path: '/' });
   const cfg = getOAuthConfig('google');
   try {
@@ -996,16 +997,19 @@ app.get('/auth/google/callback', async (req, res) => {
       body: JSON.stringify({ code, client_id: cfg.clientId, client_secret: cfg.clientSecret, redirect_uri: getOAuthBaseUrl() + '/auth/google/callback', grant_type: 'authorization_code' })
     });
     const tokenData = await tokenRes.json();
+    console.log('[OAuth Google] Token response:', { ok: tokenRes.ok, hasAccessToken: !!tokenData.access_token, error: tokenData.error });
     if (!tokenData.access_token) return res.redirect('/?error=token_exchange_failed');
     const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: 'Bearer ' + tokenData.access_token } });
     const profile = await userInfoRes.json();
+    console.log('[OAuth Google] Profile:', { email: profile.email, name: profile.name, id: profile.id });
     if (!profile.email) return res.redirect('/?error=no_email');
     const user = oauthFindOrCreateUser({ provider: 'google', id: profile.id, email: profile.email, name: profile.name, accessToken: tokenData.access_token, expiresIn: tokenData.expires_in });
     if (isUserBlacklisted(user.user.id)) return res.redirect('/?error=blacklisted');
     const token = oauthIssueJwt(user.user, req, res);
+    console.log('[OAuth Google] JWT issued:', !!token, 'hasModules:', user.hasModules, 'isNew:', user.isNew);
     if (!token) return res.redirect('/?error=auth_failed');
     res.redirect((user.isNew || !user.hasModules) ? '/?new_user=1' : '/');
-  } catch (e) { console.error('[OAuth Google]', e.message); res.redirect('/?error=oauth_error'); }
+  } catch (e) { console.error('[OAuth Google] Error:', e.message, e.stack); res.redirect('/?error=oauth_error'); }
 });
 
 // ── GitHub OAuth ──

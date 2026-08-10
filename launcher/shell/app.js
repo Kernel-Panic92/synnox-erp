@@ -194,6 +194,7 @@ function loadOAuthProviders() {
   if (error) {
     const messages = {
       oauth_denied: 'Acceso denegado. Debes autorizar para continuar.',
+      invalid_state: 'Sesión OAuth inválida. Intenta de nuevo.',
       token_exchange_failed: 'Error al intercambiar token con el proveedor.',
       no_email: 'El proveedor no devolvió un correo electrónico.',
       auth_failed: 'Error al crear la sesión.',
@@ -2560,19 +2561,36 @@ async function killSession(id, nombre) {
         return;
       }
     } catch(e) {}
-    // Session invalid — show main login screen
-    jwtToken = null;
-    user = null;
-    show('login-screen');
+    // Token failed — try cookie fallback before giving up (e.g. after OAuth redirect)
+    try {
+      const cookieRes = await fetch('/api/auth/me', { signal: AbortSignal.timeout(5000), credentials: 'include' });
+      if (cookieRes.ok) {
+        const data = await cookieRes.json();
+        // Cookie worked — clear stale localStorage token and get a fresh one
+        localStorage.removeItem('platform_jwt');
+        const refreshRes = await fetch('/api/auth/refresh', { method: 'POST', signal: AbortSignal.timeout(5000), credentials: 'include' });
+        if (refreshRes.ok) {
+          const refreshData = await refreshRes.json();
+          if (refreshData.jwt) { jwtToken = refreshData.jwt; localStorage.setItem('platform_jwt', jwtToken); }
+        }
+        user = data;
+        show('post-login-screen');
+        updatePostLoginStatus('Preparando tu espacio de trabajo...', 50);
+        await showLauncher();
+        return;
+      }
+    } catch(e) {}
+    // Session invalid — show re-login modal (preserve localStorage cache)
+    showSessionExpiredModal();
     return;
   }
   // No JWT in localStorage — try httpOnly cookie (from OAuth login)
   try {
-    const res = await fetch('/api/auth/me', { signal: AbortSignal.timeout(5000) });
+    const res = await fetch('/api/auth/me', { signal: AbortSignal.timeout(5000), credentials: 'include' });
     if (res.ok) {
       const data = await res.json();
       // Cookie worked — store JWT for future requests
-      const refreshRes = await fetch('/api/auth/refresh', { method: 'POST', signal: AbortSignal.timeout(5000) });
+      const refreshRes = await fetch('/api/auth/refresh', { method: 'POST', signal: AbortSignal.timeout(5000), credentials: 'include' });
       if (refreshRes.ok) {
         const refreshData = await refreshRes.json();
         if (refreshData.jwt) { jwtToken = refreshData.jwt; localStorage.setItem('platform_jwt', jwtToken); }
@@ -2616,10 +2634,22 @@ async function refreshToken() {
     const res = await fetch('/api/auth/refresh', {
       method: 'POST',
       signal: AbortSignal.timeout(10000),
-      headers: { 'Authorization': 'Bearer ' + jwtToken }
+      headers: { 'Authorization': 'Bearer ' + jwtToken },
+      credentials: 'include'
     });
     if (res.ok) {
       const data = await res.json();
+      if (data.jwt) { jwtToken = data.jwt; localStorage.setItem('platform_jwt', jwtToken); }
+      return true;
+    }
+    // Token failed — try with cookie only (OAuth session)
+    const cookieRes = await fetch('/api/auth/refresh', {
+      method: 'POST',
+      signal: AbortSignal.timeout(10000),
+      credentials: 'include'
+    });
+    if (cookieRes.ok) {
+      const data = await cookieRes.json();
       if (data.jwt) { jwtToken = data.jwt; localStorage.setItem('platform_jwt', jwtToken); }
       return true;
     }
