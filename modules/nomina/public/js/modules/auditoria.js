@@ -17,8 +17,8 @@ function limpiarFiltrosAuditoria() {
 async function cargarAuditoria() {
   const sesBody = document.getElementById('aud-sesiones-body');
   const histBody = document.getElementById('aud-historial-body');
-  if (sesBody) sesBody.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Cargando...</div>';
-  if (histBody) histBody.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Cargando...</div>';
+  if (sesBody) sesBody.innerHTML = '<div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div>';
+  if (histBody) histBody.innerHTML = '<div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div>';
 
   const buscar = (document.getElementById('aud-buscar')?.value || '').toLowerCase();
   const filSesion = document.getElementById('aud-fil-sesion')?.value || '';

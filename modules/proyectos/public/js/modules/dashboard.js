@@ -9,6 +9,57 @@ let _dashSortDir = 'desc';
 const _dashOrdenPrioridad = { baja: 1, media: 2, alta: 3, critica: 4 };
 const _dashOrdenEstado = { pendiente: 1, en_progreso: 2, revision: 3, completada: 4 };
 
+// Debounced search function
+const debouncedDashAplicarFiltros = debounce(dashAplicarFiltros, 300);
+
+// Render pending action cards
+function renderDashPendientes(data) {
+  const el = document.getElementById('dash-pendientes');
+  if (!el) return;
+  
+  const cards = [];
+  const aprobacion = data.aprobacion || {};
+  const pendientesAprob = parseInt(aprobacion.pendientes) || 0;
+  const recientes = data.recientes || [];
+  
+  // Tareas vencidas
+  const hoy = new Date().toISOString().split('T')[0];
+  const vencidas = recientes.filter(t => t.fecha_limite && t.fecha_limite < hoy && t.estado !== 'completada');
+  if (vencidas.length > 0) {
+    cards.push(`<div class="stat-card" style="border-left:4px solid var(--danger);cursor:pointer" onclick="verTareasEstado('pendiente')">
+      <div class="stat-label">⏰ Tareas Vencidas</div>
+      <div class="stat-value" style="color:var(--danger)">${vencidas.length}</div>
+      <div class="stat-sub">Requieren atención inmediata</div>
+    </div>`);
+  }
+  
+  // Pendientes de aprobación
+  if (pendientesAprob > 0) {
+    cards.push(`<div class="stat-card" style="border-left:4px solid var(--warning);cursor:pointer" onclick="verTareasEstado('revision')">
+      <div class="stat-label">✅ Pend. Aprobación</div>
+      <div class="stat-value" style="color:var(--warning)">${pendientesAprob}</div>
+      <div class="stat-sub">Tareas esperando revisión</div>
+    </div>`);
+  }
+  
+  // Tareas asignadas sin completar
+  const pendientes = recientes.filter(t => t.estado === 'pendiente' || t.estado === 'en_progreso');
+  if (pendientes.length > 0) {
+    cards.push(`<div class="stat-card" style="border-left:4px solid var(--accent);cursor:pointer" onclick="verTareasEstado('pendiente')">
+      <div class="stat-label">📋 Mis Pendientes</div>
+      <div class="stat-value" style="color:var(--accent)">${pendientes.length}</div>
+      <div class="stat-sub">Tareas en curso</div>
+    </div>`);
+  }
+  
+  if (cards.length > 0) {
+    el.innerHTML = `
+      <h3 style="margin-bottom:12px;font-size:15px;">⚡ Pendientes</h3>
+      <div class="stats-row" style="margin-bottom:0">${cards.join('')}</div>
+    `;
+  }
+}
+
 async function cargarDashboard() {
   try {
     const data = await api('/dashboard');
@@ -16,6 +67,9 @@ async function cargarDashboard() {
     const recientes = data.recientes || [];
     const porAsignado = data.porAsignado || [];
     const aprobacion = data.aprobacion || {};
+
+    // Render pending items first
+    renderDashPendientes(data);
 
     const pendiente = estados.find(e => e.estado === 'pendiente')?.count || 0;
     const enProgreso = estados.find(e => e.estado === 'en_progreso')?.count || 0;

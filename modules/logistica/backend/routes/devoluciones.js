@@ -189,8 +189,12 @@ router.put('/:id', requirePermiso('editar', MODULE), async (req, res) => {
       latitud, longitud, direccion, documento_devolucion, quien_recibe,
       mercaderista, productos, productos_texto, valor_total, causa,
       causa_detalle, entregado_conductor, conductor_nombre, conductor_placa,
-      foto_url, numero_factura, estado
+      foto_url, numero_factura, estado, edit_comentario
     } = req.body;
+
+    if (!edit_comentario || !edit_comentario.trim()) {
+      return res.status(400).json({ error: 'Debe agregar un comentario sobre el cambio realizado' });
+    }
 
     const result = await pool.query(
       `UPDATE logistics.devoluciones SET
@@ -215,6 +219,9 @@ router.put('/:id', requirePermiso('editar', MODULE), async (req, res) => {
         foto_url = COALESCE($19, foto_url),
         numero_factura = COALESCE($20, numero_factura),
         estado = COALESCE($21, estado),
+        editado_por = $23,
+        edit_comentario = $24,
+        editado_en = CURRENT_TIMESTAMP,
         updated_at = CURRENT_TIMESTAMP
       WHERE id = $22 RETURNING *`,
       [
@@ -226,7 +233,7 @@ router.put('/:id', requirePermiso('editar', MODULE), async (req, res) => {
         entregado_conductor !== undefined ? entregado_conductor : null,
         conductor_nombre || null, conductor_placa || null,
         foto_url || null, numero_factura || null, estado || null,
-        req.params.id
+        req.params.id, req.user?.id || null, edit_comentario.trim()
       ]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Devolución no encontrada' });
@@ -255,107 +262,113 @@ router.put('/:id/estado', requirePermiso('editar', MODULE), async (req, res) => 
   }
 });
 
-// ── POST /importar-smart2go — Importar Excel/CSV ──
-router.post('/importar-smart2go', requirePermiso('crear', MODULE), upload.single('archivo'), async (req, res) => {
+// ── POST /importar-smart2go — Importar Excel/CSV (1 o más archivos) ──
+router.post('/importar-smart2go', requirePermiso('crear', MODULE), upload.array('archivo', 10), async (req, res) => {
   try {
-    if (!req.file) return res.status(400).json({ error: 'Archivo requerido' });
+    if (!req.files || req.files.length === 0) return res.status(400).json({ error: 'Archivo(es) requerido(s)' });
 
-    const safeFilePath = sanitizePath(req.file.path, uploadDir);
-    const resultado = await parsearSmart2GoDevoluciones(safeFilePath);
+    let totalImportadas = 0;
+    let totalDuplicadas = 0;
+    let totalErroresParseo = 0;
+    let totalErroresDb = 0;
+    let totalRegistros = 0;
+    const archivosProcesados = [];
+    const erroresGlobal = [];
 
-    // Cleanup temp file
-    try { fs.unlinkSync(safeFilePath); } catch {}
-
-    if (!resultado.exitosa) {
-      return res.status(422).json({ error: resultado.error });
-    }
-
-    let importadas = 0;
-    let duplicadas = 0;
-    const errores = [];
-
-    for (const reg of resultado.registros) {
+    for (const file of req.files) {
+      const safeFilePath = sanitizePath(file.path, uploadDir);
       try {
-        // Check duplicate by fuente_id
-        if (reg.fuente_id) {
-          const existing = await pool.query(
-            'SELECT id FROM logistics.devoluciones WHERE fuente_id = $1',
-            [reg.fuente_id]
-          );
-          if (existing.rows.length > 0) {
-            duplicadas++;
-            continue;
+        const resultado = await parsearSmart2GoDevoluciones(safeFilePath);
+
+        if (!resultado.exitosa) {
+          archivosProcesados.push({ nombre: file.originalname, exitosa: false, error: resultado.error });
+          continue;
+        }
+
+        let importadas = 0;
+        let duplicadas = 0;
+        const errores = [];
+
+        for (const reg of resultado.registros) {
+          try {
+            if (reg.fuente_id) {
+              const existing = await pool.query(
+                'SELECT id FROM logistics.devoluciones WHERE fuente_id = $1',
+                [reg.fuente_id]
+              );
+              if (existing.rows.length > 0) {
+                duplicadas++;
+                continue;
+              }
+            }
+
+            let pedidoId = null;
+            if (reg.documento_devolucion) {
+              const pedidoMatch = await pool.query(
+                'SELECT id FROM logistics.pedidos_logistica WHERE numero_factura = $1 LIMIT 1',
+                [reg.documento_devolucion]
+              );
+              if (pedidoMatch.rows.length > 0) pedidoId = pedidoMatch.rows[0].id;
+            }
+
+            await pool.query(
+              `INSERT INTO logistics.devoluciones (
+                fuente, fuente_id, fecha_reporte, hora_reporte, centro_operaciones,
+                cliente_nombre, sucursal, latitud, longitud, direccion,
+                documento_devolucion, quien_recibe, mercaderista,
+                productos, productos_texto, valor_total, causa, causa_detalle,
+                entregado_conductor, conductor_nombre, conductor_placa,
+                foto_url, pedido_id, numero_factura, estado
+              ) VALUES (
+                'smart2go', $1, $2, $3, $4, $5, $6, $7, $8, $9,
+                $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,
+                $20, $21, $22, $23, 'registrada'
+              )`,
+              [
+                reg.fuente_id, reg.fecha_reporte, reg.hora_reporte, reg.centro_operaciones || null,
+                reg.cliente_nombre, reg.sucursal || null, reg.latitud, reg.longitud,
+                reg.direccion || null, reg.documento_devolucion || null,
+                reg.quien_recibe || null, reg.mercaderista || null,
+                JSON.stringify(reg.productos), reg.productos_texto || null,
+                reg.valor_total, reg.causa, reg.causa_detalle || null,
+                reg.entregado_conductor, reg.conductor_nombre || null,
+                reg.conductor_placa || null, reg.foto_url || null,
+                pedidoId, reg.documento_devolucion || null
+              ]
+            );
+            importadas++;
+          } catch (e) {
+            errores.push({ fuente_id: reg.fuente_id, error: e.message });
           }
         }
 
-        // Try to match with existing pedido
-        let pedidoId = null;
-        if (reg.documento_devolucion) {
-          const pedidoMatch = await pool.query(
-            'SELECT id FROM logistics.pedidos_logistica WHERE numero_factura = $1 LIMIT 1',
-            [reg.documento_devolucion]
-          );
-          if (pedidoMatch.rows.length > 0) pedidoId = pedidoMatch.rows[0].id;
-        }
-
         await pool.query(
-          `INSERT INTO logistics.devoluciones (
-            fuente, fuente_id, fecha_reporte, hora_reporte, centro_operaciones,
-            cliente_nombre, sucursal, latitud, longitud, direccion,
-            documento_devolucion, quien_recibe, mercaderista,
-            productos, productos_texto, valor_total, causa, causa_detalle,
-            entregado_conductor, conductor_nombre, conductor_placa,
-            foto_url, pedido_id, numero_factura, estado
-          ) VALUES (
-            'smart2go', $1, $2, $3, $4, $5, $6, $7, $8, $9,
-            $10, $11, $12, $13, $14, $15, $16, $17, $18, $19,
-            $20, $21, $22, $23, 'registrada'
-          )`,
-          [
-            reg.fuente_id, reg.fecha_reporte, reg.hora_reporte, reg.centro_operaciones || null,
-            reg.cliente_nombre, reg.sucursal || null, reg.latitud, reg.longitud,
-            reg.direccion || null, reg.documento_devolucion || null,
-            reg.quien_recibe || null, reg.mercaderista || null,
-            JSON.stringify(reg.productos), reg.productos_texto || null,
-            reg.valor_total, reg.causa, reg.causa_detalle || null,
-            reg.entregado_conductor, reg.conductor_nombre || null,
-            reg.conductor_placa || null, reg.foto_url || null,
-            pedidoId, reg.documento_devolucion || null
-          ]
+          `INSERT INTO logistics.importaciones (tipo, nombre_archivo, registros_importados, registros_fallidos, estado, detalles)
+           VALUES ('smart2go_devoluciones', $1, $2, $3, $4, $5)`,
+          [file.originalname, importadas, errores.length, errores.length > 0 ? 'parcial' : 'exitosa',
+           JSON.stringify({ duplicadas, errores_parseo: resultado.errores.length, errores_db: errores.length })]
         );
-        importadas++;
-      } catch (e) {
-        errores.push({ fuente_id: reg.fuente_id, error: e.message });
+
+        totalImportadas += importadas;
+        totalDuplicadas += duplicadas;
+        totalErroresParseo += resultado.errores.length;
+        totalErroresDb += errores.length;
+        totalRegistros += resultado.total;
+        archivosProcesados.push({ nombre: file.originalname, exitosa: true, importadas, duplicadas });
+      } finally {
+        try { fs.unlinkSync(safeFilePath); } catch {}
       }
     }
 
-    // Log import
-    await pool.query(
-      `INSERT INTO logistics.importaciones (tipo, nombre_archivo, registros_importados, registros_fallidos, estado, detalles)
-       VALUES ('smart2go_devoluciones', $1, $2, $3, $4, $5)`,
-      [req.file.originalname, importadas, errores.length, errores.length > 0 ? 'parcial' : 'exitosa',
-       JSON.stringify({ duplicadas, errores_parseo: resultado.errores.length, errores_db: errores.length })]
-    );
-
     res.json({
       exitosa: true,
-      importadas,
-      duplicadas,
-      errores_parseo: resultado.errores.length,
-      errores_db: errores.length,
-      total_registros: resultado.total,
+      importadas: totalImportadas,
+      duplicadas: totalDuplicadas,
+      errores_parseo: totalErroresParseo,
+      errores_db: totalErroresDb,
+      total_registros: totalRegistros,
+      archivos: archivosProcesados,
     });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// ── DELETE /:id — Eliminar ──
-router.delete('/:id', requirePermiso('eliminar', MODULE), async (req, res) => {
-  try {
-    const result = await pool.query('DELETE FROM logistics.devoluciones WHERE id = $1 RETURNING id', [req.params.id]);
-    if (result.rows.length === 0) return res.status(404).json({ error: 'Devolución no encontrada' });
-    res.json({ exitosa: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
@@ -373,6 +386,17 @@ router.delete('/seleccionados', requirePermiso('eliminar', MODULE), async (req, 
       [ids]
     );
     res.json({ exitosa: true, eliminadas: result.rowCount });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ── DELETE /:id — Eliminar ──
+router.delete('/:id', requirePermiso('eliminar', MODULE), async (req, res) => {
+  try {
+    const result = await pool.query('DELETE FROM logistics.devoluciones WHERE id = $1 RETURNING id', [req.params.id]);
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Devolución no encontrada' });
+    res.json({ exitosa: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

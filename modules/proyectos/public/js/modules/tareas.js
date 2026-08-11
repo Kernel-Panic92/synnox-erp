@@ -9,6 +9,9 @@ let _miembrosProyectoCache = {};
 let _filtroProyectoInit = false;
 let _filtroAsignadoInit = false;
 
+// Debounced search functions
+const debouncedCargarTareas = debounce(cargarTareas, 300);
+
 async function cargarProyectosSelect(forceReload = false) {
   const sel = document.getElementById('filtro-proyecto');
   const needsReload = forceReload || !sel || sel.options.length <= 1;

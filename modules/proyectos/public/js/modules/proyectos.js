@@ -8,6 +8,9 @@ let _miembrosSeleccionados = new Set();
 let _miembrosRoles = {};
 let _proyFiltroAsignadoInit = false;
 
+// Debounced search function
+const debouncedCargarProyectos = debounce(cargarProyectos, 300);
+
 async function cargarFiltrosProyectos() {
   await Promise.all([cargarCentrosProyectos(), cargarTodosLosUsuarios()]);
   const centroSel = document.getElementById('filtro-proy-centro');

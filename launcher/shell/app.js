@@ -2659,6 +2659,40 @@ async function refreshToken() {
   return false;
 }
 
+function showSessionExpiredModal() {
+  show(null);
+  const modal = document.getElementById('session-expired-modal');
+  if (modal) modal.style.display = 'flex';
+}
+
+function hideSessionExpiredModal() {
+  const modal = document.getElementById('session-expired-modal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function reanudarSesion() {
+  const email = document.getElementById('reanudar-email')?.value?.trim();
+  const pass = document.getElementById('reanudar-pass')?.value;
+  const errEl = document.getElementById('reanudar-error');
+  if (!email || !pass) { if (errEl) errEl.textContent = 'Ingresa tus credenciales'; return; }
+  try {
+    const res = await fetch('/api/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password: pass })
+    });
+    if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(d.error || 'Credenciales inválidas'); }
+    const data = await res.json();
+    jwtToken = data.jwt;
+    user = data.usuario;
+    localStorage.setItem('platform_jwt', jwtToken);
+    hideSessionExpiredModal();
+    await showLauncher();
+  } catch (e) {
+    if (errEl) errEl.textContent = e.message;
+  }
+}
+
 // Refresh every 15 minutes
 setInterval(async () => {
   if (!jwtToken) return;

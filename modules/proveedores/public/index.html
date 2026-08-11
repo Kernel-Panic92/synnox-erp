@@ -207,7 +207,7 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--ac
   <div class="sidebar-overlay" onclick="closeSidebar()"></div>
 
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>
+    <button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Menú" aria-expanded="true">◀</button>
     <div class="logo" id="header-logo">📋 <span>Proveedores</span></div>
     <div class="user-info">
       <div class="name" id="user-name">—</div>
@@ -231,7 +231,10 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--ac
   <div class="main" id="main">
     <div class="main-topbar">
       <button class="btn btn-sm btn-secondary" onclick="toggleTheme()" id="theme-btn" title="Cambiar tema">☀️</button>
-      <div class="notif-bell" onclick="toggleNotifDropdown()">🔔<span class="notif-badge" id="notif-count"></span><div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div id="notif-permission-banner" style="padding:8px 12px;background:var(--surface2);border-radius:8px;margin-bottom:8px;font-size:12px"><p style="margin-bottom:6px">🔔 Activa las notificaciones del navegador</p><button class="btn btn-xs btn-primary" onclick="event.stopPropagation();activarNotificaciones()">Activar</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div></div>
+      <div style="position:relative">
+        <button class="notif-bell" onclick="toggleNotifDropdown()" aria-label="Notificaciones" aria-expanded="false">🔔<span class="notif-badge" id="notif-count"></span></button>
+        <div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div id="notif-permission-banner" style="padding:8px 12px;background:var(--surface2);border-radius:8px;margin-bottom:8px;font-size:12px"><p style="margin-bottom:6px">🔔 Activa las notificaciones del navegador</p><button class="btn btn-xs btn-primary" onclick="event.stopPropagation();activarNotificaciones()">Activar</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div>
+      </div>
     </div>
     <div id="content"></div>
   </div>

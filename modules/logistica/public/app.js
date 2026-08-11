@@ -1,6 +1,15 @@
 const BASE = location.pathname.match(/^\/(\w+)\//) ? '/' + RegExp.$1 : '';
 const API = BASE + '/api';
 
+// Debounced search functions
+const debouncedCargarVehiculos = debounce(cargarVehiculos, 300);
+const debouncedCargarPedidos = debounce(cargarPedidos, 300);
+const debouncedCargarClientes = debounce(cargarClientes, 300);
+const debouncedCargarSedes = debounce(cargarSedes, 300);
+const debouncedCargarGeocercas = debounce(cargarGeocercas, 300);
+const debouncedCargarDevoluciones = debounce(cargarDevoluciones, 300);
+const debouncedCargarAuditoria = debounce(cargarAuditoria, 300);
+
 function logout() {
   window.location.href = '/logout';
 }
@@ -122,7 +131,8 @@ function navigate(page) {
 
 /* ── Init ── */
 function renderSidebar(usuario) {
-  const isAdmin = usuario.rol === 'admin';
+  window._devIsAdmin = usuario.rol === 'admin';
+  const isAdmin = window._devIsAdmin;
   const modPermisos = usuario.modulos_permisos?.logistica || [];
   const items = [
     { page: 'dashboard', icon: '📊', label: 'Dashboard', show: true },
@@ -141,9 +151,9 @@ function renderSidebar(usuario) {
   const nav = document.getElementById('sidebar-nav');
   if (!nav) return;
   nav.innerHTML = items.filter(i => i.show).map((i, idx) =>
-    `<div class="nav-item${idx === 0 ? ' active' : ''}" data-page="${i.page}" onclick="navigate('${i.page}')">
+    `<button class="nav-item${idx === 0 ? ' active' : ''}" data-page="${i.page}" onclick="navigate('${i.page}')" aria-label="${i.label}">
       <span class="icon">${i.icon}</span> ${i.label}
-    </div>`
+    </button>`
   ).join('');
 }
 
@@ -437,15 +447,15 @@ async function cargarVehiculos() {
     const data = await api('/vehiculos?' + params.toString());
     if (!data.vehiculos?.length) { tbody.innerHTML = '<tr><td colspan="8" class="text-center text-muted" style="padding:32px;">No hay vehículos registrados</td></tr>'; return; }
     tbody.innerHTML = data.vehiculos.map(v => `
-      <tr>
-        <td><input type="checkbox" class="cb-vehiculo" value="${v.id}" onchange="actualizarBtnEliminar('vehiculo')"></td>
-        <td><strong>${v.placa}</strong></td>
-        <td>${v.alias || '—'}</td>
-        <td>${v.color ? '<span style="display:inline-block;width:16px;height:16px;border-radius:50%;background:'+esc(v.color)+';vertical-align:middle;border:1px solid var(--border);"></span> ' : ''}${v.sede || '—'}</td>
-        <td>${v.capacidad_peso} kg</td>
-        <td>${v.capacidad_volumen} m³</td>
-        <td><span class="badge badge-${v.estado==='disponible'?'success':v.estado==='en_ruta'?'warning':'danger'}">${v.estado}</span></td>
-        <td><button class="btn btn-sm btn-secondary" onclick="editarVehiculo(${v.id})" title="Editar">✏️</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('vehiculo',${v.id},'${v.placa}')" title="Eliminar">🗑️</button></td>
+      <tr onclick="editarVehiculo(${v.id})">
+        <td data-label="" onclick="event.stopPropagation()"><input type="checkbox" class="cb-vehiculo" value="${v.id}" onchange="actualizarBtnEliminar('vehiculo');updateBulkBar()"></td>
+        <td data-label="Placa"><strong>${v.placa}</strong></td>
+        <td data-label="Alias">${v.alias || '—'}</td>
+        <td data-label="Sede">${v.color ? '<span style="display:inline-block;width:16px;height:16px;border-radius:50%;background:'+esc(v.color)+';vertical-align:middle;border:1px solid var(--border);"></span> ' : ''}${v.sede || '—'}</td>
+        <td data-label="Peso">${v.capacidad_peso} kg</td>
+        <td data-label="Vol.">${v.capacidad_volumen} m³</td>
+        <td data-label="Estado"><span class="badge badge-${v.estado==='disponible'?'success':v.estado==='en_ruta'?'warning':'danger'}">${v.estado}</span></td>
+        <td data-label="" onclick="event.stopPropagation()"><button class="btn btn-sm btn-secondary" onclick="editarVehiculo(${v.id})" title="Editar">✏️</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('vehiculo',${v.id},'${v.placa}')" title="Eliminar">🗑️</button></td>
       </tr>
     `).join('');
   } catch (e) {
@@ -526,17 +536,17 @@ async function cargarPedidos() {
     const data = await api('/pedidos?' + params.toString());
     if (!data.pedidos?.length) { tbody.innerHTML = '<tr><td colspan="10" class="text-center text-muted" style="padding:32px;">No hay pedidos</td></tr>'; return; }
     tbody.innerHTML = data.pedidos.map(p => `
-      <tr>
-        <td><input type="checkbox" class="cb-pedido" value="${p.id}" onchange="actualizarBtnEliminar('pedido')"></td>
-        <td><strong>${p.numero_factura}</strong></td>
-        <td class="truncate">${esc(p.cliente_nombre_real) || esc(p.cliente_nombre) || '—'}</td>
-        <td class="truncate">${p.direccion || '—'}</td>
-        <td style="white-space:nowrap">$${Number(p.valor_contado||0).toLocaleString()}</td>
-        <td style="white-space:nowrap">$${Number(p.valor_credito||0).toLocaleString()}</td>
-        <td>${p.placa || '—'}</td>
-        <td><span class="badge badge-${p.estado==='entregado'?'success':p.estado==='pendiente'?'warning':p.estado==='fallido'?'danger':p.estado==='cancelado'?'danger':'info'}">${p.estado}</span></td>
-        <td>${esc(p.cliente_ruta || p.cliente_ruta_moto || '') || (p.ruta_id ? 'Ruta #'+p.ruta_id : '—')}</td>
-        <td><button class="btn btn-sm btn-secondary" onclick="verPedido(${p.id})" title="Ver">👁️</button> <button class="btn btn-sm btn-secondary" onclick="editarPedido(${p.id})" title="Editar">✏️</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('pedido',${p.id},'${p.numero_factura}')" title="Eliminar">🗑️</button></td>
+      <tr onclick="verPedido(${p.id})">
+        <td data-label="" onclick="event.stopPropagation()"><input type="checkbox" class="cb-pedido" value="${p.id}" onchange="actualizarBtnEliminar('pedido');updateBulkBar()"></td>
+        <td data-label="Factura"><strong>${p.numero_factura}</strong></td>
+        <td data-label="Cliente" class="truncate">${esc(p.cliente_nombre_real) || esc(p.cliente_nombre) || '—'}</td>
+        <td data-label="Dirección" class="truncate">${p.direccion || '—'}</td>
+        <td data-label="Contado" style="white-space:nowrap">$${Math.round(Number(p.valor_contado||0))}</td>
+        <td data-label="Crédito" style="white-space:nowrap">$${Math.round(Number(p.valor_credito||0))}</td>
+        <td data-label="Vehículo">${p.placa || '—'}</td>
+        <td data-label="Estado"><span class="badge badge-${p.estado==='entregado'?'success':p.estado==='pendiente'?'warning':p.estado==='fallido'?'danger':p.estado==='cancelado'?'danger':'info'}">${p.estado}</span></td>
+        <td data-label="Ruta">${esc(p.cliente_ruta || p.cliente_ruta_moto || '') || (p.ruta_id ? 'Ruta #'+p.ruta_id : '—')}</td>
+        <td data-label="" onclick="event.stopPropagation()"><button class="btn btn-sm btn-secondary" onclick="verPedido(${p.id})" title="Ver">👁️</button> <button class="btn btn-sm btn-secondary" onclick="editarPedido(${p.id})" title="Editar">✏️</button> <button class="btn btn-sm btn-danger" onclick="confirmarEliminar('pedido',${p.id},'${p.numero_factura}')" title="Eliminar">🗑️</button></td>
       </tr>
     `).join('');
   } catch (e) {
@@ -555,8 +565,8 @@ async function verPedido(id) {
         <div><strong>Dirección:</strong><br>${p.direccion || '—'}</div>
         <div><strong>Ciudad:</strong><br>${p.ciudad || '—'}</div>
         <div><strong>Teléfono:</strong><br>${p.telefono || '—'}</div>
-        <div><strong>V. Contado:</strong><br>$${Number(p.valor_contado||0).toLocaleString()}</div>
-        <div><strong>V. Crédito:</strong><br>$${Number(p.valor_credito||0).toLocaleString()}</div>
+        <div><strong>V. Contado:</strong><br>$${Math.round(Number(p.valor_contado||0))}</div>
+        <div><strong>V. Crédito:</strong><br>$${Math.round(Number(p.valor_credito||0))}</div>
         <div><strong>Conductor:</strong><br>${p.conductor || '—'}</div>
         <div><strong>Placa:</strong><br>${p.placa || '—'}</div>
         <div><strong>Nro Guía:</strong><br>${p.nro_guia || '—'}</div>
@@ -593,7 +603,7 @@ async function cargarClientes() {
       const bg = `hsl(${Math.abs(hue) % 360}, 60%, 45%)`;
       return `<div class="cli-card" data-id="${c.id}">
         <div class="cli-card-head">
-          <input type="checkbox" class="cb-cliente" value="${c.id}" onchange="actualizarBtnEliminar('cliente')">
+          <input type="checkbox" class="cb-cliente" value="${c.id}" onchange="actualizarBtnEliminar('cliente');updateBulkBar()">
           <div class="cli-avatar" style="background:${bg}" title="${esc(c.nombre)}">${iniciales}</div>
           <div style="flex:1;min-width:0">
             <div class="cli-name"><strong>${esc(c.nombre) || '—'}</strong></div>
@@ -829,11 +839,13 @@ function actualizarBtnEliminar(tipo) {
     const selAll = document.querySelector('#page-clientes input[onchange*="toggleAll"]');
     if (selAll && total > 0) selAll.checked = checks.length === total;
   }
+  updateBulkBar();
 }
 
 function toggleAll(tipo, checked) {
   document.querySelectorAll('.cb-' + tipo).forEach(cb => cb.checked = checked);
   actualizarBtnEliminar(tipo);
+  updateBulkBar();
 }
 
 async function asignarMasivoPedido() {
@@ -1002,16 +1014,16 @@ async function cargarRutas() {
     }
     tbody.innerHTML = data.rutas.map(r => `
       <tr>
-        <td><input type="checkbox" class="cb-ruta" value="${r.id}" onchange="actualizarBtnEliminar('ruta')"></td>
-        <td><strong>${r.nombre || 'Ruta #'+r.id}</strong></td>
-        <td>${r.placa || '—'}</td>
-        <td>${r.sede || '—'}</td>
-        <td>${r.cantidad_paradas || 0}</td>
-        <td>${r.distancia_total_estimada ? r.distancia_total_estimada+' km' : '—'}</td>
-        <td>${r.tiempo_estimado ? r.tiempo_estimado+' min' : '—'}</td>
-        <td><span class="badge badge-${r.estado==='planificada'?'info':r.estado==='en_ejecucion'?'warning':r.estado==='completada'?'success':'danger'}">${r.estado}</span></td>
-        <td>${r.fecha ? r.fecha.slice(0,10) : '—'}</td>
-        <td style="white-space:nowrap"><button class="btn btn-sm btn-icon btn-secondary" onclick="verRuta(${r.id})" title="Ver">👁️</button><button class="btn btn-sm btn-icon btn-secondary" onclick="exportarRutaGMaps(${r.id})" title="Abrir en Google Maps"><svg viewBox="0 0 24 24" width="20" height="20" fill="#4285F4" style="display:block"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></button>${r.estado!=='completada'&&r.estado!=='fallida'?`<button class="btn btn-sm btn-icon btn-success" onclick="completarRuta(${r.id})" title="Completar">✓</button>`:''}<button class="btn btn-sm btn-icon btn-danger" onclick="confirmarEliminar('ruta',${r.id})" title="Eliminar">🗑️</button></td>
+        <td data-label="" onclick="event.stopPropagation()"><input type="checkbox" class="cb-ruta" value="${r.id}" onchange="actualizarBtnEliminar('ruta');updateBulkBar()"></td>
+        <td data-label="Ruta"><strong>${r.nombre || 'Ruta #'+r.id}</strong></td>
+        <td data-label="Vehículo">${r.placa || '—'}</td>
+        <td data-label="Sede">${r.sede || '—'}</td>
+        <td data-label="Paradas">${r.cantidad_paradas || 0}</td>
+        <td data-label="Distancia">${r.distancia_total_estimada ? r.distancia_total_estimada+' km' : '—'}</td>
+        <td data-label="Tiempo">${r.tiempo_estimado ? r.tiempo_estimado+' min' : '—'}</td>
+        <td data-label="Estado"><span class="badge badge-${r.estado==='planificada'?'info':r.estado==='en_ejecucion'?'warning':r.estado==='completada'?'success':'danger'}">${r.estado}</span></td>
+        <td data-label="Fecha">${r.fecha ? r.fecha.slice(0,10) : '—'}</td>
+        <td data-label="" style="white-space:nowrap"><button class="btn btn-sm btn-icon btn-secondary" onclick="verRuta(${r.id})" title="Ver">👁️</button><button class="btn btn-sm btn-icon btn-secondary" onclick="exportarRutaGMaps(${r.id})" title="Abrir en Google Maps"><svg viewBox="0 0 24 24" width="20" height="20" fill="#4285F4" style="display:block"><path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/></svg></button>${r.estado!=='completada'&&r.estado!=='fallida'?`<button class="btn btn-sm btn-icon btn-success" onclick="completarRuta(${r.id})" title="Completar">✓</button>`:''}<button class="btn btn-sm btn-icon btn-danger" onclick="confirmarEliminar('ruta',${r.id})" title="Eliminar">🗑️</button></td>
       </tr>
     `).join('');
   } catch (e) {
@@ -1533,14 +1545,14 @@ function renderBackup(el) {
         <div id="backup-ok" style="display:none;margin-top:10px;color:var(--success);">✓ Backup generado</div>
         <hr style="border-color:var(--border);margin:18px 0;">
         <h4 style="margin-bottom:8px;font-family:var(--font-head);font-size:14px;">🤖 Último Backup Automático</h4>
-        <div id="ultimo-bk-info"><p class="text-muted">Cargando...</p></div>
+        <div id="ultimo-bk-info"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
         <button class="btn btn-secondary btn-sm mt-12" onclick="ejecutarBackupScript()">▶ Ejecutar ahora</button>
         <div id="bk-script-log" style="margin-top:8px;"></div>
       </div>
       <div class="card">
         <h4 style="margin-bottom:12px;font-family:var(--font-head);">♻️ Restaurar Backup</h4>
         <p class="text-muted" style="font-size:13px;margin-bottom:14px;">Selecciona un backup del servidor para restaurar</p>
-        <div id="lista-backups"><p class="text-muted">Cargando...</p></div>
+        <div id="lista-backups"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
       </div>
     </div>`;
   cargarUltimoBackup();
@@ -1639,23 +1651,23 @@ function renderSeguridad(el) {
       <div class="card">
         <h4 style="margin-bottom:16px;font-family:var(--font-head);">⚙️ Configuración Rate Limiter</h4>
         <p class="text-muted" style="font-size:13px;margin-bottom:14px;">Límites de intentos de inicio de sesión</p>
-        <div id="sec-rate-config">Cargando...</div>
+        <div id="sec-rate-config"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
         <button class="btn btn-primary btn-sm mt-12" onclick="guardarSecCfg()">💾 Guardar</button>
         <div id="sec-cfg-msg" style="margin-top:8px;"></div>
       </div>
       <div class="card">
         <h4 style="margin-bottom:16px;font-family:var(--font-head);">🚫 Protección Fail2ban</h4>
         <p class="text-muted" style="font-size:13px;margin-bottom:14px;">Servicio de protección a nivel de servidor</p>
-        <div id="sec-fail2ban">Cargando...</div>
+        <div id="sec-fail2ban"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
       </div>
     </div>
     <div class="card" id="sec-bloqueos-card">
       <h4 style="margin-bottom:12px;font-family:var(--font-head);">IPs Bloqueadas</h4>
-      <div id="sec-bloqueos-list"><p class="text-muted">Cargando...</p></div>
+      <div id="sec-bloqueos-list"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
     </div>
     <div class="card mt-12" id="sec-seguimiento-card">
       <h4 style="margin-bottom:12px;font-family:var(--font-head);">IPs en Seguimiento</h4>
-      <div id="sec-seguimiento-list"><p class="text-muted">Cargando...</p></div>
+      <div id="sec-seguimiento-list"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
     </div>`;
   cargarSecCfg();
   cargarSecStatus();
@@ -1768,7 +1780,7 @@ function renderAuditoria(el) {
       <div class="stat-card"><div class="stat-label">Accesos (7d)</div><div class="stat-value" id="aud-exitos-7d">—</div></div>
     </div>
     <div class="flex" style="margin-bottom:14px;flex-wrap:wrap;">
-      <input type="text" id="aud-buscar" placeholder="🔍 Buscar usuario/email..." style="width:200px;" oninput="cargarAuditoria()">
+      <input type="text" id="aud-buscar" placeholder="🔍 Buscar usuario/email..." style="width:200px;" oninput="debouncedCargarAuditoria()">
       <select id="aud-fil-tipo" onchange="cargarAuditoria()" style="width:auto;">
         <option value="">Todos</option><option value="exito">Exitoso</option><option value="fallido">Fallido</option>
       </select>
@@ -2158,7 +2170,7 @@ function filtrarMapaRuta() {
 
 /* ── Empresa Tab (Config) ── */
 async function renderEmpresa(el) {
-  el.innerHTML = '<p class="text-muted">Cargando...</p>';
+  el.innerHTML = '<div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div><div class="skeleton skeleton-text"></div>';
   try {
     const [company, logoData] = await Promise.all([
       api('/configuracion/company'),
@@ -2274,7 +2286,7 @@ async function eliminarLogo() {
 
 /* ── Mapas Tab (Config) ── */
 async function renderMapas(el) {
-  el.innerHTML = '<p class="text-muted">Cargando...</p>';
+  el.innerHTML = '<div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div>';
   try {
     const data = await api('/configuracion/gmaps/key');
     const key = data.key || '';
@@ -2332,7 +2344,7 @@ async function probarGmapsKey() {
 
 /* ── Widetech Tab ── */
 async function renderWidetech(el) {
-  el.innerHTML = '<p class="text-muted">Cargando...</p>';
+  el.innerHTML = '<div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div>';
   try {
     const data = await api('/widetech/config');
     const c = data.config || {};
@@ -2853,7 +2865,7 @@ async function cargarReporte() {
         const vals = cfg.columns.map(c => {
           let v = r[c.key];
           if (v === null || v === undefined) return '—';
-          if (c.key === 'valor_credito' || c.key === 'valor_total') return '$' + Number(v).toLocaleString('es-CO', { minimumFractionDigits: 0 });
+          if (c.key === 'valor_credito' || c.key === 'valor_total') return '$' + Math.round(Number(v));
           if (c.key === 'eficiencia' || c.key === 'tasa_exito' || c.key === 'eficiencia_distancia' || c.key === 'eficiencia_tiempo' || c.key === 'eficiencia_distancia_promedio' || c.key === 'tasa_exito_promedio') return Number(v).toFixed(1) + '%';
           if (c.key === 'fecha' || c.key === 'created_at') return String(v).slice(0, 10);
           if (c.key === 'estado') return `<span class="badge badge-${v==='planificada'||v==='pendiente'?'info':v==='completada'||v==='entregado'||v==='disponible'?'success':v==='en_ejecucion'||v==='en_ruta'?'warning':'danger'}">${v}</span>`;
@@ -2886,7 +2898,7 @@ function renderReporteSummary(summary, tipo) {
     let v = summary ? summary[k] : 0;
     if (v === null || v === undefined) v = 0;
     if (cfg.summaryFormat && cfg.summaryFormat[i] === 'currency') {
-      v = '$' + Number(v).toLocaleString('es-CO', { minimumFractionDigits: 0 });
+      v = '$' + Math.round(Number(v));
     } else if (cfg.summarySuffix[i] === '%') {
       v = Number(v).toFixed(1) + '%';
     } else if (cfg.summarySuffix[i] === ' kg') {
@@ -3390,22 +3402,24 @@ async function cargarDevolucionesLista() {
     const data = await api('/devoluciones?' + params.toString());
     const tbody = document.getElementById('dev-tbody');
     if (!data.rows || data.rows.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:var(--muted);">No hay devoluciones registradas</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:var(--muted);">No hay devoluciones registradas</td></tr>';
     } else {
+      const fuenteIcons = { smart2go: '📊', google_forms: '📝', api: '🔗', manual: '✋' };
       tbody.innerHTML = data.rows.map(r => `
-        <tr>
-          <td><input type="checkbox" class="dev-check" value="${r.id}" onchange="toggleDevSeleccion(${r.id},this.checked)" ${devSeleccionadas.has(r.id)?'checked':''}></td>
-          <td style="white-space:nowrap;">${r.fecha_reporte ? new Date(r.fecha_reporte+'T12:00:00').toLocaleDateString('es-CO') : '-'}</td>
-          <td><b>${esc(r.cliente_nombre)}</b>${r.sucursal ? '<br><span style="font-size:12px;color:var(--muted);">' + esc(r.sucursal) + '</span>' : ''}</td>
-          <td style="font-size:13px;">${esc(r.sucursal || '-')}</td>
-          <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(r.productos_texto || '')}">${esc((r.productos_texto || '').substring(0, 60))}${(r.productos_texto||'').length > 60 ? '...' : ''}</td>
-          <td style="white-space:nowrap;font-weight:600;">$${Number(r.valor_total || 0).toLocaleString('es-CO')}</td>
-          <td><span class="badge badge-${r.causa === 'Calidad' ? 'warning' : r.causa === 'Fecha vencimiento' ? 'info' : r.causa === 'Mal estado' ? 'danger' : r.causa === 'Rotura' ? 'danger' : 'muted'}" style="font-size:11px;">${esc(r.causa)}</span></td>
-          <td><span class="badge badge-${r.estado === 'resuelta' || r.estado === 'cerrada' ? 'success' : r.estado === 'en_proceso' ? 'info' : 'muted'}" style="font-size:11px;">${esc(r.estado || 'registrada')}</span></td>
-          <td>
-            <button class="btn-icon btn-sm" title="Ver detalle" onclick="verDetalleDevolucion(${r.id})">👁️</button>
+        <tr style="cursor:pointer;" onclick="verDetalleDevolucion(${r.id})">
+          <td data-label="" onclick="event.stopPropagation()"><input type="checkbox" class="dev-check" value="${r.id}" onchange="toggleDevSeleccion(${r.id},this.checked)" ${devSeleccionadas.has(r.id)?'checked':''}></td>
+          <td data-label="Fecha" style="white-space:nowrap;">${(() => { try { const raw = r.fecha_reporte; const d = raw instanceof Date ? raw : new Date(raw.includes('T') ? raw : raw+'T12:00:00'); return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('es-CO'); } catch { return '-'; } })()}</td>
+          <td data-label="Cliente"><b>${esc(r.cliente_nombre)}</b>${r.sucursal ? '<br><span style="font-size:12px;color:var(--muted);">' + esc(r.sucursal) + '</span>' : ''}</td>
+          <td data-label="Sucursal" style="font-size:13px;">${esc(r.sucursal || '-')}</td>
+          <td data-label="Centro" style="font-size:12px;">${esc(r.centro_operaciones || '-')}</td>
+          <td data-label="Productos" style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(r.productos_texto || '')}">${esc((r.productos_texto || '').substring(0, 60))}${(r.productos_texto||'').length > 60 ? '...' : ''}</td>
+          <td data-label="Total" style="white-space:nowrap;font-weight:600;">$${Math.round(Number(r.valor_total || 0))}</td>
+          <td data-label="Causa"><span class="badge badge-${r.causa === 'Calidad' ? 'warning' : r.causa === 'Fecha vencimiento' ? 'info' : r.causa === 'Mal estado' ? 'danger' : r.causa === 'Rotura' ? 'danger' : 'muted'}" style="font-size:11px;">${esc(r.causa)}</span></td>
+          <td data-label="Fuente"><span style="font-size:12px;" title="${esc(r.fuente || 'manual')}">${fuenteIcons[r.fuente] || '✋'} ${esc(r.fuente || 'manual')}</span></td>
+          <td data-label="Estado"><span class="badge badge-${r.estado === 'resuelta' || r.estado === 'cerrada' ? 'success' : r.estado === 'en_proceso' ? 'info' : 'muted'}" style="font-size:11px;">${esc(r.estado || 'registrada')}</span></td>
+          <td data-label="" onclick="event.stopPropagation()">
             <button class="btn-icon btn-sm" title="Editar" onclick="editarDevolucion(${r.id})">✏️</button>
-            <button class="btn-icon btn-sm btn-icon-danger" title="Eliminar" onclick="eliminarDevolucion(${r.id})">🗑️</button>
+            ${window._devIsAdmin ? '<button class="btn-icon btn-sm btn-icon-danger" title="Eliminar" onclick="eliminarDevolucion('+r.id+')">🗑️</button>' : ''}
           </td>
         </tr>
       `).join('');
@@ -3429,7 +3443,7 @@ async function cargarDevolucionesResumen() {
     const statsEl = document.getElementById('dev-stats');
     statsEl.innerHTML = `
       <div class="stat-card"><div class="stat-label">Total devoluciones</div><div class="stat-value">${data.total}</div></div>
-      <div class="stat-card"><div class="stat-label">Valor total</div><div class="stat-value">$${Number(data.valor_total || 0).toLocaleString('es-CO')}</div></div>
+      <div class="stat-card"><div class="stat-label">Valor total</div><div class="stat-value">$${Math.round(Number(data.valor_total || 0))}</div></div>
       <div class="stat-card"><div class="stat-label">Top causa</div><div class="stat-value">${data.por_causa?.[0] ? esc(data.por_causa[0].causa) : '-'}</div><div class="stat-sub">${data.por_causa?.[0] ? data.por_causa[0].cantidad + ' registros' : ''}</div></div>
       <div class="stat-card"><div class="stat-label">Con conductor</div><div class="stat-value">${data.con_conductor}</div></div>
     `;
@@ -3530,6 +3544,12 @@ function abrirModalDevolucion(dev = null) {
   document.getElementById('dev-conductor-fields').style.display = hasConductor ? 'block' : 'none';
   document.getElementById('dev-conductor-nombre').value = dev?.conductor_nombre || '';
   document.getElementById('dev-conductor-placa').value = dev?.conductor_placa || '';
+  const commentWrap = document.getElementById('dev-edit-comentario-wrap');
+  if (commentWrap) {
+    commentWrap.style.display = dev ? 'block' : 'none';
+    const commentField = document.getElementById('dev-edit-comentario');
+    if (commentField) commentField.value = '';
+  }
   document.getElementById('modal-devolucion').classList.add('show');
 }
 
@@ -3592,7 +3612,7 @@ async function verDetalleDevolucion(id) {
 
     document.getElementById('dev-detalle-body').innerHTML = `
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:13px;">
-        <div><b>Fecha:</b> ${r.fecha_reporte ? new Date(r.fecha_reporte+'T12:00:00').toLocaleDateString('es-CO') : '-'}</div>
+        <div><b>Fecha:</b> ${(() => { try { const raw = r.fecha_reporte; const d = raw instanceof Date ? raw : new Date(raw.includes('T') ? raw : raw+'T12:00:00'); return isNaN(d.getTime()) ? '-' : d.toLocaleDateString('es-CO'); } catch { return '-'; } })()}</div>
         <div><b>Hora:</b> ${r.hora_reporte || '-'}</div>
         <div><b>Centro:</b> ${esc(r.centro_operaciones || '-')}</div>
         <div><b>Cliente:</b> ${esc(r.cliente_nombre)}</div>
@@ -3600,7 +3620,7 @@ async function verDetalleDevolucion(id) {
         <div><b>Documento:</b> ${esc(r.documento_devolucion || '-')}</div>
         <div><b>Mercaderista:</b> ${esc(r.mercaderista || '-')}</div>
         <div><b>Quien recibe:</b> ${esc(r.quien_recibe || '-')}</div>
-        <div style="grid-column:1/-1;"><b>Valor:</b> <span style="font-size:16px;font-weight:700;">$${Number(r.valor_total || 0).toLocaleString('es-CO')}</span></div>
+        <div style="grid-column:1/-1;"><b>Valor:</b> <span style="font-size:16px;font-weight:700;">$${Math.round(Number(r.valor_total || 0))}</span></div>
         <div><b>Causa:</b> <span class="badge badge-${r.causa === 'Calidad' ? 'warning' : r.causa === 'Fecha vencimiento' ? 'info' : 'muted'}">${esc(r.causa)}</span></div>
         <div><b>Fuente:</b> ${esc(r.fuente || 'manual')}</div>
       </div>
@@ -3671,7 +3691,7 @@ function abrirImportarDevoluciones() {
     e.preventDefault(); dz.style.borderColor = 'var(--border)';
     if (e.dataTransfer.files.length) {
       document.getElementById('file-dev-import').files = e.dataTransfer.files;
-      document.getElementById('file-dev-import-name').textContent = e.dataTransfer.files[0].name;
+      document.getElementById('file-dev-import-name').textContent = Array.from(e.dataTransfer.files).map(f => f.name).join(', ');
       document.getElementById('btn-importar-dev').disabled = false;
     }
   };
@@ -3684,20 +3704,27 @@ document.addEventListener('change', e => {
 });
 
 async function ejecutarImportarDevoluciones() {
-  const file = document.getElementById('file-dev-import').files[0];
-  if (!file) return;
+  const files = document.getElementById('file-dev-import').files;
+  if (!files.length) return;
   const btn = document.getElementById('btn-importar-dev');
   const resultEl = document.getElementById('importar-dev-resultado');
   btn.disabled = true;
   btn.textContent = 'Importando...';
-  resultEl.innerHTML = '<div style="color:var(--muted);font-size:13px;">Procesando archivo...</div>';
+  resultEl.innerHTML = `<div style="color:var(--muted);font-size:13px;">Procesando ${files.length} archivo(s)...</div>`;
 
   try {
     const fd = new FormData();
-    fd.append('archivo', file);
+    for (const file of files) fd.append('archivo', file);
     const res = await fetch(API + '/devoluciones/importar-smart2go', { method: 'POST', body: fd });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error en importación');
+
+    let filesHtml = '';
+    if (data.archivos && data.archivos.length > 1) {
+      filesHtml = '<div style="margin-top:8px;font-size:12px;color:var(--muted);">' +
+        data.archivos.map(f => `<div>${f.exitosa ? '✅' : '❌'} ${esc(f.nombre)}${f.exitosa ? ` — ${f.importadas} importadas, ${f.duplicadas} duplicadas` : ` — ${esc(f.error)}`}</div>`).join('') +
+        '</div>';
+    }
 
     resultEl.innerHTML = `
       <div style="padding:10px;background:var(--surface2);border-radius:8px;font-size:13px;">
@@ -3706,13 +3733,14 @@ async function ejecutarImportarDevoluciones() {
         <div>Duplicadas (omitidas): <b>${data.duplicadas}</b></div>
         <div>Errores parseo: <b>${data.errores_parseo}</b></div>
         <div>Errores BD: <b>${data.errores_db}</b></div>
-        <div>Total registros archivo: <b>${data.total_registros}</b></div>
+        <div>Total registros: <b>${data.total_registros}</b></div>
+        ${filesHtml}
       </div>`;
-    toast(`${data.importadas} devoluciones importadas`, 'success');
+    toast(`${data.importadas} devoluciones importadas de ${files.length} archivo(s)`, 'success');
     setTimeout(() => {
       document.getElementById('modal-importar-dev').classList.remove('show');
       cargarDevoluciones();
-    }, 1500);
+    }, 2000);
   } catch (err) {
     resultEl.innerHTML = `<div style="padding:10px;background:rgba(239,68,68,0.1);border-radius:8px;font-size:13px;color:var(--danger);">❌ ${esc(err.message)}</div>`;
   } finally {
@@ -3806,7 +3834,18 @@ function renderChartTendencia(data) {
     ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#7a85a0';
     ctx.font = '10px DM Sans, sans-serif';
     ctx.textAlign = 'center';
-    const label = d.fecha ? d.fecha.substring(5) : '';
+    let label = '';
+    if (d.fecha) {
+      const rawF = d.fecha instanceof Date ? d.fecha.toISOString() : String(d.fecha);
+      const fechaStr = rawF.split('T')[0];
+      const partes = fechaStr.split('-');
+      if (partes.length === 3) {
+        const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+        label = parseInt(partes[2]) + ' ' + meses[parseInt(partes[1]) - 1];
+      } else {
+        label = fechaStr.substring(0, 10);
+      }
+    }
     ctx.fillText(label, x, chartH - 4);
     ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#e8ecf5';
     ctx.font = 'bold 10px DM Sans, sans-serif';

@@ -51,7 +51,7 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
   background: var(--surface2); border: 1px solid var(--border); border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 11px; color: var(--muted); cursor: pointer; z-index: 10;
-  transition: background .15s, color .15s;
+  transition: background .15s, color .15s; font-family: inherit;
 }
 .sidebar .sidebar-toggle:hover { background: var(--accent); color: #fff; }
 .sidebar .logo { padding: 20px; font-family: var(--font-head); font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); overflow: hidden; white-space: nowrap; }
@@ -64,6 +64,7 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
 .sidebar nav .sidebar-section { padding: 0; }
 .sidebar nav .sidebar-section-title { padding: 6px 20px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.8px; color: var(--muted); user-select: none; }
 .sidebar nav .nav-item { display: flex; align-items: center; gap: 12px; padding: 10px 20px; color: var(--muted); font-size: 14px; cursor: pointer; transition: all .12s; border-left: 3px solid transparent; user-select: none; white-space: nowrap; }
+.sidebar nav button.nav-item { background: none; border: none; border-left: 3px solid transparent; width: 100%; text-align: left; font-family: inherit; }
 .sidebar nav .nav-item:hover { color: var(--text); background: rgba(255,255,255,.03); }
 .sidebar nav .nav-item.active { color: var(--accent); background: rgba(0,168,107,.08); border-left-color: var(--accent); }
 .sidebar nav .nav-item .icon { font-size: 18px; width: 24px; text-align: center; flex-shrink: 0; }
@@ -114,7 +115,7 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
 .page-header p { color: var(--muted); font-size: 14px; margin-top: 2px; }
 
 /* ── Notification Bell ── */
-.notif-bell { position: relative; cursor: pointer; font-size: 20px; padding: 6px; border-radius: 8px; transition: background .15s; }
+.notif-bell { position: relative; cursor: pointer; font-size: 20px; padding: 6px; border-radius: 8px; transition: background .15s; background: none; border: none; color: inherit; font-family: inherit; }
 .notif-bell:hover { background: rgba(255,255,255,.05); }
 .notif-badge { position: absolute; top: 2px; right: 2px; background: var(--danger); color: #fff; font-size: 10px; font-weight: 700; min-width: 16px; height: 16px; border-radius: 8px; display: flex; align-items: center; justify-content: center; padding: 0 4px; }
 .notif-badge:empty { display: none; }

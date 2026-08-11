@@ -546,7 +546,7 @@
 <div id="app-screen">
   <div class="sidebar-overlay" onclick="closeSidebar()"></div>
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>
+    <button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Menú" aria-expanded="true">◀</button>
     <div class="logo">💰 <span>Nómina</span></div>
     <div class="user-info">
       <div class="name" id="user-name">—</div>
@@ -554,17 +554,17 @@
       <span class="badge" id="user-badge">—</span>
     </div>
     <nav id="sidebar-nav">
-      <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span> Dashboard</div>
-      <div class="nav-item" data-page="registro" onclick="navigate('registro')"><span class="icon">➕</span> Registrar Novedades</div>
-      <div class="nav-item" data-page="historial" onclick="navigate('historial')"><span class="icon">📋</span> Historial</div>
-      <div class="nav-item" data-page="empleados" onclick="navigate('empleados')"><span class="icon">👥</span> Empleados</div>
-      <div class="nav-item" data-page="usuarios" onclick="navigate('usuarios')"><span class="icon">🔐</span> Usuarios</div>
-      <div class="nav-item" data-page="centros" onclick="navigate('centros')"><span class="icon">🏢</span> Centros de operación</div>
-      <div class="nav-item" data-page="nominas" onclick="navigate('nomina')"><span class="icon">💰</span> Períodos Nómina</div>
-      <div class="nav-item" data-page="reportes" onclick="navigate('reportes')"><span class="icon">📈</span> Reportes</div>
-      <div class="nav-item" data-page="siesa" onclick="navigate('siesa')"><span class="icon">📤</span> Exportar Siesa</div>
-      <div class="nav-item" data-page="tipos" onclick="navigate('tipos')"><span class="icon">🏷️</span> Conceptos de Nómina</div>
-      <div class="nav-item" data-page="configuracion" onclick="navigate('configuracion')"><span class="icon">⚙️</span> Configuración</div>
+      <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')" aria-label="Dashboard"><span class="icon">📊</span> Dashboard</button>
+      <button class="nav-item" data-page="registro" onclick="navigate('registro')" aria-label="Registrar Novedades"><span class="icon">➕</span> Registrar Novedades</button>
+      <button class="nav-item" data-page="historial" onclick="navigate('historial')" aria-label="Historial"><span class="icon">📋</span> Historial</button>
+      <button class="nav-item" data-page="empleados" onclick="navigate('empleados')" aria-label="Empleados"><span class="icon">👥</span> Empleados</button>
+      <button class="nav-item" data-page="usuarios" onclick="navigate('usuarios')" aria-label="Usuarios"><span class="icon">🔐</span> Usuarios</button>
+      <button class="nav-item" data-page="centros" onclick="navigate('centros')" aria-label="Centros de operación"><span class="icon">🏢</span> Centros de operación</button>
+      <button class="nav-item" data-page="nominas" onclick="navigate('nomina')" aria-label="Períodos Nómina"><span class="icon">💰</span> Períodos Nómina</button>
+      <button class="nav-item" data-page="reportes" onclick="navigate('reportes')" aria-label="Reportes"><span class="icon">📈</span> Reportes</button>
+      <button class="nav-item" data-page="siesa" onclick="navigate('siesa')" aria-label="Exportar Siesa"><span class="icon">📤</span> Exportar Siesa</button>
+      <button class="nav-item" data-page="tipos" onclick="navigate('tipos')" aria-label="Conceptos de Nómina"><span class="icon">🏷️</span> Conceptos de Nómina</button>
+      <button class="nav-item" data-page="configuracion" onclick="navigate('configuracion')" aria-label="Configuración"><span class="icon">⚙️</span> Configuración</button>
     </nav>
     <div class="sidebar-footer">
       <a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a>
@@ -584,7 +584,10 @@
     <div class="main-topbar">
       <button class="main-icon-btn" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema">☀️</button>
       <button class="main-icon-btn" onclick="abrirManual()" title="Ayuda" style="font-weight:700;font-size:18px;">?</button>
-      <div class="notif-bell" onclick="toggleNotifDropdown()">🔔<span class="notif-badge" id="notif-count"></span><div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div id="notif-permission-banner" style="padding:8px 12px;background:var(--surface2);border-radius:8px;margin-bottom:8px;font-size:12px"><p style="margin-bottom:6px">🔔 Activa las notificaciones del navegador</p><button class="btn btn-xs btn-primary" onclick="event.stopPropagation();activarNotificaciones()">Activar</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div></div>
+      <div style="position:relative">
+        <button class="notif-bell" onclick="toggleNotifDropdown()" aria-label="Notificaciones" aria-expanded="false">🔔<span class="notif-badge" id="notif-count"></span></button>
+        <div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div id="notif-permission-banner" style="padding:8px 12px;background:var(--surface2);border-radius:8px;margin-bottom:8px;font-size:12px"><p style="margin-bottom:6px">🔔 Activa las notificaciones del navegador</p><button class="btn btn-xs btn-primary" onclick="event.stopPropagation();activarNotificaciones()">Activar</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div>
+      </div>
     </div>
 
     <!-- DASHBOARD -->
@@ -657,7 +660,7 @@
           <div class="form-group" style="position:relative;" id="reg-emp-wrap">
             <label>Empleado *</label>
             <input type="text" id="reg-emp-search" placeholder="Escribe nombre o cargo..." autocomplete="off"
-              oninput="filtrarEmpleados()" onfocus="filtrarEmpleados()"
+              oninput="debouncedFiltrarEmpleados()" onfocus="filtrarEmpleados()"
               style="padding-right:32px;"/>
             <span style="position:absolute;right:12px;top:34px;color:var(--muted);pointer-events:none;font-size:11px;">▾</span>
             <input type="hidden" id="reg-empleado"/>
@@ -679,14 +682,15 @@
           <div class="form-group full"><label>Observaciones</label><textarea id="reg-observaciones" placeholder="Observaciones adicionales (opcional)..." style="min-height:80px;"></textarea></div>
           <div class="form-group full">
             <label>Archivos Adjuntos <span style="font-weight:400;color:var(--muted);font-size:12px;">(Opcional · PDF, imágenes, Word, Excel · máx. 10 MB c/u)</span></label>
-            <div id="adjuntos-drop-zone" onclick="document.getElementById('adjuntos-input').click()"
-              style="border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:border-color 0.2s;background:var(--surface2);"
+            <button id="adjuntos-drop-zone" onclick="document.getElementById('adjuntos-input').click()"
+              style="border:2px dashed var(--border);border-radius:10px;padding:20px;text-align:center;cursor:pointer;transition:border-color 0.2s;background:var(--surface2);width:100%;"
               ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
               ondragleave="this.style.borderColor='var(--border)'"
-              ondrop="onAdjuntosDrop(event)">
+              ondrop="onAdjuntosDrop(event)"
+              aria-label="Seleccionar archivos adjuntos">
               <div style="font-size:22px;margin-bottom:6px;">📎</div>
               <div style="font-size:13px;color:var(--muted);">Clic o arrastra archivos aquí</div>
-            </div>
+            </button>
             <input type="file" id="adjuntos-input" multiple accept=".pdf,.jpg,.jpeg,.png,.gif,.webp,.doc,.docx,.xls,.xlsx,.txt,.csv" style="display:none;" onchange="onAdjuntosSelect(event)"/>
             <div id="adjuntos-lista" style="margin-top:10px;display:flex;flex-direction:column;gap:6px;"></div>
           </div>
@@ -707,7 +711,7 @@
       <div class="filters" id="hist-filters">
         <div class="form-group">
           <label>Buscar Empleado</label>
-          <input type="text" id="fil-buscar" placeholder="🔍 Buscar empleado..." oninput="renderHistorial()"/>
+          <input type="text" id="fil-buscar" placeholder="🔍 Buscar empleado..." oninput="debouncedRenderHistorial()"/>
         </div>
         <div class="form-group">
           <label>Período de Nómina</label>
@@ -775,7 +779,7 @@
         <div style="position:relative;flex:1;min-width:200px;max-width:380px;">
           <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:15px;pointer-events:none;">🔍</span>
           <input type="text" id="emp-search" placeholder="Buscar por nombre, cargo, departamento..." 
-            oninput="buscarEmpleados()"
+            oninput="debouncedBuscarEmpleados()"
             style="width:100%;padding:9px 12px 9px 36px;background:var(--surface);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:var(--font-body);font-size:13.5px;outline:none;box-sizing:border-box;transition:border-color 0.2s;"
             onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
         </div>
@@ -811,7 +815,7 @@
           <div class="form-group" style="position:relative;" id="rpt-emp-wrap">
             <label>Empleado</label>
             <input type="text" id="rpt-emp-search" placeholder="Todos los empleados..." autocomplete="off"
-              oninput="filtrarEmpleadosRpt()" onfocus="filtrarEmpleadosRpt()"
+              oninput="debouncedFiltrarEmpleadosRpt()" onfocus="filtrarEmpleadosRpt()"
               style="padding-right:32px;"/>
             <span style="position:absolute;right:12px;top:34px;color:var(--muted);pointer-events:none;font-size:11px;">▾</span>
             <input type="hidden" id="rpt-empleado"/>
@@ -820,7 +824,7 @@
           <div class="form-group" style="position:relative;" id="rpt-nom-wrap">
             <label>Período de Nómina</label>
             <input type="text" id="rpt-nom-search" placeholder="Todos los períodos..." autocomplete="off"
-              oninput="filtrarNominasRpt()" onfocus="filtrarNominasRpt()"
+              oninput="debouncedFiltrarNominasRpt()" onfocus="filtrarNominasRpt()"
               style="padding-right:32px;"/>
             <span style="position:absolute;right:12px;top:34px;color:var(--muted);pointer-events:none;font-size:11px;">▾</span>
             <input type="hidden" id="rpt-nomina"/>
@@ -964,7 +968,7 @@
       </div>
       <div class="filters">
         <label style="font-size:0.75rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;width:100%;">Filtros</label>
-        <input type="text" id="usr-buscar" placeholder="🔍 Buscar nombre o correo..." oninput="filtrarUsuarios()"/>
+        <input type="text" id="usr-buscar" placeholder="🔍 Buscar nombre o correo..." oninput="debouncedFiltrarUsuarios()"/>
         <select id="usr-fil-rol" onchange="filtrarUsuarios()"><option value="">Todos los roles</option><option value="admin">Administrador</option><option value="rrhh">RRHH</option><option value="gerencia">Gerencia</option><option value="operador">Operador</option><option value="consulta">Consulta</option></select>
         <select id="usr-fil-sede" onchange="filtrarUsuarios()"><option value="">Todas las sedes</option></select>
         <select id="usr-fil-estado" onchange="filtrarUsuarios()"><option value="">Todos los estados</option><option value="1">Activo</option><option value="0">Inactivo</option></select>
@@ -1031,12 +1035,13 @@
       <div style="margin-top:4px;">Opcionales: <code style="color:var(--accent)">email, telefono</code></div>
       <div style="margin-top:8px;">💡 Puedes usar el CSV de empleados generado por el Backup como plantilla.</div>
     </div>
-    <div id="imp-drop" onclick="document.getElementById('imp-file').click()"
-      style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;margin-bottom:12px;transition:border-color 0.2s;"
+    <button id="imp-drop" onclick="document.getElementById('imp-file').click()"
+      style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;margin-bottom:12px;transition:border-color 0.2s;width:100%;"
       onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"
       ondragover="event.preventDefault();this.style.borderColor='var(--accent)'"
       ondragleave="this.style.borderColor='var(--border)'"
-      ondrop="handleImpDrop(event)">
+      ondrop="handleImpDrop(event)"
+      aria-label="Seleccionar archivo para importar">
       <div style="font-size:28px;margin-bottom:6px;">📂</div>
       <div style="font-size:13px;color:var(--muted);">Clic o arrastra tu archivo <strong style="color:var(--text)">.csv</strong></div>
       <div id="imp-filename" style="margin-top:6px;font-size:12px;color:var(--accent);display:none;"></div>
@@ -1125,7 +1130,7 @@
     <div style="font-size:12px;color:var(--muted);margin-bottom:12px;">
       Selecciona los empleados que este usuario puede gestionar. Sin selección = acceso a todos.
     </div>
-    <input type="text" id="usr-emp-search" placeholder="🔍 Filtrar empleados..." oninput="filtrarEmpModal()"
+    <input type="text" id="usr-emp-search" placeholder="🔍 Filtrar empleados..." oninput="debouncedFiltrarEmpModal()"
       style="width:100%;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;margin-bottom:8px;box-sizing:border-box;outline:none;"
       onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"/>
     <div id="usr-emp-list" style="max-height:260px;overflow-y:auto;border:1px solid var(--border);border-radius:9px;background:var(--surface2);padding:6px;display:flex;flex-direction:column;gap:3px;"></div>
@@ -1188,6 +1193,15 @@
       <button class="btn btn-danger"    style="min-width:110px;" id="confirm-btn">Eliminar</button>
     </div>
   </div>
+</div>
+
+<!-- Bulk Actions Bar -->
+<div class="bulk-bar" id="bulk-bar">
+  <span class="bulk-count"><span id="bulk-count">0</span> seleccionados</span>
+  <div class="bulk-actions">
+    <button class="btn btn-sm btn-danger" onclick="eliminarSeleccionadosBulk()">🗑️ Eliminar</button>
+  </div>
+  <button class="btn btn-sm btn-outline" onclick="clearSelection()">✕ Deseleccionar</button>
 </div>
 
 </body>

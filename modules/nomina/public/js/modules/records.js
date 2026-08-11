@@ -422,7 +422,7 @@ async function renderHistorial(resetPage = true) {
   params.set('page', String(_histPage));
   params.set('limit', String(_histPageSize));
 
-  tbody.innerHTML = '<tr><td colspan="9"><div class="loading">Cargando...</div></td></tr>';
+  tbody.innerHTML = '<tr><td colspan="9"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></td></tr>';
 
   let data;
   try {
@@ -866,7 +866,7 @@ async function verDetalleRegistro(id) {
       </div>` : ''}
       <div id="detalle-adjuntos" style="margin-bottom:20px;">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:6px;">Adjuntos</div>
-        <div id="detalle-adj-list" style="color:var(--muted);font-size:13px;">Cargando...</div>
+        <div id="detalle-adj-list" style="color:var(--muted);font-size:13px;"><div class="skeleton skeleton-text-sm"></div><div class="skeleton skeleton-text-sm"></div></div>
       </div>
     `;
     

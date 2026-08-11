@@ -36,6 +36,98 @@ function cacheCleanAll() {
     .forEach(k => localStorage.removeItem(k));
 }
 
+// ── Debounce ──
+function debounce(fn, ms = 300) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+}
+
+// ── Bulk Selection ──
+function updateBulkBar() {
+  // Support multiple checkbox class patterns
+  const count = document.querySelectorAll('.row-check:checked, [class^="cb-"]:checked').length;
+  const bar = document.getElementById('bulk-bar');
+  const countEl = document.getElementById('bulk-count');
+  if (!bar) return;
+  if (count > 0) {
+    bar.classList.add('visible');
+    if (countEl) countEl.textContent = count;
+  } else {
+    bar.classList.remove('visible');
+  }
+}
+
+function clearSelection() {
+  document.querySelectorAll('.row-check:checked, [class^="cb-"]:checked').forEach(cb => cb.checked = false);
+  document.querySelectorAll('input[type="checkbox"]').forEach(cb => {
+    if (cb.id && cb.id.includes('select-all') || cb.id && cb.id.includes('-all')) cb.checked = false;
+  });
+  updateBulkBar();
+}
+
+function toggleAll(source) {
+  // Get the type from the source checkbox's onchange attribute
+  const match = source.getAttribute('onchange')?.match(/toggleAll\('(\w+)'/);
+  const type = match ? match[1] : '';
+  if (type) {
+    document.querySelectorAll(`.cb-${type}`).forEach(cb => cb.checked = source.checked);
+  }
+  updateBulkBar();
+}
+
+// ── Canvas Resize Handler ──
+let _canvasResizeTimer;
+function resizeAllCanvases() {
+  document.querySelectorAll('canvas').forEach(canvas => {
+    try {
+      const parent = canvas.parentElement;
+      if (parent) {
+        const rect = parent.getBoundingClientRect();
+        if (rect.width > 0) {
+          canvas.style.width = rect.width + 'px';
+          if (typeof canvas.width === 'number') canvas.width = rect.width;
+        }
+      }
+      // Chart.js instances
+      if (canvas.__chartjs__) {
+        const chart = Object.values(canvas.__chartjs__).find(c => c?.resize);
+        if (chart) chart.resize();
+      }
+    } catch {}
+  });
+}
+window.addEventListener('resize', () => {
+  clearTimeout(_canvasResizeTimer);
+  _canvasResizeTimer = setTimeout(resizeAllCanvases, 250);
+});
+
+// ── Skeleton / Empty State Helpers ──
+function setSkeleton(elId, rows = 5) {
+  const el = document.getElementById(elId);
+  if (!el) return;
+  el.innerHTML = Array.from({ length: rows }, () =>
+    '<div class="skeleton skeleton-row"></div>'
+  ).join('');
+}
+
+function setEmptyState(container, { icon = '📋', title = 'Sin datos', desc = '', ctaText = '', ctaAction = '' } = {}) {
+  if (typeof container === 'string') container = document.getElementById(container);
+  if (!container) return;
+  const cta = ctaText && ctaAction
+    ? `<button class="btn btn-primary btn-sm" onclick="${ctaAction}">${esc(ctaText)}</button>`
+    : '';
+  container.innerHTML = `
+    <div class="empty-state">
+      <div class="icon">${icon}</div>
+      <div class="empty-state-title">${esc(title)}</div>
+      ${desc ? `<div class="empty-state-desc">${esc(desc)}</div>` : ''}
+      ${cta}
+    </div>`;
+}
+
 // ── Init ──
 function initFramework(opts = {}) {
   HF.API = (opts.basePath || '') + (opts.apiPrefix || '/api');
@@ -184,16 +276,67 @@ function toast(msg, type = 'success', duration = 3500) {
 }
 
 // ── Modal helpers ──
+let _lastFocusedElement = null;
+let _modalTrapHandler = null;
+
+function trapFocus(container) {
+  const focusable = container.querySelectorAll(
+    'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+  );
+  if (!focusable.length) return;
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+
+  // Remove previous handler
+  if (_modalTrapHandler) container.removeEventListener('keydown', _modalTrapHandler);
+
+  _modalTrapHandler = (e) => {
+    if (e.key === 'Escape') { cerrarModal(); return; }
+    if (e.key !== 'Tab') return;
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault(); last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault(); first.focus();
+    }
+  };
+  container.addEventListener('keydown', _modalTrapHandler);
+  first?.focus();
+}
+
+// Generic modal open - supports both .show and .open classes
 function abrirModal(titulo, desc, bodyHtml, accionesHtml) {
-  document.getElementById('modal-title').textContent = titulo;
-  document.getElementById('modal-desc').textContent = desc || '';
-  document.getElementById('modal-body').innerHTML = bodyHtml || '';
-  document.getElementById('modal-actions').innerHTML = accionesHtml || '';
-  document.getElementById('modal-overlay').classList.add('show');
+  _lastFocusedElement = document.activeElement;
+  const titleEl = document.getElementById('modal-title');
+  const descEl = document.getElementById('modal-desc');
+  const bodyEl = document.getElementById('modal-body');
+  const actionsEl = document.getElementById('modal-actions');
+  if (titleEl) titleEl.textContent = titulo;
+  if (descEl) descEl.textContent = desc || '';
+  if (bodyEl) bodyEl.innerHTML = bodyHtml || '';
+  if (actionsEl) actionsEl.innerHTML = accionesHtml || '';
+  const overlay = document.getElementById('modal-overlay');
+  if (overlay) {
+    overlay.classList.add('show', 'open');
+    overlay.style.display = 'flex';
+    trapFocus(overlay);
+  }
 }
-function cerrarModal() {
-  document.getElementById('modal-overlay').classList.remove('show');
+
+// Generic modal close - supports both .show and .open classes
+function cerrarModal(id) {
+  const overlay = id ? document.getElementById(id) : document.getElementById('modal-overlay');
+  if (overlay) {
+    overlay.classList.remove('show', 'open');
+    overlay.style.display = 'none';
+  }
+  if (_lastFocusedElement && typeof _lastFocusedElement.focus === 'function') {
+    _lastFocusedElement.focus();
+    _lastFocusedElement = null;
+  }
 }
+
+// Alias for modules that use cerrarModalById pattern
+function cerrarModalById(id) { cerrarModal(id); }
 
 function confirmar({ titulo, mensaje, icono, btnTxt, onConfirm }) {
   abrirModal(titulo || 'Confirmar', mensaje || '¿Estás seguro?',
@@ -436,8 +579,8 @@ function mostrarNotificacionBrowser(titulo, mensaje, url) {
 }
 
 async function cargarNotificaciones() {
-  const notifApi = HF.API.replace(/\/proyectos\/api$/, '/api');
   try {
+    const notifApi = HF.API.replace(/\/proyectos\/api$/, '/api').replace(/\/logistica\/api$/, '/api').replace(/\/nomina\/api$/, '/api').replace(/\/proveedores\/api$/, '/api');
     const res = await fetch(notifApi + '/notificaciones/no-leidas', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     if (!res.ok) return;
     const { count } = await res.json();
@@ -466,6 +609,7 @@ async function toggleNotifDropdown() {
   dd.classList.toggle('show');
   if (!isOpen) {
     try {
+      const notifApi = HF.API.replace(/\/proyectos\/api$/, '/api').replace(/\/logistica\/api$/, '/api').replace(/\/nomina\/api$/, '/api').replace(/\/proveedores\/api$/, '/api');
       const res = await fetch(notifApi + '/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
       if (!res.ok) return;
       const { notificaciones } = await res.json();
@@ -498,6 +642,7 @@ async function marcarNotifLeida(id, url) {
     window.location.href = url;
   }
   try {
+    const notifApi = HF.API.replace(/\/proyectos\/api$/, '/api').replace(/\/logistica\/api$/, '/api').replace(/\/nomina\/api$/, '/api').replace(/\/proveedores\/api$/, '/api');
     await fetch(notifApi + '/notificaciones/' + id + '/leer', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     cargarNotificaciones();
   } catch {}
@@ -505,6 +650,7 @@ async function marcarNotifLeida(id, url) {
 
 async function marcarTodasLeidas() {
   try {
+    const notifApi = HF.API.replace(/\/proyectos\/api$/, '/api').replace(/\/logistica\/api$/, '/api').replace(/\/nomina\/api$/, '/api').replace(/\/proveedores\/api$/, '/api');
     await fetch(notifApi + '/notificaciones/leer-todas', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     cargarNotificaciones();
     toggleNotifDropdown();

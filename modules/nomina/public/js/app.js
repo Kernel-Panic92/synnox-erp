@@ -5,10 +5,28 @@ function paginaSegura(hash) {
   return PAGINAS_VALIDAS.includes(hash) ? hash : 'dashboard';
 }
 
+// Debounce utility
+function debounce(fn, ms = 300) {
+  let timer;
+  return (...args) => {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+}
+
 let _centrosCache = [];
 let _centrosCacheTs = 0;
 const CENTROS_CACHE_TTL = 30000; // 30 segundos
 let _centrosPromise = null;
+
+// Debounced search functions
+const debouncedRenderHistorial = debounce(renderHistorial, 300);
+const debouncedBuscarEmpleados = debounce(buscarEmpleados, 300);
+const debouncedFiltrarEmpleados = debounce(filtrarEmpleados, 300);
+const debouncedFiltrarEmpleadosRpt = debounce(filtrarEmpleadosRpt, 300);
+const debouncedFiltrarNominasRpt = debounce(filtrarNominasRpt, 300);
+const debouncedFiltrarUsuarios = debounce(filtrarUsuarios, 300);
+const debouncedFiltrarEmpModal = debounce(filtrarEmpModal, 300);
 
 async function loadCentros() {
   const age = Date.now() - _centrosCacheTs;
@@ -450,10 +468,10 @@ function marcarTodasLeidas() {
 }
 
 function activarNotificaciones() {
-  if (!('Notification' in window)) return toast('Tu navegador no soporta notificaciones', 'error');
+  if (!('Notification' in window)) return showToast('Tu navegador no soporta notificaciones', 'error');
   Notification.requestPermission().then(perm => {
     if (perm === 'granted') {
-      toast('Notificaciones activadas', 'success');
+      showToast('Notificaciones activadas', 'success');
       checkNotifPermission();
       new Notification('Notificaciones activadas', { body: 'Recibirás alertas del sistema', icon: '/favicon.ico' });
     }

@@ -1,30 +1,42 @@
-// modals.js - Modal management
-// Extracted from public/app.js
+// modals.js - Modal management (unified with framework)
 
-function showM(title,body,w=560){
-  $('mroot').innerHTML=`<div class="modal-overlay open" onclick="if(event.target===this)closeM()">
-    <div class="modal" style="max-width:${w}px">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
-        <span style="font-family:var(--font-head);font-size:18px;font-weight:700">${title}</span>
-        <button class="btn btn-secondary btn-sm" onclick="closeM()">✕</button>
+function showM(title, body, w = 560) {
+  // Use framework's abrirModal if available
+  if (typeof window.abrirModal === 'function') {
+    window.abrirModal(title, '', body, '');
+  } else {
+    // Fallback: inject HTML directly
+    $('mroot').innerHTML = `<div class="modal-overlay open" onclick="if(event.target===this)closeM()">
+      <div class="modal" style="max-width:${w}px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:20px">
+          <span class="modal-title" style="font-family:var(--font-head);font-size:18px;font-weight:700">${title}</span>
+          <button class="btn btn-secondary btn-sm" onclick="closeM()">✕</button>
+        </div>
+        ${body}
       </div>
-      ${body}
-    </div>
-  </div>`;
+    </div>`;
+  }
 }
 
-function closeM(){$('mroot').innerHTML=''}
+function closeM() {
+  // Use framework's cerrarModal if available
+  if (typeof window.cerrarModal === 'function') {
+    window.cerrarModal();
+  } else {
+    $('mroot').innerHTML = '';
+  }
+}
 
-function confirmDialog({ title, message, icon='⚠️', btnText='Confirmar', btnClass='btn-primary', onConfirm, obsLabel=null }){
-  let obsHtml='';
-  if(obsLabel){
-    obsHtml=`
+function confirmDialog({ title, message, icon = '⚠️', btnText = 'Confirmar', btnClass = 'btn-primary', onConfirm, obsLabel = null }) {
+  let obsHtml = '';
+  if (obsLabel) {
+    obsHtml = `
       <div style="margin-bottom:16px;text-align:left">
         <div style="font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);margin-bottom:4px">${obsLabel}</div>
         <textarea id="confirm-obs" rows="3" style="width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-size:14px;font-family:var(--font-body);resize:vertical;"></textarea>
       </div>`;
   }
-  showM(title,`
+  showM(title, `
     <div style="padding:8px 0;text-align:center">
       <div style="font-size:48px;margin-bottom:16px">${icon}</div>
       <p style="color:var(--muted);margin-bottom:8px">${message}</p>

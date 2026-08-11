@@ -289,3 +289,24 @@ async function reloadDashboardData() {
     console.error('Error reloading dashboard:', e);
   }
 }
+
+// Resize charts on window resize
+let _resizeTimer;
+window.addEventListener('resize', () => {
+  clearTimeout(_resizeTimer);
+  _resizeTimer = setTimeout(() => {
+    Object.values(_charts).forEach(c => {
+      try {
+        const canvas = c.canvas;
+        if (canvas && canvas.parentElement) {
+          const rect = canvas.parentElement.getBoundingClientRect();
+          if (rect.width > 0) {
+            canvas.style.width = rect.width + 'px';
+            canvas.style.height = rect.height + 'px';
+          }
+        }
+        c.resize();
+      } catch {}
+    });
+  }, 250);
+});

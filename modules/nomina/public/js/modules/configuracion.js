@@ -18,7 +18,7 @@ async function rConfig(){
     `<button class="fb${cfgTab === t.id ? ' active' : ''}" onclick="cfgTab='${t.id}';rConfig()">${t.label}</button>`
   ).join('');
 
-  cfgContent.innerHTML = 'Cargando...';
+  cfgContent.innerHTML = '<div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div><div class="skeleton skeleton-text"></div>';
   await renderCfgTab();
 }
 
@@ -120,7 +120,7 @@ async function renderCfgTab(){
           <div style="background:rgba(231,76,60,0.06);border:1px solid rgba(231,76,60,0.2);border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:12px;color:var(--danger);">⚠ Los datos actuales de empleados, registros y nóminas serán reemplazados por los del backup. Tu usuario administrador actual no será afectado.</div>
           <div style="margin-bottom:24px;">
             <div style="font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;"><span>🤖 Backups Automáticos en el Servidor</span><button class="btn btn-secondary btn-sm" onclick="cargarListaBackups()">🔄 Actualizar</button></div>
-            <div id="lista-backups-loading" style="text-align:center;padding:16px;color:var(--muted);font-size:13px;">Cargando...</div>
+            <div id="lista-backups-loading" style="text-align:center;padding:16px;"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
             <div id="lista-backups-none" style="display:none;text-align:center;padding:16px;color:var(--muted);font-size:12px;background:var(--surface2);border-radius:9px;">🕐 No hay backups automáticos disponibles en el servidor</div>
             <div id="lista-backups-body" style="display:none;display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;"></div>
           </div>
@@ -165,7 +165,7 @@ async function renderCfgTab(){
         </div>
         <div class="table-wrap" style="padding:24px 28px;">
           <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;"><div style="font-family:var(--font-head);font-weight:700;font-size:15px;">🔒 IPs Bloqueadas</div><button class="btn btn-secondary btn-sm" onclick="cargarSeguridadStatus()">🔄 Actualizar</button></div>
-          <div id="sec-bloqueadas-loading" style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Cargando...</div>
+          <div id="sec-bloqueadas-loading" style="text-align:center;padding:20px;"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
           <div id="sec-bloqueadas-none" style="display:none;text-align:center;padding:20px;color:var(--success);font-size:13px;">✓ No hay IPs bloqueadas actualmente</div>
           <div id="sec-bloqueadas-body" style="display:none;flex-direction:column;gap:8px;"></div>
           <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:16px;"><div style="font-family:var(--font-head);font-weight:700;font-size:14px;margin-bottom:12px;">👁 IPs en Seguimiento</div><div id="sec-seguimiento-none" style="display:none;text-align:center;padding:12px;color:var(--muted);font-size:12px;">Sin actividad sospechosa</div><div id="sec-seguimiento-body" style="display:flex;flex-direction:column;gap:6px;"></div></div>
@@ -190,8 +190,8 @@ async function renderCfgTab(){
         <div class="stat-card"><div class="stat-label">Intentos Fallidos Hoy</div><div class="stat-value" id="aud-fallidos-hoy" style="color:var(--danger);">—</div></div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(350px,1fr));gap:20px;">
-        <div class="table-wrap" style="padding:0;"><div class="table-head"><div class="table-title">👥 Usuarios y Estado de Sesión</div></div><div id="aud-sesiones-body" style="padding:20px 24px;font-size:13px;color:var(--muted);text-align:center;overflow-y:auto;max-height:calc(100vh - 320px);min-height:200px;">Cargando...</div></div>
-        <div class="table-wrap" style="padding:0;"><div class="table-head"><div class="table-title">📜 Historial de Inicios de Sesión</div></div><div id="aud-historial-body" style="padding:20px 24px;font-size:13px;color:var(--muted);text-align:center;overflow-y:auto;max-height:calc(100vh - 320px);min-height:200px;">Cargando...</div></div>
+        <div class="table-wrap" style="padding:0;"><div class="table-head"><div class="table-title">👥 Usuarios y Estado de Sesión</div></div><div id="aud-sesiones-body" style="padding:20px 24px;overflow-y:auto;max-height:calc(100vh - 320px);min-height:200px;"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div></div>
+        <div class="table-wrap" style="padding:0;"><div class="table-head"><div class="table-title">📜 Historial de Inicios de Sesión</div></div><div id="aud-historial-body" style="padding:20px 24px;overflow-y:auto;max-height:calc(100vh - 320px);min-height:200px;"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div></div>
       </div>`;
     cargarAuditoria();
   }
@@ -618,8 +618,8 @@ function limpiarFiltrosAuditoria() {
 async function cargarAuditoria() {
   const sesBody = document.getElementById('aud-sesiones-body');
   const histBody = document.getElementById('aud-historial-body');
-  if (sesBody) sesBody.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Cargando...</div>';
-  if (histBody) histBody.innerHTML = '<div style="text-align:center;padding:20px;color:var(--muted);font-size:13px;">Cargando...</div>';
+  if (sesBody) sesBody.innerHTML = '<div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div>';
+  if (histBody) histBody.innerHTML = '<div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div>';
 
   const buscar = (document.getElementById('aud-buscar')?.value || '').toLowerCase();
   const filSesion = document.getElementById('aud-fil-sesion')?.value || '';

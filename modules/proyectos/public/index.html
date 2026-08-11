@@ -53,7 +53,7 @@
 
 <!-- Sidebar -->
 <aside class="sidebar" id="sidebar">
-  <div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>
+  <button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Menú" aria-expanded="true">◀</button>
   <div class="logo">📋 <span>Proyectos</span></div>
   <div class="user-info">
     <div class="name" id="user-name"></div>
@@ -61,12 +61,12 @@
     <span class="badge" id="user-badge"></span>
   </div>
   <nav id="sidebar-nav">
-    <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">&#x1F4CA;</span> Dashboard</div>
-    <div class="nav-item" data-page="proyectos" onclick="navigate('proyectos')"><span class="icon">&#x1F4C1;</span> Proyectos</div>
-    <div class="nav-item" data-page="tareas" onclick="navigate('tareas')"><span class="icon">&#x2705;</span> Tareas</div>
-    <div class="nav-item" data-page="tablero" onclick="navigate('tablero')"><span class="icon">&#x1F5C2;</span> Tablero</div>
-    <div class="nav-item" data-page="reportes" onclick="navigate('reportes')"><span class="icon">&#x1F4C8;</span> Reportes</div>
-    <div class="nav-item" data-page="actas" onclick="navigate('actas')"><span class="icon">&#x1F4CB;</span> Actas</div>
+    <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')" aria-label="Dashboard"><span class="icon">&#x1F4CA;</span> Dashboard</button>
+    <button class="nav-item" data-page="proyectos" onclick="navigate('proyectos')" aria-label="Proyectos"><span class="icon">&#x1F4C1;</span> Proyectos</button>
+    <button class="nav-item" data-page="tareas" onclick="navigate('tareas')" aria-label="Tareas"><span class="icon">&#x2705;</span> Tareas</button>
+    <button class="nav-item" data-page="tablero" onclick="navigate('tablero')" aria-label="Tablero"><span class="icon">&#x1F5C2;</span> Tablero</button>
+    <button class="nav-item" data-page="reportes" onclick="navigate('reportes')" aria-label="Reportes"><span class="icon">&#x1F4C8;</span> Reportes</button>
+    <button class="nav-item" data-page="actas" onclick="navigate('actas')" aria-label="Actas"><span class="icon">&#x1F4CB;</span> Actas</button>
   </nav>
   <div class="sidebar-footer">
     <a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a>
@@ -95,17 +95,26 @@
 
       <!-- Dashboard -->
       <div class="page active" id="page-dashboard">
-        <div class="stats-row" id="dash-stats"></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
-          <div class="card"><h3 style="margin-bottom:12px">Distribucion por estado</h3><canvas id="chart-estados" height="200"></canvas></div>
-          <div class="card"><h3 style="margin-bottom:12px">Tareas pendientes por usuario</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Usuario</th><th>Pendientes</th></tr></thead><tbody id="dash-asignado"></tbody></table></div></div>
-        </div>
+        <!-- Pendientes / Acciones -->
+        <div id="dash-pendientes" style="margin-bottom:20px"></div>
+        
+        <!-- Métricas colapsables -->
+        <details open style="margin-bottom:20px">
+          <summary style="cursor:pointer;font-weight:600;font-size:14px;color:var(--muted);padding:8px 0;">📊 Métricas detalladas</summary>
+          <div class="stats-row" id="dash-stats"></div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px">
+            <div class="card"><h3 style="margin-bottom:12px">Distribucion por estado</h3><canvas id="chart-estados" height="200"></canvas></div>
+            <div class="card"><h3 style="margin-bottom:12px">Tareas pendientes por usuario</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Usuario</th><th>Pendientes</th></tr></thead><tbody id="dash-asignado"></tbody></table></div></div>
+          </div>
+        </details>
+
+        <!-- Tareas recientes -->
         <div class="card" id="dash-recientes-card"><h3 style="margin-bottom:12px">Tareas recientes</h3>
           <div class="filters" style="margin-bottom:12px">
             <select id="dash-filtro-proyecto" onchange="dashAplicarFiltros()"><option value="">Todos los proyectos</option></select>
             <select id="dash-filtro-estado" onchange="dashAplicarFiltros()"><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="en_progreso">En Progreso</option><option value="revision">Revision</option><option value="completada">Completada</option></select>
             <select id="dash-filtro-prioridad" onchange="dashAplicarFiltros()"><option value="">Todas las prioridades</option><option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option><option value="critica">Critica</option></select>
-            <input id="dash-filtro-busqueda" type="text" placeholder="Buscar tarea..." oninput="dashAplicarFiltros()">
+            <input id="dash-filtro-busqueda" type="text" placeholder="Buscar tarea..." oninput="debouncedDashAplicarFiltros()">
             <button class="btn btn-xs btn-secondary" onclick="dashLimpiarFiltros()" title="Limpiar filtros">&#10005; Limpiar</button>
           </div>
           <div class="tbl-wrap"><table class="tbl"><thead><tr>
@@ -128,7 +137,7 @@
           <select id="filtro-proy-centro" onchange="cargarProyectos()"><option value="">Todos los centros</option></select>
           <div id="filtro-proy-asignado-wrap" style="min-width:180px"></div>
           <select id="filtro-proy-orden" onchange="cargarProyectos()"><option value="recientes">Más recientes</option><option value="nombre">Nombre A-Z</option><option value="fecha">Fecha límite</option><option value="progreso">Mayor progreso</option><option value="prioridad">Mayor prioridad</option></select>
-          <input id="filtro-proy-busqueda" type="text" placeholder="Buscar proyecto..." oninput="cargarProyectos()">
+          <input id="filtro-proy-busqueda" type="text" placeholder="Buscar proyecto..." oninput="debouncedCargarProyectos()">
           <button class="btn btn-xs btn-secondary" onclick="proyectosLimpiarFiltros()" title="Limpiar filtros">&#10005; Limpiar</button>
         </div>
         <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:14px">
@@ -145,7 +154,7 @@
           <select id="filtro-estado" onchange="cargarTareas()"><option value="no-completadas">No completadas</option><option value="">Todos los estados</option><option value="pendiente">Pendiente</option><option value="en_progreso">En Progreso</option><option value="revision">Revision</option><option value="completada">Completada</option></select>
           <select id="filtro-prioridad" onchange="cargarTareas()"><option value="">Todas las prioridades</option><option value="baja">Baja</option><option value="media">Media</option><option value="alta">Alta</option><option value="critica">Critica</option></select>
           <div id="filtro-asignado-wrap" style="min-width:180px"></div>
-          <input id="filtro-busqueda" type="text" placeholder="Buscar tarea..." oninput="cargarTareas()">
+          <input id="filtro-busqueda" type="text" placeholder="Buscar tarea..." oninput="debouncedCargarTareas()">
           <button class="btn btn-xs btn-secondary" onclick="tareasLimpiarFiltros()" title="Limpiar filtros">&#10005; Limpiar</button>
         </div>
         <div class="flex" style="justify-content:space-between;margin-bottom:14px">
@@ -182,7 +191,7 @@
 </div>
 
 <!-- Modal principal -->
-<div class="modal-overlay" id="modal-overlay">
+<div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
   <div class="modal">
     <h3 id="modal-title"></h3>
     <div class="modal-desc" id="modal-desc"></div>
@@ -192,7 +201,7 @@
 </div>
 
 <!-- Modal detalle tarea -->
-<div class="modal-overlay" id="modal-detalle">
+<div class="modal-overlay" id="modal-detalle" role="dialog" aria-modal="true">
   <div class="modal" style="max-width:640px">
     <div id="modal-detalle-body"></div>
   </div>
@@ -242,6 +251,15 @@
 <script src="js/modules/tablero.js"></script>
 <script src="js/modules/reportes.js"></script>
 <script src="app.js?v=2"></script>
+
+<!-- Bulk Actions Bar -->
+<div class="bulk-bar" id="bulk-bar">
+  <span class="bulk-count"><span id="bulk-count">0</span> seleccionados</span>
+  <div class="bulk-actions">
+    <button class="btn btn-sm btn-danger" onclick="eliminarSeleccionadosBulk()">🗑️ Eliminar</button>
+  </div>
+  <button class="btn btn-sm btn-outline" onclick="clearSelection()">✕ Deseleccionar</button>
+</div>
 
 </body>
 </html>

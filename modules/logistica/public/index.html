@@ -222,7 +222,7 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
 <div id="app-screen">
   <div class="sidebar-overlay" onclick="closeSidebar()"></div>
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>
+    <button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Menú" aria-expanded="true">◀</button>
     <div class="logo">🚚 <span>Logística</span></div>
     <div class="user-info">
       <div class="name" id="user-name"></div>
@@ -250,7 +250,10 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
       </div>
       <div class="header-actions">
         <button class="btn btn-sm btn-secondary" onclick="toggleTheme()" id="theme-btn" title="Cambiar tema">☀️</button>
-        <div class="notif-bell" onclick="toggleNotifDropdown()">🔔<span class="notif-badge" id="notif-count"></span><div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div></div>
+        <div style="position:relative">
+          <button class="notif-bell" onclick="toggleNotifDropdown()" aria-label="Notificaciones" aria-expanded="false">🔔<span class="notif-badge" id="notif-count"></span></button>
+          <div class="notif-dropdown" id="notif-dropdown"><div class="notif-header"><h4>Notificaciones</h4><button onclick="event.stopPropagation();marcarTodasLeidas()">Marcar todas leídas</button></div><div class="notif-list"><div class="notif-empty">Sin notificaciones</div></div></div>
+        </div>
       </div>
     </div>
     <div class="main-body">
@@ -290,7 +293,7 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
             <div style="position:relative;min-width:160px;">
               <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;">🔍</span>
               <input type="text" id="filtro-vehiculos-q" placeholder="Buscar placa, alias..."
-                     oninput="cargarVehiculos()"
+                     oninput="debouncedCargarVehiculos()"
                      style="width:100%;padding:7px 12px 7px 32px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
             </div>
             <select id="filtro-vehiculos-estado" onchange="cargarVehiculos()" style="width:auto;">
@@ -306,18 +309,18 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
         <details style="margin-bottom:16px;background:var(--surface2);border-radius:10px;padding:12px;cursor:pointer;" id="import-widetech-card">
           <summary style="font-weight:600;font-size:13px;color:var(--accent);cursor:pointer;">📊 Importar datos GPS</summary>
           <div style="margin-top:12px;cursor:default;">
-            <div class="drop-zone" id="drop-widetech" onclick="document.getElementById('file-widetech').click()" style="padding:16px;">
+            <button class="drop-zone" id="drop-widetech" onclick="document.getElementById('file-widetech').click()" style="padding:16px;width:100%;text-align:center;" aria-label="Seleccionar archivo para importar">
               <div class="icon" style="font-size:24px;">📊</div>
               <p style="font-size:13px;">Arrastra el Excel aquí o haz clic</p>
               <div class="filename" id="file-widetech-name"></div>
-            </div>
+            </button>
             <input type="file" id="file-widetech" accept=".xlsx,.xls" style="display:none" onchange="previsualizarArchivo(this,'file-widetech-name')">
             <button class="btn btn-primary" onclick="importarWidetech()" id="btn-import-widetech" style="width:100%;justify-content:center;" disabled>Importar</button>
             <div id="result-widetech" style="margin-top:10px;"></div>
           </div>
         </details>
         <div class="tbl-wrap">
-          <table class="tbl" id="tbl-vehiculos"><thead><tr>
+          <table class="tbl tbl-responsive" id="tbl-vehiculos"><thead><tr>
             <th style="width:36px"><input type="checkbox" onchange="toggleAll('vehiculo',this.checked)"></th>
             <th>Placa</th><th>Alias</th><th>Sede</th><th>Cap. Peso</th><th>Cap. Vol.</th><th>Estado</th><th style="width:80px"></th>
           </tr></thead><tbody></tbody></table>
@@ -332,7 +335,7 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
             <div style="position:relative;min-width:180px;">
               <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;">🔍</span>
               <input type="text" id="filtro-pedidos-q" placeholder="Buscar factura, cliente, placa..."
-                     oninput="cargarPedidos()"
+                     oninput="debouncedCargarPedidos()"
                      style="width:100%;padding:7px 12px 7px 32px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
             </div>
             <select id="filtro-pedidos" onchange="cargarPedidos()" style="width:auto;">
@@ -352,18 +355,18 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
         <details style="margin-bottom:16px;background:var(--surface2);border-radius:10px;padding:12px;cursor:pointer;" id="import-siesa-card">
           <summary style="font-weight:600;font-size:13px;color:var(--accent);cursor:pointer;">📄 Importar planilla de cuadre</summary>
           <div style="margin-top:12px;cursor:default;">
-            <div class="drop-zone" id="drop-siesa" onclick="document.getElementById('file-siesa').click()" style="padding:16px;">
+            <button class="drop-zone" id="drop-siesa" onclick="document.getElementById('file-siesa').click()" style="padding:16px;width:100%;text-align:center;" aria-label="Seleccionar archivo para importar">
               <div class="icon" style="font-size:24px;">📄</div>
               <p style="font-size:13px;">Arrastra el PDF aquí o haz clic</p>
               <div class="filename" id="file-siesa-name"></div>
-            </div>
+            </button>
             <input type="file" id="file-siesa" accept=".pdf" style="display:none" onchange="previsualizarArchivo(this,'file-siesa-name')">
             <button class="btn btn-primary" onclick="importarSiesa()" id="btn-import-siesa" style="width:100%;justify-content:center;" disabled>Importar</button>
             <div id="result-siesa" style="margin-top:10px;"></div>
           </div>
         </details>
         <div class="tbl-wrap">
-          <table class="tbl" id="tbl-pedidos"><thead><tr>
+          <table class="tbl tbl-responsive" id="tbl-pedidos"><thead><tr>
             <th style="width:36px"><input type="checkbox" onchange="toggleAll('pedido',this.checked)"></th>
             <th>Factura</th><th>Cliente</th><th>Dirección</th><th>V. Contado</th><th>V. Crédito</th><th>Placa</th><th>Estado</th><th>Ruta</th><th style="width:100px"></th>
           </tr></thead><tbody></tbody></table>
@@ -397,7 +400,7 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
           </div>
         </div>
         <div class="tbl-wrap">
-          <table class="tbl" id="tbl-rutas"><thead><tr>
+          <table class="tbl tbl-responsive" id="tbl-rutas"><thead><tr>
             <th style="width:40px;"></th>
             <th>Nombre</th><th>Vehículo</th><th>Sede</th><th>Paradas</th><th>Distancia</th><th>Tiempo</th><th>Estado</th><th>Fecha</th><th style="width:220px;white-space:nowrap;"></th>
           </tr></thead><tbody></tbody></table>
@@ -496,11 +499,11 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
         <details style="margin-bottom:16px;background:var(--surface2);border-radius:10px;padding:12px;cursor:pointer;" id="import-maestro-card">
           <summary style="font-weight:600;font-size:13px;color:var(--accent);cursor:pointer;">📋 Importar maestro de clientes (SIE-SA)</summary>
           <div style="margin-top:12px;cursor:default;">
-            <div class="drop-zone" id="drop-maestro" onclick="document.getElementById('file-maestro').click()" style="padding:16px;">
+            <button class="drop-zone" id="drop-maestro" onclick="document.getElementById('file-maestro').click()" style="padding:16px;width:100%;text-align:center;" aria-label="Seleccionar archivo para importar">
               <div class="icon" style="font-size:24px;">📋</div>
               <p style="font-size:13px;">Arrastra el Excel/CSV aquí o haz clic</p>
               <div class="filename" id="file-maestro-name"></div>
-            </div>
+            </button>
             <input type="file" id="file-maestro" accept=".xlsx,.xls,.csv,.txt,.tsv" style="display:none" onchange="previsualizarArchivo(this,'file-maestro-name')">
             <button class="btn btn-primary" onclick="importarMaestroClientes()" id="btn-import-maestro" style="width:100%;justify-content:center;" disabled>Importar</button>
             <div id="result-maestro" style="margin-top:10px;"></div>
@@ -510,7 +513,7 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
           <div style="position:relative;flex:1;min-width:200px;max-width:380px;">
             <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:14px;pointer-events:none;">🔍</span>
             <input type="text" id="filtro-clientes" placeholder="Buscar por nombre, ciudad, teléfono..."
-                   oninput="cargarClientes()"
+                   oninput="debouncedCargarClientes()"
                    style="width:100%;padding:9px 12px 9px 36px;background:var(--surface);border:1px solid var(--border);border-radius:9px;color:var(--text);font-family:var(--font-body);font-size:13px;outline:none;box-sizing:border-box;"
                    onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
           </div>
@@ -530,7 +533,7 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
             <div style="position:relative;min-width:160px;">
               <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;">🔍</span>
               <input type="text" id="filtro-sedes" placeholder="Buscar centro..."
-                     oninput="cargarSedes()"
+                     oninput="debouncedCargarSedes()"
                      style="width:100%;padding:7px 12px 7px 32px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
             </div>
           </div>
@@ -592,7 +595,7 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
           <div style="position:relative;min-width:160px;">
             <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;">🔍</span>
             <input type="text" id="filtro-geocercas-q" placeholder="Buscar nombre..."
-                   oninput="cargarGeocercas()"
+                   oninput="debouncedCargarGeocercas()"
                    style="width:100%;padding:7px 12px 7px 32px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
           </div>
           <select id="filtro-geocercas-fuente" onchange="cargarGeocercas()" style="width:auto;">
@@ -663,7 +666,7 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
           <div style="position:relative;flex:1;min-width:180px;max-width:300px;">
             <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:13px;pointer-events:none;">🔍</span>
             <input type="text" id="dev-busqueda" placeholder="Buscar cliente, mercaderista..."
-                   oninput="cargarDevoluciones()"
+                   oninput="debouncedCargarDevoluciones()"
                    style="width:100%;padding:7px 12px 7px 32px;background:var(--surface);border:1px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none;">
           </div>
           <button class="btn btn-outline btn-sm" onclick="limpiarFiltrosDevoluciones()">🗑️ Limpiar</button>
@@ -685,18 +688,20 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
         </div>
         <!-- Table -->
         <div class="tbl-wrap">
-          <table class="tbl" id="tbl-devoluciones">
+          <table class="tbl tbl-responsive" id="tbl-devoluciones">
             <thead>
               <tr>
                 <th style="width:30px;"><input type="checkbox" id="dev-check-all" onchange="toggleAllDevoluciones(this.checked)" style="accent-color:var(--accent);"></th>
                 <th class="sortable" onclick="ordenarDevoluciones('fecha_reporte')">Fecha <span id="sort-dev-fecha" class="sort-indicator"></span></th>
                 <th class="sortable" onclick="ordenarDevoluciones('cliente_nombre')">Cliente <span id="sort-dev-cliente" class="sort-indicator"></span></th>
                 <th>Sucursal</th>
+                <th class="sortable" onclick="ordenarDevoluciones('centro_operaciones')">Centro <span id="sort-dev-centro" class="sort-indicator"></span></th>
                 <th>Productos</th>
                 <th class="sortable" onclick="ordenarDevoluciones('valor_total')">Valor <span id="sort-dev-valor" class="sort-indicator"></span></th>
                 <th class="sortable" onclick="ordenarDevoluciones('causa')">Causa <span id="sort-dev-causa" class="sort-indicator"></span></th>
+                <th>Fuente</th>
                 <th>Estado</th>
-                <th style="width:80px;">Acciones</th>
+                <th style="width:60px;">Acciones</th>
               </tr>
             </thead>
             <tbody id="dev-tbody"></tbody>
@@ -860,6 +865,10 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
         </div>
       </div>
     </div>
+    <div id="dev-edit-comentario-wrap" style="display:none;margin-top:8px;">
+      <label style="font-size:12px;font-weight:600;">Comentario de edición *</label>
+      <textarea id="dev-edit-comentario" rows="2" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px;resize:vertical;" placeholder="Describe el cambio realizado..."></textarea>
+    </div>
     <div class="modal-actions" style="margin-top:16px;">
       <button class="btn btn-secondary" onclick="document.getElementById('modal-devolucion').classList.remove('show')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarDevolucion()">Guardar</button>
@@ -891,16 +900,17 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
 <div class="modal-overlay" id="modal-importar-dev" onclick="if(event.target===this)this.classList.remove('show')">
   <div class="modal" style="max-width:420px;">
     <h3>📥 Importar Excel Smart2Go</h3>
-    <p style="font-size:13px;color:var(--muted);margin-top:4px;">Selecciona el archivo CSV o Excel exportado desde Smart2Go</p>
+    <p style="font-size:13px;color:var(--muted);margin-top:4px;">Selecciona uno o varios archivos CSV o Excel exportados desde Smart2Go</p>
     <div style="margin-top:16px;">
-      <div class="drop-zone" id="drop-dev-import" onclick="document.getElementById('file-dev-import').click()"
-           style="padding:24px;border:2px dashed var(--border);border-radius:10px;text-align:center;cursor:pointer;transition:border-color .15s;">
+      <button class="drop-zone" id="drop-dev-import" onclick="document.getElementById('file-dev-import').click()"
+           style="padding:24px;border:2px dashed var(--border);border-radius:10px;text-align:center;cursor:pointer;transition:border-color .15s;width:100%;"
+           aria-label="Seleccionar archivos para importar">
         <div style="font-size:28px;margin-bottom:8px;">📊</div>
-        <p style="font-size:13px;color:var(--muted);">Arrastra el archivo aquí o haz clic</p>
+        <p style="font-size:13px;color:var(--muted);">Arrastra los archivos aquí o haz clic</p>
         <div id="file-dev-import-name" style="font-size:13px;color:var(--accent);margin-top:6px;"></div>
-      </div>
-      <input type="file" id="file-dev-import" accept=".csv,.xlsx,.xls" style="display:none"
-             onchange="document.getElementById('file-dev-import-name').textContent=this.files[0]?.name||''">
+      </button>
+      <input type="file" id="file-dev-import" accept=".csv,.xlsx,.xls" multiple style="display:none"
+             onchange="document.getElementById('file-dev-import-name').textContent=Array.from(this.files).map(f=>f.name).join(', ')||''">
     </div>
     <div id="importar-dev-resultado" style="margin-top:12px;"></div>
     <div class="modal-actions" style="margin-top:16px;">
@@ -911,7 +921,7 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
 </div>
 
 <!-- Modal genérico -->
-<div class="modal-overlay" id="modal-overlay">
+<div class="modal-overlay" id="modal-overlay" role="dialog" aria-modal="true" aria-labelledby="modal-title">
   <div class="modal">
     <h3 id="modal-title">Título</h3>
     <p class="modal-desc" id="modal-desc"></p>
@@ -938,9 +948,19 @@ fetch('/api/config/gmaps/key').then(r=>r.json()).then(d=>{
   }
 }).catch(()=>{});
 </script>
+
 <script src="framework.js"></script>
 <script src="app.js?v=20260727b"></script>
 <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');</script>
+
+<!-- Bulk Actions Bar -->
+<div class="bulk-bar" id="bulk-bar">
+  <span class="bulk-count"><span id="bulk-count">0</span> seleccionados</span>
+  <div class="bulk-actions">
+    <button class="btn btn-sm btn-danger" onclick="eliminarSeleccionadosBulk()">🗑️ Eliminar</button>
+  </div>
+  <button class="btn btn-sm btn-outline" onclick="clearSelection()">✕ Deseleccionar</button>
+</div>
 
 </body>
 </html>

@@ -96,7 +96,7 @@ function abrirModalAdjuntos(regId) {
   const lista = document.getElementById('detalle-content');
   if (!modal || !lista) return;
   
-  lista.innerHTML = 'Cargando...';
+  lista.innerHTML = '<div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div>';
   modal.classList.add('open');
   modal.style.display = 'flex';
   

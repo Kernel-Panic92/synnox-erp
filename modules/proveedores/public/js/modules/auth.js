@@ -31,7 +31,7 @@ function showApp(){
   const footerRole=document.getElementById('sidebar-user-role');if(footerRole)footerRole.textContent=S.usuario?.perfil_nombre||S.usuario?.rol||'';
   initFiltros();
   
-  fetch(BASE+'/api/version').then(r=>r.json()).then(d=>{
+  fetch('/api/version').then(r=>r.json()).then(d=>{
     const el=document.getElementById('app-version');
     if(el&&d.version)el.textContent='v'+d.version;
     window._appVersion = d.version || '';
@@ -70,7 +70,7 @@ function buildNav(){
     const items=NAV.filter(n=>n.s===sec.id&&(!n.perm||tienePermisoProveedor(n.perm)));
     if(!items.length)continue;
     h+=`<div style="font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;padding:10px 24px 4px;margin-top:4px">${sec.l}</div>`;
-    for(const n of items)h+=`<div class="nav-item" id="nv-${n.id}" onclick="goNav('${n.id}')">${n.i}<span style="flex:1">${n.l}</span>${n.badge?`<span class="badge" style="font-size:10px;padding:2px 6px;background:${n.w?'rgba(251,191,36,.15)':'rgba(79,142,247,.15)'};color:${n.w?'var(--warning)':'var(--accent)'}" id="nb-${n.badge}">0</span>`:''}</div>`;
+    for(const n of items)h+=`<button class="nav-item" id="nv-${n.id}" onclick="goNav('${n.id}')" aria-label="${n.l}">${n.i}<span style="flex:1">${n.l}</span>${n.badge?`<span class="badge" style="font-size:10px;padding:2px 6px;background:${n.w?'rgba(251,191,36,.15)':'rgba(79,142,247,.15)'};color:${n.w?'var(--warning)':'var(--accent)'}" id="nb-${n.badge}">0</span>`:''}</button>`;
   }
   $('sidebar-nav').innerHTML=h;
 }

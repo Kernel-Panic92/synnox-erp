@@ -2065,7 +2065,13 @@ app.get('/health', apiLimiter, (req, res) => res.json({ status: 'ok', module: MO
 
 app.use('/mcp', mcpLimiter);
 app.use('/mcp', createMiddleware());
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    }
+  }
+}));
 app.get('*', apiLimiter, (req, res) => {
   if (req.path.startsWith('/api/') || req.path.startsWith('/mcp')) return res.status(404).json({ error: 'Not found' });
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
@@ -2111,7 +2117,13 @@ app.get('/health', apiLimiter, (req, res) => res.json({ status: 'ok', module: '$
 
 app.use('/mcp', mcpLimiter);
 app.use('/mcp', createMiddleware());
-app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use(express.static(path.join(__dirname, '..', 'public'), {
+  setHeaders: (res, filePath) => {
+    if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+      res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+    }
+  }
+}));
 app.get('*', apiLimiter, (req, res) => {
   if (req.path.startsWith('/api/') || req.path.startsWith('/mcp')) return res.status(404).json({ error: 'Not found' });
   res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
@@ -3713,7 +3725,13 @@ app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.s
 
 if (require.main === module) {
   app.use('/media', express.static(path.join(__dirname, '..', 'media')));
-  app.use(express.static(path.join(__dirname, 'shell')));
+  app.use(express.static(path.join(__dirname, 'shell'), {
+    setHeaders: (res, filePath) => {
+      if (filePath.endsWith('.js') || filePath.endsWith('.css')) {
+        res.setHeader('Cache-Control', 'no-cache, must-revalidate');
+      }
+    }
+  }));
   app.get('*', (req, res) => {
     const htmlPath = path.join(__dirname, 'shell', 'index.html');
     if (fs.existsSync(htmlPath)) return res.sendFile(htmlPath);

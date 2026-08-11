@@ -2,17 +2,36 @@ import ExcelJS from 'exceljs';
 import fs from 'fs';
 
 const CAUSA_MAP = {
-  'f.v': 'Fecha vencimiento',
-  'fv': 'Fecha vencimiento',
-  'fecha': 'Fecha vencimiento',
-  'fecha vencimiento': 'Fecha vencimiento',
-  'fecha vto': 'Fecha vencimiento',
+  'f.v': 'Vencimiento',
+  'fv': 'Vencimiento',
+  'fecha': 'Vencimiento',
+  'fecha vencimiento': 'Vencimiento',
+  'fecha de vencimiento': 'Vencimiento',
+  'fecha vto': 'Vencimiento',
+  'vencidos': 'Vencimiento',
+  'vencimiento': 'Vencimiento',
   'calidad': 'Calidad',
   'mal estado': 'Mal estado',
   'rotura': 'Rotura',
+  'roto': 'Rotura',
   'dano': 'Daño',
   'daño': 'Daño',
+  'perdida de vacio': 'Pérdida de vacío',
+  'pérdida de vacío': 'Pérdida de vacío',
+  'perdida vacio': 'Pérdida de vacío',
+  'secos': 'Secos',
+  'fechas borradas': 'Otra',
 };
+
+const CAUSA_KEYWORDS = [
+  { keywords: ['vencim', 'vencid', 'f.v', 'fv'], result: 'Vencimiento' },
+  { keywords: ['vacío', 'vacio', 'escarcha', 'frizado', 'frizados'], result: 'Pérdida de vacío' },
+  { keywords: ['rotura', 'roto', 'empaque', 'avería', 'averia'], result: 'Rotura' },
+  { keywords: ['calidad', 'presentación', 'presentacion'], result: 'Calidad' },
+  { keywords: ['mal estado', 'deterioro'], result: 'Mal estado' },
+  { keywords: ['daño', 'dano', 'dañado'], result: 'Daño' },
+  { keywords: ['seco', 'secos'], result: 'Secos' },
+];
 
 function parsearValor(str) {
   if (!str) return 0;
@@ -28,7 +47,7 @@ function parsearValor(str) {
     s = s.replace(/,/g, '');
   }
   const n = parseFloat(s);
-  return isNaN(n) ? 0 : n;
+  return isNaN(n) ? 0 : Math.round(n);
 }
 
 function parsearFecha(str) {
@@ -68,7 +87,16 @@ function parsearCoordenadas(str) {
 function normalizarCausa(str) {
   if (!str) return 'Otra';
   const s = String(str).trim().toLowerCase();
-  return CAUSA_MAP[s] || str.trim();
+  if (CAUSA_MAP[s]) return CAUSA_MAP[s];
+  for (const rule of CAUSA_KEYWORDS) {
+    if (rule.keywords.some(kw => s.includes(kw))) return rule.result;
+  }
+  return str.trim() || 'Otra';
+}
+
+function normalizarNombre(str) {
+  if (!str) return '';
+  return str.trim().toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
 }
 
 function parsearProductos(texto) {
@@ -158,7 +186,7 @@ export async function parsearSmart2GoDevoluciones(rutaArchivo) {
           direccion: (r['Dirección'] || r['Direccion'] || '').trim(),
           documento_devolucion: (r['N°  DOCUMENTO DE DEVOLUCIÓN '] || r['N° DOCUMENTO DE DEVOLUCIÓN'] || '').trim(),
           quien_recibe: (r['¿Quien recibe la devolución?'] || '').trim(),
-          mercaderista: (r['Activo'] || '').trim(),
+          mercaderista: normalizarNombre(r['Activo'] || ''),
           productos: parsearProductos(productosTexto),
           productos_texto: productosTexto.trim(),
           valor_total: parsearValor(valorRaw),

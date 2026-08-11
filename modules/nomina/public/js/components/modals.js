@@ -1,10 +1,16 @@
-// modals.js - Modal management
+// modals.js - Modal management (uses framework's cerrarModal)
 
 function cerrarModal(id) {
-  const modal = document.getElementById(id);
-  if (modal) {
-    modal.classList.remove('open');
-    modal.style.display = 'none';
+  // Call framework's cerrarModal which handles both .show and .open classes
+  if (typeof window.cerrarModal === 'function') {
+    window.cerrarModal(id);
+  } else {
+    // Fallback if framework not loaded
+    const modal = document.getElementById(id);
+    if (modal) {
+      modal.classList.remove('open', 'show');
+      modal.style.display = 'none';
+    }
   }
 }
 
