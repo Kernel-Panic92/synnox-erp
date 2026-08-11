@@ -2,9 +2,9 @@ function doLogout(){
   localStorage.removeItem('vd_u');
   window.location.href = '/logout';
 }
-function showLogoutConfirm(){$('logout-modal').classList.add('open')}
-function closeLogoutConfirm(){$('logout-modal').classList.remove('open')}
-function confirmLogout(){closeLogoutConfirm();doLogout()}
+function mostrarLogoutConfirm(){$('modal-logout').classList.add('show')}
+function cerrarLogoutConfirm(){$('modal-logout').classList.remove('show')}
+function confirmarLogout(){cerrarLogoutConfirm();doLogout()}
 
 async function fetchUserAndShowApp(){
   try{

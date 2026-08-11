@@ -1,15 +1,17 @@
-// modals.js - Modal management (uses framework's cerrarModal)
+// modals.js - Modal management
 
 function cerrarModal(id) {
-  // Call framework's cerrarModal which handles both .show and .open classes
-  if (typeof window.cerrarModal === 'function') {
-    window.cerrarModal(id);
-  } else {
-    // Fallback if framework not loaded
-    const modal = document.getElementById(id);
-    if (modal) {
-      modal.classList.remove('open', 'show');
-      modal.style.display = 'none';
+  const modal = document.getElementById(id);
+  if (modal) {
+    modal.classList.remove('open', 'show');
+    modal.style.display = 'none';
+  }
+  // Also try framework's cerrarModal for #modal-overlay
+  if (!id || id === 'modal-overlay') {
+    const overlay = document.getElementById('modal-overlay');
+    if (overlay) {
+      overlay.classList.remove('show');
+      overlay.style.display = 'none';
     }
   }
 }

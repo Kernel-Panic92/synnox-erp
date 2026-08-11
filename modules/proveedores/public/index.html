@@ -222,7 +222,7 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--ac
       <div class="version">
         <div id="app-version"></div>
       </div>
-      <button class="btn-logout" onclick="showLogoutConfirm()" title="Cerrar sesion">
+      <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesion">
         <span style="font-size:18px">&#x23FB;</span> Cerrar sesion
       </button>
     </div>
@@ -241,14 +241,14 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--ac
 </div>
 
 <!-- Logout confirm modal -->
-<div id="logout-modal" class="modal-overlay" onclick="if(event.target===this)closeLogoutConfirm()">
+<div id="modal-logout" class="modal-overlay" onclick="if(event.target===this)cerrarLogoutConfirm()">
   <div class="modal" style="max-width:380px;text-align:center">
     <div style="font-size:44px;margin-bottom:8px">👋</div>
     <div class="modal-title" style="font-size:20px;">Cerrar sesión</div>
     <p style="color:var(--muted);font-size:14px;margin-bottom:8px">¿Estás seguro de que deseas cerrar tu sesión?</p>
     <div class="modal-footer" style="justify-content:center">
-      <button class="btn btn-secondary" onclick="closeLogoutConfirm()">Cancelar</button>
-      <button class="btn btn-danger" onclick="confirmLogout()">Cerrar sesión</button>
+      <button class="btn btn-secondary" onclick="cerrarLogoutConfirm()">Cancelar</button>
+      <button class="btn btn-danger" onclick="confirmarLogout()">Cerrar sesión</button>
     </div>
   </div>
 </div>

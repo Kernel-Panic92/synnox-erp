@@ -554,17 +554,29 @@
       <span class="badge" id="user-badge">—</span>
     </div>
     <nav id="sidebar-nav">
-      <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')" aria-label="Dashboard"><span class="icon">📊</span> Dashboard</button>
-      <button class="nav-item" data-page="registro" onclick="navigate('registro')" aria-label="Registrar Novedades"><span class="icon">➕</span> Registrar Novedades</button>
-      <button class="nav-item" data-page="historial" onclick="navigate('historial')" aria-label="Historial"><span class="icon">📋</span> Historial</button>
-      <button class="nav-item" data-page="empleados" onclick="navigate('empleados')" aria-label="Empleados"><span class="icon">👥</span> Empleados</button>
-      <button class="nav-item" data-page="usuarios" onclick="navigate('usuarios')" aria-label="Usuarios"><span class="icon">🔐</span> Usuarios</button>
-      <button class="nav-item" data-page="centros" onclick="navigate('centros')" aria-label="Centros de operación"><span class="icon">🏢</span> Centros de operación</button>
-      <button class="nav-item" data-page="nominas" onclick="navigate('nomina')" aria-label="Períodos Nómina"><span class="icon">💰</span> Períodos Nómina</button>
-      <button class="nav-item" data-page="reportes" onclick="navigate('reportes')" aria-label="Reportes"><span class="icon">📈</span> Reportes</button>
-      <button class="nav-item" data-page="siesa" onclick="navigate('siesa')" aria-label="Exportar Siesa"><span class="icon">📤</span> Exportar Siesa</button>
-      <button class="nav-item" data-page="tipos" onclick="navigate('tipos')" aria-label="Conceptos de Nómina"><span class="icon">🏷️</span> Conceptos de Nómina</button>
-      <button class="nav-item" data-page="configuracion" onclick="navigate('configuracion')" aria-label="Configuración"><span class="icon">⚙️</span> Configuración</button>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Operación</div>
+        <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')" aria-label="Dashboard"><span class="icon">📊</span> Dashboard</button>
+        <button class="nav-item" data-page="registro" onclick="navigate('registro')" aria-label="Registrar Novedades"><span class="icon">➕</span> Registrar Novedades</button>
+        <button class="nav-item" data-page="historial" onclick="navigate('historial')" aria-label="Historial"><span class="icon">📋</span> Historial</button>
+        <button class="nav-item" data-page="empleados" onclick="navigate('empleados')" aria-label="Empleados"><span class="icon">👥</span> Empleados</button>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Administración</div>
+        <button class="nav-item" data-page="usuarios" onclick="navigate('usuarios')" aria-label="Usuarios"><span class="icon">🔐</span> Usuarios</button>
+        <button class="nav-item" data-page="centros" onclick="navigate('centros')" aria-label="Centros de operación"><span class="icon">🏢</span> Centros de operación</button>
+        <button class="nav-item" data-page="tipos" onclick="navigate('tipos')" aria-label="Conceptos de Nómina"><span class="icon">🏷️</span> Conceptos de Nómina</button>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Nómina</div>
+        <button class="nav-item" data-page="nominas" onclick="navigate('nomina')" aria-label="Períodos Nómina"><span class="icon">💰</span> Períodos Nómina</button>
+        <button class="nav-item" data-page="siesa" onclick="navigate('siesa')" aria-label="Exportar Siesa"><span class="icon">📤</span> Exportar Siesa</button>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-title">Análisis</div>
+        <button class="nav-item" data-page="reportes" onclick="navigate('reportes')" aria-label="Reportes"><span class="icon">📈</span> Reportes</button>
+        <button class="nav-item" data-page="configuracion" onclick="navigate('configuracion')" aria-label="Configuración"><span class="icon">⚙️</span> Configuración</button>
+      </div>
     </nav>
     <div class="sidebar-footer">
       <a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a>
