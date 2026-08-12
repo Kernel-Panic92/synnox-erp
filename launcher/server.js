@@ -3667,6 +3667,53 @@ cron.schedule('0 2 * * *', async () => {
 }, { timezone: 'America/Bogota' });
 
 // Backup verification endpoint
+// List available schemas for backup
+app.get('/api/admin/backup/schemas', verificarToken, soloAdmin, async (req, res) => {
+  const pgPool = new Pool({
+    host: process.env.PGHOST || process.env.DB_HOST || '127.0.0.1',
+    port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
+    database: process.env.PGDATABASE || process.env.DB_NAME || 'synnox_erp',
+    user: process.env.PGUSER || process.env.DB_USER || 'postgres',
+    password: process.env.PGPASSWORD || process.env.DB_PASSWORD || undefined
+  });
+  try {
+    // Get active modules from launcher
+    const modulos = db.prepare('SELECT id, nombre, icon FROM modulos_plataforma WHERE activo = 1').all();
+    
+    // Map module IDs to PostgreSQL schemas
+    const moduleSchemaMap = {
+      logistica: 'logistics',
+      proyectos: 'projects',
+      proveedores: 'public'
+    };
+    
+    const schemas = [];
+    for (const modulo of modulos) {
+      const schema = moduleSchemaMap[modulo.id];
+      if (!schema) continue; // Skip modules without PostgreSQL schema (e.g., nomina uses SQLite)
+      
+      try {
+        const tablas = await pgPool.query(
+          `SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = $1 AND table_type = 'BASE TABLE'`,
+          [schema]
+        );
+        schemas.push({ 
+          id: modulo.id, 
+          nombre: modulo.nombre || modulo.id, 
+          icon: modulo.icon || '📦',
+          schema, 
+          tablas: parseInt(tablas.rows[0].count) 
+        });
+      } catch {}
+    }
+    res.json({ ok: true, schemas });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    await pgPool.end();
+  }
+});
+
 app.get('/api/admin/backup/verify', verificarToken, soloAdmin, async (req, res) => {
   try {
     const files = fs.readdirSync(BACKUP_DIR).filter(f => f.startsWith('synnoxerp_backup_')).sort().reverse();
@@ -3936,6 +3983,54 @@ app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.s
     } finally { await pgPool.end(); }
 
     res.json({ ok: true, manifest, stats, mensaje: 'Restauración completada' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Restore per-schema endpoint
+app.post('/api/admin/backup/restore-module', verificarToken, soloAdmin, uploadRestore.single('archivo'), async (req, res) => {
+  try {
+    if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
+    const zip = new AdmZip(req.file.buffer);
+    
+    // Find backup.json in the ZIP
+    const backupEntry = zip.getEntry('backup.json');
+    if (!backupEntry) return res.status(400).json({ error: 'ZIP no parece un backup de módulo (falta backup.json)' });
+    
+    const backup = JSON.parse(backupEntry.getData().toString('utf8'));
+    const schema = backup.schema;
+    if (!schema) return res.status(400).json({ error: 'ZIP no contiene información de schema' });
+
+    const pgPool = new Pool({
+      host: process.env.PGHOST || process.env.DB_HOST || '127.0.0.1',
+      port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
+      database: process.env.PGDATABASE || process.env.DB_NAME || 'synnox_erp',
+      user: process.env.PGUSER || process.env.DB_USER || 'postgres',
+      password: process.env.PGPASSWORD || process.env.DB_PASSWORD || undefined
+    });
+
+    try {
+      let totalFilas = 0;
+      for (const [t, rows] of Object.entries(backup)) {
+        if (t === 'app' || t === 'schema' || t === 'generado' || !Array.isArray(rows)) continue;
+        if (!rows.length) continue;
+        try {
+          await pgPool.query('BEGIN');
+          const tabla = `${schema}.${t}`;
+          const cols = Object.keys(rows[0]);
+          for (const r of rows) {
+            const vals = cols.map(c => r[c]);
+            const placeholders = cols.map((_, i) => `$${i + 1}`).join(',');
+            await pgPool.query(`INSERT INTO ${tabla} (${cols.join(',')}) VALUES (${placeholders}) ON CONFLICT DO NOTHING`, vals);
+            totalFilas++;
+          }
+          await pgPool.query('COMMIT');
+        } catch (e) {
+          await pgPool.query('ROLLBACK');
+          console.error(`Restore ${schema}.${t} error:`, e.message);
+        }
+      }
+      res.json({ ok: true, schema, totalFilas, mensaje: `Módulo ${schema} restaurado (${totalFilas} filas)` });
+    } finally { await pgPool.end(); }
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 

@@ -2132,11 +2132,14 @@ function showAdminTab(tab) {
    else if (tab === 'seguridad') { loadRateLimitConfig(); loadSshConfig(); loadLoginLogs(); }
    else if (tab === 'auditoria') loadAuditoria();
    else if (tab === 'actualizar') { loadUpdaterStatus(); loadUpdaterLogs(); }
-    else if (tab === 'mcp-modules') { loadMcpModulesStatus(); }
+  else if (tab === 'mcp-modules') { loadMcpModulesStatus(); }
   else if (tab === 'mcp-logs') { mcpLogsOffset = 0; loadMcpLogs(); loadMcpLogsStats(); }
   else if (tab === 'mcp-oauth') loadMcpOAuthConfig();
-  else if (tab === 'respaldo') { document.getElementById('import-result').style.display = 'none'; }
-    else if (tab === 'acerca-de') loadAcercaDe();
+  else if (tab === 'respaldo') { 
+    document.getElementById('import-result').style.display = 'none';
+    loadBackupModules();
+  }
+  else if (tab === 'acerca-de') loadAcercaDe();
 
 }
 
@@ -3172,10 +3175,75 @@ async function backupGeneral() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'synnoxerp_backup_' + new Date().toISOString().slice(0, 10) + '.zip';
+    a.download = 'synnxerp_backup_' + new Date().toISOString().slice(0, 10) + '.zip';
     a.click();
     URL.revokeObjectURL(url);
     if (msgEl) msgEl.innerHTML = '<span style="color:var(--success);">✓ Backup descargado</span>';
+  } catch (e) {
+    if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">✗ ' + e.message + '</span>';
+  }
+}
+
+async function loadBackupModules() {
+  const el = document.getElementById('backup-modules-list');
+  if (!el) return;
+  el.innerHTML = '<div class="skeleton skeleton-row" style="height:36px;"></div>';
+  try {
+    const res = await fetch('/api/admin/backup/schemas', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const data = await res.json();
+    
+    if (!data.schemas?.length) {
+      el.innerHTML = '<div style="color:var(--muted);font-size:13px;">No hay módulos con base de datos PostgreSQL</div>';
+      return;
+    }
+    
+    el.innerHTML = data.schemas.map(s => `
+      <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;">
+        <span style="font-size:14px;">${s.icon || '📦'} <strong>${s.nombre}</strong> <span style="color:var(--muted);font-size:12px;">(${s.tablas} tablas)</span></span>
+        <button class="btn btn-xs btn-primary" onclick="backupSchema('${s.schema}')">⬇️</button>
+      </div>
+    `).join('');
+  } catch (e) {
+    el.innerHTML = '<div style="color:var(--danger);font-size:13px;">Error: ' + e.message + '</div>';
+  }
+}
+
+async function backupSchema(schema) {
+  const msgEl = document.getElementById('backup-msg');
+  if (msgEl) msgEl.innerHTML = '<span style="color:var(--muted);">Generando backup de ' + schema + '...</span>';
+  try {
+    const res = await fetch('/api/admin/backup/' + schema, { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || 'Error al generar backup'); }
+    const blob = await res.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = schema + '_backup_' + new Date().toISOString().slice(0, 10) + '.zip';
+    a.click();
+    URL.revokeObjectURL(url);
+    if (msgEl) msgEl.innerHTML = '<span style="color:var(--success);">✓ Backup de ' + schema + ' descargado</span>';
+  } catch (e) {
+    if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">✗ ' + e.message + '</span>';
+  }
+}
+
+async function restaurarModulo() {
+  const input = document.getElementById('restore-module-input');
+  const msgEl = document.getElementById('restore-msg');
+  if (!input?.files?.length) { if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">Selecciona un archivo ZIP</span>'; return; }
+  if (msgEl) msgEl.innerHTML = '<span style="color:var(--muted);">Restaurando módulo...</span>';
+  try {
+    const formData = new FormData();
+    formData.append('archivo', input.files[0]);
+    const res = await fetch('/api/admin/backup/restore-module', {
+      method: 'POST',
+      headers: { 'Authorization': 'Bearer ' + jwtToken },
+      body: formData
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al restaurar');
+    if (msgEl) msgEl.innerHTML = '<span style="color:var(--success);">✓ ' + (data.message || 'Módulo restaurado') + '</span>';
+    input.value = '';
   } catch (e) {
     if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">✗ ' + e.message + '</span>';
   }
