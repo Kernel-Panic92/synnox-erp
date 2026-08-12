@@ -3594,8 +3594,8 @@ app.get('/api/admin/backup/list', verificarToken, soloAdmin, (req, res) => {
 // POST /api/admin/backup/run — ejecuta backup_synnox.sh manualmente
 app.post('/api/admin/backup/run', verificarToken, soloAdmin, (req, res) => {
   if (!fs.existsSync(BACKUP_SCRIPT)) return res.status(400).json({ error: 'Script backup_synnox.sh no encontrado' });
-  // Run as root via sudo to ensure access to pg_authid, /etc/letsencrypt, etc.
-  execFile('sudo', ['-n', BACKUP_SCRIPT], { timeout: 600000, env: { ...process.env, SYNNOX_INSTALL_DIR: LAUNCHER_DIR } }, (err, stdout, stderr) => {
+  // Run as the current user — script handles missing permissions gracefully (warnings)
+  execFile(BACKUP_SCRIPT, { timeout: 600000, env: { ...process.env, SYNNOX_INSTALL_DIR: LAUNCHER_DIR } }, (err, stdout, stderr) => {
     // Read the status.json that the script wrote
     let status = null;
     try { status = JSON.parse(fs.readFileSync(path.join(BACKUP_ROOT, 'status.json'), 'utf8')); } catch {}
