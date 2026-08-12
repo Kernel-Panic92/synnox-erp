@@ -3639,15 +3639,41 @@ app.get('/api/admin/backup/history', verificarToken, soloAdmin, (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// POST /api/admin/backup/restore — restaura desde archivo subido (pg_restore)
+// POST /api/admin/backup/restore — restaura desde archivo subido (.tar.gz o .dump)
 const uploadRestore = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } });
 app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.single('backup'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
     const tmpDir = path.join(os.tmpdir(), `synnox-restore-${Date.now()}`);
     fs.mkdirSync(tmpDir, { recursive: true });
-    const dumpPath = path.join(tmpDir, 'synnox_erp.dump');
-    fs.writeFileSync(dumpPath, req.file.buffer);
+    let dumpPath;
+
+    const isTarGz = req.file.originalname.endsWith('.tar.gz');
+    const isDump = req.file.originalname.endsWith('.dump');
+
+    if (isTarGz) {
+      // Extract tar.gz and find the .dump file inside
+      const tarPath = path.join(tmpDir, 'backup.tar.gz');
+      fs.writeFileSync(tarPath, req.file.buffer);
+      await new Promise((resolve, reject) => {
+        execFile('tar', ['xzf', tarPath, '-C', tmpDir], (err) => {
+          if (err) return reject(new Error('No se pudo extraer el archivo: ' + err.message));
+          resolve();
+        });
+      });
+      dumpPath = path.join(tmpDir, 'postgres', 'synnox_erp.dump');
+      if (!fs.existsSync(dumpPath)) {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+        return res.status(400).json({ error: 'El archivo no contiene synnox_erp.dump' });
+      }
+    } else if (isDump) {
+      dumpPath = path.join(tmpDir, 'synnox_erp.dump');
+      fs.writeFileSync(dumpPath, req.file.buffer);
+    } else {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+      return res.status(400).json({ error: 'Formato no soportado. Use .tar.gz o .dump' });
+    }
+
     // Verify dump integrity
     await new Promise((resolve, reject) => {
       execFile('pg_restore', ['--list', dumpPath], (err, stdout, stderr) => {
@@ -3655,6 +3681,12 @@ app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.s
         resolve();
       });
     });
+
+    // Load .env for DB credentials
+    if (fs.existsSync(path.join(LAUNCHER_DIR, '..', '.env'))) {
+      require('dotenv').config({ path: path.join(LAUNCHER_DIR, '..', '.env') });
+    }
+
     // Restore to synnox_erp
     const pgPool = new (require('pg').Pool)({
       host: process.env.DB_HOST || '127.0.0.1', port: parseInt(process.env.DB_PORT || '5432'),
@@ -3672,7 +3704,7 @@ app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.s
     // Run pg_restore
     await new Promise((resolve, reject) => {
       const env = { ...process.env, PGPASSWORD: process.env.DB_PASSWORD || '' };
-      execFile('pg_restore', ['-h', process.env.DB_HOST || '127.0.01', '-U', process.env.DB_USER || 'synnox', '-d', process.env.DB_NAME || 'synnox_erp', '--no-owner', '--no-privileges', dumpPath], { env }, (err, stdout, stderr) => {
+      execFile('pg_restore', ['-h', process.env.DB_HOST || '127.0.0.1', '-U', process.env.DB_USER || 'synnox', '-d', process.env.DB_NAME || 'synnox_erp', '--no-owner', '--no-privileges', dumpPath], { env }, (err, stdout, stderr) => {
         if (err) return reject(new Error('Restore falló: ' + (stderr || err.message)));
         resolve();
       });
