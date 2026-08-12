@@ -3200,7 +3200,7 @@ async function loadBackupModules() {
     el.innerHTML = data.schemas.map(s => `
       <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;">
         <span style="font-size:14px;">${s.icon || '📦'} <strong>${s.nombre}</strong> <span style="color:var(--muted);font-size:12px;">(${s.tablas} tablas)</span></span>
-        <button class="btn btn-xs btn-primary" onclick="backupSchema('${s.schema}')">⬇️</button>
+        <button class="btn btn-xs btn-primary" onclick="backupSchema('${s.id}')">⬇️</button>
       </div>
     `).join('');
   } catch (e) {

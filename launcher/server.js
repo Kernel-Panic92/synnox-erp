@@ -576,8 +576,15 @@ try { db.exec('ALTER TABLE modulos_plataforma ADD COLUMN mcp_token TEXT NOT NULL
 try { db.exec('ALTER TABLE modulos_plataforma ADD COLUMN proxy_prefix TEXT NOT NULL DEFAULT ""'); } catch {}
 try { db.exec("ALTER TABLE modulos_plataforma ADD COLUMN tipo TEXT NOT NULL DEFAULT 'externo'"); } catch {}
 try { db.exec("ALTER TABLE modulos_plataforma ADD COLUMN dashboard_endpoint TEXT NOT NULL DEFAULT ''"); } catch {}
+try { db.exec("ALTER TABLE modulos_plataforma ADD COLUMN db_type TEXT NOT NULL DEFAULT 'postgresql'"); } catch {}
+try { db.exec("ALTER TABLE modulos_plataforma ADD COLUMN db_schema TEXT NOT NULL DEFAULT ''"); } catch {}
 // Seed tipo for internal modules
 db.prepare("UPDATE modulos_plataforma SET tipo = 'interno' WHERE id IN ('proveedores', 'nomina', 'logistica') AND tipo = 'externo'").run();
+// Seed db_type and db_schema for existing modules
+db.prepare("UPDATE modulos_plataforma SET db_type = 'sqlite', db_schema = 'nomina' WHERE id = 'nomina'").run();
+db.prepare("UPDATE modulos_plataforma SET db_type = 'postgresql', db_schema = 'logistics' WHERE id = 'logistica'").run();
+db.prepare("UPDATE modulos_plataforma SET db_type = 'postgresql', db_schema = 'projects' WHERE id = 'proyectos'").run();
+db.prepare("UPDATE modulos_plataforma SET db_type = 'postgresql', db_schema = 'public' WHERE id = 'proveedores'").run();
 // Seed dashboard_endpoint for existing modules
 db.prepare("UPDATE modulos_plataforma SET dashboard_endpoint = '/proveedores/api/dashboard' WHERE id = 'proveedores' AND dashboard_endpoint = ''").run();
 db.prepare("UPDATE modulos_plataforma SET dashboard_endpoint = '/nomina/api/dashboard/resumen' WHERE id = 'nomina' AND dashboard_endpoint = ''").run();
@@ -3677,34 +3684,44 @@ app.get('/api/admin/backup/schemas', verificarToken, soloAdmin, async (req, res)
     password: process.env.PGPASSWORD || process.env.DB_PASSWORD || undefined
   });
   try {
-    // Get active modules from launcher
-    const modulos = db.prepare('SELECT id, nombre, icon FROM modulos_plataforma WHERE activo = 1').all();
-    
-    // Map module IDs to PostgreSQL schemas
-    const moduleSchemaMap = {
-      logistica: 'logistics',
-      proyectos: 'projects',
-      proveedores: 'public'
-    };
+    // Get active modules from launcher with db info
+    const modulos = db.prepare('SELECT id, nombre, icon, db_type, db_schema FROM modulos_plataforma WHERE activo = 1').all();
     
     const schemas = [];
     for (const modulo of modulos) {
-      const schema = moduleSchemaMap[modulo.id];
-      if (!schema) continue; // Skip modules without PostgreSQL schema (e.g., nomina uses SQLite)
+      if (!modulo.db_type || !modulo.db_schema) continue; // Skip modules without db config
       
-      try {
-        const tablas = await pgPool.query(
-          `SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = $1 AND table_type = 'BASE TABLE'`,
-          [schema]
-        );
-        schemas.push({ 
-          id: modulo.id, 
-          nombre: modulo.nombre || modulo.id, 
-          icon: modulo.icon || '📦',
-          schema, 
-          tablas: parseInt(tablas.rows[0].count) 
-        });
-      } catch {}
+      if (modulo.db_type === 'sqlite') {
+        // SQLite module (nómina)
+        const dbPath = path.join(LAUNCHER_DIR, modulo.db_schema + '.db');
+        const dbPathAlt = path.join(LAUNCHER_DIR, 'modules', modulo.id, modulo.db_schema + '.db');
+        const exists = fs.existsSync(dbPath) || fs.existsSync(dbPathAlt);
+        if (exists) {
+          schemas.push({ 
+            id: modulo.id, 
+            nombre: modulo.nombre || modulo.id, 
+            icon: modulo.icon || '📦',
+            type: 'sqlite',
+            tablas: '~10'
+          });
+        }
+      } else if (modulo.db_type === 'postgresql') {
+        // PostgreSQL module
+        try {
+          const tablas = await pgPool.query(
+            `SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = $1 AND table_type = 'BASE TABLE'`,
+            [modulo.db_schema]
+          );
+          schemas.push({ 
+            id: modulo.id, 
+            nombre: modulo.nombre || modulo.id, 
+            icon: modulo.icon || '📦',
+            type: 'postgresql',
+            schema: modulo.db_schema,
+            tablas: parseInt(tablas.rows[0].count) 
+          });
+        } catch {}
+      }
     }
     res.json({ ok: true, schemas });
   } catch (err) {
@@ -3743,12 +3760,70 @@ app.get('/api/admin/backup/verify', verificarToken, soloAdmin, async (req, res) 
   }
 });
 
-// Backup per-schema endpoint
+// Backup per-schema endpoint (supports both PostgreSQL and SQLite modules)
 app.get('/api/admin/backup/:schema', verificarToken, soloAdmin, async (req, res) => {
   const { schema } = req.params;
   const systemSchemas = ['pg_catalog', 'information_schema', 'pg_toast', 'launcher'];
   if (systemSchemas.includes(schema)) {
     return res.status(400).json({ error: `Schema '${schema}' no se puede respaldar directamente` });
+  }
+
+  // Get module info from database
+  const modulo = db.prepare('SELECT id, db_type, db_schema FROM modulos_plataforma WHERE id = $1').get(schema);
+  if (!modulo || !modulo.db_type || !modulo.db_schema) {
+    return res.status(404).json({ error: `Módulo '${schema}' no tiene configuración de base de datos` });
+  }
+
+  // Handle SQLite modules (nómina)
+  if (modulo.db_type === 'sqlite') {
+    try {
+      const dbPath = path.join(LAUNCHER_DIR, modulo.db_schema + '.db');
+      const dbPathAlt = path.join(LAUNCHER_DIR, 'modules', modulo.id, modulo.db_schema + '.db');
+      const actualPath = fs.existsSync(dbPath) ? dbPath : (fs.existsSync(dbPathAlt) ? dbPathAlt : null);
+      
+      if (!actualPath) {
+        return res.status(404).json({ error: 'Base de datos no encontrada' });
+      }
+
+      const Database = require('better-sqlite3');
+      const nominaDb = new Database(actualPath, { readonly: true });
+      const zip = new AdmZip();
+      const backup = { app: 'SynnoxERP', schema: 'nomina', type: 'sqlite', generado: new Date().toISOString() };
+      
+      const tablas = ['usuarios', 'empleados', 'nominas', 'registros', 'tipos', 'usuario_empleados', 'configuracion', 'permisos_roles', 'roles', 'dashboard_layout'];
+      let totalFilas = 0;
+      
+      for (const t of tablas) {
+        try {
+          const rows = nominaDb.prepare(`SELECT * FROM ${t}`).all();
+          backup[t] = rows;
+          totalFilas += rows.length;
+          
+          // CSV export
+          if (rows.length > 0) {
+            let csv = Object.keys(rows[0]).join(',') + '\n';
+            for (const row of rows) {
+              csv += Object.values(row).map(v => {
+                if (v === null) return '';
+                const s = String(v).replace(/"/g, '""');
+                return s.includes(',') || s.includes('"') ? `"${s}"` : s;
+              }).join(',') + '\n';
+            }
+            zip.addFile(`${t}.csv`, Buffer.from(csv, 'utf8'));
+          }
+        } catch {}
+      }
+      
+      nominaDb.close();
+      zip.addFile('backup.json', Buffer.from(JSON.stringify(backup, null, 2), 'utf8'));
+      const buf = zip.toBuffer();
+      res.set('Content-Type', 'application/zip');
+      res.set('Content-Disposition', `attachment; filename="nomina_backup_${new Date().toISOString().slice(0,10)}.zip"`);
+      res.send(buf);
+    } catch (err) {
+      res.status(500).json({ error: err.message });
+    }
+    return;
   }
 
   const pgPool = new Pool({
@@ -3761,30 +3836,30 @@ app.get('/api/admin/backup/:schema', verificarToken, soloAdmin, async (req, res)
 
   try {
     // Verify schema exists
-    const schemaCheck = await pgPool.query(`SELECT 1 FROM information_schema.schemata WHERE schema_name = $1`, [schema]);
+    const schemaCheck = await pgPool.query(`SELECT 1 FROM information_schema.schemata WHERE schema_name = $1`, [modulo.db_schema]);
     if (schemaCheck.rows.length === 0) {
-      return res.status(404).json({ error: `Schema '${schema}' no existe` });
+      return res.status(404).json({ error: `Schema '${modulo.db_schema}' no existe` });
     }
 
     // Get tables
     const tablasRes = await pgPool.query(
       `SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_type = 'BASE TABLE' ORDER BY table_name`,
-      [schema]
+      [modulo.db_schema]
     );
     const tablas = tablasRes.rows.map(r => r.table_name);
 
     if (!tablas.length) {
-      return res.status(404).json({ error: `Schema '${schema}' no tiene tablas` });
+      return res.status(404).json({ error: `Schema '${modulo.db_schema}' no tiene tablas` });
     }
 
     // Build backup
     const zip = new AdmZip();
-    const backup = { app: 'SynnoxERP', schema, generado: new Date().toISOString() };
+    const backup = { app: 'SynnoxERP', schema: modulo.db_schema, module: schema, generado: new Date().toISOString() };
     let totalFilas = 0;
 
     for (const t of tablas) {
       try {
-        const r = await pgPool.query(`SELECT * FROM ${schema}.${t}`);
+        const r = await pgPool.query(`SELECT * FROM ${modulo.db_schema}.${t}`);
         backup[t] = r.rows;
         totalFilas += r.rows.length;
 
