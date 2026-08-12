@@ -3668,7 +3668,7 @@ app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.s
 
       // 1. Restore SQLite: launcher.db (contains module names, users, config)
       const launcherDbSrc = path.join(tmpDir, 'sqlite', 'launcher.db');
-      const launcherDbDest = path.join(LAUNCHER_DIR, 'launcher.db');
+      const launcherDbDest = path.join(__dirname, 'launcher.db');
       if (fs.existsSync(launcherDbSrc)) {
         fs.copyFileSync(launcherDbSrc, launcherDbDest);
         // Clean WAL/SHM
