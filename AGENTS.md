@@ -32,9 +32,13 @@
 - `scripts/backup-sqlite.js` — hot-backup SQLite + conteos
 - `scripts/backup-finalize.js` — manifest con checksums SHA-256
 - `scripts/backup-alert.js` — alertas email directas
+- `scripts/restore_synnox.sh` — restore completo con --dry-run
+- `scripts/backup_drill.sh` — drill mensual con conteos verificados
 - `systemd/synnox-backup.service` + `synnox-backup.timer`
+- `systemd/synnox-drill.timer` — timer mensual (día 1, 3 AM)
 - `systemd/install-backup.sh` — instalador de unidades systemd
 - `systemd/nas.conf.example` — plantilla para copia NAS
+- `docs/DISASTER-RECOVERY.md` — runbook completo paso a paso
 
 #### Archivos modificados
 - `launcher/server.js` — eliminados ~600 líneas de backup JSON, reemplazados por 6 endpoints nuevos
@@ -43,7 +47,7 @@
 
 #### Pendiente (Fases 2-4)
 - [ ] Fase 2: copia offsite a NAS (config backups/.nas.conf)
-- [ ] Fase 3: script restore_synnox.sh + drill automático mensual
+- [x] Fase 3: script restore_synnox.sh + drill automático mensual
 - [x] Fase 4: UI en launcher + eliminar backups por módulo + fixes endpoints
 
 ---
