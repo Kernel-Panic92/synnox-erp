@@ -24,12 +24,27 @@
 #### Bugs encontrados y resueltos
 - `backup_logistics.sh` inexistente → obsoleto (reemplazado por backup unificado)
 - Issue #71 (backup nómina no encuentra script) → obsoleto
-- `Database` indefinido en `/api/admin/backup/general` → se arreglará en Fase 4
+- `Database` indefinido en `/api/admin/backup/general` → eliminado (endpoints reescritos)
+- `cron.schedule` de node-cron en server.js → eliminado (reemplazado por systemd timer)
+
+#### Archivos creados
+- `scripts/backup_synnox.sh` — script principal de backup
+- `scripts/backup-sqlite.js` — hot-backup SQLite + conteos
+- `scripts/backup-finalize.js` — manifest con checksums SHA-256
+- `scripts/backup-alert.js` — alertas email directas
+- `systemd/synnox-backup.service` + `synnox-backup.timer`
+- `systemd/install-backup.sh` — instalador de unidades systemd
+- `systemd/nas.conf.example` — plantilla para copia NAS
+
+#### Archivos modificados
+- `launcher/server.js` — eliminados ~600 líneas de backup JSON, reemplazados por 6 endpoints nuevos
+- `launcher/shell/index.html` — tab de respaldo rediseñado (status, lista, ejecutar, historial, restore)
+- `launcher/shell/app.js` — funciones de backup reescritas
 
 #### Pendiente (Fases 2-4)
 - [ ] Fase 2: copia offsite a NAS (config backups/.nas.conf)
 - [ ] Fase 3: script restore_synnox.sh + drill automático mensual
-- [ ] Fase 4: UI en launcher + eliminar backups por módulo + fixes endpoints
+- [x] Fase 4: UI en launcher + eliminar backups por módulo + fixes endpoints
 
 ---
 
