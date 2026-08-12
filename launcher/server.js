@@ -3696,6 +3696,78 @@ app.get('/api/admin/backup/verify', verificarToken, soloAdmin, async (req, res) 
   }
 });
 
+// Backup per-schema endpoint
+app.get('/api/admin/backup/:schema', verificarToken, soloAdmin, async (req, res) => {
+  const { schema } = req.params;
+  const systemSchemas = ['pg_catalog', 'information_schema', 'pg_toast', 'launcher'];
+  if (systemSchemas.includes(schema)) {
+    return res.status(400).json({ error: `Schema '${schema}' no se puede respaldar directamente` });
+  }
+
+  const pgPool = new Pool({
+    host: process.env.PGHOST || process.env.DB_HOST || '127.0.0.1',
+    port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
+    database: process.env.PGDATABASE || process.env.DB_NAME || 'synnox_erp',
+    user: process.env.PGUSER || process.env.DB_USER || 'postgres',
+    password: process.env.PGPASSWORD || process.env.DB_PASSWORD || undefined
+  });
+
+  try {
+    // Verify schema exists
+    const schemaCheck = await pgPool.query(`SELECT 1 FROM information_schema.schemata WHERE schema_name = $1`, [schema]);
+    if (schemaCheck.rows.length === 0) {
+      return res.status(404).json({ error: `Schema '${schema}' no existe` });
+    }
+
+    // Get tables
+    const tablasRes = await pgPool.query(
+      `SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_type = 'BASE TABLE' ORDER BY table_name`,
+      [schema]
+    );
+    const tablas = tablasRes.rows.map(r => r.table_name);
+
+    if (!tablas.length) {
+      return res.status(404).json({ error: `Schema '${schema}' no tiene tablas` });
+    }
+
+    // Build backup
+    const zip = new AdmZip();
+    const backup = { app: 'SynnoxERP', schema, generado: new Date().toISOString() };
+    let totalFilas = 0;
+
+    for (const t of tablas) {
+      try {
+        const r = await pgPool.query(`SELECT * FROM ${schema}.${t}`);
+        backup[t] = r.rows;
+        totalFilas += r.rows.length;
+
+        // CSV export
+        if (r.rows.length > 0) {
+          let csv = Object.keys(r.rows[0]).join(',') + '\n';
+          for (const row of r.rows) {
+            csv += Object.values(row).map(v => {
+              if (v === null) return '';
+              const s = String(v).replace(/"/g, '""');
+              return s.includes(',') || s.includes('"') ? `"${s}"` : s;
+            }).join(',') + '\n';
+          }
+          zip.addFile(`${t}.csv`, Buffer.from(csv, 'utf8'));
+        }
+      } catch {}
+    }
+
+    zip.addFile('backup.json', Buffer.from(JSON.stringify(backup, null, 2), 'utf8'));
+    const buf = zip.toBuffer();
+    res.set('Content-Type', 'application/zip');
+    res.set('Content-Disposition', `attachment; filename="${schema}_backup_${new Date().toISOString().slice(0,10)}.zip"`);
+    res.send(buf);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  } finally {
+    await pgPool.end();
+  }
+});
+
 app.get('/api/admin/backup/general', verificarToken, soloAdmin, async (req, res) => {
   try {
     const zip = new AdmZip();
