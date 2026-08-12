@@ -3555,6 +3555,138 @@ app.post('/api/admin/import', verificarToken, soloAdmin, (req, res) => {
 // ── System-wide backup ──
 const AdmZip = require('adm-zip');
 const { Pool } = require('pg');
+const cron = require('node-cron');
+
+// Automatic backup scheduler - daily at 2:00 AM
+const BACKUP_DIR = path.join(LAUNCHER_DIR, 'backups');
+if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
+
+cron.schedule('0 2 * * *', async () => {
+  console.log('[Backup] Ejecutando backup automático...');
+  try {
+    const zip = new AdmZip();
+    const manifest = { version: 1, generado: new Date().toISOString(), modulos: [], tipo: 'automatico' };
+
+    // 1. Launcher (SQLite)
+    try {
+      const modulos = db.prepare('SELECT * FROM modulos_plataforma ORDER BY orden').all();
+      const configRows = db.prepare('SELECT key, value FROM config ORDER BY key').all();
+      const config = {};
+      for (const r of configRows) config[r.key] = r.value;
+      const usuarios = db.prepare('SELECT id, nombre, email, rol, activo, creado, actualizado FROM usuarios ORDER BY id').all();
+      const centros = db.prepare('SELECT * FROM centros_operacion ORDER BY id').all();
+      zip.addFile('launcher/data.json', Buffer.from(JSON.stringify({ modulos, config, usuarios, centros }, null, 2), 'utf8'));
+      manifest.modulos.push({ nombre: 'launcher', tablas: 4, filas: modulos.length + usuarios.length + centros.length });
+    } catch (e) { console.error('[Backup] Launcher error:', e.message); }
+
+    // 2. Nómina (SQLite)
+    try {
+      const nominaDbPath = path.join(LAUNCHER_DIR, 'horas_extra.db');
+      const nominaDbAlt = path.join(LAUNCHER_DIR, 'modules', 'nomina', 'horas_extra.db');
+      const dbPath = fs.existsSync(nominaDbPath) ? nominaDbPath : (fs.existsSync(nominaDbAlt) ? nominaDbAlt : null);
+      if (dbPath) {
+        const Database = require('better-sqlite3');
+        const nominaDb = new Database(dbPath, { readonly: true });
+        const nominaData = {};
+        let totalFilas = 0;
+        for (const t of ['usuarios', 'empleados', 'nominas', 'registros', 'tipos', 'usuario_empleados', 'configuracion', 'permisos_roles', 'roles', 'dashboard_layout']) {
+          try { nominaData[t] = nominaDb.prepare(`SELECT * FROM ${t}`).all(); totalFilas += nominaData[t].length; } catch {}
+        }
+        zip.addFile('nomina/data.json', Buffer.from(JSON.stringify(nominaData, null, 2), 'utf8'));
+        nominaDb.close();
+        manifest.modulos.push({ nombre: 'nomina', tablas: Object.keys(nominaData).length, filas: totalFilas });
+      }
+    } catch (e) { console.error('[Backup] Nómina error:', e.message); }
+
+    // 3. PostgreSQL modules — auto-discover
+    const pgPool = new Pool({
+      host: process.env.PGHOST || process.env.DB_HOST || '127.0.0.1',
+      port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
+      database: process.env.PGDATABASE || process.env.DB_NAME || 'synnox_erp',
+      user: process.env.PGUSER || process.env.DB_USER || 'postgres',
+      password: process.env.PGPASSWORD || process.env.DB_PASSWORD || undefined
+    });
+    try {
+      const schemaMap = { logistica: 'logistics', proyectos: 'projects', proveedores: 'public' };
+      const existentes = await pgPool.query(`SELECT schema_name FROM information_schema.schemata WHERE schema_name IN ('logistics','projects','public')`);
+      const schemasDisponibles = new Set(existentes.rows.map(r => r.schema_name));
+      for (const [nombre, schema] of Object.entries(schemaMap)) {
+        if (!schemasDisponibles.has(schema)) continue;
+        try {
+          const tablasRes = await pgPool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_type = 'BASE TABLE' ORDER BY table_name`, [schema]);
+          const tablas = tablasRes.rows.map(r => r.table_name);
+          const data = {};
+          let totalFilas = 0;
+          for (const t of tablas) {
+            try {
+              const tabla = schema === 'public' ? t : `${schema}.${t}`;
+              const r = await pgPool.query(`SELECT * FROM ${tabla}`);
+              data[t] = r.rows;
+              totalFilas += r.rows.length;
+            } catch {}
+          }
+          zip.addFile(`${nombre}/data.json`, Buffer.from(JSON.stringify(data, null, 2), 'utf8'));
+          manifest.modulos.push({ nombre, tablas: tablas.length, filas: totalFilas });
+        } catch (e) { console.error(`[Backup] ${nombre} error:`, e.message); }
+      }
+    } finally { await pgPool.end(); }
+
+    // Save backup
+    zip.addFile('manifest.json', Buffer.from(JSON.stringify(manifest, null, 2), 'utf8'));
+    const filename = `synnoxerp_backup_${new Date().toISOString().slice(0,10)}.zip`;
+    const filepath = path.join(BACKUP_DIR, filename);
+    zip.writeZip(filepath);
+    console.log(`[Backup] Completado: ${filename}`);
+
+    // Cleanup old backups (keep last 7)
+    const files = fs.readdirSync(BACKUP_DIR).filter(f => f.startsWith('synnoxerp_backup_')).sort();
+    while (files.length > 7) {
+      const old = files.shift();
+      fs.unlinkSync(path.join(BACKUP_DIR, old));
+      console.log(`[Backup] Eliminado: ${old}`);
+    }
+
+    // Verify backup integrity
+    const verifyZip = new AdmZip(filepath);
+    const verifyManifest = JSON.parse(verifyZip.readFile('manifest.json').toString());
+    const totalArchivos = verifyZip.getEntries().length;
+    const totalModulos = verifyManifest.modulos.length;
+    const totalFilas = verifyManifest.modulos.reduce((s, m) => s + (m.filas || 0), 0);
+    console.log(`[Backup] Verificación: ${totalArchivos} archivos, ${totalModulos} módulos, ${totalFilas} filas`);
+  } catch (err) {
+    console.error('[Backup] Error en backup automático:', err.message);
+  }
+}, { timezone: 'America/Bogota' });
+
+// Backup verification endpoint
+app.get('/api/admin/backup/verify', verificarToken, soloAdmin, async (req, res) => {
+  try {
+    const files = fs.readdirSync(BACKUP_DIR).filter(f => f.startsWith('synnoxerp_backup_')).sort().reverse();
+    if (!files.length) return res.json({ ok: true, message: 'No hay backups', backups: [] });
+
+    const results = [];
+    for (const f of files.slice(0, 5)) { // Check last 5 backups
+      try {
+        const zip = new AdmZip(path.join(BACKUP_DIR, f));
+        const manifest = JSON.parse(zip.readFile('manifest.json').toString());
+        const totalFilas = manifest.modulos.reduce((s, m) => s + (m.filas || 0), 0);
+        results.push({
+          archivo: f,
+          generado: manifest.generado,
+          tipo: manifest.tipo || 'manual',
+          modulos: manifest.modulos.length,
+          totalFilas,
+          archivos: zip.getEntries().length
+        });
+      } catch (e) {
+        results.push({ archivo: f, error: e.message });
+      }
+    }
+    res.json({ ok: true, backups: results });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 app.get('/api/admin/backup/general', verificarToken, soloAdmin, async (req, res) => {
   try {
@@ -3590,7 +3722,7 @@ app.get('/api/admin/backup/general', verificarToken, soloAdmin, async (req, res)
       }
     } catch (e) { console.error('Backup nómina error:', e.message); }
 
-    // 3. PostgreSQL modules — discover dynamically
+    // 3. PostgreSQL modules — auto-discover tables
     const pgPool = new Pool({
       host: process.env.PGHOST || process.env.DB_HOST || '127.0.0.1',
       port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
@@ -3600,29 +3732,37 @@ app.get('/api/admin/backup/general', verificarToken, soloAdmin, async (req, res)
     });
     try {
       const schemaMap = {
-        logistica: { prefix: 'logistics', tablas: ['vehiculos', 'pedidos_logistica', 'rutas', 'paradas_ruta', 'configuracion', 'usuarios'] },
-        proyectos: { prefix: 'projects', tablas: ['proyectos', 'tareas', 'comentarios', 'evidencias'] },
-        proveedores: { prefix: '', tablas: ['configuracion', 'usuarios', 'areas', 'categorias_compra', 'centros_operacion', 'facturas', 'eventos_flujo'] }
+        logistica: 'logistics',
+        proyectos: 'projects',
+        proveedores: 'public'
       };
 
-      // Auto-discover: check which schemas exist in DB
+      // Auto-discover: check which schemas exist and get their tables
       const existentes = await pgPool.query(`SELECT schema_name FROM information_schema.schemata WHERE schema_name IN ('logistics','projects','public')`);
       const schemasDisponibles = new Set(existentes.rows.map(r => r.schema_name));
 
-      for (const [nombre, cfg] of Object.entries(schemaMap)) {
-        const schemaCheck = cfg.prefix || 'public';
-        if (!schemasDisponibles.has(schemaCheck)) continue;
+      for (const [nombre, schema] of Object.entries(schemaMap)) {
+        if (!schemasDisponibles.has(schema)) continue;
         try {
+          // Auto-discover tables in this schema
+          const tablasRes = await pgPool.query(
+            `SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_type = 'BASE TABLE' ORDER BY table_name`,
+            [schema]
+          );
+          const tablas = tablasRes.rows.map(r => r.table_name);
+          
           const data = {};
-          for (const t of cfg.tablas) {
+          let totalFilas = 0;
+          for (const t of tablas) {
             try {
-              const tabla = cfg.prefix ? `${cfg.prefix}.${t}` : t;
+              const tabla = schema === 'public' ? t : `${schema}.${t}`;
               const r = await pgPool.query(`SELECT * FROM ${tabla}`);
               data[t] = r.rows;
+              totalFilas += r.rows.length;
             } catch {}
           }
           zip.addFile(`${nombre}/data.json`, Buffer.from(JSON.stringify(data, null, 2), 'utf8'));
-          manifest.modulos.push(nombre);
+          manifest.modulos.push({ nombre, tablas: tablas.length, filas: totalFilas });
         } catch (e) { console.error(`Backup ${nombre} error:`, e.message); }
       }
     } finally { await pgPool.end(); }
