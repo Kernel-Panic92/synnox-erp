@@ -3559,553 +3559,114 @@ app.post('/api/admin/import', verificarToken, soloAdmin, (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── System-wide backup ──
-const AdmZip = require('adm-zip');
-const { Pool } = require('pg');
-const cron = require('node-cron');
+// ── Backup Management (new system: scripts/backup_synnox.sh) ──
+const multer = require('multer');
+const BACKUP_ROOT = path.join(LAUNCHER_DIR, 'backups');
+const BACKUP_SCRIPT = path.join(LAUNCHER_DIR, 'scripts', 'backup_synnox.sh');
 
-// Automatic backup scheduler - daily at 2:00 AM
-const BACKUP_DIR = path.join(LAUNCHER_DIR, 'backups');
-if (!fs.existsSync(BACKUP_DIR)) fs.mkdirSync(BACKUP_DIR, { recursive: true });
-
-cron.schedule('0 2 * * *', async () => {
-  console.log('[Backup] Ejecutando backup automático...');
+// GET /api/admin/backup/status — último resultado del backup
+app.get('/api/admin/backup/status', verificarToken, soloAdmin, (req, res) => {
   try {
-    const zip = new AdmZip();
-    const manifest = { version: 1, generado: new Date().toISOString(), modulos: [], tipo: 'automatico' };
-
-    // 1. Launcher (SQLite)
-    try {
-      const modulos = db.prepare('SELECT * FROM modulos_plataforma ORDER BY orden').all();
-      const configRows = db.prepare('SELECT key, value FROM config ORDER BY key').all();
-      const config = {};
-      for (const r of configRows) config[r.key] = r.value;
-      const usuarios = db.prepare('SELECT id, nombre, email, rol, activo, creado, actualizado FROM usuarios ORDER BY id').all();
-      const centros = db.prepare('SELECT * FROM centros_operacion ORDER BY id').all();
-      zip.addFile('launcher/data.json', Buffer.from(JSON.stringify({ modulos, config, usuarios, centros }, null, 2), 'utf8'));
-      manifest.modulos.push({ nombre: 'launcher', tablas: 4, filas: modulos.length + usuarios.length + centros.length });
-    } catch (e) { console.error('[Backup] Launcher error:', e.message); }
-
-    // 2. Nómina (SQLite)
-    try {
-      const nominaDbPath = path.join(LAUNCHER_DIR, 'horas_extra.db');
-      const nominaDbAlt = path.join(LAUNCHER_DIR, 'modules', 'nomina', 'horas_extra.db');
-      const dbPath = fs.existsSync(nominaDbPath) ? nominaDbPath : (fs.existsSync(nominaDbAlt) ? nominaDbAlt : null);
-      if (dbPath) {
-        const Database = require('better-sqlite3');
-        const nominaDb = new Database(dbPath, { readonly: true });
-        const nominaData = {};
-        let totalFilas = 0;
-        for (const t of ['usuarios', 'empleados', 'nominas', 'registros', 'tipos', 'usuario_empleados', 'configuracion', 'permisos_roles', 'roles', 'dashboard_layout']) {
-          try { nominaData[t] = nominaDb.prepare(`SELECT * FROM ${t}`).all(); totalFilas += nominaData[t].length; } catch {}
-        }
-        zip.addFile('nomina/data.json', Buffer.from(JSON.stringify(nominaData, null, 2), 'utf8'));
-        nominaDb.close();
-        manifest.modulos.push({ nombre: 'nomina', tablas: Object.keys(nominaData).length, filas: totalFilas });
-      }
-    } catch (e) { console.error('[Backup] Nómina error:', e.message); }
-
-    // 3. PostgreSQL modules — auto-discover ALL schemas
-    const pgPool = new Pool({
-      host: process.env.PGHOST || process.env.DB_HOST || '127.0.0.1',
-      port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
-      database: process.env.PGDATABASE || process.env.DB_NAME || 'synnox_erp',
-      user: process.env.PGUSER || process.env.DB_USER || 'postgres',
-      password: process.env.PGPASSWORD || process.env.DB_PASSWORD || undefined
-    });
-    try {
-      // Auto-discover: get ALL schemas except system schemas
-      const systemSchemas = ['pg_catalog', 'information_schema', 'pg_toast'];
-      const schemasRes = await pgPool.query(
-        `SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ($1) ORDER BY schema_name`,
-        [systemSchemas]
-      );
-      
-      for (const { schema_name: schema } of schemasRes.rows) {
-        try {
-          const tablasRes = await pgPool.query(
-            `SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_type = 'BASE TABLE' ORDER BY table_name`,
-            [schema]
-          );
-          const tablas = tablasRes.rows.map(r => r.table_name);
-          if (!tablas.length) continue;
-
-          const data = {};
-          let totalFilas = 0;
-          for (const t of tablas) {
-            try {
-              const tabla = `${schema}.${t}`;
-              const r = await pgPool.query(`SELECT * FROM ${tabla}`);
-              data[t] = r.rows;
-              totalFilas += r.rows.length;
-            } catch {}
-          }
-          zip.addFile(`${schema}/data.json`, Buffer.from(JSON.stringify(data, null, 2), 'utf8'));
-          manifest.modulos.push({ nombre: schema, tablas: tablas.length, filas: totalFilas });
-        } catch (e) { console.error(`[Backup] ${schema} error:`, e.message); }
-      }
-    } finally { await pgPool.end(); }
-
-    // Save backup
-    zip.addFile('manifest.json', Buffer.from(JSON.stringify(manifest, null, 2), 'utf8'));
-    const filename = `synnoxerp_backup_${new Date().toISOString().slice(0,10)}.zip`;
-    const filepath = path.join(BACKUP_DIR, filename);
-    zip.writeZip(filepath);
-    console.log(`[Backup] Completado: ${filename}`);
-
-    // Cleanup old backups (keep last 7)
-    const files = fs.readdirSync(BACKUP_DIR).filter(f => f.startsWith('synnoxerp_backup_')).sort();
-    while (files.length > 7) {
-      const old = files.shift();
-      fs.unlinkSync(path.join(BACKUP_DIR, old));
-      console.log(`[Backup] Eliminado: ${old}`);
-    }
-
-    // Verify backup integrity
-    const verifyZip = new AdmZip(filepath);
-    const verifyManifest = JSON.parse(verifyZip.readFile('manifest.json').toString());
-    const totalArchivos = verifyZip.getEntries().length;
-    const totalModulos = verifyManifest.modulos.length;
-    const totalFilas = verifyManifest.modulos.reduce((s, m) => s + (m.filas || 0), 0);
-    console.log(`[Backup] Verificación: ${totalArchivos} archivos, ${totalModulos} módulos, ${totalFilas} filas`);
-  } catch (err) {
-    console.error('[Backup] Error en backup automático:', err.message);
-  }
-}, { timezone: 'America/Bogota' });
-
-// Backup verification endpoint
-// List available schemas for backup
-app.get('/api/admin/backup/schemas', verificarToken, soloAdmin, async (req, res) => {
-  const pgPool = new Pool({
-    host: process.env.PGHOST || process.env.DB_HOST || '127.0.0.1',
-    port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
-    database: process.env.PGDATABASE || process.env.DB_NAME || 'synnox_erp',
-    user: process.env.PGUSER || process.env.DB_USER || 'postgres',
-    password: process.env.PGPASSWORD || process.env.DB_PASSWORD || undefined
-  });
-  try {
-    // Get active modules from launcher with db info
-    const modulos = db.prepare('SELECT id, nombre, icon, db_type, db_schema FROM modulos_plataforma WHERE activo = 1').all();
-    
-    const schemas = [];
-    for (const modulo of modulos) {
-      if (!modulo.db_type || !modulo.db_schema) continue; // Skip modules without db config
-      
-      if (modulo.db_type === 'sqlite') {
-        // SQLite module (nómina)
-        const dbPath = path.join(LAUNCHER_DIR, modulo.db_schema + '.db');
-        const dbPathAlt = path.join(LAUNCHER_DIR, 'modules', modulo.id, modulo.db_schema + '.db');
-        const exists = fs.existsSync(dbPath) || fs.existsSync(dbPathAlt);
-        if (exists) {
-          schemas.push({ 
-            id: modulo.id, 
-            nombre: modulo.nombre || modulo.id, 
-            icon: modulo.icon || '📦',
-            type: 'sqlite',
-            tablas: '~10'
-          });
-        }
-      } else if (modulo.db_type === 'postgresql') {
-        // PostgreSQL module
-        try {
-          const tablas = await pgPool.query(
-            `SELECT COUNT(*) as count FROM information_schema.tables WHERE table_schema = $1 AND table_type = 'BASE TABLE'`,
-            [modulo.db_schema]
-          );
-          schemas.push({ 
-            id: modulo.id, 
-            nombre: modulo.nombre || modulo.id, 
-            icon: modulo.icon || '📦',
-            type: 'postgresql',
-            schema: modulo.db_schema,
-            tablas: parseInt(tablas.rows[0].count) 
-          });
-        } catch {}
-      }
-    }
-    res.json({ ok: true, schemas });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  } finally {
-    await pgPool.end();
-  }
-});
-
-app.get('/api/admin/backup/verify', verificarToken, soloAdmin, async (req, res) => {
-  try {
-    const files = fs.readdirSync(BACKUP_DIR).filter(f => f.startsWith('synnoxerp_backup_')).sort().reverse();
-    if (!files.length) return res.json({ ok: true, message: 'No hay backups', backups: [] });
-
-    const results = [];
-    for (const f of files.slice(0, 5)) { // Check last 5 backups
-      try {
-        const zip = new AdmZip(path.join(BACKUP_DIR, f));
-        const manifest = JSON.parse(zip.readFile('manifest.json').toString());
-        const totalFilas = manifest.modulos.reduce((s, m) => s + (m.filas || 0), 0);
-        results.push({
-          archivo: f,
-          generado: manifest.generado,
-          tipo: manifest.tipo || 'manual',
-          modulos: manifest.modulos.length,
-          totalFilas,
-          archivos: zip.getEntries().length
-        });
-      } catch (e) {
-        results.push({ archivo: f, error: e.message });
-      }
-    }
-    res.json({ ok: true, backups: results });
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Backup per-schema endpoint (supports both PostgreSQL and SQLite modules)
-app.get('/api/admin/backup/:schema', verificarToken, soloAdmin, async (req, res) => {
-  const { schema } = req.params;
-  const systemSchemas = ['pg_catalog', 'information_schema', 'pg_toast', 'launcher'];
-  if (systemSchemas.includes(schema)) {
-    return res.status(400).json({ error: `Schema '${schema}' no se puede respaldar directamente` });
-  }
-
-  // Get module info from database
-  const modulo = db.prepare('SELECT id, db_type, db_schema FROM modulos_plataforma WHERE id = $1').get(schema);
-  if (!modulo || !modulo.db_type || !modulo.db_schema) {
-    return res.status(404).json({ error: `Módulo '${schema}' no tiene configuración de base de datos` });
-  }
-
-  // Handle SQLite modules (nómina)
-  if (modulo.db_type === 'sqlite') {
-    try {
-      const dbPath = path.join(LAUNCHER_DIR, modulo.db_schema + '.db');
-      const dbPathAlt = path.join(LAUNCHER_DIR, 'modules', modulo.id, modulo.db_schema + '.db');
-      const actualPath = fs.existsSync(dbPath) ? dbPath : (fs.existsSync(dbPathAlt) ? dbPathAlt : null);
-      
-      if (!actualPath) {
-        return res.status(404).json({ error: 'Base de datos no encontrada' });
-      }
-
-      const Database = require('better-sqlite3');
-      const nominaDb = new Database(actualPath, { readonly: true });
-      const zip = new AdmZip();
-      const backup = { app: 'SynnoxERP', schema: 'nomina', type: 'sqlite', generado: new Date().toISOString() };
-      
-      const tablas = ['usuarios', 'empleados', 'nominas', 'registros', 'tipos', 'usuario_empleados', 'configuracion', 'permisos_roles', 'roles', 'dashboard_layout'];
-      let totalFilas = 0;
-      
-      for (const t of tablas) {
-        try {
-          const rows = nominaDb.prepare(`SELECT * FROM ${t}`).all();
-          backup[t] = rows;
-          totalFilas += rows.length;
-          
-          // CSV export
-          if (rows.length > 0) {
-            let csv = Object.keys(rows[0]).join(',') + '\n';
-            for (const row of rows) {
-              csv += Object.values(row).map(v => {
-                if (v === null) return '';
-                const s = String(v).replace(/"/g, '""');
-                return s.includes(',') || s.includes('"') ? `"${s}"` : s;
-              }).join(',') + '\n';
-            }
-            zip.addFile(`${t}.csv`, Buffer.from(csv, 'utf8'));
-          }
-        } catch {}
-      }
-      
-      nominaDb.close();
-      zip.addFile('backup.json', Buffer.from(JSON.stringify(backup, null, 2), 'utf8'));
-      const buf = zip.toBuffer();
-      res.set('Content-Type', 'application/zip');
-      res.set('Content-Disposition', `attachment; filename="nomina_backup_${new Date().toISOString().slice(0,10)}.zip"`);
-      res.send(buf);
-    } catch (err) {
-      res.status(500).json({ error: err.message });
-    }
-    return;
-  }
-
-  const pgPool = new Pool({
-    host: process.env.PGHOST || process.env.DB_HOST || '127.0.0.1',
-    port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
-    database: process.env.PGDATABASE || process.env.DB_NAME || 'synnox_erp',
-    user: process.env.PGUSER || process.env.DB_USER || 'postgres',
-    password: process.env.PGPASSWORD || process.env.DB_PASSWORD || undefined
-  });
-
-  try {
-    // Verify schema exists
-    const schemaCheck = await pgPool.query(`SELECT 1 FROM information_schema.schemata WHERE schema_name = $1`, [modulo.db_schema]);
-    if (schemaCheck.rows.length === 0) {
-      return res.status(404).json({ error: `Schema '${modulo.db_schema}' no existe` });
-    }
-
-    // Get tables
-    const tablasRes = await pgPool.query(
-      `SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_type = 'BASE TABLE' ORDER BY table_name`,
-      [modulo.db_schema]
-    );
-    const tablas = tablasRes.rows.map(r => r.table_name);
-
-    if (!tablas.length) {
-      return res.status(404).json({ error: `Schema '${modulo.db_schema}' no tiene tablas` });
-    }
-
-    // Build backup
-    const zip = new AdmZip();
-    const backup = { app: 'SynnoxERP', schema: modulo.db_schema, module: schema, generado: new Date().toISOString() };
-    let totalFilas = 0;
-
-    for (const t of tablas) {
-      try {
-        const r = await pgPool.query(`SELECT * FROM ${modulo.db_schema}.${t}`);
-        backup[t] = r.rows;
-        totalFilas += r.rows.length;
-
-        // CSV export
-        if (r.rows.length > 0) {
-          let csv = Object.keys(r.rows[0]).join(',') + '\n';
-          for (const row of r.rows) {
-            csv += Object.values(row).map(v => {
-              if (v === null) return '';
-              const s = String(v).replace(/"/g, '""');
-              return s.includes(',') || s.includes('"') ? `"${s}"` : s;
-            }).join(',') + '\n';
-          }
-          zip.addFile(`${t}.csv`, Buffer.from(csv, 'utf8'));
-        }
-      } catch {}
-    }
-
-    zip.addFile('backup.json', Buffer.from(JSON.stringify(backup, null, 2), 'utf8'));
-    const buf = zip.toBuffer();
-    res.set('Content-Type', 'application/zip');
-    res.set('Content-Disposition', `attachment; filename="${schema}_backup_${new Date().toISOString().slice(0,10)}.zip"`);
-    res.send(buf);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  } finally {
-    await pgPool.end();
-  }
-});
-
-app.get('/api/admin/backup/general', verificarToken, soloAdmin, async (req, res) => {
-  try {
-    const zip = new AdmZip();
-    const manifest = { version: 1, generado: new Date().toISOString(), modulos: [] };
-
-    // 1. Launcher (SQLite)
-    try {
-      const modulos = db.prepare('SELECT * FROM modulos_plataforma ORDER BY orden').all();
-      const configRows = db.prepare('SELECT key, value FROM config ORDER BY key').all();
-      const config = {};
-      for (const r of configRows) config[r.key] = r.value;
-      const usuarios = db.prepare('SELECT id, nombre, email, rol, activo, creado, actualizado FROM usuarios ORDER BY id').all();
-      const centros = db.prepare('SELECT * FROM centros_operacion ORDER BY id').all();
-      zip.addFile('launcher/data.json', Buffer.from(JSON.stringify({ modulos, config, usuarios, centros }, null, 2), 'utf8'));
-      manifest.modulos.push('launcher');
-    } catch (e) { console.error('Backup launcher error:', e.message); }
-
-    // 2. Nómina (SQLite)
-    try {
-      const nominaDbPath = path.join(LAUNCHER_DIR, 'horas_extra.db');
-      const nominaDbAlt = path.join(LAUNCHER_DIR, 'modules', 'nomina', 'horas_extra.db');
-      const dbPath = fs.existsSync(nominaDbPath) ? nominaDbPath : (fs.existsSync(nominaDbAlt) ? nominaDbAlt : null);
-      if (dbPath) {
-        const nominaDb = new Database(dbPath, { readonly: true });
-        const nominaData = {};
-        for (const t of ['usuarios', 'empleados', 'nominas', 'registros', 'tipos', 'usuario_empleados', 'configuracion', 'permisos_roles', 'roles', 'dashboard_layout']) {
-          try { nominaData[t] = nominaDb.prepare(`SELECT * FROM ${t}`).all(); } catch {}
-        }
-        zip.addFile('nomina/data.json', Buffer.from(JSON.stringify(nominaData, null, 2), 'utf8'));
-        nominaDb.close();
-        manifest.modulos.push('nomina');
-      }
-    } catch (e) { console.error('Backup nómina error:', e.message); }
-
-    // 3. PostgreSQL modules — auto-discover ALL schemas
-    const pgPool = new Pool({
-      host: process.env.PGHOST || process.env.DB_HOST || '127.0.0.1',
-      port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
-      database: process.env.PGDATABASE || process.env.DB_NAME || 'synnox_erp',
-      user: process.env.PGUSER || process.env.DB_USER || 'postgres',
-      password: process.env.PGPASSWORD || process.env.DB_PASSWORD || undefined
-    });
-    try {
-      // Auto-discover: get ALL schemas except system schemas
-      const systemSchemas = ['pg_catalog', 'information_schema', 'pg_toast'];
-      const schemasRes = await pgPool.query(
-        `SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ($1) ORDER BY schema_name`,
-        [systemSchemas]
-      );
-
-      for (const { schema_name: schema } of schemasRes.rows) {
-        try {
-          const tablasRes = await pgPool.query(
-            `SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_type = 'BASE TABLE' ORDER BY table_name`,
-            [schema]
-          );
-          const tablas = tablasRes.rows.map(r => r.table_name);
-          if (!tablas.length) continue;
-
-          const data = {};
-          let totalFilas = 0;
-          for (const t of tablas) {
-            try {
-              const tabla = `${schema}.${t}`;
-              const r = await pgPool.query(`SELECT * FROM ${tabla}`);
-              data[t] = r.rows;
-              totalFilas += r.rows.length;
-            } catch {}
-          }
-          zip.addFile(`${schema}/data.json`, Buffer.from(JSON.stringify(data, null, 2), 'utf8'));
-          manifest.modulos.push({ nombre: schema, tablas: tablas.length, filas: totalFilas });
-        } catch (e) { console.error(`Backup ${schema} error:`, e.message); }
-      }
-    } finally { await pgPool.end(); }
-
-    zip.addFile('manifest.json', Buffer.from(JSON.stringify(manifest, null, 2), 'utf8'));
-    const buf = zip.toBuffer();
-    res.set('Content-Type', 'application/zip');
-    res.set('Content-Disposition', `attachment; filename="synnoxerp_backup_${new Date().toISOString().slice(0,10)}.zip"`);
-    res.send(buf);
+    const statusFile = path.join(BACKUP_ROOT, 'status.json');
+    if (!fs.existsSync(statusFile)) return res.json({ ok: false, message: 'No hay backups ejecutados aún' });
+    const status = JSON.parse(fs.readFileSync(statusFile, 'utf8'));
+    res.json({ ok: true, status });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
-// ── System-wide restore ──
-const multer = require('multer');
-const uploadRestore = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } });
+// GET /api/admin/backup/list — lista archivos de backup en el servidor
+app.get('/api/admin/backup/list', verificarToken, soloAdmin, (req, res) => {
+  try {
+    if (!fs.existsSync(BACKUP_ROOT)) return res.json({ ok: true, backups: [] });
+    const files = fs.readdirSync(BACKUP_ROOT)
+      .filter(f => f.startsWith('synnoxerp_backup_') && f.endsWith('.tar.gz'))
+      .map(f => {
+        const st = fs.statSync(path.join(BACKUP_ROOT, f));
+        let sha256 = null;
+        try { sha256 = fs.readFileSync(path.join(BACKUP_ROOT, f + '.sha256'), 'utf8').split(/\s+/)[0]; } catch {}
+        return { nombre: f, bytes: st.size, fecha: st.mtime.toISOString(), sha256 };
+      })
+      .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+    res.json({ ok: true, backups: files });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
 
+// POST /api/admin/backup/run — ejecuta backup_synnox.sh manualmente
+app.post('/api/admin/backup/run', verificarToken, soloAdmin, (req, res) => {
+  if (!fs.existsSync(BACKUP_SCRIPT)) return res.status(400).json({ error: 'Script backup_synnox.sh no encontrado' });
+  // Run as root via sudo to ensure access to pg_authid, /etc/letsencrypt, etc.
+  execFile('sudo', ['-n', BACKUP_SCRIPT], { timeout: 600000, env: { ...process.env, SYNNOX_INSTALL_DIR: LAUNCHER_DIR } }, (err, stdout, stderr) => {
+    // Read the status.json that the script wrote
+    let status = null;
+    try { status = JSON.parse(fs.readFileSync(path.join(BACKUP_ROOT, 'status.json'), 'utf8')); } catch {}
+    if (err && !status) {
+      return res.json({ ok: false, error: err.message, stdout: stdout?.slice(-1000), stderr: stderr?.slice(-1000) });
+    }
+    res.json({ ok: status?.ok ?? true, status, message: status?.ok ? 'Backup completado' : 'Backup con errores (ver warnings)' });
+  });
+});
+
+// GET /api/admin/backup/download/:filename — descarga un backup
+app.get('/api/admin/backup/download/:filename', verificarToken, soloAdmin, (req, res) => {
+  const { filename } = req.params;
+  if (!/^synnoxerp_backup_[\w\-]+\.tar\.gz$/.test(filename)) return res.status(400).json({ error: 'Nombre de archivo inválido' });
+  const filepath = path.join(BACKUP_ROOT, filename);
+  if (!fs.existsSync(filepath)) return res.status(404).json({ error: 'Archivo no encontrado' });
+  res.download(filepath, filename);
+});
+
+// GET /api/admin/backup/history — historial de backups (últimos 30)
+app.get('/api/admin/backup/history', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const historyFile = path.join(BACKUP_ROOT, 'history.jsonl');
+    if (!fs.existsSync(historyFile)) return res.json({ ok: true, history: [] });
+    const lines = fs.readFileSync(historyFile, 'utf8').trim().split('\n').filter(Boolean);
+    const history = lines.slice(-30).reverse().map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+    res.json({ ok: true, history });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// POST /api/admin/backup/restore — restaura desde archivo subido (pg_restore)
+const uploadRestore = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } });
 app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.single('backup'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
-    const zip = new AdmZip(req.file.buffer);
-    const manifestEntry = zip.getEntry('manifest.json');
-    if (!manifestEntry) return res.status(400).json({ error: 'ZIP no parece un backup general de SynnoxERP (falta manifest.json)' });
-    const manifest = JSON.parse(manifestEntry.getData().toString('utf8'));
-    const stats = {};
-
-    // 1. Restore Nómina (SQLite)
-    const nominaEntry = zip.getEntry('nomina/data.json');
-    if (nominaEntry) {
-      try {
-        const data = JSON.parse(nominaEntry.getData().toString('utf8'));
-        const nominaDbPath = path.join(LAUNCHER_DIR, 'horas_extra.db');
-        const nominaDbAlt = path.join(LAUNCHER_DIR, 'modules', 'nomina', 'horas_extra.db');
-        const dbPath = fs.existsSync(nominaDbPath) ? nominaDbPath : (fs.existsSync(nominaDbAlt) ? nominaDbAlt : null);
-        if (dbPath) {
-          const nominaDb = new Database(dbPath);
-          const tablas = ['dashboard_layout', 'usuario_empleados', 'registros', 'adjuntos', 'nominas', 'empleados', 'usuarios', 'tipos', 'permisos_roles', 'roles', 'configuracion'];
-          nominaDb.transaction(() => {
-            for (const t of tablas) { try { nominaDb.prepare(`DELETE FROM ${t}`).run(); } catch {} }
-            for (const [t, rows] of Object.entries(data)) {
-              if (!rows?.length) continue;
-              const cols = Object.keys(rows[0]);
-              const placeholders = cols.map(() => '?').join(',');
-              const ins = nominaDb.prepare(`INSERT OR IGNORE INTO ${t} (${cols.join(',')}) VALUES (${placeholders})`);
-              for (const r of rows) ins.run(...cols.map(c => r[c]));
-            }
-          })();
-          nominaDb.close();
-          stats.nomina = Object.entries(data).reduce((s, [t, r]) => s + (r?.length || 0), 0);
-        }
-      } catch (e) { console.error('Restore nómina error:', e.message); }
+    const tmpDir = path.join(os.tmpdir(), `synnox-restore-${Date.now()}`);
+    fs.mkdirSync(tmpDir, { recursive: true });
+    const dumpPath = path.join(tmpDir, 'synnox_erp.dump');
+    fs.writeFileSync(dumpPath, req.file.buffer);
+    // Verify dump integrity
+    await new Promise((resolve, reject) => {
+      execFile('pg_restore', ['--list', dumpPath], (err, stdout, stderr) => {
+        if (err) return reject(new Error('Archivo de dump inválido: ' + (stderr || err.message)));
+        resolve();
+      });
+    });
+    // Restore to synnox_erp
+    const pgPool = new (require('pg').Pool)({
+      host: process.env.DB_HOST || '127.0.0.1', port: parseInt(process.env.DB_PORT || '5432'),
+      database: process.env.DB_NAME || 'synnox_erp', user: process.env.DB_USER || 'synnox',
+      password: process.env.DB_PASSWORD || ''
+    });
+    await pgPool.query('BEGIN');
+    // Drop and recreate schemas
+    for (const schema of ['logistics', 'projects']) {
+      await pgPool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
+      await pgPool.query(`CREATE SCHEMA ${schema}`);
     }
-
-    // 2. Restore PostgreSQL modules
-    const pgPool = new Pool({
-      host: process.env.PGHOST || process.env.DB_HOST || '127.0.0.1',
-      port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
-      database: process.env.PGDATABASE || process.env.DB_NAME || 'synnox_erp',
-      user: process.env.PGUSER || process.env.DB_USER || 'postgres',
-      password: process.env.PGPASSWORD || process.env.DB_PASSWORD || undefined
+    await pgPool.query('COMMIT');
+    await pgPool.end();
+    // Run pg_restore
+    await new Promise((resolve, reject) => {
+      const env = { ...process.env, PGPASSWORD: process.env.DB_PASSWORD || '' };
+      execFile('pg_restore', ['-h', process.env.DB_HOST || '127.0.01', '-U', process.env.DB_USER || 'synnox', '-d', process.env.DB_NAME || 'synnox_erp', '--no-owner', '--no-privileges', dumpPath], { env }, (err, stdout, stderr) => {
+        if (err) return reject(new Error('Restore falló: ' + (stderr || err.message)));
+        resolve();
+      });
     });
-    try {
-      const restoreMap = {
-        logistica: { prefix: 'logistics', tablas: ['paradas_ruta', 'pedidos_logistica', 'rutas', 'vehiculos', 'configuracion', 'usuarios'] },
-        proyectos: { prefix: 'projects', tablas: ['evidencias', 'comentarios', 'tareas', 'proyectos'] },
-        proveedores: { prefix: '', tablas: ['eventos_flujo', 'facturas', 'centros_operacion', 'categorias_compra', 'areas', 'usuarios', 'configuracion'] }
-      };
-
-      for (const [nombre, cfg] of Object.entries(restoreMap)) {
-        const entry = zip.getEntry(`${nombre}/data.json`);
-        if (!entry) continue;
-        try {
-          const data = JSON.parse(entry.getData().toString('utf8'));
-          await pgPool.query('BEGIN');
-          for (const t of cfg.tablas) {
-            const tabla = cfg.prefix ? `${cfg.prefix}.${t}` : t;
-            await pgPool.query(`DELETE FROM ${tabla}`);
-          }
-          let count = 0;
-          for (const t of cfg.tablas) {
-            const rows = data[t];
-            if (!rows?.length) continue;
-            const tabla = cfg.prefix ? `${cfg.prefix}.${t}` : t;
-            const cols = Object.keys(rows[0]);
-            for (const r of rows) {
-              const vals = cols.map(c => r[c]);
-              const placeholders = cols.map((_, i) => `$${i + 1}`).join(',');
-              await pgPool.query(`INSERT INTO ${tabla} (${cols.join(',')}) VALUES (${placeholders}) ON CONFLICT DO NOTHING`, vals);
-              count++;
-            }
-          }
-          await pgPool.query('COMMIT');
-          stats[nombre] = count;
-        } catch (e) { await pgPool.query('ROLLBACK'); console.error(`Restore ${nombre} error:`, e.message); }
-      }
-    } finally { await pgPool.end(); }
-
-    res.json({ ok: true, manifest, stats, mensaje: 'Restauración completada' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// Restore per-schema endpoint
-app.post('/api/admin/backup/restore-module', verificarToken, soloAdmin, uploadRestore.single('archivo'), async (req, res) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
-    const zip = new AdmZip(req.file.buffer);
-    
-    // Find backup.json in the ZIP
-    const backupEntry = zip.getEntry('backup.json');
-    if (!backupEntry) return res.status(400).json({ error: 'ZIP no parece un backup de módulo (falta backup.json)' });
-    
-    const backup = JSON.parse(backupEntry.getData().toString('utf8'));
-    const schema = backup.schema;
-    if (!schema) return res.status(400).json({ error: 'ZIP no contiene información de schema' });
-
-    const pgPool = new Pool({
-      host: process.env.PGHOST || process.env.DB_HOST || '127.0.0.1',
-      port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
-      database: process.env.PGDATABASE || process.env.DB_NAME || 'synnox_erp',
-      user: process.env.PGUSER || process.env.DB_USER || 'postgres',
-      password: process.env.PGPASSWORD || process.env.DB_PASSWORD || undefined
-    });
-
-    try {
-      let totalFilas = 0;
-      for (const [t, rows] of Object.entries(backup)) {
-        if (t === 'app' || t === 'schema' || t === 'generado' || !Array.isArray(rows)) continue;
-        if (!rows.length) continue;
-        try {
-          await pgPool.query('BEGIN');
-          const tabla = `${schema}.${t}`;
-          const cols = Object.keys(rows[0]);
-          for (const r of rows) {
-            const vals = cols.map(c => r[c]);
-            const placeholders = cols.map((_, i) => `$${i + 1}`).join(',');
-            await pgPool.query(`INSERT INTO ${tabla} (${cols.join(',')}) VALUES (${placeholders}) ON CONFLICT DO NOTHING`, vals);
-            totalFilas++;
-          }
-          await pgPool.query('COMMIT');
-        } catch (e) {
-          await pgPool.query('ROLLBACK');
-          console.error(`Restore ${schema}.${t} error:`, e.message);
-        }
-      }
-      res.json({ ok: true, schema, totalFilas, mensaje: `Módulo ${schema} restaurado (${totalFilas} filas)` });
-    } finally { await pgPool.end(); }
+    // Cleanup
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    res.json({ ok: true, mensaje: 'Restauración completada desde backup general' });
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
