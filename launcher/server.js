@@ -3642,35 +3642,66 @@ app.get('/api/admin/backup/history', verificarToken, soloAdmin, (req, res) => {
 // POST /api/admin/backup/restore — restaura desde archivo subido (.tar.gz o .dump)
 const uploadRestore = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } });
 app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.single('backup'), async (req, res) => {
+  const tmpDir = path.join(os.tmpdir(), `synnox-restore-${Date.now()}`);
   try {
     if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
-    const tmpDir = path.join(os.tmpdir(), `synnox-restore-${Date.now()}`);
     fs.mkdirSync(tmpDir, { recursive: true });
     let dumpPath;
+    const restaurados = [];
 
     const isTarGz = req.file.originalname.endsWith('.tar.gz');
     const isDump = req.file.originalname.endsWith('.dump');
 
     if (isTarGz) {
-      // Extract tar.gz and find the .dump file inside
       const tarPath = path.join(tmpDir, 'backup.tar.gz');
       fs.writeFileSync(tarPath, req.file.buffer);
       await new Promise((resolve, reject) => {
         execFile('tar', ['xzf', tarPath, '-C', tmpDir], (err) => {
-          if (err) return reject(new Error('No se pudo extraer el archivo: ' + err.message));
+          if (err) return reject(new Error('No se pudo extraer: ' + err.message));
           resolve();
         });
       });
       dumpPath = path.join(tmpDir, 'postgres', 'synnox_erp.dump');
       if (!fs.existsSync(dumpPath)) {
-        fs.rmSync(tmpDir, { recursive: true, force: true });
         return res.status(400).json({ error: 'El archivo no contiene synnox_erp.dump' });
+      }
+
+      // 1. Restore SQLite: launcher.db (contains module names, users, config)
+      const launcherDbSrc = path.join(tmpDir, 'sqlite', 'launcher.db');
+      const launcherDbDest = path.join(LAUNCHER_DIR, 'launcher.db');
+      if (fs.existsSync(launcherDbSrc)) {
+        fs.copyFileSync(launcherDbSrc, launcherDbDest);
+        // Clean WAL/SHM
+        for (const ext of ['-wal', '-shm']) { try { fs.unlinkSync(launcherDbDest + ext); } catch {} }
+        restaurados.push('launcher.db (módulos, usuarios, config)');
+      }
+
+      // 2. Restore SQLite: horas_extra.db (nómina)
+      const horasDbSrc = path.join(tmpDir, 'sqlite', 'horas_extra.db');
+      const horasDbCandidates = [
+        path.join(LAUNCHER_DIR, 'horas_extra.db'),
+        path.join(LAUNCHER_DIR, 'modules', 'nomina', 'horas_extra.db')
+      ];
+      if (fs.existsSync(horasDbSrc)) {
+        const dest = horasDbCandidates.find(p => { try { fs.accessSync(path.dirname(p)); return true; } catch { return false; } }) || horasDbCandidates[0];
+        fs.mkdirSync(path.dirname(dest), { recursive: true });
+        fs.copyFileSync(horasDbSrc, dest);
+        for (const ext of ['-wal', '-shm']) { try { fs.unlinkSync(dest + ext); } catch {} }
+        restaurados.push('horas_extra.db (nómina)');
+      }
+
+      // 3. Restore uploads
+      const uploadsSrc = path.join(tmpDir, 'uploads.tar.gz');
+      if (fs.existsSync(uploadsSrc)) {
+        await new Promise((resolve) => {
+          execFile('tar', ['xzf', uploadsSrc, '-C', LAUNCHER_DIR], () => resolve());
+        });
+        restaurados.push('uploads');
       }
     } else if (isDump) {
       dumpPath = path.join(tmpDir, 'synnox_erp.dump');
       fs.writeFileSync(dumpPath, req.file.buffer);
     } else {
-      fs.rmSync(tmpDir, { recursive: true, force: true });
       return res.status(400).json({ error: 'Formato no soportado. Use .tar.gz o .dump' });
     }
 
@@ -3683,22 +3714,45 @@ app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.s
     });
 
     // Load .env for DB credentials
-    if (fs.existsSync(path.join(LAUNCHER_DIR, '..', '.env'))) {
-      require('dotenv').config({ path: path.join(LAUNCHER_DIR, '..', '.env') });
+    const envPath = path.join(LAUNCHER_DIR, '..', '.env');
+    if (fs.existsSync(envPath)) {
+      require('dotenv').config({ path: envPath });
     }
 
-    // Run pg_restore with --clean to drop existing objects first
-    await new Promise((resolve, reject) => {
+    // Run pg_restore with --clean
+    await new Promise((resolve) => {
       const env = { ...process.env, PGPASSWORD: process.env.DB_PASSWORD || '' };
-      execFile('pg_restore', ['-h', process.env.DB_HOST || '127.0.0.1', '-U', process.env.DB_USER || 'synnox', '-d', process.env.DB_NAME || 'synnox_erp', '--no-owner', '--no-privileges', '--clean', '--if-exists', dumpPath], { env }, (err, stdout, stderr) => {
-        // pg_restore returns non-zero even on success (warnings)
-        resolve();
-      });
+      execFile('pg_restore', [
+        '-h', process.env.DB_HOST || '127.0.0.1',
+        '-U', process.env.DB_USER || 'synnox',
+        '-d', process.env.DB_NAME || 'synnox_erp',
+        '--no-owner', '--no-privileges', '--clean', '--if-exists',
+        dumpPath
+      ], { env }, () => resolve());
     });
-    // Cleanup
+    restaurados.push('PostgreSQL (logistics, projects, public)');
+
+    // Cleanup tmp
     fs.rmSync(tmpDir, { recursive: true, force: true });
-    res.json({ ok: true, mensaje: 'Restauración completada desde backup general' });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+
+    // Restart PM2 to apply SQLite changes (module names, users, etc.)
+    let pm2Restarted = false;
+    try {
+      execFile('pm2', ['restart', 'all'], { timeout: 10000 }, () => {});
+      pm2Restarted = true;
+      restaurados.push('PM2 reiniciado');
+    } catch {}
+
+    res.json({
+      ok: true,
+      mensaje: `Restauración completada: ${restaurados.join(', ')}`,
+      restaurados,
+      pm2Restarted
+    });
+  } catch (err) {
+    fs.rmSync(tmpDir, { recursive: true, force: true });
+    res.status(500).json({ error: err.message });
+  }
 });
 
 if (require.main === module) {
