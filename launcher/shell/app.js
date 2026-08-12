@@ -3386,7 +3386,7 @@ async function restaurarBackup() {
   const input = document.getElementById('restore-file-input');
   const msgEl = document.getElementById('restore-msg');
   if (!input?.files?.length) { if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">Selecciona un archivo .dump o .tar.gz</span>'; return; }
-  if (!confirmModal('¿Restaurar este backup? Sobrescribirá TODOS los datos de PostgreSQL.', 'Restaurar backup', 'restart')) return;
+  if (!await confirmModal('¿Restaurar este backup? Sobrescribirá TODOS los datos de PostgreSQL.', 'Restaurar backup', 'restart')) return;
   if (msgEl) msgEl.innerHTML = '<span style="color:var(--muted);">⏳ Restaurando... esto puede tomar varios minutos</span>';
   try {
     const formData = new FormData();
