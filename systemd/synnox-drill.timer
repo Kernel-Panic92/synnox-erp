@@ -1,0 +1,10 @@
+[Unit]
+Description=Drill mensual de restore — SynnoxERP (día 1, 3 AM)
+
+[Timer]
+OnCalendar=*-*01 03:00:00
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target

@@ -52,6 +52,10 @@ async function main() {
       await db.backup(dest);
       db.close();
 
+      for (const ext of ['-wal', '-shm']) {
+        try { fs.unlinkSync(dest + ext); } catch {}
+      }
+
       const copy = new Database(dest, { readonly: true });
       const tablas = copy
         .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")

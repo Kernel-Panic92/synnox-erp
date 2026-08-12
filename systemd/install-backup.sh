@@ -11,14 +11,15 @@ fi
 INSTALL_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SYSTEMD_DIR="/etc/systemd/system"
 
-for unit in synnox-backup.service synnox-backup.timer; do
+for unit in synnox-backup.service synnox-backup.timer synnox-drill.timer; do
   sed "s|__INSTALL_DIR__|$INSTALL_DIR|g" "$INSTALL_DIR/systemd/$unit" > "$SYSTEMD_DIR/$unit"
   chmod 644 "$SYSTEMD_DIR/$unit"
   echo "✓ $unit instalado"
 done
 
 chmod +x "$INSTALL_DIR/scripts/backup_synnox.sh"
-chmod +x "$INSTALL_DIR/scripts/install-backup.sh"
+chmod +x "$INSTALL_DIR/scripts/restore_synnox.sh"
+chmod +x "$INSTALL_DIR/scripts/backup_drill.sh"
 
 mkdir -p "$INSTALL_DIR/backups"
 
@@ -30,9 +31,11 @@ fi
 
 systemctl daemon-reload
 systemctl enable --now synnox-backup.timer
+systemctl enable --now synnox-drill.timer
 
 echo ""
-echo "✓ Timer activo — próximo backup:"
-systemctl list-timers synnox-backup.timer --no-pager
+echo "✓ Timers activos:"
+systemctl list-timers synnox-* --no-pager
 echo ""
 echo "Prueba manual:  sudo $INSTALL_DIR/scripts/backup_synnox.sh"
+echo "Drill manual:   sudo $INSTALL_DIR/scripts/backup_drill.sh"
