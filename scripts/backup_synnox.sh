@@ -27,6 +27,7 @@ FECHA="$(date +%Y-%m-%d_%H-%M-%S)"
 NOMBRE="synnoxerp_backup_${FECHA}.tar.gz"
 STAGE="$BACKUP_ROOT/.staging-$$"
 LOG_FILE="$BACKUP_ROOT/last-run.log"
+PROGRESS_FILE="$BACKUP_ROOT/progress.json"
 START_EPOCH="$(date +%s)"
 
 ERRORES=()
@@ -40,6 +41,10 @@ log()  { echo "[$(date '+%F %T')] $*" | tee -a "$LOG_FILE"; }
 warn() { WARNINGS+=("$*"); log "⚠ $*"; }
 paso() { log "✓ $*"; }
 falla() { ERRORES+=("$*"); log "✗ $*"; }
+progress() {
+  local pct="$1" step="$2" detail="${3:-}"
+  node -e "require('fs').writeFileSync('$PROGRESS_FILE',JSON.stringify({pct:$pct,step:'$step',detail:'$detail'.replace(/'/g,\"\"),fecha:new Date().toISOString()}))"
+}
 
 # ── Lock: evitar ejecución simultánea ─────────────────────────────
 exec 200>"$BACKUP_ROOT/.backup.lock"
@@ -76,6 +81,8 @@ log "Backup SynnoxERP iniciado — $FECHA"
 log "Install dir: $INSTALL_DIR"
 log "══════════════════════════════════════════════════"
 
+# Clean progress file from previous runs
+rm -f "$PROGRESS_FILE"
 mkdir -p "$STAGE/postgres" "$STAGE/sqlite" "$STAGE/config"
 chmod 700 "$STAGE"
 
@@ -83,6 +90,7 @@ chmod 700 "$STAGE"
 # PASO 1 — PostgreSQL: dump completo (todos los schemas)
 # ══════════════════════════════════════════════════════════════════
 log "── Paso 1/6: pg_dump $PGDATABASE ──"
+progress 10 "pg_dump" "Exportando schema $PGDATABASE..."
 if timeout "$PG_DUMP_TIMEOUT" pg_dump \
     --format=custom --compress=6 --no-owner --no-privileges \
     --file="$STAGE/postgres/synnox_erp.dump" \
@@ -104,6 +112,7 @@ fi
 # config bundle (.env) y los roles pueden recrearse en el restore.
 # ══════════════════════════════════════════════════════════════════
 log "── Paso 2/6: pg_dumpall --globals-only ──"
+progress 25 "globals" "Exportando roles de PostgreSQL..."
 if timeout 300 pg_dumpall --globals-only --file="$STAGE/postgres/globals.sql" 2>>"$STAGE/postgres/pg_dump.log"; then
   if grep -q "PASSWORD" "$STAGE/postgres/globals.sql" 2>/dev/null; then
     paso "globals.sql OK (incluye password hashes)"
@@ -128,6 +137,7 @@ psql -Atq -c "SELECT 'SELECT ''' || schemaname || '.' || tablename || ''' AS tab
 # PASO 3 — SQLite hot-backup (launcher + nómina)
 # ══════════════════════════════════════════════════════════════════
 log "── Paso 3/6: SQLite hot-backup ──"
+progress 40 "sqlite" "Copiando bases SQLite..."
 if NODE_PATH="$NODE_PATH_EXPORT" node "$SCRIPTS_DIR/backup-sqlite.js" "$INSTALL_DIR" "$STAGE" >>"$LOG_FILE" 2>&1; then
   paso "SQLite hot-backup OK"
 else
@@ -138,6 +148,7 @@ fi
 # PASO 4 — Uploads y media
 # ══════════════════════════════════════════════════════════════════
 log "── Paso 4/6: uploads y media ──"
+progress 55 "uploads" "Comprimiendo uploads y media..."
 UPLOAD_DIRS=()
 for d in modules/proveedores/uploads modules/logistica/uploads media; do
   [ -d "$INSTALL_DIR/$d" ] && UPLOAD_DIRS+=("$d")
@@ -156,6 +167,7 @@ fi
 # PASO 5 — Config bundle (.env, nginx, PM2, crontab, letsencrypt)
 # ══════════════════════════════════════════════════════════════════
 log "── Paso 5/6: config bundle ──"
+progress 65 "config" "Empaquetando configuración..."
 CFG="$STAGE/config"
 
 copiar_si_existe() {
@@ -216,6 +228,7 @@ fi
 # PASO 6 — Manifest + empaquetado final
 # ══════════════════════════════════════════════════════════════════
 log "── Paso 6/6: manifest y empaquetado ──"
+progress 80 "manifest" "Generando manifest y empaquetando..."
 if ! node "$SCRIPTS_DIR/backup-finalize.js" "$STAGE" "$INSTALL_DIR" >>"$LOG_FILE" 2>&1; then
   falla "Generación de manifest falló"
 fi
@@ -238,6 +251,7 @@ if [ -f "$BACKUP_ROOT/.nas.conf" ] && [ -e "$BACKUP_ROOT/$NOMBRE" ]; then
   . "$BACKUP_ROOT/.nas.conf"
   if [ "${NAS_ENABLED:-false}" = "true" ]; then
     log "── Copia a NAS: ${NAS_SHARE:-?} ──"
+    progress 90 "nas" "Copiando a NAS..."
     NAS_OK=false
     MONTAR_DESMONTADO=false
     MOUNT_POINT="${NAS_MOUNT:-/mnt/synnox-nas}"
@@ -303,10 +317,9 @@ retencion_gfs() {
 }
 retencion_gfs
 
-# ── status.json + historial ────────────────────────────────────────
+ # ── status.json + historial ────────────────────────────────────────
 DURACION=$(( $(date +%s) - START_EPOCH ))
 OK=true
-PARCIAL=false
 [ ${#ERRORES[@]} -gt 0 ] && OK=false
 
 BYTES=0
@@ -324,19 +337,22 @@ fi
 MANIFEST_RESUMEN="{}"
 [ -f "$STAGE/manifest.json" ] && MANIFEST_RESUMEN="$(node -e "const m=require('$STAGE/manifest.json');console.log(JSON.stringify({postgres:m.postgres,sqlite:m.sqlite.map(s=>({nombre:s.nombre,tablas:s.tablas,filas:s.filas})),total_bytes:m.total_bytes}))" 2>/dev/null || echo '{}')"
 
-cat > "$BACKUP_ROOT/status.json" <<EOF
-{
-  "fecha": "$(date -Iseconds)",
-  "ok": $OK,
-  "archivo": "$NOMBRE",
-  "bytes": $BYTES,
-  "duracion_s": $DURACION,
-  "nas": $NAS_RESULTADO,
-  "errores": $ERRORES_JSON,
-  "warnings": $WARN_JSON,
-  "resumen": $MANIFEST_RESUMEN
-}
-EOF
+# Generate status.json safely via node (avoid heredoc escaping issues)
+node -e "
+const fs = require('fs');
+const status = {
+  fecha: new Date().toISOString(),
+  ok: $OK,
+  archivo: $(node -e "console.log(JSON.stringify('$NOMBRE'))"),
+  bytes: $BYTES,
+  duracion_s: $DURACION,
+  nas: $NAS_RESULTADO,
+  errores: $ERRORES_JSON,
+  warnings: $WARN_JSON,
+  resumen: $MANIFEST_RESUMEN
+};
+fs.writeFileSync('$BACKUP_ROOT/status.json', JSON.stringify(status, null, 2));
+"
 
 echo "{\"fecha\":\"$(date -Iseconds)\",\"ok\":$OK,\"archivo\":\"$NOMBRE\",\"bytes\":$BYTES,\"duracion_s\":$DURACION}" >> "$BACKUP_ROOT/history.jsonl"
 
@@ -367,8 +383,10 @@ fi
 log "══════════════════════════════════════════════════"
 if [ "$OK" = true ]; then
   log "✅ Backup completado exitosamente en ${DURACION}s"
+  progress 100 "done" "Backup completado en ${DURACION}s"
 else
   log "❌ Backup terminado con errores"
+  progress 100 "done" "Backup completado con errores"
 fi
 log "══════════════════════════════════════════════════"
 

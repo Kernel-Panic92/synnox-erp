@@ -3230,10 +3230,23 @@ async function runBackup() {
   const btn = document.getElementById('btn-run-backup');
   const msgEl = document.getElementById('backup-run-msg');
   if (btn) btn.disabled = true;
-  if (msgEl) msgEl.innerHTML = '<span style="color:var(--muted);">⏳ Ejecutando backup... esto puede tomar unos minutos</span>';
+  if (msgEl) msgEl.innerHTML = '<span style="color:var(--muted);">⏳ Iniciando backup...</span>';
+  
+  // Show progress bar
+  const progressContainer = document.getElementById('backup-progress');
+  const progressBar = document.getElementById('backup-progress-bar');
+  const progressText = document.getElementById('backup-progress-text');
+  if (progressContainer) progressContainer.style.display = 'block';
+  if (progressBar) progressBar.style.width = '5%';
+  if (progressText) progressText.textContent = 'Iniciando...';
+  
   try {
     const res = await fetch('/api/admin/backup/run', { method: 'POST', headers: { 'Authorization': 'Bearer ' + jwtToken } });
     const data = await res.json();
+    
+    // Hide progress bar
+    if (progressContainer) progressContainer.style.display = 'none';
+    
     if (data.ok) {
       if (msgEl) msgEl.innerHTML = '<span style="color:var(--success);">✅ Backup completado</span>';
     } else {
@@ -3247,9 +3260,42 @@ async function runBackup() {
     loadBackupStatus();
     loadBackupList();
   } catch (e) {
+    if (progressContainer) progressContainer.style.display = 'none';
     if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">✗ ' + e.message + '</span>';
   }
   if (btn) btn.disabled = false;
+  
+  // Stop polling
+  if (window._backupPollInterval) {
+    clearInterval(window._backupPollInterval);
+    window._backupPollInterval = null;
+  }
+}
+
+let _backupPollActive = false;
+function startBackupPoll() {
+  if (_backupPollActive) return;
+  _backupPollActive = true;
+  const progressBar = document.getElementById('backup-progress-bar');
+  const progressText = document.getElementById('backup-progress-text');
+  
+  window._backupPollInterval = setInterval(async () => {
+    try {
+      const res = await fetch('/api/admin/backup/progress', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+      const data = await res.json();
+      if (data.running && progressBar && progressText) {
+        progressBar.style.width = data.pct + '%';
+        const pctEl = document.getElementById('backup-progress-pct');
+        if (pctEl) pctEl.textContent = data.pct + '%';
+        const steps = { pg_dump: 'PostgreSQL dump', globals: 'Roles', sqlite: 'SQLite', uploads: 'Uploads', config: 'Config', manifest: 'Empaquetado', nas: 'NAS', done: 'Completado' };
+        progressText.textContent = (steps[data.step] || data.step) + (data.detail ? ': ' + data.detail : '');
+      } else if (!data.running) {
+        clearInterval(window._backupPollInterval);
+        window._backupPollInterval = null;
+        _backupPollActive = false;
+      }
+    } catch {}
+  }, 1000);
 }
 
 async function loadBackupList() {

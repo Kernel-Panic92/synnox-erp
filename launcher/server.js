@@ -3574,6 +3574,19 @@ app.get('/api/admin/backup/status', verificarToken, soloAdmin, (req, res) => {
   } catch (err) { res.status(500).json({ error: err.message }); }
 });
 
+// GET /api/admin/backup/progress — progreso del backup en ejecución
+app.get('/api/admin/backup/progress', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const progressFile = path.join(BACKUP_ROOT, 'progress.json');
+    if (!fs.existsSync(progressFile)) return res.json({ running: false });
+    const progress = JSON.parse(fs.readFileSync(progressFile, 'utf8'));
+    const age = (Date.now() - new Date(progress.fecha).getTime()) / 1000;
+    // If progress is older than 5 minutes, consider it stale
+    if (age > 300) return res.json({ running: false });
+    res.json({ running: true, ...progress });
+  } catch (err) { res.json({ running: false }); }
+});
+
 // GET /api/admin/backup/list — lista archivos de backup en el servidor
 app.get('/api/admin/backup/list', verificarToken, soloAdmin, (req, res) => {
   try {

@@ -1000,8 +1000,17 @@
           <div class="skeleton skeleton-row" style="height:60px;"></div>
         </div>
         <div style="display:flex;gap:10px;flex-wrap:wrap;">
-          <button class="btn btn-sm btn-primary" onclick="runBackup()" id="btn-run-backup">▶ Ejecutar ahora</button>
+          <button class="btn btn-sm btn-primary" onclick="runBackup();startBackupPoll()" id="btn-run-backup">▶ Ejecutar ahora</button>
           <button class="btn btn-sm btn-secondary" onclick="loadBackupStatus()">🔄 Actualizar</button>
+        </div>
+        <div id="backup-progress" style="display:none;margin-top:12px;">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+            <span id="backup-progress-text" style="color:var(--muted);">Iniciando...</span>
+            <span id="backup-progress-pct" style="color:var(--muted);"></span>
+          </div>
+          <div style="background:var(--surface2);border-radius:6px;height:8px;overflow:hidden;">
+            <div id="backup-progress-bar" style="background:var(--primary);height:100%;width:0%;transition:width 0.3s;border-radius:6px;"></div>
+          </div>
         </div>
         <div id="backup-run-msg" style="margin-top:10px;"></div>
       </div>
