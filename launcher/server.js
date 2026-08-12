@@ -3598,7 +3598,7 @@ cron.schedule('0 2 * * *', async () => {
       }
     } catch (e) { console.error('[Backup] Nómina error:', e.message); }
 
-    // 3. PostgreSQL modules — auto-discover
+    // 3. PostgreSQL modules — auto-discover ALL schemas
     const pgPool = new Pool({
       host: process.env.PGHOST || process.env.DB_HOST || '127.0.0.1',
       port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
@@ -3607,27 +3607,35 @@ cron.schedule('0 2 * * *', async () => {
       password: process.env.PGPASSWORD || process.env.DB_PASSWORD || undefined
     });
     try {
-      const schemaMap = { logistica: 'logistics', proyectos: 'projects', proveedores: 'public' };
-      const existentes = await pgPool.query(`SELECT schema_name FROM information_schema.schemata WHERE schema_name IN ('logistics','projects','public')`);
-      const schemasDisponibles = new Set(existentes.rows.map(r => r.schema_name));
-      for (const [nombre, schema] of Object.entries(schemaMap)) {
-        if (!schemasDisponibles.has(schema)) continue;
+      // Auto-discover: get ALL schemas except system schemas
+      const systemSchemas = ['pg_catalog', 'information_schema', 'pg_toast'];
+      const schemasRes = await pgPool.query(
+        `SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ($1) ORDER BY schema_name`,
+        [systemSchemas]
+      );
+      
+      for (const { schema_name: schema } of schemasRes.rows) {
         try {
-          const tablasRes = await pgPool.query(`SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_type = 'BASE TABLE' ORDER BY table_name`, [schema]);
+          const tablasRes = await pgPool.query(
+            `SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_type = 'BASE TABLE' ORDER BY table_name`,
+            [schema]
+          );
           const tablas = tablasRes.rows.map(r => r.table_name);
+          if (!tablas.length) continue;
+
           const data = {};
           let totalFilas = 0;
           for (const t of tablas) {
             try {
-              const tabla = schema === 'public' ? t : `${schema}.${t}`;
+              const tabla = `${schema}.${t}`;
               const r = await pgPool.query(`SELECT * FROM ${tabla}`);
               data[t] = r.rows;
               totalFilas += r.rows.length;
             } catch {}
           }
-          zip.addFile(`${nombre}/data.json`, Buffer.from(JSON.stringify(data, null, 2), 'utf8'));
-          manifest.modulos.push({ nombre, tablas: tablas.length, filas: totalFilas });
-        } catch (e) { console.error(`[Backup] ${nombre} error:`, e.message); }
+          zip.addFile(`${schema}/data.json`, Buffer.from(JSON.stringify(data, null, 2), 'utf8'));
+          manifest.modulos.push({ nombre: schema, tablas: tablas.length, filas: totalFilas });
+        } catch (e) { console.error(`[Backup] ${schema} error:`, e.message); }
       }
     } finally { await pgPool.end(); }
 
@@ -3722,7 +3730,7 @@ app.get('/api/admin/backup/general', verificarToken, soloAdmin, async (req, res)
       }
     } catch (e) { console.error('Backup nómina error:', e.message); }
 
-    // 3. PostgreSQL modules — auto-discover tables
+    // 3. PostgreSQL modules — auto-discover ALL schemas
     const pgPool = new Pool({
       host: process.env.PGHOST || process.env.DB_HOST || '127.0.0.1',
       port: parseInt(process.env.PGPORT || process.env.DB_PORT || '5432'),
@@ -3731,39 +3739,35 @@ app.get('/api/admin/backup/general', verificarToken, soloAdmin, async (req, res)
       password: process.env.PGPASSWORD || process.env.DB_PASSWORD || undefined
     });
     try {
-      const schemaMap = {
-        logistica: 'logistics',
-        proyectos: 'projects',
-        proveedores: 'public'
-      };
+      // Auto-discover: get ALL schemas except system schemas
+      const systemSchemas = ['pg_catalog', 'information_schema', 'pg_toast'];
+      const schemasRes = await pgPool.query(
+        `SELECT schema_name FROM information_schema.schemata WHERE schema_name NOT IN ($1) ORDER BY schema_name`,
+        [systemSchemas]
+      );
 
-      // Auto-discover: check which schemas exist and get their tables
-      const existentes = await pgPool.query(`SELECT schema_name FROM information_schema.schemata WHERE schema_name IN ('logistics','projects','public')`);
-      const schemasDisponibles = new Set(existentes.rows.map(r => r.schema_name));
-
-      for (const [nombre, schema] of Object.entries(schemaMap)) {
-        if (!schemasDisponibles.has(schema)) continue;
+      for (const { schema_name: schema } of schemasRes.rows) {
         try {
-          // Auto-discover tables in this schema
           const tablasRes = await pgPool.query(
             `SELECT table_name FROM information_schema.tables WHERE table_schema = $1 AND table_type = 'BASE TABLE' ORDER BY table_name`,
             [schema]
           );
           const tablas = tablasRes.rows.map(r => r.table_name);
-          
+          if (!tablas.length) continue;
+
           const data = {};
           let totalFilas = 0;
           for (const t of tablas) {
             try {
-              const tabla = schema === 'public' ? t : `${schema}.${t}`;
+              const tabla = `${schema}.${t}`;
               const r = await pgPool.query(`SELECT * FROM ${tabla}`);
               data[t] = r.rows;
               totalFilas += r.rows.length;
             } catch {}
           }
-          zip.addFile(`${nombre}/data.json`, Buffer.from(JSON.stringify(data, null, 2), 'utf8'));
-          manifest.modulos.push({ nombre, tablas: tablas.length, filas: totalFilas });
-        } catch (e) { console.error(`Backup ${nombre} error:`, e.message); }
+          zip.addFile(`${schema}/data.json`, Buffer.from(JSON.stringify(data, null, 2), 'utf8'));
+          manifest.modulos.push({ nombre: schema, tablas: tablas.length, filas: totalFilas });
+        } catch (e) { console.error(`Backup ${schema} error:`, e.message); }
       }
     } finally { await pgPool.end(); }
 
