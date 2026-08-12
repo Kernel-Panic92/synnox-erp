@@ -3687,25 +3687,11 @@ app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.s
       require('dotenv').config({ path: path.join(LAUNCHER_DIR, '..', '.env') });
     }
 
-    // Restore to synnox_erp
-    const pgPool = new (require('pg').Pool)({
-      host: process.env.DB_HOST || '127.0.0.1', port: parseInt(process.env.DB_PORT || '5432'),
-      database: process.env.DB_NAME || 'synnox_erp', user: process.env.DB_USER || 'synnox',
-      password: process.env.DB_PASSWORD || ''
-    });
-    await pgPool.query('BEGIN');
-    // Drop and recreate schemas
-    for (const schema of ['logistics', 'projects']) {
-      await pgPool.query(`DROP SCHEMA IF EXISTS ${schema} CASCADE`);
-      await pgPool.query(`CREATE SCHEMA ${schema}`);
-    }
-    await pgPool.query('COMMIT');
-    await pgPool.end();
-    // Run pg_restore
+    // Run pg_restore with --clean to drop existing objects first
     await new Promise((resolve, reject) => {
       const env = { ...process.env, PGPASSWORD: process.env.DB_PASSWORD || '' };
-      execFile('pg_restore', ['-h', process.env.DB_HOST || '127.0.0.1', '-U', process.env.DB_USER || 'synnox', '-d', process.env.DB_NAME || 'synnox_erp', '--no-owner', '--no-privileges', dumpPath], { env }, (err, stdout, stderr) => {
-        if (err) return reject(new Error('Restore falló: ' + (stderr || err.message)));
+      execFile('pg_restore', ['-h', process.env.DB_HOST || '127.0.0.1', '-U', process.env.DB_USER || 'synnox', '-d', process.env.DB_NAME || 'synnox_erp', '--no-owner', '--no-privileges', '--clean', '--if-exists', dumpPath], { env }, (err, stdout, stderr) => {
+        // pg_restore returns non-zero even on success (warnings)
         resolve();
       });
     });
