@@ -3173,8 +3173,11 @@ async function loadBackupStatus() {
       fetch('/api/admin/backup/status', { headers: { 'Authorization': 'Bearer ' + jwtToken } }),
       fetch('/api/admin/backup/list', { headers: { 'Authorization': 'Bearer ' + jwtToken } })
     ]);
-    const statusData = await statusRes.json();
-    const listData = await listRes.json();
+    const statusText = await statusRes.text();
+    const listText = await listRes.text();
+    let statusData, listData;
+    try { statusData = JSON.parse(statusText); } catch { statusData = { ok: false }; }
+    try { listData = JSON.parse(listText); } catch { listData = { ok: false, backups: [] }; }
     
     if (!statusData.ok && !statusData.status) {
       el.innerHTML = '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;color:var(--muted);">No hay backups ejecutados aún</div>';
@@ -3242,7 +3245,9 @@ async function runBackup() {
   
   try {
     const res = await fetch('/api/admin/backup/run', { method: 'POST', headers: { 'Authorization': 'Bearer ' + jwtToken } });
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { throw new Error('Respuesta inválida del servidor'); }
     
     // Hide progress bar
     if (progressContainer) progressContainer.style.display = 'none';
@@ -3304,7 +3309,9 @@ async function loadBackupList() {
   el.innerHTML = '<div class="skeleton skeleton-row" style="height:40px;"></div>';
   try {
     const res = await fetch('/api/admin/backup/list', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { ok: false, backups: [] }; }
     if (!data.ok || !data.backups.length) {
       el.innerHTML = '<div style="color:var(--muted);font-size:13px;">No hay backups en el servidor</div>';
       return;
@@ -3355,7 +3362,9 @@ async function loadBackupHistory() {
   if (!el) return;
   try {
     const res = await fetch('/api/admin/backup/history', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
-    const data = await res.json();
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { ok: false, history: [] }; }
     if (!data.ok || !data.history.length) {
       el.innerHTML = '<div style="color:var(--muted);">Sin historial</div>';
       return;

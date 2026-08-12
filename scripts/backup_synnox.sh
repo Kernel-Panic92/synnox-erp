@@ -120,7 +120,7 @@ if timeout 300 pg_dumpall --globals-only --file="$STAGE/postgres/globals.sql" 2>
     paso "globals.sql OK"
     warn "globals.sql sin password hashes — el usuario $PGUSER no puede leer pg_authid"
   fi
-elif id postgres >/dev/null 2>&1 && su postgres -c "pg_dumpall --globals-only" > "$STAGE/postgres/globals.sql" 2>>"$STAGE/postgres/pg_dump.log"; then
+elif [ "$(id -u)" -eq 0 ] && timeout 10 su postgres -c "pg_dumpall --globals-only" > "$STAGE/postgres/globals.sql" 2>>"$STAGE/postgres/pg_dump.log"; then
   chown root:root "$STAGE/postgres/globals.sql" 2>/dev/null || true
   paso "globals.sql OK (via usuario de sistema postgres)"
 else
