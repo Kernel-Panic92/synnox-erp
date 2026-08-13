@@ -192,6 +192,11 @@ async function cargarCentrosProyectos() {
 async function abrirModalProyecto(id) {
   await cargarCentrosProyectos();
   await cargarTodosLosUsuarios();
+  // Reset member selections for new projects
+  if (!id) {
+    _miembrosSeleccionados = new Set();
+    _miembrosRoles = {};
+  }
   const p = id ? _proyectos.find(x => x.id === id) : null;
   const titulo = p ? 'Editar Proyecto' : 'Nuevo Proyecto';
   const centroOpts = (_centrosCache || []).map(c =>
@@ -427,7 +432,10 @@ function actualizarContadorMiembros() {
 }
 
 async function guardarMiembrosProyecto() {
-  if (!_proyectoMiembrosActual) return;
+  if (!_proyectoMiembrosActual) {
+    toast('Guarda el proyecto primero para gestionar miembros', 'warning');
+    return;
+  }
   const miembros = [..._miembrosSeleccionados].map(id => ({
     usuario_id: id,
     rol: _miembrosRoles[id] || 'miembro'
@@ -441,8 +449,30 @@ async function guardarMiembrosProyecto() {
     delete _miembrosProyectoCache[_proyectoMiembrosActual];
     document.getElementById('modal-miembros').style.display = 'none';
     await cargarProyectos();
-    abrirModalProyecto(_proyectoMiembrosActual);
+    if (_proyectoMiembrosActual) {
+      abrirModalProyecto(_proyectoMiembrosActual);
+    } else {
+      // For new projects, update badges in the form
+      actualizarBadgesMiembros();
+    }
   } catch (err) { toast(err.message, 'error'); }
+}
+
+function actualizarBadgesMiembros() {
+  const badgesEl = document.getElementById('proy-miembros-badges');
+  if (!badgesEl) return;
+  if (_miembrosSeleccionados.size > 0) {
+    badgesEl.innerHTML = [..._miembrosSeleccionados].map(uid => {
+      const rol = _miembrosRoles[uid] || 'miembro';
+      const badge = rol === 'lider' ? 'badge-info' : rol === 'observador' ? 'badge-warning' : 'badge-muted';
+      return `<span class="badge ${badge}" style="font-size:11px">${esc(nombreUsuario(uid))} · ${rol}</span>`;
+    }).join('');
+  } else {
+    badgesEl.innerHTML = '<span style="font-size:12px;color:var(--muted)">Sin miembros</span>';
+  }
+  // Update count
+  const countEl = badgesEl.closest('[style*="border-top"]')?.querySelector('span[style*="font-weight:400"]');
+  if (countEl) countEl.textContent = `(${_miembrosSeleccionados.size})`;
 }
 
 // ── Actas de cierre ──

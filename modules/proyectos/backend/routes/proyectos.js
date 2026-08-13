@@ -175,10 +175,16 @@ router.get('/:id', requirePermiso('ver', 'proyectos'), async (req, res) => {
 });
 
 router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
+  const client = await pool.connect();
   try {
     const { nombre, descripcion, fecha_limite, centro_id, asignado_a, prioridad, miembros } = req.body;
     if (!nombre) return res.status(400).json({ error: 'El nombre es requerido' });
-    const result = await pool.query(
+
+    const validRoles = ['lider', 'miembro', 'observador'];
+
+    await client.query('BEGIN');
+
+    const result = await client.query(
       `INSERT INTO projects.proyectos (nombre, descripcion, fecha_limite, centro_id, asignado_a, prioridad)
        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
       [nombre, descripcion || '', fecha_limite || null, centro_id || null, asignado_a || null, prioridad || 'media']
@@ -188,7 +194,7 @@ router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
 
     // Crear al asignado como lider del proyecto
     if (asignado_a) {
-      await pool.query(
+      await client.query(
         `INSERT INTO projects.proyecto_miembros (proyecto_id, usuario_id, rol)
          VALUES ($1, $2, 'lider')
          ON CONFLICT (proyecto_id, usuario_id) DO NOTHING`,
@@ -200,15 +206,18 @@ router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
     if (Array.isArray(miembros) && miembros.length > 0) {
       for (const m of miembros) {
         if (m.usuario_id) {
-          await pool.query(
+          const rol = validRoles.includes(m.rol) ? m.rol : 'miembro';
+          await client.query(
             `INSERT INTO projects.proyecto_miembros (proyecto_id, usuario_id, rol)
              VALUES ($1, $2, $3)
              ON CONFLICT (proyecto_id, usuario_id) DO UPDATE SET rol = $3`,
-            [proyectoId, m.usuario_id, m.rol || 'miembro']
+            [proyectoId, m.usuario_id, rol]
           );
         }
       }
     }
+
+    await client.query('COMMIT');
 
     // Notificar al asignado
     if (asignado_a) {
@@ -236,12 +245,13 @@ router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
       try {
         for (const m of miembros) {
           if (m.usuario_id && m.usuario_id !== asignado_a) {
+            const rol = validRoles.includes(m.rol) ? m.rol : 'miembro';
             notificar({
               usuario_id: m.usuario_id,
               modulo: 'proyectos',
               tipo: 'proyecto_miembro',
               titulo: 'Agregado a proyecto',
-              mensaje: `Fuiste agregado al proyecto "${nombre}" como ${m.rol || 'miembro'}`,
+              mensaje: `Fuiste agregado al proyecto "${nombre}" como ${rol}`,
               url: '/proyectos/#proyectos',
               email: null,
               emailAsunto: `[Proyectos] Agregado a proyecto: ${nombre}`,
@@ -255,7 +265,10 @@ router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
 
     res.status(201).json({ exitosa: true, proyecto: result.rows[0] });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     res.status(500).json({ error: err.message });
+  } finally {
+    client.release();
   }
 });
 

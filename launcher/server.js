@@ -2563,7 +2563,20 @@ server {
     add_header X-Frame-Options SAMEORIGIN;
     add_header X-Content-Type-Options nosniff;
 
-    client_max_body_size 0;  # Sin límite — backups pueden ser gigabytes
+    client_max_body_size 50M;
+
+    # Backup restore — archivos grandes (sin límite de tamaño)
+    location /api/admin/backup/restore {
+        client_max_body_size 0;
+        proxy_pass http://127.0.0.1:3002;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_request_buffering off;
+        proxy_read_timeout 600s;
+    }
 
     # Launcher: API + SPA + MCP
     location / {
@@ -2576,8 +2589,6 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
-        proxy_request_buffering off;  # Stream directo a Node.js (backups grandes)
-        proxy_read_timeout 600s;      # Restore puede tardar varios minutos
     }
 
     # Gateway MCP al launcher (accesible desde puerto 443)
@@ -3670,7 +3681,14 @@ app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.s
     if (isTarGz) {
       const tarPath = path.join(tmpDir, 'backup.tar.gz');
       // Move uploaded file to tmpDir (already on disk from diskStorage)
-      fs.renameSync(req.file.path, tarPath);
+      try {
+        fs.renameSync(req.file.path, tarPath);
+      } catch (e) {
+        if (e.code === 'EXDEV') {
+          fs.copyFileSync(req.file.path, tarPath);
+          fs.unlinkSync(req.file.path);
+        } else throw e;
+      }
       await new Promise((resolve, reject) => {
         execFile('tar', ['xzf', tarPath, '-C', tmpDir], (err) => {
           if (err) return reject(new Error('No se pudo extraer: ' + err.message));
@@ -3717,7 +3735,14 @@ app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.s
     } else if (isDump) {
       dumpPath = path.join(tmpDir, 'synnox_erp.dump');
       // Move uploaded file to tmpDir (already on disk from diskStorage)
-      fs.renameSync(req.file.path, dumpPath);
+      try {
+        fs.renameSync(req.file.path, dumpPath);
+      } catch (e) {
+        if (e.code === 'EXDEV') {
+          fs.copyFileSync(req.file.path, dumpPath);
+          fs.unlinkSync(req.file.path);
+        } else throw e;
+      }
     } else {
       return res.status(400).json({ error: 'Formato no soportado. Use .tar.gz o .dump' });
     }

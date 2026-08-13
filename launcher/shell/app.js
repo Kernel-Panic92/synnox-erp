@@ -3386,8 +3386,12 @@ async function loadBackupHistory() {
 async function restaurarBackup() {
   const input = document.getElementById('restore-file-input');
   const msgEl = document.getElementById('restore-msg');
+  const btn = document.querySelector('.btn-danger[onclick="restaurarBackup()"]');
   if (!input?.files?.length) { if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">Selecciona un archivo .dump o .tar.gz</span>'; return; }
   if (!await confirmModal('¿Restaurar este backup? Sobrescribirá TODOS los datos de PostgreSQL.', 'Restaurar backup', 'restart')) return;
+
+  // Disable button during restore
+  if (btn) btn.disabled = true;
 
   // Show progress bar
   const progressContainer = document.getElementById('restore-progress');
@@ -3441,12 +3445,18 @@ async function restaurarBackup() {
     input.value = '';
     // Hide progress bar after 2 seconds
     setTimeout(() => { if (progressContainer) progressContainer.style.display = 'none'; }, 2000);
+    // Re-enable button
+    if (btn) btn.disabled = false;
     // Reload after PM2 restart to reflect changes
     if (data.pm2Restarted) setTimeout(() => location.reload(), 5000);
   } catch (e) {
     clearInterval(progressInterval);
     if (progressContainer) progressContainer.style.display = 'none';
-    if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">✗ ' + e.message + '</span>';
+    if (msgEl) {
+      msgEl.textContent = '✗ ' + e.message;
+      msgEl.style.color = 'var(--danger)';
+    }
+    if (btn) btn.disabled = false;
   }
 }
 
