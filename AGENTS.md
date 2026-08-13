@@ -47,6 +47,15 @@
 - `modules/proyectos/public/framework.js` — sincronizado con framework principal
 - `modules/logistica/public/app.js` — H3 (edit_comentario validation)
 
+#### Fix vulnerabilidades Dependabot (13 → 0)
+- **hono** 4.12.31 → ≥4.12.34 (4 medium: SSR leak, ReDoS, DoS, Proxy headers)
+- **@hono/node-server** 1.19.14 → ≥1.19.15 (1 medium: path traversal Windows)
+- **fast-uri** 3.1.4 → ≥3.1.5 (1 high: host confusion SSRF)
+- **ip-address** 10.2.0 → ≥10.3.0 (3 high: SSRF via octal/CIDR/IPv4-mapped)
+- **brace-expansion** 1.1.16/2.1.2/5.0.7 → ≥5.0.9 (2 high: DoS unbounded arrays/expansion)
+- **adm-zip** 0.5.18 → ≥0.6.0 (1 high: 4GB memory allocation via crafted ZIP)
+- **Solución**: pnpm overrides en `package.json` para todas las dependencias transitive
+
 ---
 
 ## Estado (12 Ago 2026 — sesión 42)
@@ -331,7 +340,7 @@
 
 ## Estado actual (13 Ago 2026)
 ### Últimos cambios
-- **Sesión 43**: Merge de branches a dev + Code Review + Fixes (CRITICAL/HIGH issues resueltos)
+- **Sesión 43**: Merge de branches a dev + Code Review + Fixes (CRITICAL/HIGH issues resueltos) + Fix vulnerabilidades Dependabot (13 → 0)
 - **Sesión 42**: Backup unificado DR — pg_dump + SQLite + uploads + config bundle, systemd timer
 - **Sesión 41**: Filtros en tablas, paginación, deep-linking emails, notificaciones in-app + navegador.
 - **Sesión 40**: Miembros de proyecto con roles (lider/miembro/observador), filtrado de tareas por miembros, gestión de miembros en modal.
@@ -445,3 +454,55 @@
 - **Repo**: Private, deploy via SSH key read-only, `git pull && pm2 restart`
 - **Entorno**: 2 VMs dev + 1 prod. Flujo: dev local → PR → merge a `main` → prod git pull
 - **Vulnerabilidades**: 0 (`pnpm audit --prod`)
+
+---
+
+## Proceso de merge dev → main
+
+### Pre-merge (checklist)
+1. `pnpm audit --prod` → 0 vulnerabilidades
+2. `git status` → working tree limpio
+3. `git log --oneline main..dev` → revisar commits pendientes
+4. Verificar que no hay ramas feature pendientes en dev
+
+### Pasos del merge
+```bash
+# 1. Actualizar main localmente
+git checkout main
+git pull origin main
+
+# 2. Merge dev a main
+git merge dev --no-edit
+
+# 3. Si hay conflictos, resolver y commit
+# git add . && git commit --no-edit
+
+# 4. Push a origin
+git push origin main
+
+# 5. Verificar en servidor (producción)
+ssh root@server "cd /opt/synnoxerp && git pull && pm2 restart all"
+```
+
+### Post-merge (verificación)
+1. Verificar que el servidor PM2 levantó correctamente
+2. Probar login y módulos principales
+3. `pnpm audit --prod` en servidor para confirmar 0 vulnerabilidades
+4. Verificar logs: `pm2 logs --lines 50`
+
+### Rollback (si algo falla)
+```bash
+# Revertir el merge en main
+git checkout main
+git revert -m 1 HEAD
+git push origin main
+
+# En servidor
+ssh root@server "cd /opt/synnoxerp && git pull && pm2 restart all"
+```
+
+### Notas importantes
+- **NO hacer force push a main** — historia debe ser preservada
+- **Backup antes del merge** — systemd timer corre a las 2 AM, pero verificar
+- **Ventana de deploy** — preferiblemente horario laboral para monitoreo
+- ** Dependencias**: Si `pnpm install` falla en servidor, ejecutar `sudo chown -R root:root node_modules && pnpm install`
