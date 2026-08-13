@@ -3398,16 +3398,10 @@ async function restaurarBackup() {
     if (!res.ok) throw new Error(data.error || 'Error al restaurar');
     const lista = data.restaurados ? data.restaurados.join(', ') : 'completada';
     const pm2 = data.pm2Restarted ? '<br>🔄 PM2 se reiniciará en unos segundos...' : '';
-    const sesiones = data.restaurados?.some(r => r.includes('JWT')) ? '<br>🔒 Todas las sesiones han sido invalidadas — deberás iniciar sesión de nuevo' : '';
-    if (msgEl) msgEl.innerHTML = '<span style="color:var(--success);">✅ ' + (data.mensaje || 'Restauración completada') + pm2 + sesiones + '</span>';
+    if (msgEl) msgEl.innerHTML = '<span style="color:var(--success);">✅ ' + (data.mensaje || 'Restauración completada') + pm2 + '</span>';
     input.value = '';
-    // Clear all auth state and redirect to login after PM2 restart
-    if (data.pm2Restarted || data.clearSessions) {
-      jwtToken = null;
-      user = null;
-      localStorage.removeItem('platform_jwt');
-      setTimeout(() => { location.href = '/'; }, 5000);
-    }
+    // Reload after PM2 restart to reflect changes
+    if (data.pm2Restarted) setTimeout(() => location.reload(), 5000);
   } catch (e) {
     if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">✗ ' + e.message + '</span>';
   }

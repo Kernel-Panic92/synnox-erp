@@ -112,16 +112,7 @@ const COMPANY_DOMAIN = process.env.COMPANY_DOMAIN || 'localhost';
 const INSTALL_DIR = process.env.INSTALL_DIR || path.resolve(__dirname, '..');
 
 const PORT = parseInt(process.env.PORT || '3002', 10);
-// JWT_SECRET: read from env, with override file fallback (used by restore to rotate)
-let JWT_SECRET = process.env.JWT_SECRET;
-try {
-  const overrideFile = path.join(__dirname, '.jwt_override');
-  if (fs.existsSync(overrideFile)) {
-    JWT_SECRET = fs.readFileSync(overrideFile, 'utf8').trim();
-    process.env.JWT_SECRET = JWT_SECRET;
-    console.log('[Auth] JWT_SECRET rotado desde override');
-  }
-} catch {}
+const JWT_SECRET = process.env.JWT_SECRET;
 
 // Base URL for emails and external links
 // In production (COMPANY_DOMAIN set), uses HTTPS on standard port (no port needed)
@@ -3741,34 +3732,6 @@ app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.s
     });
     restaurados.push('PostgreSQL (logistics, projects, public)');
 
-    // Rotate JWT secret to invalidate all active sessions
-    const crypto = require('crypto');
-    const newSecret = crypto.randomBytes(48).toString('base64');
-    const envFile = path.join(LAUNCHER_DIR, '.env');
-    try {
-      let envContent = fs.readFileSync(envFile, 'utf8');
-      if (envContent.includes('JWT_SECRET=')) {
-        envContent = envContent.replace(/JWT_SECRET=.*/, `JWT_SECRET=${newSecret}`);
-      } else {
-        envContent += `\nJWT_SECRET=${newSecret}\n`;
-      }
-      fs.writeFileSync(envFile, envContent);
-      process.env.JWT_SECRET = newSecret;
-      restaurados.push('JWT secret rotado (sesiones invalidadas)');
-    } catch (e) {
-      // If can't write .env (permission denied), write to a override file
-      try {
-        const overrideFile = path.join(LAUNCHER_DIR, 'launcher', '.jwt_override');
-        fs.writeFileSync(overrideFile, newSecret);
-        process.env.JWT_SECRET = newSecret;
-        restaurados.push('JWT secret rotado via override (sesiones invalidadas)');
-        console.warn('[Restore] .env no escribeble, secret guardado en', overrideFile);
-      } catch (e2) {
-        console.error('[Restore] Error rotando JWT_SECRET:', e.message, e2.message);
-        restaurados.push('⚠️ JWT secret NO rotado (permisos denegados) — ejecutar manualmente');
-      }
-    }
-
     // Cleanup tmp
     fs.rmSync(tmpDir, { recursive: true, force: true });
 
@@ -3780,16 +3743,11 @@ app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.s
       restaurados.push('PM2 reiniciado');
     } catch {}
 
-    // Clear auth cookie in the response (before PM2 kills this process)
-    const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
-    res.setHeader('Set-Cookie', `launcher_jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax${isSecure ? '; Secure' : ''}`);
-
     res.json({
       ok: true,
       mensaje: `Restauración completada: ${restaurados.join(', ')}`,
       restaurados,
-      pm2Restarted,
-      clearSessions: restaurados.some(r => r.includes('JWT'))
+      pm2Restarted
     });
   } catch (err) {
     fs.rmSync(tmpDir, { recursive: true, force: true });
