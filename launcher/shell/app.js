@@ -3401,13 +3401,8 @@ async function restaurarBackup() {
     const sesiones = data.restaurados?.some(r => r.includes('JWT')) ? '<br>🔒 Todas las sesiones han sido invalidadas — deberás iniciar sesión de nuevo' : '';
     if (msgEl) msgEl.innerHTML = '<span style="color:var(--success);">✅ ' + (data.mensaje || 'Restauración completada') + pm2 + sesiones + '</span>';
     input.value = '';
-    // Logout + redirect after PM2 restart (clear httpOnly cookie via server)
-    if (data.pm2Restarted) {
-      setTimeout(async () => {
-        try { await fetch('/api/auth/logout', { method: 'POST', headers: { 'Authorization': 'Bearer ' + jwtToken } }); } catch {}
-        location.href = '/';
-      }, 5000);
-    }
+    // Redirect to login after PM2 restart (cookie already cleared by server)
+    if (data.pm2Restarted) setTimeout(() => { location.href = '/'; }, 5000);
   } catch (e) {
     if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">✗ ' + e.message + '</span>';
   }

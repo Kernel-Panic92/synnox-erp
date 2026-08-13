@@ -3780,6 +3780,10 @@ app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.s
       restaurados.push('PM2 reiniciado');
     } catch {}
 
+    // Clear auth cookie in the response (before PM2 kills this process)
+    const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
+    res.setHeader('Set-Cookie', `launcher_jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax${isSecure ? '; Secure' : ''}`);
+
     res.json({
       ok: true,
       mensaje: `Restauración completada: ${restaurados.join(', ')}`,
