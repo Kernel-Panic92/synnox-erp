@@ -1,0 +1,9 @@
+# Copia este archivo a backups/.nas.conf y completa los valores.
+# El backup copiará cada archivo a la NAS y verificará su checksum.
+NAS_ENABLED=false
+NAS_SHARE="//192.168.1.100/backups"
+NAS_MOUNT="/mnt/synnox-nas"
+NAS_USER="synnox"
+NAS_PASS="cambia-esto"
+NAS_SUBDIR="synnoxerp"
+NAS_RETAIN_DAYS=30

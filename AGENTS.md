@@ -1,5 +1,57 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (12 Ago 2026 — sesión 42)
+
+### Cambios Sesión 42 — Backup unificado DR (Fase 1)
+
+#### Nuevo sistema de backup (reemplaza backups por módulo)
+- **Script**: `scripts/backup_synnox.sh` — backup completo ejecutado por systemd timer (NO dentro de Node)
+  - pg_dump -Fc de toda la DB `synnox_erp` (DDL + datos + secuencias + índices, todos los schemas)
+  - pg_dumpall --globals-only (roles, intenta como superuser `postgres` si el usuario de app no tiene acceso)
+  - SQLite hot-backup via better-sqlite3 `.backup()` (launcher.db + horas_extra.db)
+  - tar de uploads y media
+  - Config bundle: .env, nginx, PM2 dump, crontab, letsencrypt
+  - Manifest con checksums SHA-256 + conteos exactos de filas (para restore drill)
+  - Retención GFS: 7 diarias / 4 semanales / 3 mensuales
+  - Copia offsite a NAS opcional (Phase 2, config en backups/.nas.conf)
+  - Alertas email directas via nodemailer (funciona con launcher caído)
+- **systemd**: `synnox-backup.service` + `synnox-backup.timer` (diario 2 AM, Persistent=true)
+  - Funciona incluso con PM2 caído (ventaja clave sobre el cron anterior)
+- **Helpers**: `backup-sqlite.js` (hot-backup + conteos), `backup-finalize.js` (manifest), `backup-alert.js` (email)
+- **Instalación**: `systemd/install-backup.sh` (sudo, instala unidades, siembra config NAS)
+- **Verificado**: backup completo en 2s, restore drill con conteos idénticos (35 tablas, 3 schemas)
+
+#### Bugs encontrados y resueltos
+- `backup_logistics.sh` inexistente → obsoleto (reemplazado por backup unificado)
+- Issue #71 (backup nómina no encuentra script) → obsoleto
+- `Database` indefinido en `/api/admin/backup/general` → eliminado (endpoints reescritos)
+- `cron.schedule` de node-cron en server.js → eliminado (reemplazado por systemd timer)
+
+#### Archivos creados
+- `scripts/backup_synnox.sh` — script principal de backup
+- `scripts/backup-sqlite.js` — hot-backup SQLite + conteos
+- `scripts/backup-finalize.js` — manifest con checksums SHA-256
+- `scripts/backup-alert.js` — alertas email directas
+- `scripts/restore_synnox.sh` — restore completo con --dry-run
+- `scripts/backup_drill.sh` — drill mensual con conteos verificados
+- `systemd/synnox-backup.service` + `synnox-backup.timer`
+- `systemd/synnox-drill.timer` — timer mensual (día 1, 3 AM)
+- `systemd/install-backup.sh` — instalador de unidades systemd
+- `systemd/nas.conf.example` — plantilla para copia NAS
+- `docs/DISASTER-RECOVERY.md` — runbook completo paso a paso
+
+#### Archivos modificados
+- `launcher/server.js` — eliminados ~600 líneas de backup JSON, reemplazados por 6 endpoints nuevos
+- `launcher/shell/index.html` — tab de respaldo rediseñado (status, lista, ejecutar, historial, restore)
+- `launcher/shell/app.js` — funciones de backup reescritas
+
+#### Pendiente (Fases 2-4)
+- [ ] Fase 2: copia offsite a NAS (config backups/.nas.conf)
+- [x] Fase 3: script restore_synnox.sh + drill automático mensual
+- [x] Fase 4: UI en launcher + eliminar backups por módulo + fixes endpoints
+
+---
+
 ## Estado (5 Ago 2026 — sesión 37)
 
 ### Cambios Sesión 37 — Submódulo de Devoluciones en Logística
@@ -265,6 +317,7 @@
 
 ### Depreciados
 - [x] ~~Migración Nómina SQLite → PostgreSQL~~ — DEPRECIADA (sesión 16). SQLite funciona correctamente.
+- [ ] ~~Backups por módulo~~ — DEPRECIADOS (sesión 42). Reemplazados por `scripts/backup_synnox.sh` (pg_dump). Se eliminarán en Fase 4.
 
 ---
 
@@ -304,6 +357,7 @@
 - **MCP OAuth**: Habilitado por defecto. Tokens vinculados a usuarios internos via login cookie.
 - **Workflow de módulos**: Scaffold (Admin → Módulos → ⚡ Crear) → Desarrollo → Built-in (mover al repo, registrar en `builtin` array, montar como sub-app).
 - **Multi-selección (checkbox list)**: Para seleccionar múltiples elementos, usar modal con checkboxes + filtro de texto + botones "Todos/Ninguno". NO usar `<select multiple>`. Ejemplo: `routes/miembros.js` + `proyectos.js:abrirModalMiembros()`.
+- **Backup**: NO crear lógica de backup propia en módulos. Todo backup/restore es responsabilidad del launcher via `scripts/backup_synnox.sh` (systemd timer). Los módulos solo pueden ofrecer "export" de datos (CSV/JSON) para uso manual, sin cron, sin restore, sin NAS.
 - **Notificaciones por rol/contexto**: Personalizar mensaje según el rol del usuario. Ej: líder → "eres el responsable", miembro → "haces parte del proyecto". Usar `notificar()` de `utils/notify.js`.
 - **Templates de email (género)**: `templateAsignacion()` y `templateCambioEstado()` detectan género según entidad. "proyecto" = el/Asignado, "tarea" = la/Asignada. Siempre pasar `entidad` en minúsculas.
 - **Queries resilientes**: Si una tabla puede no existir (migración pendiente), verificar con `SELECT 1 FROM tabla LIMIT 1` antes de usar. Ejemplo: `routes/proyectos.js` con `proyecto_miembros`.
@@ -329,6 +383,11 @@
 - **Auth**: JWT cookie `launcher_jwt` (1h) + refresh token + `modulos_permisos` granulares
 - **DB**: PostgreSQL centralizado (`synnox_erp`), Nómina SQLite local
 - **Package manager**: pnpm (workspaces, strict mode)
+- **Backup**: systemd timer `synnox-backup.timer` (diario 2 AM), script `scripts/backup_synnox.sh`
+  - pg_dump -Fc (todos los schemas), SQLite hot-backup, uploads, config bundle
+  - Retención GFS: 7 diarias / 4 semanales / 3 mensuales
+  - Alertas email directas, copia NAS opcional (backups/.nas.conf)
+  - NO usar cron dentro de Node para backups — usar systemd timer
 - **Deploy**: Ubuntu 24.04, Node 20, PostgreSQL 16, nginx + Let's Encrypt
 - **Repo**: Private, deploy via SSH key read-only, `git pull && pm2 restart`
 - **Entorno**: 2 VMs dev + 1 prod. Flujo: dev local → PR → merge a `main` → prod git pull

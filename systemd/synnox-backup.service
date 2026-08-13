@@ -1,0 +1,15 @@
+[Unit]
+Description=SynnoxERP backup unificado (pg_dump + SQLite + uploads + config)
+Wants=network-online.target postgresql.service
+After=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+ExecStart=__INSTALL_DIR__/scripts/backup_synnox.sh
+TimeoutStartSec=3600
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=7
+
+[Install]
+WantedBy=multi-user.target

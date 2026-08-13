@@ -2136,8 +2136,7 @@ function showAdminTab(tab) {
   else if (tab === 'mcp-logs') { mcpLogsOffset = 0; loadMcpLogs(); loadMcpLogsStats(); }
   else if (tab === 'mcp-oauth') loadMcpOAuthConfig();
   else if (tab === 'respaldo') { 
-    document.getElementById('import-result').style.display = 'none';
-    loadBackupModules();
+    loadBackupStatus(); loadBackupList(); loadBackupHistory();
   }
   else if (tab === 'acerca-de') loadAcercaDe();
 
@@ -3164,113 +3163,245 @@ async function revokeMcpToken(tokenId) {
   } catch (e) { toast('Error: ' + e.message, 'error'); }
 }
 
-// ── Backup general del sistema ──
-async function backupGeneral() {
-  const msgEl = document.getElementById('backup-general-msg');
-  if (msgEl) msgEl.innerHTML = '<span style="color:var(--muted);">Generando backup del sistema...</span>';
-  try {
-    const res = await fetch('/api/admin/backup/general', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
-    if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || 'Error al generar backup'); }
-    const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'synnxerp_backup_' + new Date().toISOString().slice(0, 10) + '.zip';
-    a.click();
-    URL.revokeObjectURL(url);
-    if (msgEl) msgEl.innerHTML = '<span style="color:var(--success);">✓ Backup descargado</span>';
-  } catch (e) {
-    if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">✗ ' + e.message + '</span>';
-  }
-}
-
-async function loadBackupModules() {
-  const el = document.getElementById('backup-modules-list');
+// ── Backup Management (new system: scripts/backup_synnox.sh) ──
+async function loadBackupStatus() {
+  const el = document.getElementById('backup-status');
   if (!el) return;
-  el.innerHTML = '<div class="skeleton skeleton-row" style="height:36px;"></div>';
+  el.innerHTML = '<div class="skeleton skeleton-row" style="height:60px;"></div>';
   try {
-    const res = await fetch('/api/admin/backup/schemas', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
-    const data = await res.json();
+    const [statusRes, listRes] = await Promise.all([
+      fetch('/api/admin/backup/status', { headers: { 'Authorization': 'Bearer ' + jwtToken } }),
+      fetch('/api/admin/backup/list', { headers: { 'Authorization': 'Bearer ' + jwtToken } })
+    ]);
+    const statusText = await statusRes.text();
+    const listText = await listRes.text();
+    let statusData, listData;
+    try { statusData = JSON.parse(statusText); } catch { statusData = { ok: false }; }
+    try { listData = JSON.parse(listText); } catch { listData = { ok: false, backups: [] }; }
     
-    if (!data.schemas?.length) {
-      el.innerHTML = '<div style="color:var(--muted);font-size:13px;">No hay módulos con base de datos PostgreSQL</div>';
-      return;
+    if (!statusData.ok && !statusData.status) {
+      el.innerHTML = '<div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;color:var(--muted);">No hay backups ejecutados aún</div>';
+    } else {
+      const s = statusData.status || {};
+      const ok = s.ok !== false;
+      const icon = ok ? '✅' : '⚠️';
+      const color = ok ? 'var(--success)' : 'var(--danger)';
+      const duracion = s.duracion_s ? s.duracion_s + 's' : '-';
+      const tamano = s.bytes ? (s.bytes / 1024 / 1024).toFixed(1) + ' MB' : '-';
+      const fecha = s.fecha ? new Date(s.fecha).toLocaleString('es-CO', { timeZone: 'America/Bogota' }) : '-';
+      const warnings = (s.warnings || []).length;
+      const errores = (s.errores || []).length;
+      
+      let extra = '';
+      if (warnings > 0) extra += `<span style="color:var(--warning);">⚠️ ${warnings} warning(s)</span> `;
+      if (errores > 0) extra += `<span style="color:var(--danger);">✗ ${errores} error(es)</span>`;
+      
+      let schemasInfo = '';
+      if (s.resumen?.postgres?.schemas) {
+        const schemas = Object.entries(s.resumen.postgres.schemas);
+        schemasInfo = schemas.map(([name, info]) => `${name} (${info.filas} filas)`).join(', ');
+      }
+      let sqliteInfo = '';
+      if (s.resumen?.sqlite) {
+        sqliteInfo = s.resumen.sqlite.map(db => `${db.nombre} (${db.filas} filas)`).join(', ');
+      }
+      
+      el.innerHTML = `
+        <div style="background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+            <span style="font-size:20px;">${icon}</span>
+            <div>
+              <div style="font-weight:600;color:${color};">Último backup: ${ok ? 'Exitoso' : 'Con errores'}</div>
+              <div style="font-size:12px;color:var(--muted);">${fecha}</div>
+            </div>
+            <div style="margin-left:auto;text-align:right;">
+              <div style="font-size:13px;">📦 ${s.archivo || '-'} (${tamano})</div>
+              <div style="font-size:12px;color:var(--muted);">⏱ ${duracion}</div>
+            </div>
+          </div>
+          ${schemasInfo ? `<div style="font-size:12px;color:var(--muted);margin-top:6px;">PostgreSQL: ${schemasInfo}</div>` : ''}
+          ${sqliteInfo ? `<div style="font-size:12px;color:var(--muted);">SQLite: ${sqliteInfo}</div>` : ''}
+          ${extra ? `<div style="font-size:12px;margin-top:6px;">${extra}</div>` : ''}
+        </div>`;
     }
-    
-    el.innerHTML = data.schemas.map(s => `
-      <div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 14px;">
-        <span style="font-size:14px;">${s.icon || '📦'} <strong>${s.nombre}</strong> <span style="color:var(--muted);font-size:12px;">(${s.tablas} tablas)</span></span>
-        <button class="btn btn-xs btn-primary" onclick="backupSchema('${s.id}')">⬇️</button>
-      </div>
-    `).join('');
   } catch (e) {
     el.innerHTML = '<div style="color:var(--danger);font-size:13px;">Error: ' + e.message + '</div>';
   }
 }
 
-async function backupSchema(schema) {
-  const msgEl = document.getElementById('backup-msg');
-  if (msgEl) msgEl.innerHTML = '<span style="color:var(--muted);">Generando backup de ' + schema + '...</span>';
+async function runBackup() {
+  const btn = document.getElementById('btn-run-backup');
+  const msgEl = document.getElementById('backup-run-msg');
+  if (btn) btn.disabled = true;
+  if (msgEl) msgEl.innerHTML = '<span style="color:var(--muted);">⏳ Iniciando backup...</span>';
+  
+  // Show progress bar
+  const progressContainer = document.getElementById('backup-progress');
+  const progressBar = document.getElementById('backup-progress-bar');
+  const progressText = document.getElementById('backup-progress-text');
+  if (progressContainer) progressContainer.style.display = 'block';
+  if (progressBar) progressBar.style.width = '5%';
+  if (progressText) progressText.textContent = 'Iniciando...';
+  
   try {
-    const res = await fetch('/api/admin/backup/' + schema, { headers: { 'Authorization': 'Bearer ' + jwtToken } });
-    if (!res.ok) { const d = await res.json().catch(()=>({})); throw new Error(d.error || 'Error al generar backup'); }
+    const res = await fetch('/api/admin/backup/run', { method: 'POST', headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { throw new Error('Respuesta inválida del servidor'); }
+    
+    // Hide progress bar
+    if (progressContainer) progressContainer.style.display = 'none';
+    
+    if (data.ok) {
+      if (msgEl) msgEl.innerHTML = '<span style="color:var(--success);">✅ Backup completado</span>';
+    } else {
+      const warnings = data.status?.warnings || [];
+      const errores = data.status?.errores || [];
+      let details = '';
+      if (warnings.length) details += '<br>Warnings: ' + warnings.join(', ');
+      if (errores.length) details += '<br>Errores: ' + errores.join(', ');
+      if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">⚠️ Backup con errores' + details + '</span>';
+    }
+    loadBackupStatus();
+    loadBackupList();
+  } catch (e) {
+    if (progressContainer) progressContainer.style.display = 'none';
+    if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">✗ ' + e.message + '</span>';
+  }
+  if (btn) btn.disabled = false;
+  
+  // Stop polling
+  if (window._backupPollInterval) {
+    clearInterval(window._backupPollInterval);
+    window._backupPollInterval = null;
+  }
+}
+
+let _backupPollActive = false;
+function startBackupPoll() {
+  if (_backupPollActive) return;
+  _backupPollActive = true;
+  const progressBar = document.getElementById('backup-progress-bar');
+  const progressText = document.getElementById('backup-progress-text');
+  
+  window._backupPollInterval = setInterval(async () => {
+    try {
+      const res = await fetch('/api/admin/backup/progress', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+      const data = await res.json();
+      if (data.running && progressBar && progressText) {
+        progressBar.style.width = data.pct + '%';
+        const pctEl = document.getElementById('backup-progress-pct');
+        if (pctEl) pctEl.textContent = data.pct + '%';
+        const steps = { pg_dump: 'PostgreSQL dump', globals: 'Roles', sqlite: 'SQLite', uploads: 'Uploads', config: 'Config', manifest: 'Empaquetado', nas: 'NAS', done: 'Completado' };
+        progressText.textContent = (steps[data.step] || data.step) + (data.detail ? ': ' + data.detail : '');
+      } else if (!data.running) {
+        clearInterval(window._backupPollInterval);
+        window._backupPollInterval = null;
+        _backupPollActive = false;
+      }
+    } catch {}
+  }, 1000);
+}
+
+async function loadBackupList() {
+  const el = document.getElementById('backup-list');
+  if (!el) return;
+  el.innerHTML = '<div class="skeleton skeleton-row" style="height:40px;"></div>';
+  try {
+    const res = await fetch('/api/admin/backup/list', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { ok: false, backups: [] }; }
+    if (!data.ok || !data.backups.length) {
+      el.innerHTML = '<div style="color:var(--muted);font-size:13px;">No hay backups en el servidor</div>';
+      return;
+    }
+    el.innerHTML = `<table style="width:100%;font-size:13px;border-collapse:collapse;">
+      <thead><tr style="border-bottom:1px solid var(--border);text-align:left;">
+        <th style="padding:8px 6px;">Archivo</th>
+        <th style="padding:8px 6px;">Tamaño</th>
+        <th style="padding:8px 6px;">Fecha</th>
+        <th style="padding:8px 6px;">SHA-256</th>
+        <th style="padding:8px 6px;text-align:right;">Acción</th>
+      </tr></thead>
+      <tbody>${data.backups.map(b => {
+        const fecha = new Date(b.fecha).toLocaleDateString('es-CO');
+        const tamano = (b.bytes / 1024 / 1024).toFixed(1) + ' MB';
+        const sha = b.sha256 ? b.sha256.slice(0, 12) + '...' : '-';
+        return `<tr style="border-bottom:1px solid var(--border);">
+          <td style="padding:8px 6px;font-family:monospace;font-size:12px;">📦 ${b.nombre}</td>
+          <td style="padding:8px 6px;">${tamano}</td>
+          <td style="padding:8px 6px;">${fecha}</td>
+          <td style="padding:8px 6px;font-family:monospace;font-size:11px;color:var(--muted);">${sha}</td>
+          <td style="padding:8px 6px;text-align:right;">
+            <button class="btn btn-xs btn-primary" onclick="downloadBackup('${b.nombre}')">⬇ Descargar</button>
+          </td>
+        </tr>`;
+      }).join('')}</tbody></table>`;
+  } catch (e) {
+    el.innerHTML = '<div style="color:var(--danger);font-size:13px;">Error: ' + e.message + '</div>';
+  }
+}
+
+async function downloadBackup(filename) {
+  try {
+    const res = await fetch('/api/admin/backup/download/' + filename, { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) throw new Error('No se pudo descargar');
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = url;
-    a.download = schema + '_backup_' + new Date().toISOString().slice(0, 10) + '.zip';
-    a.click();
+    a.href = url; a.download = filename; a.click();
     URL.revokeObjectURL(url);
-    if (msgEl) msgEl.innerHTML = '<span style="color:var(--success);">✓ Backup de ' + schema + ' descargado</span>';
   } catch (e) {
-    if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">✗ ' + e.message + '</span>';
+    toast('Error: ' + e.message, 'error');
   }
 }
 
-async function restaurarModulo() {
-  const input = document.getElementById('restore-module-input');
+async function loadBackupHistory() {
+  const el = document.getElementById('backup-history');
+  if (!el) return;
+  try {
+    const res = await fetch('/api/admin/backup/history', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const text = await res.text();
+    let data;
+    try { data = JSON.parse(text); } catch { data = { ok: false, history: [] }; }
+    if (!data.ok || !data.history.length) {
+      el.innerHTML = '<div style="color:var(--muted);">Sin historial</div>';
+      return;
+    }
+    el.innerHTML = data.history.map(h => {
+      const icon = h.ok ? '✅' : '❌';
+      const fecha = new Date(h.fecha).toLocaleString('es-CO', { timeZone: 'America/Bogota', hour12: false });
+      const tamano = h.bytes ? (h.bytes / 1024).toFixed(0) + ' KB' : '-';
+      return `<div style="padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;display:flex;gap:6px;">
+        <span>${icon}</span><span style="flex:1;">${fecha}</span><span style="color:var(--muted);">${tamano}</span>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    el.innerHTML = '<div style="color:var(--muted);">Error cargando historial</div>';
+  }
+}
+
+async function restaurarBackup() {
+  const input = document.getElementById('restore-file-input');
   const msgEl = document.getElementById('restore-msg');
-  if (!input?.files?.length) { if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">Selecciona un archivo ZIP</span>'; return; }
-  if (msgEl) msgEl.innerHTML = '<span style="color:var(--muted);">Restaurando módulo...</span>';
+  if (!input?.files?.length) { if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">Selecciona un archivo .dump o .tar.gz</span>'; return; }
+  if (!await confirmModal('¿Restaurar este backup? Sobrescribirá TODOS los datos de PostgreSQL.', 'Restaurar backup', 'restart')) return;
+  if (msgEl) msgEl.innerHTML = '<span style="color:var(--muted);">⏳ Restaurando... esto puede tomar varios minutos</span>';
   try {
     const formData = new FormData();
-    formData.append('archivo', input.files[0]);
-    const res = await fetch('/api/admin/backup/restore-module', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + jwtToken },
-      body: formData
+    formData.append('backup', input.files[0]);
+    const res = await fetch('/api/admin/backup/restore', {
+      method: 'POST', headers: { 'Authorization': 'Bearer ' + jwtToken }, body: formData
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error al restaurar');
-    if (msgEl) msgEl.innerHTML = '<span style="color:var(--success);">✓ ' + (data.message || 'Módulo restaurado') + '</span>';
+    const lista = data.restaurados ? data.restaurados.join(', ') : 'completada';
+    const pm2 = data.pm2Restarted ? '<br>🔄 PM2 se reiniciará en unos segundos...' : '';
+    if (msgEl) msgEl.innerHTML = '<span style="color:var(--success);">✅ ' + (data.mensaje || 'Restauración completada') + pm2 + '</span>';
     input.value = '';
-  } catch (e) {
-    if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">✗ ' + e.message + '</span>';
-  }
-}
-
-async function restaurarGeneral() {
-  const input = document.getElementById('restore-general-input');
-  const msgEl = document.getElementById('restore-general-msg');
-  if (!input?.files?.length) { if (msgEl) msgEl.innerHTML = '<span style="color:var(--warning);">Selecciona un archivo ZIP primero</span>'; return; }
-  const ok = confirm('⚠️ Esto sobrescribirá TODOS los datos de Nómina, Logística, Proyectos y Proveedores.\n\n¿Continuar?');
-  if (!ok) return;
-  if (msgEl) msgEl.innerHTML = '<span style="color:var(--muted);">Restaurando backup general...</span>';
-  try {
-    const fd = new FormData();
-    fd.append('backup', input.files[0]);
-    const res = await fetch('/api/admin/backup/restore', {
-      method: 'POST',
-      headers: { 'Authorization': 'Bearer ' + jwtToken },
-      body: fd
-    });
-    const data = await res.json();
-    if (res.ok) {
-      const mods = Object.entries(data.stats || {}).map(([k, v]) => `${k}: ${v} registros`).join(', ');
-      if (msgEl) msgEl.innerHTML = `<span style="color:var(--success);">✓ Restauración completada — ${mods}</span>`;
-    } else {
-      if (msgEl) msgEl.innerHTML = `<span style="color:var(--danger);">✗ ${data.error || 'Error'}</span>`;
-    }
+    // Reload after PM2 restart to reflect changes
+    if (data.pm2Restarted) setTimeout(() => location.reload(), 5000);
   } catch (e) {
     if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">✗ ' + e.message + '</span>';
   }
