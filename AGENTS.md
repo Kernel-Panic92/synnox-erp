@@ -490,19 +490,49 @@ ssh root@server "cd /opt/synnoxerp && git pull && pm2 restart all"
 3. `pnpm audit --prod` en servidor para confirmar 0 vulnerabilidades
 4. Verificar logs: `pm2 logs --lines 50`
 
+### Crear tag (punto de restauración)
+```bash
+# Determinar versión (seguir semver)
+# Major: cambios breaking (DB, auth, API)
+# Minor: features nuevas
+# Patch: fixes
+
+# 1. Actualizar package.json version
+# 2. Crear tag anotado
+git tag -a v2.1.0 -m "release: [descripción breve]"
+
+# 3. Push tag
+git push origin v2.1.0
+```
+
 ### Rollback (si algo falla)
 ```bash
-# Revertir el merge en main
-git checkout main
+# Opción A: Rollback a tag específico (recomendado)
+sudo scripts/rollback.sh v2.1.0
+
+# Opción B: Rollback manual
+git checkout v2.1.0
+pnpm install --prod
+pm2 restart all
+
+# Opción C: Revertir merge (mantener código actual)
 git revert -m 1 HEAD
 git push origin main
+```
 
-# En servidor
-ssh root@server "cd /opt/synnoxerp && git pull && pm2 restart all"
+### Versionado semántico
+```
+v{major}.{minor}.{patch}
+
+Ejemplos:
+- v2.1.0 → v2.1.1 (patch: fix de bug)
+- v2.1.0 → v2.2.0 (minor: feature nueva)
+- v2.1.0 → v3.0.0 (major: breaking change)
 ```
 
 ### Notas importantes
 - **NO hacer force push a main** — historia debe ser preservada
 - **Backup antes del merge** — systemd timer corre a las 2 AM, pero verificar
 - **Ventana de deploy** — preferiblemente horario laboral para monitoreo
-- ** Dependencias**: Si `pnpm install` falla en servidor, ejecutar `sudo chown -R root:root node_modules && pnpm install`
+- **Dependencias**: Si `pnpm install` falla en servidor, ejecutar `sudo chown -R root:root node_modules && pnpm install`
+- **Tags**: Siempre crear tag después de verificar que el deploy funciona en producción
