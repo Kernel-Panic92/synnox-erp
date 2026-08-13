@@ -2563,7 +2563,7 @@ server {
     add_header X-Frame-Options SAMEORIGIN;
     add_header X-Content-Type-Options nosniff;
 
-    client_max_body_size 50M;
+    client_max_body_size 0;  # Sin límite — backups pueden ser gigabytes
 
     # Launcher: API + SPA + MCP
     location / {
@@ -2576,6 +2576,8 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
         proxy_cache_bypass $http_upgrade;
+        proxy_request_buffering off;  # Stream directo a Node.js (backups grandes)
+        proxy_read_timeout 600s;      # Restore puede tardar varios minutos
     }
 
     # Gateway MCP al launcher (accesible desde puerto 443)
@@ -3640,9 +3642,22 @@ app.get('/api/admin/backup/history', verificarToken, soloAdmin, (req, res) => {
 });
 
 // POST /api/admin/backup/restore — restaura desde archivo subido (.tar.gz o .dump)
-const uploadRestore = multer({ storage: multer.memoryStorage(), limits: { fileSize: 200 * 1024 * 1024 } });
+const uploadRestore = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const dir = path.join(os.tmpdir(), 'synnox-upload');
+      fs.mkdirSync(dir, { recursive: true });
+      cb(null, dir);
+    },
+    filename: (req, file, cb) => {
+      cb(null, `restore-${Date.now()}${path.extname(file.originalname)}`);
+    }
+  }),
+  limits: { fileSize: 10 * 1024 * 1024 * 1024 }  // 10GB limit
+});
 app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.single('backup'), async (req, res) => {
   const tmpDir = path.join(os.tmpdir(), `synnox-restore-${Date.now()}`);
+  const uploadedFile = req.file?.path;  // Track uploaded file for cleanup
   try {
     if (!req.file) return res.status(400).json({ error: 'No se recibió archivo' });
     fs.mkdirSync(tmpDir, { recursive: true });
@@ -3654,7 +3669,8 @@ app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.s
 
     if (isTarGz) {
       const tarPath = path.join(tmpDir, 'backup.tar.gz');
-      fs.writeFileSync(tarPath, req.file.buffer);
+      // Move uploaded file to tmpDir (already on disk from diskStorage)
+      fs.renameSync(req.file.path, tarPath);
       await new Promise((resolve, reject) => {
         execFile('tar', ['xzf', tarPath, '-C', tmpDir], (err) => {
           if (err) return reject(new Error('No se pudo extraer: ' + err.message));
@@ -3700,7 +3716,8 @@ app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.s
       }
     } else if (isDump) {
       dumpPath = path.join(tmpDir, 'synnox_erp.dump');
-      fs.writeFileSync(dumpPath, req.file.buffer);
+      // Move uploaded file to tmpDir (already on disk from diskStorage)
+      fs.renameSync(req.file.path, dumpPath);
     } else {
       return res.status(400).json({ error: 'Formato no soportado. Use .tar.gz o .dump' });
     }
@@ -3734,6 +3751,10 @@ app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.s
 
     // Cleanup tmp
     fs.rmSync(tmpDir, { recursive: true, force: true });
+    // Cleanup uploaded file if it still exists
+    if (uploadedFile && fs.existsSync(uploadedFile)) {
+      try { fs.unlinkSync(uploadedFile); } catch {}
+    }
 
     // Restart PM2 to apply SQLite changes (module names, users, etc.)
     let pm2Restarted = false;
@@ -3751,6 +3772,10 @@ app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.s
     });
   } catch (err) {
     fs.rmSync(tmpDir, { recursive: true, force: true });
+    // Cleanup uploaded file if it still exists
+    if (uploadedFile && fs.existsSync(uploadedFile)) {
+      try { fs.unlinkSync(uploadedFile); } catch {}
+    }
     res.status(500).json({ error: err.message });
   }
 });

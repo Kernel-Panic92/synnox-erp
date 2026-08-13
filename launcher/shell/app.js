@@ -3395,8 +3395,11 @@ async function restaurarBackup() {
     const res = await fetch('/api/admin/backup/restore', {
       method: 'POST', headers: { 'Authorization': 'Bearer ' + jwtToken }, body: formData
     });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new Error(data.error || 'Error al restaurar (código HTTP ' + res.status + ')');
+    }
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Error al restaurar');
     const lista = data.restaurados ? data.restaurados.join(', ') : 'completada';
     const pm2 = data.pm2Restarted ? '<br>🔄 PM2 se reiniciará en unos segundos...' : '';
     if (msgEl) msgEl.innerHTML = '<span style="color:var(--success);">✅ ' + (data.mensaje || 'Restauración completada') + pm2 + '</span>';
