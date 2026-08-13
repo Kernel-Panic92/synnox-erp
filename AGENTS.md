@@ -1,5 +1,64 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (13 Ago 2026 — sesión 44)
+
+### Cambios Sesión 44 — Backup fixes, Members & Code Review
+
+#### Backup — Uploads corregidos
+- **Fix**: `scripts/backup_synnox.sh` ahora incluye `modules/proyectos/uploads` y `uploads/`
+- **Antes**: Solo incluía `modules/proveedores/uploads` (ya no existe) y `modules/logistica/uploads`
+
+#### Backup — Restore de archivos grandes
+- **Frontend**: Error handling mejorado (check `res.ok` antes de `res.json()`)
+- **nginx**: Location block dedicado para `/api/admin/backup/restore` con `client_max_body_size 0` y `proxy_request_buffering off`
+- **Backend**: multer `memoryStorage` → `diskStorage` (archivos a disco, no RAM)
+- **Backend**: `fs.renameSync` con fallback `copyFileSync` para EXDEV (cross-filesystem)
+- **Límite**: 10GB para uploads de restore
+
+#### Backup — Progress bar para restore
+- Barra de progreso con estimación basada en tamaño del archivo (~50MB/s)
+- Tres fases: subiendo, restaurando PostgreSQL, finalizando
+- Botón deshabilitado durante la operación
+
+#### Proyectos — Miembros al crear
+- Sección de miembros visible en modal de creación (no solo edición)
+- `abrirModalMiembros()` soporta proyecto nuevo (`null`)
+- Backend acepta `miembros` array en POST
+- Validación de `m.rol` contra `['lider', 'miembro', 'observador']`
+- Inserción de miembros en transaction con ROLLBACK
+- Toast informativo si se intenta guardar miembros sin proyecto
+- Badges se actualizan después de seleccionar miembros
+
+#### Code Review — 9 Fixes
+**Critical/High:**
+- C1+H2: nginx config — `client_max_body_size 0` y `proxy_request_buffering off` solo para restore
+- H1: Modal miembros muestra toast para proyectos nuevos
+- H3: `fs.renameSync` con fallback para EXDEV
+
+**Medium:**
+- M2: Validación de roles
+- M3: Transaction para inserción de miembros
+- M4: Reset de `_miembrosSeleccionados` al abrir modal nuevo
+- M5: `actualizarBadgesMiembros()` al cerrar modal
+- M9: `textContent` en vez de `innerHTML` para errores
+
+**Low:**
+- L6: Botón deshabilitado durante restore
+
+#### Archivos modificados
+- `scripts/backup_synnox.sh` — uploads corregidos
+- `launcher/server.js` — nginx config, multer diskStorage, restore endpoint
+- `launcher/shell/app.js` — error handling, progress bar, button disable
+- `launcher/shell/index.html` — progress bar HTML
+- `modules/proyectos/backend/routes/proyectos.js` — POST con miembros, transaction
+- `modules/proyectos/public/js/modules/proyectos.js` — miembros en crear, badges
+
+#### Tags
+- `v2.1.0` — Merge branches + code review + Dependabot fixes
+- `v2.1.1` — Backup fixes + members + code review fixes
+
+---
+
 ## Estado (13 Ago 2026 — sesión 43)
 
 ### Cambios Sesión 43 — Merge de branches a dev + Code Review + Fixes
@@ -340,6 +399,7 @@
 
 ## Estado actual (13 Ago 2026)
 ### Últimos cambios
+- **Sesión 44**: Backup fixes + Members & Code Review + v2.1.1
 - **Sesión 43**: Merge de branches a dev + Code Review + Fixes (CRITICAL/HIGH issues resueltos) + Fix vulnerabilidades Dependabot (13 → 0)
 - **Sesión 42**: Backup unificado DR — pg_dump + SQLite + uploads + config bundle, systemd timer
 - **Sesión 41**: Filtros en tablas, paginación, deep-linking emails, notificaciones in-app + navegador.
