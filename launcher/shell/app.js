@@ -3388,25 +3388,64 @@ async function restaurarBackup() {
   const msgEl = document.getElementById('restore-msg');
   if (!input?.files?.length) { if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">Selecciona un archivo .dump o .tar.gz</span>'; return; }
   if (!await confirmModal('¿Restaurar este backup? Sobrescribirá TODOS los datos de PostgreSQL.', 'Restaurar backup', 'restart')) return;
-  if (msgEl) msgEl.innerHTML = '<span style="color:var(--muted);">⏳ Restaurando... esto puede tomar varios minutos</span>';
+
+  // Show progress bar
+  const progressContainer = document.getElementById('restore-progress');
+  const progressBar = document.getElementById('restore-progress-bar');
+  const progressText = document.getElementById('restore-progress-text');
+  const progressPct = document.getElementById('restore-progress-pct');
+  if (progressContainer) progressContainer.style.display = 'block';
+  if (progressBar) progressBar.style.width = '0%';
+  if (progressText) progressText.textContent = 'Subiendo archivo...';
+  if (progressPct) progressPct.textContent = '0%';
+
+  // Estimate progress based on file size
+  const fileSize = input.files[0].size;
+  const startTime = Date.now();
+  const estimatedSeconds = Math.max(10, fileSize / (50 * 1024 * 1024)); // ~50MB/s, min 10s
+
+  const progressInterval = setInterval(() => {
+    const elapsed = (Date.now() - startTime) / 1000;
+    const pct = Math.min(95, (elapsed / estimatedSeconds) * 100);
+    if (progressBar) progressBar.style.width = pct + '%';
+    if (progressPct) progressPct.textContent = Math.round(pct) + '%';
+
+    if (pct < 30) {
+      if (progressText) progressText.textContent = 'Subiendo archivo...';
+    } else if (pct < 70) {
+      if (progressText) progressText.textContent = 'Restaurando PostgreSQL...';
+    } else {
+      if (progressText) progressText.textContent = 'Finalizando...';
+    }
+  }, 1000);
+
   try {
     const formData = new FormData();
     formData.append('backup', input.files[0]);
     const res = await fetch('/api/admin/backup/restore', {
       method: 'POST', headers: { 'Authorization': 'Bearer ' + jwtToken }, body: formData
     });
+    clearInterval(progressInterval);
     if (!res.ok) {
       const data = await res.json().catch(() => ({}));
       throw new Error(data.error || 'Error al restaurar (código HTTP ' + res.status + ')');
     }
     const data = await res.json();
+    // Show 100% on success
+    if (progressBar) progressBar.style.width = '100%';
+    if (progressPct) progressPct.textContent = '100%';
+    if (progressText) progressText.textContent = 'Completado';
     const lista = data.restaurados ? data.restaurados.join(', ') : 'completada';
     const pm2 = data.pm2Restarted ? '<br>🔄 PM2 se reiniciará en unos segundos...' : '';
     if (msgEl) msgEl.innerHTML = '<span style="color:var(--success);">✅ ' + (data.mensaje || 'Restauración completada') + pm2 + '</span>';
     input.value = '';
+    // Hide progress bar after 2 seconds
+    setTimeout(() => { if (progressContainer) progressContainer.style.display = 'none'; }, 2000);
     // Reload after PM2 restart to reflect changes
     if (data.pm2Restarted) setTimeout(() => location.reload(), 5000);
   } catch (e) {
+    clearInterval(progressInterval);
+    if (progressContainer) progressContainer.style.display = 'none';
     if (msgEl) msgEl.innerHTML = '<span style="color:var(--danger);">✗ ' + e.message + '</span>';
   }
 }

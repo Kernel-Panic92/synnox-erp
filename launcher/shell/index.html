@@ -1031,6 +1031,15 @@
             <div style="font-size:13px;font-weight:600;margin-bottom:8px;">Restaurar desde archivo:</div>
             <input type="file" id="restore-file-input" accept=".tar.gz,.dump" style="margin-bottom:8px;padding:8px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);width:100%;font-size:13px;">
             <button class="btn btn-sm btn-danger" onclick="restaurarBackup()" style="width:100%;justify-content:center;">Restaurar</button>
+            <div id="restore-progress" style="display:none;margin-top:12px;">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+                <span id="restore-progress-text" style="color:var(--muted);">Preparando...</span>
+                <span id="restore-progress-pct" style="color:var(--muted);"></span>
+              </div>
+              <div style="background:var(--surface2);border-radius:6px;height:8px;overflow:hidden;">
+                <div id="restore-progress-bar" style="background:var(--danger);height:100%;width:0%;transition:width 0.3s;border-radius:6px;"></div>
+              </div>
+            </div>
             <div style="font-size:11px;color:var(--danger);margin-top:4px;">⚠️ Sobrescribirá TODOS los datos de PostgreSQL</div>
           </div>
           <div>
