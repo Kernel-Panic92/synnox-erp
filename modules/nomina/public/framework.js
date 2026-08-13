@@ -80,6 +80,7 @@ function toggleAll(tipoOrSource, checked) {
   }
   if (type) {
     document.querySelectorAll(`.cb-${type}`).forEach(cb => cb.checked = checkValue);
+    if (typeof actualizarBtnEliminar === 'function') actualizarBtnEliminar(type);
   }
   updateBulkBar();
 }
@@ -486,10 +487,6 @@ async function enviarReset(email, opts = {}) {
 }
 
 // ── Bulk selection ──
-function toggleAll(tipo, checked) {
-  document.querySelectorAll('.cb-' + tipo).forEach(cb => cb.checked = checked);
-  actualizarBtnEliminar(tipo);
-}
 function actualizarBtnEliminar(tipo) {
   const btn = document.getElementById('btn-del-' + tipo);
   if (!btn) return;
