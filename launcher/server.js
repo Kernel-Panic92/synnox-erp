@@ -3732,6 +3732,24 @@ app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.s
     });
     restaurados.push('PostgreSQL (logistics, projects, public)');
 
+    // Rotate JWT secret to invalidate all active sessions
+    const crypto = require('crypto');
+    const newSecret = crypto.randomBytes(48).toString('base64');
+    const envFile = path.join(LAUNCHER_DIR, '.env');
+    try {
+      let envContent = fs.readFileSync(envFile, 'utf8');
+      if (envContent.includes('JWT_SECRET=')) {
+        envContent = envContent.replace(/JWT_SECRET=.*/, `JWT_SECRET=${newSecret}`);
+      } else {
+        envContent += `\nJWT_SECRET=${newSecret}\n`;
+      }
+      fs.writeFileSync(envFile, envContent);
+      process.env.JWT_SECRET = newSecret;
+      restaurados.push('JWT secret rotado (sesiones invalidadas)');
+    } catch (e) {
+      console.error('[Restore] Error rotando JWT_SECRET:', e.message);
+    }
+
     // Cleanup tmp
     fs.rmSync(tmpDir, { recursive: true, force: true });
 
