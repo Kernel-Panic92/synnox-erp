@@ -3275,6 +3275,7 @@ async function runBackup() {
     clearInterval(window._backupPollInterval);
     window._backupPollInterval = null;
   }
+  _backupPollActive = false;
 }
 
 let _backupPollActive = false;

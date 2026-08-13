@@ -68,12 +68,18 @@ function clearSelection() {
   updateBulkBar();
 }
 
-function toggleAll(source) {
-  // Get the type from the source checkbox's onchange attribute
-  const match = source.getAttribute('onchange')?.match(/toggleAll\('(\w+)'/);
-  const type = match ? match[1] : '';
+function toggleAll(tipoOrSource, checked) {
+  let type, checkValue;
+  if (typeof tipoOrSource === 'string') {
+    type = tipoOrSource;
+    checkValue = checked;
+  } else if (tipoOrSource && tipoOrSource.getAttribute) {
+    const match = tipoOrSource.getAttribute('onchange')?.match(/toggleAll\('(\w+)'/);
+    type = match ? match[1] : '';
+    checkValue = tipoOrSource.checked;
+  }
   if (type) {
-    document.querySelectorAll(`.cb-${type}`).forEach(cb => cb.checked = source.checked);
+    document.querySelectorAll(`.cb-${type}`).forEach(cb => cb.checked = checkValue);
   }
   updateBulkBar();
 }
@@ -291,7 +297,16 @@ function trapFocus(container) {
   if (_modalTrapHandler) container.removeEventListener('keydown', _modalTrapHandler);
 
   _modalTrapHandler = (e) => {
-    if (e.key === 'Escape') { cerrarModal(); return; }
+    if (e.key === 'Escape') {
+      // Close the container that has focus trap, not always modal-overlay
+      const containerId = container.id;
+      if (containerId && containerId !== 'modal-overlay') {
+        cerrarModal(containerId);
+      } else {
+        cerrarModal();
+      }
+      return;
+    }
     if (e.key !== 'Tab') return;
     if (e.shiftKey && document.activeElement === first) {
       e.preventDefault(); last.focus();

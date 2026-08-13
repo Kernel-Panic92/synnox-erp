@@ -1,5 +1,54 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (13 Ago 2026 — sesión 43)
+
+### Cambios Sesión 43 — Merge de branches a dev + Code Review + Fixes
+
+#### Merge de branches pendientes a dev
+- **Eliminado**: `fix/proyectos-operador-filter` (debug log temporal, branch obsoleto basado en código antiguo — revertiría 18K líneas de progreso)
+- **Merged** (7 branches, 8 commits total):
+  - `feat/issue-52-widgets-other-roles` — Widgets del launcher accesibles para gerente y operador
+  - `feat/nomina-layout-consistency` — Fix layout nómina, revert stats-row a flexbox
+  - `feat/proyectos-tipo-tarea-dropdown` — SMTP tab fix, wrap cards en auto-fit grid
+  - `fix/all-modules-permisos` — Operador solo ve sus tareas asignadas (proyectos)
+  - `fix/dashboard-responsive-21-9` — Employees grid responsive + compact card redesign
+  - `fix/nomina-manual-public` — Botón Home al sidebar de los 4 módulos
+  - `session/13-code-review-security-branding` — Fix install.sh (branch main, ADMIN_PASS typo)
+
+#### Code review — Issues encontrados y resueltos
+
+**CRITICAL (3)**
+- C1: 5 `</div>` sobrantes en `launcher/shell/index.html` — rompían estructura del admin panel
+- C2: `var(--primary)` en progress bar no existía → cambiado a `var(--accent)`
+- C3: `_backupPollActive` nunca se reseteaba → polling muere después del 1er backup
+
+**HIGH (3)**
+- H1: `toggleAll()` en framework.js tenía firma incompatible con app.js → soporta ambos patrones
+- H2: Escape en `modal-detalle` cerraba `modal-overlay` → trapFocus cierra contenedor correcto
+- H3: PUT devoluciones requería `edit_comentario` pero frontend no lo validaba
+
+**MEDIUM (5 revisados, ninguno causa breakage)**
+- M1: `clearSelection()` selector funciona (checkboxes usan clase simple)
+- M2: framework.js en nomina/proveedores es dead code (no se carga)
+- M3: `show(null)` está definido en app.js
+- M4: pg_restore error handling es pre-existente
+- M5: Resuelto con fix C3
+
+#### Limpieza de branches
+- 34 branches locales eliminados (ya mergeados en dev)
+- 2 branches remotos eliminados (`feat/backup-dr`, `feat/replace-prompt-alert-main`)
+- Estado final: solo `dev` y `main` permanecen
+
+#### Archivos modificados (fixes)
+- `launcher/shell/index.html` — C1 (stray divs), C2 (CSS variable)
+- `launcher/shell/app.js` — C3 (_backupPollActive reset)
+- `framework/framework.js` — H1 (toggleAll), H2 (trapFocus Escape)
+- `modules/logistica/public/framework.js` — sincronizado con framework principal
+- `modules/proyectos/public/framework.js` — sincronizado con framework principal
+- `modules/logistica/public/app.js` — H3 (edit_comentario validation)
+
+---
+
 ## Estado (12 Ago 2026 — sesión 42)
 
 ### Cambios Sesión 42 — Backup unificado DR (Fase 1)
@@ -280,8 +329,10 @@
 
 ---
 
-## Estado actual (6 Ago 2026)
+## Estado actual (13 Ago 2026)
 ### Últimos cambios
+- **Sesión 43**: Merge de branches a dev + Code Review + Fixes (CRITICAL/HIGH issues resueltos)
+- **Sesión 42**: Backup unificado DR — pg_dump + SQLite + uploads + config bundle, systemd timer
 - **Sesión 41**: Filtros en tablas, paginación, deep-linking emails, notificaciones in-app + navegador.
 - **Sesión 40**: Miembros de proyecto con roles (lider/miembro/observador), filtrado de tareas por miembros, gestión de miembros en modal.
 - **Sesión 39**: Fixes y mejoras en Proyectos — cambiar proyecto al editar tarea, auto-en_progreso al comentar/evidencia, pre-seleccionar proyecto padre, creador aprueba sus proyectos.
@@ -296,8 +347,8 @@
 #### Issues GitHub abiertos
 - [ ] **#94** — @hono/node-server path traversal en Windows (Dependabot)
 - [ ] **#93** — brace-expansion DoS — 3 Dependabot alerts HIGH
-- [ ] **#71** — Backup nómina no encuentra `backup_horasextra.sh`
-- [ ] **#70** — Investigar backup nómina más pesado que backup launcher
+- [x] **#71** — Backup nómina no encuentra `backup_horasextra.sh` — OBSOLETO (sesión 42: backup unificado reemplaza backups por módulo)
+- [x] **#70** — Investigar backup nómina más pesado que backup launcher — OBSOLETO (sesión 42: backup unificado consolida todo)
 - [ ] **#68** — Migrar Launcher a GCM + separar secretos
 - [ ] **#65** — Implementar fail2ban óptimo — evitar falsos positivos
 
@@ -317,7 +368,7 @@
 
 ### Depreciados
 - [x] ~~Migración Nómina SQLite → PostgreSQL~~ — DEPRECIADA (sesión 16). SQLite funciona correctamente.
-- [ ] ~~Backups por módulo~~ — DEPRECIADOS (sesión 42). Reemplazados por `scripts/backup_synnox.sh` (pg_dump). Se eliminarán en Fase 4.
+- [x] ~~Backups por módulo~~ — DEPRECIADOS (sesión 42). Reemplazados por `scripts/backup_synnox.sh` (pg_dump). Se eliminarán en Fase 4.
 
 ---
 
@@ -373,6 +424,8 @@
 - **Notificaciones del navegador**: Banner en dropdown hasta que usuario active. Polling cada 15 segundos. Usar `data-url` en vez de string en `onclick`.
 - **Sincronización de framework.js**: Si se modifica `framework/framework.js`, sincronizar con `modules/*/public/framework.js` y `modules/*/public/app.js` (nomina/proveedores).
 - **selectBuscador()**: Soporta objetos sin campo `email`. El `initSelectBuscador()` dispara `change` event automáticamente.
+- **toggleAll()**: Soportar firma `(tipo, checked)` y `(source)` para compatibilidad entre framework.js y app.js.
+- **trapFocus()**: Escape cierra el contenedor que tiene el trap (no siempre `modal-overlay`). Verificar `container.id` antes de cerrar.
 
 ---
 

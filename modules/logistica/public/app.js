@@ -3579,6 +3579,11 @@ async function guardarDevolucion() {
 
   try {
     if (id) {
+      const editComentario = document.getElementById('dev-edit-comentario')?.value || '';
+      if (!editComentario.trim()) {
+        return toast('Debe agregar un comentario sobre el cambio realizado', 'error');
+      }
+      body.edit_comentario = editComentario;
       await api('/devoluciones/' + id, { method: 'PUT', body: JSON.stringify(body) });
       toast('Devolución actualizada', 'success');
     } else {
