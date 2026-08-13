@@ -198,20 +198,26 @@ async function abrirModalProyecto(id) {
     `<option value="${c.id}" ${p?.centro_id === c.id ? 'selected' : ''}>${esc(c.nombre)}</option>`
   ).join('');
 
-  const miembrosHtml = id ? `
+  const miembrosActuales = id ? (p?.miembros || []) : [];
+  const miembrosCount = id ? miembrosActuales.length : _miembrosSeleccionados.size;
+  const miembrosBadges = id
+    ? miembrosActuales.map(m => {
+        const rolBadge = m.rol === 'lider' ? 'badge-info' : m.rol === 'miembro' ? 'badge-muted' : 'badge-warning';
+        return `<span class="badge ${rolBadge}" style="font-size:11px">${esc(nombreUsuario(m.usuario_id))} · ${m.rol}</span>`;
+      }).join('') || '<span style="font-size:12px;color:var(--muted)">Sin miembros</span>'
+    : '<span style="font-size:12px;color:var(--muted)">Sin miembros</span>';
+
+  const miembrosHtml = `
     <div style="border-top:1px solid var(--border);padding-top:12px;margin-top:12px">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-        <strong style="font-size:13px">Miembros del proyecto <span style="font-weight:400;color:var(--muted)">(${(p?.miembros || []).length})</span></strong>
-        <button class="btn btn-xs btn-secondary" onclick="abrirModalMiembros(${id})">Gestionar miembros</button>
+        <strong style="font-size:13px">Miembros del proyecto <span style="font-weight:400;color:var(--muted)">(${miembrosCount})</span></strong>
+        <button class="btn btn-xs btn-secondary" onclick="abrirModalMiembros(${id || 'null'})">Gestionar miembros</button>
       </div>
-      <div style="display:flex;gap:4px;flex-wrap:wrap">
-        ${(p?.miembros || []).map(m => {
-          const rolBadge = m.rol === 'lider' ? 'badge-info' : m.rol === 'miembro' ? 'badge-muted' : 'badge-warning';
-          return `<span class="badge ${rolBadge}" style="font-size:11px">${esc(nombreUsuario(m.usuario_id))} · ${m.rol}</span>`;
-        }).join('') || '<span style="font-size:12px;color:var(--muted)">Sin miembros</span>'}
+      <div id="proy-miembros-badges" style="display:flex;gap:4px;flex-wrap:wrap">
+        ${miembrosBadges}
       </div>
     </div>
-  ` : '';
+  `;
 
   const body = `
     <div class="form-group"><label>Nombre *</label><input id="proy-nombre" value="${esc(p?.nombre || '')}"></div>
@@ -256,6 +262,15 @@ async function guardarProyecto(id) {
     asignado_a: parseInt(document.getElementById('proy-asignado').value) || null
   };
   if (!body.nombre) return toast('El nombre es requerido', 'error');
+
+  // Include members when creating a new project
+  if (!id && _miembrosSeleccionados.size > 0) {
+    body.miembros = [..._miembrosSeleccionados].map(uid => ({
+      usuario_id: uid,
+      rol: _miembrosRoles[uid] || 'miembro'
+    }));
+  }
+
   try {
     if (id) {
       await api('/proyectos/' + id, { method: 'PUT', body: JSON.stringify(body) });
@@ -265,6 +280,9 @@ async function guardarProyecto(id) {
       toast('Proyecto creado', 'success');
     }
     cerrarModal();
+    // Reset member selections after saving
+    _miembrosSeleccionados = new Set();
+    _miembrosRoles = {};
     cargarProyectos();
   } catch (err) { toast(err.message, 'error'); }
 }
@@ -306,16 +324,21 @@ async function abrirModalMiembros(proyectoId) {
     toast('No se pudieron cargar los usuarios', 'error');
     return;
   }
-  const p = _proyectos.find(x => x.id === proyectoId);
   _proyectoMiembrosActual = proyectoId;
-  _miembrosSeleccionados = new Set();
-  _miembrosRoles = {};
 
-  const miembros = p?.miembros || [];
-  for (const m of miembros) {
-    _miembrosSeleccionados.add(m.usuario_id);
-    _miembrosRoles[m.usuario_id] = m.rol;
+  // For existing projects, load members from project data
+  // For new projects, keep current selections
+  if (proyectoId) {
+    const p = _proyectos.find(x => x.id === proyectoId);
+    _miembrosSeleccionados = new Set();
+    _miembrosRoles = {};
+    const miembros = p?.miembros || [];
+    for (const m of miembros) {
+      _miembrosSeleccionados.add(m.usuario_id);
+      _miembrosRoles[m.usuario_id] = m.rol;
+    }
   }
+  // If new project (proyectoId is null), keep _miembrosSeleccionados and _miembrosRoles as-is
 
   const searchEl = document.getElementById('miembro-search');
   if (searchEl) searchEl.value = '';

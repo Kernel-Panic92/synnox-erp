@@ -176,7 +176,7 @@ router.get('/:id', requirePermiso('ver', 'proyectos'), async (req, res) => {
 
 router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
   try {
-    const { nombre, descripcion, fecha_limite, centro_id, asignado_a, prioridad } = req.body;
+    const { nombre, descripcion, fecha_limite, centro_id, asignado_a, prioridad, miembros } = req.body;
     if (!nombre) return res.status(400).json({ error: 'El nombre es requerido' });
     const result = await pool.query(
       `INSERT INTO projects.proyectos (nombre, descripcion, fecha_limite, centro_id, asignado_a, prioridad)
@@ -184,20 +184,36 @@ router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
       [nombre, descripcion || '', fecha_limite || null, centro_id || null, asignado_a || null, prioridad || 'media']
     );
 
+    const proyectoId = result.rows[0].id;
+
     // Crear al asignado como lider del proyecto
     if (asignado_a) {
       await pool.query(
         `INSERT INTO projects.proyecto_miembros (proyecto_id, usuario_id, rol)
          VALUES ($1, $2, 'lider')
          ON CONFLICT (proyecto_id, usuario_id) DO NOTHING`,
-        [result.rows[0].id, asignado_a]
+        [proyectoId, asignado_a]
       );
+    }
+
+    // Insert additional members if provided
+    if (Array.isArray(miembros) && miembros.length > 0) {
+      for (const m of miembros) {
+        if (m.usuario_id) {
+          await pool.query(
+            `INSERT INTO projects.proyecto_miembros (proyecto_id, usuario_id, rol)
+             VALUES ($1, $2, $3)
+             ON CONFLICT (proyecto_id, usuario_id) DO UPDATE SET rol = $3`,
+            [proyectoId, m.usuario_id, m.rol || 'miembro']
+          );
+        }
+      }
     }
 
     // Notificar al asignado
     if (asignado_a) {
       try {
-        const proyecto = await getProyectoCompleto(pool, result.rows[0].id);
+        const proyecto = await getProyectoCompleto(pool, proyectoId);
         if (proyecto) {
           notificar({
             usuario_id: asignado_a,
@@ -211,6 +227,28 @@ router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
             emailHtml: templateAsignacion({ entidad: 'proyecto', nombre, asignador: req.user.nombre, descripcion, url: `${await getEmailBaseUrl()}/#proyectos`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
             enviarCorreo
           });
+        }
+      } catch (e) { console.warn('[notify] Error:', e.message); }
+    }
+
+    // Notify new members (not the assigned user who was already notified)
+    if (Array.isArray(miembros) && miembros.length > 0) {
+      try {
+        for (const m of miembros) {
+          if (m.usuario_id && m.usuario_id !== asignado_a) {
+            notificar({
+              usuario_id: m.usuario_id,
+              modulo: 'proyectos',
+              tipo: 'proyecto_miembro',
+              titulo: 'Agregado a proyecto',
+              mensaje: `Fuiste agregado al proyecto "${nombre}" como ${m.rol || 'miembro'}`,
+              url: '/proyectos/#proyectos',
+              email: null,
+              emailAsunto: `[Proyectos] Agregado a proyecto: ${nombre}`,
+              emailHtml: templateAsignacion({ entidad: 'proyecto', nombre, asignador: req.user.nombre, descripcion, url: `${await getEmailBaseUrl()}/#proyectos`, module: 'proyectos', baseUrl: await getEmailBaseUrl() }),
+              enviarCorreo
+            });
+          }
         }
       } catch (e) { console.warn('[notify] Error:', e.message); }
     }
