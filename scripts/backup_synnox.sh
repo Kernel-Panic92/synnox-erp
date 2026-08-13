@@ -150,7 +150,7 @@ fi
 log "── Paso 4/6: uploads y media ──"
 progress 55 "uploads" "Comprimiendo uploads y media..."
 UPLOAD_DIRS=()
-for d in modules/proveedores/uploads modules/logistica/uploads media; do
+for d in modules/proyectos/uploads modules/logistica/uploads uploads media; do
   [ -d "$INSTALL_DIR/$d" ] && UPLOAD_DIRS+=("$d")
 done
 if [ ${#UPLOAD_DIRS[@]} -gt 0 ]; then
