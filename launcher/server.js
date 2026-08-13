@@ -3788,7 +3788,8 @@ app.post('/api/admin/backup/restore', verificarToken, soloAdmin, uploadRestore.s
       ok: true,
       mensaje: `Restauración completada: ${restaurados.join(', ')}`,
       restaurados,
-      pm2Restarted
+      pm2Restarted,
+      clearSessions: restaurados.some(r => r.includes('JWT'))
     });
   } catch (err) {
     fs.rmSync(tmpDir, { recursive: true, force: true });
