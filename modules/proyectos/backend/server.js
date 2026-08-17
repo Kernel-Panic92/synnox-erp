@@ -37,6 +37,7 @@ import alertasRoutes from './routes/alertas.js';
 import backupRoutes from './routes/backup.js';
 import actasRoutes from './routes/actas.js';
 import miembrosRoutes from './routes/miembros.js';
+import archivoRoutes from './routes/archivo.js';
 
 const protect = createProtect(MODULE_ID);
 
@@ -50,6 +51,7 @@ app.use('/api/tareas', protect, comentariosRoutes);
 app.use('/api/usuarios', protect, usuariosRoutes);
 app.use('/api/backup', protect, backupRoutes);
 app.use('/api/actas', protect, actasRoutes);
+app.use('/api/archivo', protect, archivoRoutes);
 
 // Public endpoint for centros (read from launcher via globalThis shared store)
 app.get('/api/centros', (req, res) => {
@@ -149,8 +151,11 @@ import { createMiddleware } from './mcp/index.js';
 app.use('/mcp', createMiddleware());
 
 import { checkDueDateNotifications } from './utils/scheduler.js';
+import { startArchivarJob } from './utils/archivarJob.js';
+import pool from './config/db.js';
 checkDueDateNotifications();
 setInterval(checkDueDateNotifications, 24 * 60 * 60 * 1000);
+startArchivarJob(pool);
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));

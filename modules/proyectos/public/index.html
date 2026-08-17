@@ -66,6 +66,7 @@
     <button class="nav-item" data-page="tareas" onclick="navigate('tareas')" aria-label="Tareas"><span class="icon">&#x2705;</span> Tareas</button>
     <button class="nav-item" data-page="tablero" onclick="navigate('tablero')" aria-label="Tablero"><span class="icon">&#x1F5C2;</span> Tablero</button>
     <button class="nav-item" data-page="reportes" onclick="navigate('reportes')" aria-label="Reportes"><span class="icon">&#x1F4C8;</span> Reportes</button>
+    <button class="nav-item" data-page="archivo" onclick="navigate('archivo')" aria-label="Archivo"><span class="icon">&#x1F4E6;</span> Archivo</button>
     <button class="nav-item" data-page="actas" onclick="navigate('actas')" aria-label="Actas"><span class="icon">&#x1F4CB;</span> Actas</button>
   </nav>
   <div class="sidebar-footer">
@@ -180,6 +181,50 @@
         <div class="card"><h3 style="margin-bottom:12px">Tareas pendientes por usuario</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Usuario</th><th>Pendientes</th><th>Porcentaje</th></tr></thead><tbody id="rpt-asignado"></tbody></table></div></div>
       </div>
 
+      <!-- Archivo de tareas -->
+      <div class="page" id="page-archivo">
+        <div class="stats-row" id="archivo-stats" style="margin-bottom:12px"></div>
+        <div id="archivo-config-summary" style="font-size:12px;color:var(--muted);margin-bottom:16px"></div>
+        <div class="filters" style="margin-bottom:12px">
+          <select id="archivo-filtro-proyecto" onchange="_archivoPage=1;cargarArchivo()"><option value="">Todos los proyectos</option></select>
+          <input id="archivo-filtro-desde" type="date" title="Archivada desde" onchange="_archivoPage=1;cargarArchivo()">
+          <input id="archivo-filtro-hasta" type="date" title="Archivada hasta" onchange="_archivoPage=1;cargarArchivo()">
+          <input id="archivo-filtro-busqueda" type="text" placeholder="Buscar título..." oninput="_archivoPage=1;debouncedCargarArchivo()">
+          <button class="btn btn-xs btn-secondary" onclick="archivoLimpiarFiltros()" title="Limpiar filtros">&#10005; Limpiar</button>
+        </div>
+        <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:14px">
+          <span class="text-muted" id="archivo-count" style="font-size:12px">0 tareas</span>
+          <div class="flex gap-sm">
+            <button class="btn btn-sm btn-secondary" onclick="exportarArchivo()">&#x1F4E5; Exportar JSON</button>
+            <button class="btn btn-sm btn-secondary" onclick="abrirModalConfigArchivo()">&#x2699; Configurar</button>
+            <button class="btn btn-sm btn-primary" id="archivo-btn-migrar" onclick="ejecutarMigracionArchivo()">&#x1F4E4; Migrar ahora</button>
+          </div>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl"><thead><tr>
+            <th>Título</th>
+            <th>Proyecto</th>
+            <th>Prioridad</th>
+            <th>Completada</th>
+            <th>Archivada</th>
+            <th></th>
+          </tr></thead><tbody id="archivo-tbody"></tbody></table>
+        </div>
+        <div class="flex mt-12" style="justify-content:space-between;align-items:center">
+          <span class="text-muted" id="archivo-info" style="font-size:12px"></span>
+          <div class="flex gap-sm" style="align-items:center">
+            <select id="archivo-limit" onchange="_archivoLimit=parseInt(this.value);_archivoPage=1;cargarArchivo()" style="padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)">
+              <option value="10">10</option>
+              <option value="20" selected>20</option>
+              <option value="50">50</option>
+              <option value="100">100</option>
+            </select>
+            <button class="btn btn-secondary btn-sm" id="archivo-btn-prev" onclick="archivoPagina(-1)">Anterior</button>
+            <button class="btn btn-secondary btn-sm" id="archivo-btn-next" onclick="archivoPagina(1)">Siguiente</button>
+          </div>
+        </div>
+      </div>
+
       <!-- Actas de cierre -->
       <div class="page" id="page-actas">
         <div class="flex mb-12"><div class="spacer text-muted" id="actas-count">0 actas</div></div>
@@ -249,8 +294,9 @@
 <script src="js/modules/proyectos.js?v=2"></script>
 <script src="js/modules/tareas.js"></script>
 <script src="js/modules/tablero.js"></script>
-<script src="js/modules/reportes.js"></script>
-<script src="app.js?v=2"></script>
+  <script src="js/modules/reportes.js"></script>
+  <script src="js/modules/archivo.js"></script>
+  <script src="app.js?v=2"></script>
 
 <!-- Bulk Actions Bar -->
 <div class="bulk-bar" id="bulk-bar">

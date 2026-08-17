@@ -18,6 +18,7 @@ initFramework({
     tareas: () => cargarTareas(),
     tablero: () => cargarTablero(),
     reportes: () => cargarReportes(),
+    archivo: () => cargarArchivo(),
     actas: () => cargarActas(),
   },
   themePages: ['dashboard']
@@ -214,6 +215,14 @@ async function init() {
     if (!tienePermiso('crear_tarea')) {
       const btnNuevaTarea = document.querySelector('#page-tareas .btn-primary');
       if (btnNuevaTarea) btnNuevaTarea.style.display = 'none';
+    }
+    if (usuario?.rol !== 'admin' && usuario?.rol !== 'gerente') {
+      const btnMigrar = document.getElementById('archivo-btn-migrar');
+      if (btnMigrar) btnMigrar.style.display = 'none';
+      const btnsAdminArchivo = document.querySelectorAll('#page-archivo .btn-sm.btn-secondary');
+      btnsAdminArchivo.forEach(b => {
+        if (b.textContent.includes('Configurar')) b.style.display = 'none';
+      });
     }
     mostrarAppInterno();
     // Refresh periódico de sesión (cada 15 min)
