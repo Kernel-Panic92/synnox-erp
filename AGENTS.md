@@ -1,5 +1,63 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (17 Ago 2026 — sesión 45)
+
+### Cambios Sesión 45 — Archivo de Tareas Completadas (Fase 1)
+
+Nueva branch `feat/tareas-archivo-fase1` (commit `0948c2e`) con el submódulo **Archivo** dentro de Proyectos.
+
+#### Diseño aprobado
+- Archivar solo tareas completadas con `completada_en` real.
+- Persistencia en **JSONB nativo** (consultable, PostgreSQL comprime internamente).
+- Tablas de archivo: `projects.tareas_archivadas`, `projects.archivo_log`, `projects.archivo_config`.
+- El archivo es **solo lectura**; la reactivación crea una copia activa con nuevo ID y deja enlace a la original.
+- No se reutilizan IDs: `tarea_id_original` + `restaurada_como_id`.
+- Archivos físicos de evidencia se mantienen; sin limpieza automática de disco en esta fase.
+- Distinción clara: `meses_para_archivar` (3) vs `meses_retencion` (24, informativo).
+
+#### Migración `009_tareas_archivo.sql`
+- `CREATE EXTENSION IF NOT EXISTS pg_trgm` + índice GIN sobre `tarea_snapshot->>'titulo'`.
+- Columna `completada_en` en `projects.tareas` con trigger `BEFORE INSERT OR UPDATE`.
+- Backfill: tareas ya completadas sin fecha usan `updated_at` como aproximación documentada.
+- `UNIQUE(tarea_id_original)` como red de seguridad.
+
+#### Backend
+- `utils/archivoService.js`: lógica compartida `ejecutarMigracion()` y `reactivarTareaArchivada()`.
+  - Advisory lock `hashtext('tareas_archivo')::bigint`.
+  - Selección por lotes con `FOR UPDATE SKIP LOCKED`.
+  - Cada tarea se migra en su propia transacción; fallos individuales no detienen el lote.
+- `utils/archivarJob.js`: job automático cada 6h; ejecuta si han pasado >28 días desde la última ejecución automática exitosa (consulta `archivo_log` con `tipo = 'automatico'`).
+- `routes/archivo.js`: endpoints `/archivo`, `/archivo/stats`, `/archivo/config`, `/archivo/:id`, `/archivo/migrar`, `/archivo/:id/reactivar`, `/archivo/exportar/json`.
+
+#### Frontend
+- Nuevo nav item **"📦 Archivo"** en sidebar de Proyectos.
+- Página `#page-archivo` con:
+  - Stats cards (total, restauradas, espacio BD, última migración).
+  - Resumen de configuración de retención.
+  - Filtros por proyecto, rango de fechas y búsqueda por título.
+  - Tabla paginada con detalle read-only.
+  - Botones: Migrar ahora, Configurar retención, Exportar JSON (admin/gerente los de gestión).
+- Modal de detalle muestra tarea, comentarios, evidencias e historial de restauración.
+
+#### Archivos creados
+- `modules/proyectos/backend/migrations/009_tareas_archivo.sql`
+- `modules/proyectos/backend/routes/archivo.js`
+- `modules/proyectos/backend/utils/archivoService.js`
+- `modules/proyectos/backend/utils/archivarJob.js`
+- `modules/proyectos/public/js/modules/archivo.js`
+
+#### Archivos modificados
+- `modules/proyectos/backend/server.js` — monta `/api/archivo` e inicia `startArchivarJob(pool)`.
+- `modules/proyectos/public/index.html` — nav item, página `#page-archivo`, script tag.
+- `modules/proyectos/public/app.js` — registro de ruta `archivo` y ocultamiento de botones admin.
+
+#### Pendiente (Fase 2 — archivo de proyectos)
+- [ ] Archivar proyectos completados/aprobados con snapshot de tareas asociadas.
+- [ ] Tabla `projects.proyectos_archivados` y reactivación segura de proyecto + tareas.
+- [ ] Definir política de retención legal/operativa y posible limpieza automática de disco.
+
+---
+
 ## Estado (13 Ago 2026 — sesión 44)
 
 ### Cambios Sesión 44 — Backup fixes, Members & Code Review
@@ -397,8 +455,9 @@
 
 ---
 
-## Estado actual (13 Ago 2026)
+## Estado actual (17 Ago 2026)
 ### Últimos cambios
+- **Sesión 45**: Archivo de tareas completadas Fase 1 — branch `feat/tareas-archivo-fase1`, commit `0948c2e`
 - **Sesión 44**: Backup fixes + Members & Code Review + v2.1.1
 - **Sesión 43**: Merge de branches a dev + Code Review + Fixes (CRITICAL/HIGH issues resueltos) + Fix vulnerabilidades Dependabot (13 → 0)
 - **Sesión 42**: Backup unificado DR — pg_dump + SQLite + uploads + config bundle, systemd timer
