@@ -4,6 +4,8 @@ import { requirePermiso } from '../../../../framework/auth.mjs';
 import {
   ejecutarMigracion,
   reactivarTareaArchivada,
+  archivarProyecto,
+  reactivarProyectoArchivado,
 } from '../utils/archivoService.js';
 
 const router = express.Router();
@@ -268,6 +270,206 @@ router.post(
         req.user.id
       );
       res.json({ exitosa: true, nueva_tarea_id: nuevaTareaId });
+    } catch (err) {
+      res.status(400).json({ error: err.message });
+    }
+  }
+);
+
+// ── Endpoints de Proyectos Archivados ─────────────────────────
+
+// Listar proyectos archivados (paginado + filtros)
+router.get('/proyectos', requirePermiso('ver', 'proyectos'), async (req, res) => {
+  try {
+    const { q, desde, hasta, page, limit } = req.query;
+
+    const params = [];
+    const conditions = [];
+    let idx = 1;
+
+    if (desde) {
+      params.push(desde);
+      conditions.push(`archivada_en >= $${idx++}`);
+    }
+    if (hasta) {
+      params.push(hasta);
+      conditions.push(`archivada_en < ($${idx++}::timestamptz + INTERVAL '1 day')`);
+    }
+    if (q?.trim()) {
+      params.push(`%${q.trim()}%`);
+      conditions.push(`proyecto_snapshot->>'nombre' ILIKE $${idx++}`);
+    }
+
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+
+    const countRes = await pool.query(
+      `SELECT COUNT(*) FROM projects.proyectos_archivadas ${where}`,
+      params
+    );
+    const total = parseInt(countRes.rows[0].count);
+
+    const pg = parseInt(page) || 1;
+    const lim = Math.min(parseInt(limit) || 20, 100);
+    const offset = (pg - 1) * lim;
+
+    const result = await pool.query(
+      `
+      SELECT id, proyecto_id_original,
+             proyecto_snapshot->>'nombre' AS nombre,
+             proyecto_snapshot->>'estado' AS estado,
+             proyecto_snapshot->>'prioridad' AS prioridad,
+             proyecto_snapshot->>'asignado_a' AS asignado_a,
+             jsonb_array_length(tareas_activas_snapshot) AS tareas_activas,
+             jsonb_array_length(tareas_archivadas_refs) AS tareas_en_archivo,
+             completado_en, archivada_en, archivada_por,
+             restaurada_como_id, restaurada_en
+      FROM projects.proyectos_archivadas
+      ${where}
+      ORDER BY archivada_en DESC
+      LIMIT $${idx++} OFFSET $${idx++}
+    `,
+      [...params, lim, offset]
+    );
+
+    res.json({ exitosa: true, total, page: pg, limit: lim, archivados: result.rows });
+  } catch (err) {
+    console.error('[archivo] Error listando proyectos:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Estadísticas de proyectos archivados
+router.get('/proyectos/stats', requirePermiso('ver', 'proyectos'), async (req, res) => {
+  try {
+    const totalRes = await pool.query(
+      `SELECT COUNT(*) AS total,
+              COUNT(*) FILTER (WHERE restaurada_como_id IS NOT NULL) AS restauradas,
+              pg_size_pretty(pg_total_relation_size('projects.proyectos_archivadas')) AS espacio
+       FROM projects.proyectos_archivadas`
+    );
+    const ultimaRes = await pool.query(
+      `SELECT ejecutado_en, tareas_archivadas, tipo
+       FROM projects.archivo_log
+       WHERE tipo = 'proyecto'
+       ORDER BY ejecutado_en DESC
+       LIMIT 1`
+    );
+    const configRes = await pool.query(
+      `SELECT clave, valor FROM projects.archivo_config WHERE clave IN ('meses_para_archivar_proyectos', 'habilitado_proyectos')`
+    );
+    const config = {};
+    for (const row of configRes.rows) config[row.clave] = row.valor;
+
+    res.json({
+      exitosa: true,
+      stats: totalRes.rows[0],
+      ultimaEjecucion: ultimaRes.rows[0] || null,
+      config,
+    });
+  } catch (err) {
+    console.error('[archivo] Error stats proyectos:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Detalle de un proyecto archivado
+router.get('/proyectos/:id', requirePermiso('ver', 'proyectos'), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM projects.proyectos_archivadas WHERE id = $1`,
+      [req.params.id]
+    );
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Proyecto archivado no encontrado' });
+    }
+    const row = result.rows[0];
+    res.json({
+      exitosa: true,
+      archivado: {
+        ...row,
+        proyecto_snapshot: row.proyecto_snapshot,
+        tareas_activas_snapshot: row.tareas_activas_snapshot,
+        tareas_archivadas_refs: row.tareas_archivadas_refs,
+        miembros_snapshot: row.miembros_snapshot,
+        actas_snapshot: row.actas_snapshot,
+      },
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Migrar proyectos manualmente (admin/gerente)
+router.post(
+  '/proyectos/migrar',
+  requirePermiso('ver', 'proyectos'),
+  soloAdminGerente,
+  async (req, res) => {
+    try {
+      // Buscar proyectos listos para archivar
+      const configRes = await pool.query(
+        `SELECT valor FROM projects.archivo_config WHERE clave = 'meses_para_archivar_proyectos'`
+      );
+      const meses = parseInt(configRes.rows[0]?.valor) || 3;
+
+      const proyectosRes = await pool.query(
+        `SELECT p.id
+         FROM projects.proyectos p
+         WHERE p.estado = 'completado'
+           AND p.estado_aprobacion = 'aprobada'
+           AND p.aprobado_en < NOW() - INTERVAL '1 month' * $1
+           AND NOT EXISTS (
+             SELECT 1 FROM projects.proyectos_archivadas pa
+             WHERE pa.proyecto_id_original = p.id
+           )
+         ORDER BY p.aprobado_en ASC`,
+        [meses]
+      );
+
+      let exitosos = 0;
+      let fallidos = 0;
+      const errores = [];
+
+      for (const proy of proyectosRes.rows) {
+        try {
+          await archivarProyecto(pool, {
+            proyectoId: proy.id,
+            ejecutadoPor: req.user.id,
+            tipo: 'manual',
+          });
+          exitosos++;
+        } catch (err) {
+          fallidos++;
+          errores.push({ id: proy.id, error: err.message });
+        }
+      }
+
+      res.json({
+        exitosa: true,
+        resultado: { exitosos, fallidos, errores, total: proyectosRes.rows.length },
+      });
+    } catch (err) {
+      console.error('[archivo] Error en migración manual de proyectos:', err);
+      res.status(500).json({ error: err.message });
+    }
+  }
+);
+
+// Reactivar proyecto archivado (admin/gerente)
+router.post(
+  '/proyectos/:id/reactivar',
+  requirePermiso('ver', 'proyectos'),
+  soloAdminGerente,
+  async (req, res) => {
+    try {
+      const { restaurarTareasArchivadas = false } = req.body || {};
+      const resultado = await reactivarProyectoArchivado(
+        pool,
+        req.params.id,
+        req.user.id,
+        { restaurarTareasArchivadas }
+      );
+      res.json({ exitosa: true, ...resultado });
     } catch (err) {
       res.status(400).json({ error: err.message });
     }

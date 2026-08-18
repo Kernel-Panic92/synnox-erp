@@ -181,46 +181,97 @@
         <div class="card"><h3 style="margin-bottom:12px">Tareas pendientes por usuario</h3><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Usuario</th><th>Pendientes</th><th>Porcentaje</th></tr></thead><tbody id="rpt-asignado"></tbody></table></div></div>
       </div>
 
-      <!-- Archivo de tareas -->
+      <!-- Archivo de tareas y proyectos -->
       <div class="page" id="page-archivo">
-        <div class="stats-row" id="archivo-stats" style="margin-bottom:12px"></div>
-        <div id="archivo-config-summary" style="font-size:12px;color:var(--muted);margin-bottom:16px"></div>
-        <div class="filters" style="margin-bottom:12px">
-          <select id="archivo-filtro-proyecto" onchange="_archivoPage=1;cargarArchivo()"><option value="">Todos los proyectos</option></select>
-          <input id="archivo-filtro-desde" type="date" title="Archivada desde" onchange="_archivoPage=1;cargarArchivo()">
-          <input id="archivo-filtro-hasta" type="date" title="Archivada hasta" onchange="_archivoPage=1;cargarArchivo()">
-          <input id="archivo-filtro-busqueda" type="text" placeholder="Buscar título..." oninput="_archivoPage=1;debouncedCargarArchivo()">
-          <button class="btn btn-xs btn-secondary" onclick="archivoLimpiarFiltros()" title="Limpiar filtros">&#10005; Limpiar</button>
+        <!-- Tabs -->
+        <div style="display:flex;gap:4px;margin-bottom:16px;border-bottom:1px solid var(--border);padding-bottom:0">
+          <button class="btn btn-sm" id="archivo-tab-tareas" onclick="cambiarTabArchivo('tareas')" style="border-radius:8px 8px 0 0;border-bottom:2px solid var(--accent);background:var(--surface2)">&#x1F4CB; Tareas</button>
+          <button class="btn btn-sm" id="archivo-tab-proyectos" onclick="cambiarTabArchivo('proyectos')" style="border-radius:8px 8px 0 0;border-bottom:2px solid transparent;background:transparent;color:var(--muted)">&#x1F4C1; Proyectos</button>
         </div>
-        <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:14px">
-          <span class="text-muted" id="archivo-count" style="font-size:12px">0 tareas</span>
-          <div class="flex gap-sm">
-            <button class="btn btn-sm btn-secondary" onclick="exportarArchivo()">&#x1F4E5; Exportar JSON</button>
-            <button class="btn btn-sm btn-secondary" onclick="abrirModalConfigArchivo()">&#x2699; Configurar</button>
-            <button class="btn btn-sm btn-primary" id="archivo-btn-migrar" onclick="ejecutarMigracionArchivo()">&#x1F4E4; Migrar ahora</button>
+
+        <!-- Contenido Tab Tareas -->
+        <div id="archivo-contenido-tareas">
+          <div class="stats-row" id="archivo-stats" style="margin-bottom:12px"></div>
+          <div id="archivo-config-summary" style="font-size:12px;color:var(--muted);margin-bottom:16px"></div>
+          <div class="filters" style="margin-bottom:12px">
+            <select id="archivo-filtro-proyecto" onchange="_archivoPage=1;cargarArchivo()"><option value="">Todos los proyectos</option></select>
+            <input id="archivo-filtro-desde" type="date" title="Archivada desde" onchange="_archivoPage=1;cargarArchivo()">
+            <input id="archivo-filtro-hasta" type="date" title="Archivada hasta" onchange="_archivoPage=1;cargarArchivo()">
+            <input id="archivo-filtro-busqueda" type="text" placeholder="Buscar título..." oninput="_archivoPage=1;debouncedCargarArchivo()">
+            <button class="btn btn-xs btn-secondary" onclick="archivoLimpiarFiltros()" title="Limpiar filtros">&#10005; Limpiar</button>
+          </div>
+          <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:14px">
+            <span class="text-muted" id="archivo-count" style="font-size:12px">0 tareas</span>
+            <div class="flex gap-sm">
+              <button class="btn btn-sm btn-secondary" onclick="exportarArchivo()">&#x1F4E5; Exportar JSON</button>
+              <button class="btn btn-sm btn-secondary" onclick="abrirModalConfigArchivo()">&#x2699; Configurar</button>
+              <button class="btn btn-sm btn-primary" id="archivo-btn-migrar" onclick="ejecutarMigracionArchivo()">&#x1F4E4; Migrar ahora</button>
+            </div>
+          </div>
+          <div class="tbl-wrap">
+            <table class="tbl"><thead><tr>
+              <th>Título</th>
+              <th>Proyecto</th>
+              <th>Prioridad</th>
+              <th>Completada</th>
+              <th>Archivada</th>
+              <th></th>
+            </tr></thead><tbody id="archivo-tbody"></tbody></table>
+          </div>
+          <div class="flex mt-12" style="justify-content:space-between;align-items:center">
+            <span class="text-muted" id="archivo-info" style="font-size:12px"></span>
+            <div class="flex gap-sm" style="align-items:center">
+              <select id="archivo-limit" onchange="_archivoLimit=parseInt(this.value);_archivoPage=1;cargarArchivo()" style="padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)">
+                <option value="10">10</option>
+                <option value="20" selected>20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" id="archivo-btn-prev" onclick="archivoPagina(-1)">Anterior</button>
+              <button class="btn btn-secondary btn-sm" id="archivo-btn-next" onclick="archivoPagina(1)">Siguiente</button>
+            </div>
           </div>
         </div>
-        <div class="tbl-wrap">
-          <table class="tbl"><thead><tr>
-            <th>Título</th>
-            <th>Proyecto</th>
-            <th>Prioridad</th>
-            <th>Completada</th>
-            <th>Archivada</th>
-            <th></th>
-          </tr></thead><tbody id="archivo-tbody"></tbody></table>
-        </div>
-        <div class="flex mt-12" style="justify-content:space-between;align-items:center">
-          <span class="text-muted" id="archivo-info" style="font-size:12px"></span>
-          <div class="flex gap-sm" style="align-items:center">
-            <select id="archivo-limit" onchange="_archivoLimit=parseInt(this.value);_archivoPage=1;cargarArchivo()" style="padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)">
-              <option value="10">10</option>
-              <option value="20" selected>20</option>
-              <option value="50">50</option>
-              <option value="100">100</option>
-            </select>
-            <button class="btn btn-secondary btn-sm" id="archivo-btn-prev" onclick="archivoPagina(-1)">Anterior</button>
-            <button class="btn btn-secondary btn-sm" id="archivo-btn-next" onclick="archivoPagina(1)">Siguiente</button>
+
+        <!-- Contenido Tab Proyectos -->
+        <div id="archivo-contenido-proyectos" style="display:none">
+          <div class="stats-row" id="archivo-proy-stats" style="margin-bottom:12px"></div>
+          <div class="filters" style="margin-bottom:12px">
+            <input id="archivo-proy-filtro-desde" type="date" title="Archivada desde" onchange="_archivoProyPage=1;cargarProyectosArchivados()">
+            <input id="archivo-proy-filtro-hasta" type="date" title="Archivada hasta" onchange="_archivoProyPage=1;cargarProyectosArchivados()">
+            <input id="archivo-proy-filtro-busqueda" type="text" placeholder="Buscar nombre..." oninput="_archivoProyPage=1;debouncedCargarProyectosArchivados()">
+            <button class="btn btn-xs btn-secondary" onclick="archivoProyLimpiarFiltros()" title="Limpiar filtros">&#10005; Limpiar</button>
+          </div>
+          <div class="flex" style="justify-content:space-between;align-items:center;margin-bottom:14px">
+            <span class="text-muted" id="archivo-proy-count" style="font-size:12px">0 proyectos</span>
+            <div class="flex gap-sm">
+              <button class="btn btn-sm btn-secondary" onclick="abrirModalConfigArchivo()">&#x2699; Configurar</button>
+              <button class="btn btn-sm btn-primary" id="archivo-proy-btn-migrar" onclick="ejecutarMigracionProyectos()">&#x1F4E4; Migrar ahora</button>
+            </div>
+          </div>
+          <div class="tbl-wrap">
+            <table class="tbl"><thead><tr>
+              <th>Nombre</th>
+              <th>Prioridad</th>
+              <th>Tareas activas</th>
+              <th>En archivo</th>
+              <th>Aprobado</th>
+              <th>Archivado</th>
+              <th></th>
+            </tr></thead><tbody id="archivo-proy-tbody"></tbody></table>
+          </div>
+          <div class="flex mt-12" style="justify-content:space-between;align-items:center">
+            <span class="text-muted" id="archivo-proy-info" style="font-size:12px"></span>
+            <div class="flex gap-sm" style="align-items:center">
+              <select id="archivo-proy-limit" onchange="_archivoProyLimit=parseInt(this.value);_archivoProyPage=1;cargarProyectosArchivados()" style="padding:4px 8px;font-size:12px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text)">
+                <option value="10">10</option>
+                <option value="20" selected>20</option>
+                <option value="50">50</option>
+                <option value="100">100</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" id="archivo-proy-btn-prev" onclick="archivoProyPagina(-1)">Anterior</button>
+              <button class="btn btn-secondary btn-sm" id="archivo-proy-btn-next" onclick="archivoProyPagina(1)">Siguiente</button>
+            </div>
           </div>
         </div>
       </div>
