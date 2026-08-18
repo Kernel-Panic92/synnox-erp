@@ -119,9 +119,9 @@ export async function ejecutarMigracion(pool, opts = {}) {
       await batchClient.query("BEGIN");
       const res = await batchClient.query(
         `
-          SELECT t.*, p.nombre AS proyecto_nombre
+          SELECT t.*,
+                 (SELECT p.nombre FROM projects.proyectos p WHERE p.id = t.proyecto_id) AS proyecto_nombre
           FROM projects.tareas t
-          LEFT JOIN projects.proyectos p ON p.id = t.proyecto_id
           WHERE t.estado = 'completada'
             AND t.completada_en < NOW() - INTERVAL '1 month' * $1
             AND NOT EXISTS (
