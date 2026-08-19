@@ -1626,7 +1626,7 @@ async function submitReset() {
     if (!data.ok) { showError(errEl, data.error || 'Error'); btn.disabled = false; btn.textContent = 'Cambiar contraseña'; return; }
     document.getElementById('reset-form').style.display = 'none';
     document.getElementById('reset-done').style.display = 'block';
-  } catch(e) { showError(errEl, 'Error de conexión'); }
+  } catch(e) { console.error('[reset]', e); showError(errEl, 'Error de conexión — intenta de nuevo'); }
   finally { btn.disabled = false; btn.textContent = 'Cambiar contraseña'; }
 }
 
