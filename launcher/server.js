@@ -1312,25 +1312,35 @@ app.post('/api/auth/forgot', loginRateLimit, async (req, res) => {
 });
 
 app.get('/api/auth/reset', loginRateLimit, (req, res) => {
-  const { token } = req.query;
-  if (!token) return res.status(400).json({ error: 'Token requerido' });
-  const row = db.prepare('SELECT * FROM reset_tokens WHERE token = ? AND usado = 0 AND expires_at > datetime("now")').get(token);
-  if (!row) return res.status(400).json({ error: 'Token inválido o expirado' });
-  res.json({ ok: true, email: row.email });
+  try {
+    const { token } = req.query;
+    if (!token) return res.status(400).json({ error: 'Token requerido' });
+    const row = db.prepare(`SELECT * FROM reset_tokens WHERE token = ? AND usado = 0 AND expires_at > datetime('now')`).get(token);
+    if (!row) return res.status(400).json({ error: 'Token inválido o expirado' });
+    res.json({ ok: true, email: row.email });
+  } catch (err) {
+    console.error('[RESET-GET] Error:', err.message);
+    if (!res.headersSent) res.status(500).json({ error: 'Error al validar token' });
+  }
 });
 
 app.post('/api/auth/reset', loginRateLimit, async (req, res) => {
-  const { token, password } = req.body;
-  if (!token || !password) return res.status(400).json({ error: 'Token y contraseña requeridos' });
-  if (password.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
-  const row = db.prepare('SELECT * FROM reset_tokens WHERE token = ? AND usado = 0 AND expires_at > datetime("now")').get(token);
-  if (!row) return res.status(400).json({ error: 'Token inválido o expirado' });
-  const hash = bcrypt.hashSync(password, 10);
-  db.prepare("UPDATE usuarios SET password_hash = ?, actualizado = datetime('now') WHERE email = ?").run(hash, row.email);
-  db.prepare('UPDATE reset_tokens SET usado = 1 WHERE id = ?').run(row.id);
-  const user = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(row.email);
-  if (user) invalidarSesionUsuario(user.id);
-  res.json({ ok: true, message: 'Contraseña actualizada correctamente' });
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: 'Token y contraseña requeridos' });
+    if (password.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+    const row = db.prepare(`SELECT * FROM reset_tokens WHERE token = ? AND usado = 0 AND expires_at > datetime('now')`).get(token);
+    if (!row) return res.status(400).json({ error: 'Token inválido o expirado' });
+    const hash = bcrypt.hashSync(password, 10);
+    db.prepare("UPDATE usuarios SET password_hash = ?, actualizado = datetime('now') WHERE email = ?").run(hash, row.email);
+    db.prepare('UPDATE reset_tokens SET usado = 1 WHERE id = ?').run(row.id);
+    const user = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(row.email);
+    if (user) invalidarSesionUsuario(user.id);
+    res.json({ ok: true, message: 'Contraseña actualizada correctamente' });
+  } catch (err) {
+    console.error('[RESET] Error:', err.message, err.stack);
+    if (!res.headersSent) res.status(500).json({ error: 'Error al restablecer contraseña' });
+  }
 });
 
 app.get('/api/modulos', verificarToken, (req, res) => {
