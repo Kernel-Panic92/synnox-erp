@@ -2545,6 +2545,18 @@ async function killSession(id, nombre) {
   try { const r = await fetch('/api/version', { signal: AbortSignal.timeout(5000) }); const d = await r.json(); launcherVersion = d.version || ''; launcherCommit = d.commit || ''; } catch(e) {}
   const loginVersionEl = document.getElementById('login-version');
   if (loginVersionEl) loginVersionEl.textContent = launcherVersion ? 'v' + launcherVersion + (launcherCommit ? ' - ' + launcherCommit : '') : '';
+  // ── Reset password: check token BEFORE auth to avoid stale JWT blocking the modal ──
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('token')) {
+    show('login-screen');
+    document.getElementById('reset-password').value = '';
+    document.getElementById('reset-password2').value = '';
+    document.getElementById('reset-error').classList.remove('show');
+    document.getElementById('reset-form').style.display = 'block';
+    document.getElementById('reset-done').style.display = 'none';
+    document.getElementById('reset-modal').style.display = 'block';
+    return;
+  }
   if (jwtToken) {
     try {
       // Refresh token silently to extend session
@@ -2585,6 +2597,7 @@ async function killSession(id, nombre) {
     // Session invalid — clear and show login
     jwtToken = null;
     user = null;
+    localStorage.removeItem('platform_jwt');
     show('login-screen');
     return;
   }
@@ -2607,15 +2620,6 @@ async function killSession(id, nombre) {
     }
   } catch(e) {}
   show('login-screen');
-  const params = new URLSearchParams(window.location.search);
-  if (params.get('token')) {
-    document.getElementById('reset-password').value = '';
-    document.getElementById('reset-password2').value = '';
-    document.getElementById('reset-error').classList.remove('show');
-    document.getElementById('reset-form').style.display = 'block';
-    document.getElementById('reset-done').style.display = 'none';
-    document.getElementById('reset-modal').style.display = 'block';
-  }
 })();
 
 // ── Safety net: hide loading screen after 8s if stuck ──
