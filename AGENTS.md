@@ -1,5 +1,58 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (18 Ago 2026 — sesión 46)
+
+### Cambios Sesión 46 — Archivo de Proyectos Completados (Fase 2)
+
+Merge de `feat/proyectos-archivo-fase2` (PR #117) a `dev`. Branch feature eliminada.
+
+#### Migración `010_proyectos_archivo.sql`
+- Tabla `projects.proyectos_archivadas` con snapshots JSONB: proyecto, tareas activas, referencias a tareas archivadas, miembros, actas.
+- 3 índices: `proyecto_id_original`, `archivada_en`, GIN pg_trgm sobre `proyecto_snapshot->>'nombre'`.
+- Config: `meses_para_archivar_proyectos` (3) y `habilitado_proyectos` (true).
+
+#### Backend — Servicio (`archivoService.js`)
+- `archivarProyecto(pool, opts)`: archiva proyecto completado+aprobado con snapshot de tareas activas, miembros y actas. Referencia tareas ya archivadas individualmente. DELETE cascade elimina el proyecto original.
+- `reactivarProyectoArchivado(pool, archivoId, usuarioId, opts)`: restaura proyecto con nuevo ID, tareas, miembros, actas. Opción `restaurarTareasArchivadas` para restaurar tareas que estaban en `tareas_archivadas`.
+- `getUltimaEjecucionProyectos(pool)`: para el job automático.
+
+#### Backend — Job (`archivarJob.js`)
+- Job único para tareas y proyectos. `checkTareas()` + `checkProyectos()` en el mismo intervalo (6h).
+- Proyectos: busca completados+aprobados con >3 meses desde `aprobado_en`.
+- Config `habilitado_proyectos` para desactivar archivado automático de proyectos.
+
+#### Backend — Routes (`archivo.js`)
+- 5 endpoints nuevos: GET `/proyectos`, GET `/proyectos/stats`, GET `/proyectos/:id`, POST `/proyectos/migrar`, POST `/proyectos/:id/reactivar`.
+- Permisos: `ver` para lectura, `soloAdminGerente` para migrar/reactivar.
+
+#### Frontend
+- **Tabs** "Tareas" / "Proyectos" en `#page-archivo`.
+- Tabla de proyectos archivados: nombre, prioridad, tareas activas/archivo, fechas, restauración.
+- Modal detalle: snapshot completo + miembros + actas + tareas.
+- Reactivación con doble confirmación: crear proyecto + restaurar tareas archivadas individualmente.
+- Botones admin ocultos para usuarios no-admin/gerente.
+
+#### Fix
+- `FOR UPDATE SKIP LOCKED` con `LEFT JOIN` causaba error. Cambiado a subquery correlacionada en `ejecutarMigracion()`.
+
+#### Archivos creados
+- `modules/proyectos/backend/migrations/010_proyectos_archivo.sql`
+- `docs/PLAN-FASE2-ARCHIVO-PROYECTOS.md`
+
+#### Archivos modificados
+- `modules/proyectos/backend/utils/archivoService.js` — +`archivarProyecto()`, +`reactivarProyectoArchivado()`, +`getUltimaEjecucionProyectos()`, fix subquery.
+- `modules/proyectos/backend/utils/archivarJob.js` — extensible para proyectos.
+- `modules/proyectos/backend/routes/archivo.js` — +5 endpoints de proyectos.
+- `modules/proyectos/public/index.html` — tabs Tareas/Proyectos + tabla proyectos.
+- `modules/proyectos/public/js/modules/archivo.js` — +tabs, tabla proyectos, modal, reactivación.
+- `modules/proyectos/public/app.js` — ocultar botones admin en tab proyectos.
+
+#### Pendiente
+- [ ] Migrar a `main` + deploy a producción.
+- [ ] Policy de retención legal/operativa (informativa en Fase 2).
+
+---
+
 ## Estado (17 Ago 2026 — sesión 45)
 
 ### Cambios Sesión 45 — Archivo de Tareas Completadas (Fase 1)
@@ -52,8 +105,8 @@ Nueva branch `feat/tareas-archivo-fase1` (commit `0948c2e`) con el submódulo **
 - `modules/proyectos/public/app.js` — registro de ruta `archivo` y ocultamiento de botones admin.
 
 #### Pendiente (Fase 2 — archivo de proyectos)
-- [ ] Archivar proyectos completados/aprobados con snapshot de tareas asociadas.
-- [ ] Tabla `projects.proyectos_archivados` y reactivación segura de proyecto + tareas.
+- [x] Archivar proyectos completados/aprobados con snapshot de tareas asociadas.
+- [x] Tabla `projects.proyectos_archivados` y reactivación segura de proyecto + tareas.
 - [ ] Definir política de retención legal/operativa y posible limpieza automática de disco.
 
 ---
@@ -455,8 +508,9 @@ Nueva branch `feat/tareas-archivo-fase1` (commit `0948c2e`) con el submódulo **
 
 ---
 
-## Estado actual (17 Ago 2026)
+## Estado actual (18 Ago 2026)
 ### Últimos cambios
+- **Sesión 46**: Archivo de proyectos completados Fase 2 — merge PR #117 a dev, branch feature eliminada
 - **Sesión 45**: Archivo de tareas completadas Fase 1 — branch `feat/tareas-archivo-fase1`, commit `0948c2e`
 - **Sesión 44**: Backup fixes + Members & Code Review + v2.1.1
 - **Sesión 43**: Merge de branches a dev + Code Review + Fixes (CRITICAL/HIGH issues resueltos) + Fix vulnerabilidades Dependabot (13 → 0)
