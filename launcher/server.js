@@ -1338,8 +1338,8 @@ app.post('/api/auth/reset', loginRateLimit, async (req, res) => {
     if (user) invalidarSesionUsuario(user.id);
     res.json({ ok: true, message: 'Contraseña actualizada correctamente' });
   } catch (err) {
-    console.error('[RESET] Error:', err.message);
-    if (!res.headersSent) res.status(500).json({ error: 'Error al restablecer contraseña' });
+    console.error('[RESET] Error:', err.message, err.stack);
+    if (!res.headersSent) res.status(500).json({ error: 'Error al restablecer contraseña', detail: err.message });
   }
 });
 
