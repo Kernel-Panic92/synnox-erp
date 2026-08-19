@@ -1381,7 +1381,7 @@ app.get('/api/auth/reset', loginRateLimit, (req, res) => {
   try {
     const { token } = req.query;
     if (!token) return res.status(400).json({ error: 'Token requerido' });
-    const row = db.prepare('SELECT * FROM reset_tokens WHERE token = ? AND usado = 0 AND expires_at > datetime("now")').get(token);
+    const row = db.prepare(`SELECT * FROM reset_tokens WHERE token = ? AND usado = 0 AND expires_at > datetime('now')`).get(token);
     if (!row) return res.status(400).json({ error: 'Token inválido o expirado' });
     res.json({ ok: true, email: row.email });
   } catch (err) {
