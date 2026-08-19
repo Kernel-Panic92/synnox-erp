@@ -1623,7 +1623,7 @@ async function submitReset() {
   try {
     const res = await fetch('/api/auth/reset', { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({token, password:pwd}) });
     const data = await res.json();
-    if (!data.ok) { showError(errEl, data.detail || data.error || 'Error'); btn.disabled = false; btn.textContent = 'Cambiar contraseña'; return; }
+    if (!data.ok) { showError(errEl, data.error || 'Error'); btn.disabled = false; btn.textContent = 'Cambiar contraseña'; return; }
     document.getElementById('reset-form').style.display = 'none';
     document.getElementById('reset-done').style.display = 'block';
   } catch(e) { console.error('[reset]', e); showError(errEl, 'Error de conexión — intenta de nuevo'); }
