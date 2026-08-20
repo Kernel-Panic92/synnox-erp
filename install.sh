@@ -102,6 +102,7 @@ fi
 
 # ─── 4. Generar .env ───────────────────────────────────────
 JWT_SECRET="${JWT_SECRET:-$(openssl rand -hex 64)}"
+LOG_ENCRYPTION_SECRET="${LOG_ENCRYPTION_SECRET:-$(openssl rand -hex 64)}"
 ADMIN_PASS="${ADMIN_PASS:-$(openssl rand -hex 8)}"
 
 if [ ! -f "$CONFIG" ]; then
@@ -109,6 +110,7 @@ if [ ! -f "$CONFIG" ]; then
 # SynnoxERP — Generado por install.sh $(date)
 PORT=3002
 JWT_SECRET=$JWT_SECRET
+LOG_ENCRYPTION_SECRET=$LOG_ENCRYPTION_SECRET
 ADMIN_EMAIL=admin@synnoxerp.com
 ADMIN_PASS=$ADMIN_PASS
 NODE_ENV=production
@@ -161,6 +163,7 @@ export PGPASSWORD="$DB_PASS"
 # Schema logistics (idempotente)
 psql -U "$DB_USER" -h localhost -d "$DB_NAME" -c "CREATE SCHEMA IF NOT EXISTS logistics;" 2>/dev/null || true
 psql -U "$DB_USER" -h localhost -d "$DB_NAME" -c "CREATE SCHEMA IF NOT EXISTS projects;" 2>/dev/null || true
+psql -U "$DB_USER" -h localhost -d "$DB_NAME" -f "$INSTALL_DIR/framework/migrations/001_auditoria_central.sql" 2>/dev/null || warn "Migration: auditoria central"
 
 # Migraciones SQL de logística
 if [ -d "$INSTALL_DIR/modules/logistica/backend/migrations" ]; then
@@ -267,8 +270,13 @@ nginx -t 2>/dev/null && systemctl reload nginx && ok "Nginx configurado" || warn
 echo ""
 echo ">>> Configurando Fail2ban..."
 if command -v fail2ban-client &>/dev/null; then
+  if [ -f "$INSTALL_DIR/systemd/fail2ban/filter.d/synnox-login.conf" ]; then
+    install -m 0644 "$INSTALL_DIR/systemd/fail2ban/filter.d/synnox-login.conf" /etc/fail2ban/filter.d/synnox-login.conf
+    install -m 0644 "$INSTALL_DIR/systemd/fail2ban/jail.d/synnox-login.conf" /etc/fail2ban/jail.d/synnox-login.conf
+    fail2ban-client -t 2>/dev/null || warn "Configuración Fail2ban inválida — revisa /etc/fail2ban"
+  fi
   systemctl enable fail2ban 2>/dev/null || true
-  systemctl start fail2ban 2>/dev/null || true
+  systemctl restart fail2ban 2>/dev/null || true
   ok "Fail2ban activo"
 else
   warn "Fail2ban no instalado — instálalo para protección adicional"

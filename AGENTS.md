@@ -508,8 +508,13 @@ Nueva branch `feat/tareas-archivo-fase1` (commit `0948c2e`) con el submódulo **
 
 ---
 
-## Estado actual (18 Ago 2026)
+## Estado actual (20 Ago 2026)
 ### Últimos cambios
+- **Sesión 47**: Workflow persistente de sprints, auditoría central, retención diaria, revocación selectiva de sesiones e instrumentación local de autenticación. PR #118 fusionado a `dev`.
+- **Sprint actual**: Seguridad y observabilidad — branch `chore/open-issues-triage`; workflow persistente en `docs/WORKFLOW.md` y estado en `docs/SPRINT.md`.
+- **Issues #65, #70, #71, #93 y #94**: cerrados o marcados obsoletos tras verificación.
+- **Issues #111 y #112**: base de auditoría central, retención y helper implementados.
+- **Issue #113**: revocación selectiva de sesiones e instrumentación local de autenticación en progreso.
 - **Sesión 46**: Archivo de proyectos completados Fase 2 — merge PR #117 a dev, branch feature eliminada
 - **Sesión 45**: Archivo de tareas completadas Fase 1 — branch `feat/tareas-archivo-fase1`, commit `0948c2e`
 - **Sesión 44**: Backup fixes + Members & Code Review + v2.1.1
@@ -527,12 +532,14 @@ Nueva branch `feat/tareas-archivo-fase1` (commit `0948c2e`) con el submódulo **
 ### Pendientes consolidados
 
 #### Issues GitHub abiertos
-- [ ] **#94** — @hono/node-server path traversal en Windows (Dependabot)
-- [ ] **#93** — brace-expansion DoS — 3 Dependabot alerts HIGH
-- [x] **#71** — Backup nómina no encuentra `backup_horasextra.sh` — OBSOLETO (sesión 42: backup unificado reemplaza backups por módulo)
-- [x] **#70** — Investigar backup nómina más pesado que backup launcher — OBSOLETO (sesión 42: backup unificado consolida todo)
-- [ ] **#68** — Migrar Launcher a GCM + separar secretos
-- [ ] **#65** — Implementar fail2ban óptimo — evitar falsos positivos
+- [ ] **#116** — Observabilidad y alertas de seguridad
+- [ ] **#115** — Instrumentar operaciones de negocio en módulos existentes
+- [ ] **#114** — Menú central Logs en el Launcher
+- [ ] **#113** — Mejorar auditoría de sesiones y autenticación
+- [ ] **#112** — Helper/SDK compartido para emisión de eventos de auditoría
+- [ ] **#111** — Auditoría central: modelo de datos y contrato de eventos
+- [ ] **#109–#99** — Bloque UX/UI y accesibilidad
+- [ ] **#68** — Migrar Launcher a GCM + separar secretos; pendiente rotación de claves
 
 #### Técnicos
 - [ ] Observabilidad centralizada (tabla `auditoria_central`)
@@ -553,6 +560,24 @@ Nueva branch `feat/tareas-archivo-fase1` (commit `0948c2e`) con el submódulo **
 - [x] ~~Backups por módulo~~ — DEPRECIADOS (sesión 42). Reemplazados por `scripts/backup_synnox.sh` (pg_dump). Se eliminarán en Fase 4.
 
 ---
+
+## Metodologia de trabajo
+
+El proyecto usa **Kanban iterativo con ciclos ligeros de sprint**. Las reglas
+persistentes estan en `docs/WORKFLOW.md` y el estado del sprint actual en
+`docs/SPRINT.md`. Toda nueva sesion debe leer ambos archivos junto con este
+documento.
+
+- GitHub Issues es la fuente de verdad del backlog.
+- El sprint debe tener un objetivo verificable y criterios de aceptacion.
+- El flujo normal crea branches desde `dev`, no desde `main`.
+- El trabajo se divide en bloques pequenos, verificables y reversibles.
+- No cerrar issues parcialmente resueltos; comentar avances y pendientes.
+- Definition of Done: pruebas, diff limpio, documentacion, commit y estado del
+  issue actualizados.
+- No hacer merge, deploy ni modificar secretos sin confirmacion explicita.
+- Al iniciar o cerrar un sprint actualizar `docs/SPRINT.md`; actualizar esta
+  guia si cambian las reglas del proceso.
 
 ## Convenciones del Framework (SEGUIR SIEMPRE)
 

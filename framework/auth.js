@@ -86,14 +86,20 @@ function setCachedSeq(userId, seq) {
 let _readonlyDb = null;
 function verifySessionValid(payload) {
   try {
-    const cachedSeq = getCachedSeq(payload.id);
-    if (cachedSeq !== null) return cachedSeq === payload.seq;
     if (!_readonlyDb) {
       const Database = require('better-sqlite3');
       const path = require('path');
       const dbPath = path.join(__dirname, '..', 'launcher', 'launcher.db');
       _readonlyDb = new Database(dbPath, { readonly: true });
     }
+    if (payload.jti) {
+      try {
+        const revoked = _readonlyDb.prepare('SELECT 1 FROM sesiones_revocadas WHERE session_id = ?').get(payload.jti);
+        if (revoked) return false;
+      } catch {}
+    }
+    const cachedSeq = getCachedSeq(payload.id);
+    if (cachedSeq !== null) return cachedSeq === payload.seq;
     const row = _readonlyDb.prepare('SELECT seq FROM usuarios WHERE id = ?').get(payload.id);
     const seq = row ? row.seq : payload.seq;
     setCachedSeq(payload.id, seq);

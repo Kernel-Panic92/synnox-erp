@@ -15,6 +15,8 @@ const { verificarToken, soloAdmin, parseCookies, firmarToken } = require('./midd
 const { encryptEmail, decryptEmail } = require('./services/crypto');
 const { createLoginRateLimit, getLoginAttempts } = require('./services/rateLimit');
 const { debeEnviarEmail } = require('../framework/email-check');
+const { Pool } = require('pg');
+const { configureAudit, auditarEvento } = require('../framework/audit');
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 const mcpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 const dcrLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiados registros de clientes — intenta más tarde' } });
@@ -113,6 +115,7 @@ const INSTALL_DIR = process.env.INSTALL_DIR || path.resolve(__dirname, '..');
 
 const PORT = parseInt(process.env.PORT || '3002', 10);
 const JWT_SECRET = process.env.JWT_SECRET;
+const LOG_ENCRYPTION_SECRET = process.env.LOG_ENCRYPTION_SECRET;
 
 // Base URL for emails and external links
 // In production (COMPANY_DOMAIN set), uses HTTPS on standard port (no port needed)
@@ -125,6 +128,23 @@ if (!JWT_SECRET) {
   console.error('ERROR: JWT_SECRET no está configurado. Establece la variable de entorno JWT_SECRET.');
   process.exit(1);
 }
+if (!LOG_ENCRYPTION_SECRET) {
+  console.error('ERROR: LOG_ENCRYPTION_SECRET no está configurado. Debe ser un secreto independiente de JWT_SECRET.');
+  process.exit(1);
+}
+const auditPool = new Pool({
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+  database: process.env.DB_NAME || 'synnox_erp',
+  user: process.env.DB_USER || 'synnox',
+  password: process.env.DB_PASSWORD || '',
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  connectionTimeoutMillis: 3000
+});
+configureAudit(auditPool, {
+  maskIp: process.env.AUDIT_MASK_IP === 'true',
+  integritySecret: process.env.AUDIT_INTEGRITY_SECRET
+});
 const SERVER_START = Date.now();
 
 
@@ -545,7 +565,18 @@ db.exec(`
     creado TEXT NOT NULL DEFAULT (datetime('now','localtime'))
   )
 `);
+try { db.exec('ALTER TABLE sesiones_activas ADD COLUMN session_id TEXT'); } catch {}
 db.exec("CREATE INDEX IF NOT EXISTS idx_sesiones_usuario ON sesiones_activas(usuario_id)");
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_sesiones_session ON sesiones_activas(session_id) WHERE session_id IS NOT NULL");
+db.exec(`
+  CREATE TABLE IF NOT EXISTS sesiones_revocadas (
+    session_id TEXT PRIMARY KEY,
+    usuario_id INTEGER NOT NULL,
+    revocado_en TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    motivo TEXT NOT NULL DEFAULT 'revocacion_remota'
+  )
+`);
+db.exec("CREATE INDEX IF NOT EXISTS idx_sesiones_revocadas_fecha ON sesiones_revocadas(revocado_en)");
 // Purge stale sessions (>2 min without heartbeat)
 db.prepare("DELETE FROM sesiones_activas WHERE datetime(ultimo_heartbeat, '+2 minutes') < datetime('now')").run();
 
@@ -826,9 +857,22 @@ function getModulos(onlyMcp) {
 // ── Forgot-password cooldown (1 min per email) ──
 var forgotCooldowns = {};
 
-function logLoginAttempt(ip, email, exitoso) {
+function logLoginAttempt(ip, email, exitoso, context = {}) {
   const encEmail = email ? encryptEmail((email || '').toLowerCase().trim()) : '';
   db.prepare("INSERT INTO login_logs (ip, email, exitoso) VALUES (?, ?, ?)").run(ip || '', encEmail, exitoso ? 1 : 0);
+  void auditarEvento({
+    modulo: 'launcher',
+    categoria: exitoso ? 'auth' : 'security',
+    accion: exitoso ? 'login_exitoso' : 'login_fallido',
+    resultado: exitoso ? 'exito' : 'fallido',
+    actor_id: context.userId,
+    actor_tipo: context.actor_tipo || 'usuario',
+    actor_email: email,
+    ip,
+    user_agent: context.userAgent,
+    resumen: exitoso ? 'Inicio de sesion exitoso' : 'Intento de inicio de sesion fallido',
+    metadata: { motivo: context.motivo || (exitoso ? null : 'credenciales_invalidas') }
+  });
 }
 
 const { buildPayload, getUserWithPermissions, verifySessionValid } = require('./../framework/auth');
@@ -842,7 +886,7 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
     const user = db.prepare('SELECT * FROM usuarios WHERE email = ? AND activo = 1').get(email.toLowerCase().trim());
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       if (req._loginRateLimitKey) loginAttempts[req._loginRateLimitKey].push(req._loginRateLimitNow);
-      logLoginAttempt(req.ip, email, false);
+      logLoginAttempt(req.ip, email, false, { userAgent: req.headers['user-agent'] });
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
     // Check blacklist
@@ -850,7 +894,7 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
       const entry = db.prepare('SELECT reason FROM user_blacklist WHERE user_id = ?').get(user.id);
       return res.status(403).json({ error: 'Tu cuenta ha sido bloqueada', reason: entry?.reason || '' });
     }
-    logLoginAttempt(req.ip, email, true);
+    logLoginAttempt(req.ip, email, true, { userId: user.id, userAgent: req.headers['user-agent'] });
     const userWithPerms = getUserWithPermissions(db, user.id);
     if (!userWithPerms) return res.status(500).json({ error: 'Error al cargar permisos' });
     const payload = buildPayload(userWithPerms);
@@ -873,7 +917,15 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
 app.post('/api/auth/logout', verificarToken, (req, res) => {
   if (req.usuario && req.usuario.id) {
     db.prepare("UPDATE oauth_accounts SET access_token = NULL, expires_at = NULL WHERE user_id = ?").run(req.usuario.id);
+    if (req.usuario.jti) {
+      db.prepare('DELETE FROM sesiones_activas WHERE session_id = ?').run(req.usuario.jti);
+    }
   }
+  void auditarEvento({
+    modulo: 'launcher', categoria: 'auth', accion: 'logout', resultado: 'exito',
+    actor_id: req.usuario?.id, actor_email: req.usuario?.email, sesion_id: req.usuario?.jti,
+    ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'Cierre de sesion'
+  });
   const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
   res.setHeader('Set-Cookie', `launcher_jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax${isSecure ? '; Secure' : ''}`);
   res.json({ ok: true });
@@ -892,12 +944,15 @@ app.post('/api/heartbeat', verificarToken, (req, res) => {
     const nombre = req.usuario.nombre || '';
     const ip = req.ip || req.connection?.remoteAddress || '';
     const userAgent = req.headers['user-agent'] || '';
-    // Upsert session
-    const existing = db.prepare('SELECT id FROM sesiones_activas WHERE usuario_id = ?').get(userId);
+    const sessionId = req.usuario.jti || null;
+    // Upsert by JWT jti so a user can keep multiple devices active.
+    const existing = sessionId
+      ? db.prepare('SELECT id FROM sesiones_activas WHERE session_id = ?').get(sessionId)
+      : db.prepare('SELECT id FROM sesiones_activas WHERE usuario_id = ? AND session_id IS NULL').get(userId);
     if (existing) {
-      db.prepare("UPDATE sesiones_activas SET ultimo_heartbeat = datetime('now','localtime'), ip = ?, user_agent = ? WHERE usuario_id = ?").run(ip, userAgent, userId);
+      db.prepare("UPDATE sesiones_activas SET ultimo_heartbeat = datetime('now','localtime'), ip = ?, user_agent = ? WHERE id = ?").run(ip, userAgent, existing.id);
     } else {
-      db.prepare('INSERT INTO sesiones_activas (usuario_id, usuario_nombre, ip, user_agent) VALUES (?, ?, ?, ?)').run(userId, nombre, ip, userAgent);
+      db.prepare('INSERT INTO sesiones_activas (usuario_id, usuario_nombre, session_id, ip, user_agent) VALUES (?, ?, ?, ?, ?)').run(userId, nombre, sessionId, ip, userAgent);
     }
     res.json({ ok: true });
   } catch (e) {
@@ -911,6 +966,11 @@ app.post('/api/auth/refresh', verificarToken, (req, res) => {
   if (!userWithPerms) return res.status(401).json({ error: 'Usuario no encontrado' });
   const payload = buildPayload(userWithPerms);
   const token = firmarToken(payload, res, req);
+  void auditarEvento({
+    modulo: 'launcher', categoria: 'auth', accion: 'token_refresh', resultado: 'exito',
+    actor_id: req.usuario.id, actor_email: req.usuario.email, sesion_id: payload.jti,
+    ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'Token renovado'
+  });
   res.json({ jwt: token });
 });
 
@@ -1275,8 +1335,9 @@ app.post('/api/admin/sesiones/:id/kill', verificarToken, soloAdmin, (req, res) =
     const { id } = req.params;
     const sesion = db.prepare("SELECT * FROM sesiones_activas WHERE id = ?").get(id);
     if (!sesion) return res.status(404).json({ error: 'Sesión no encontrada' });
-    // Invalidate all JWTs for this user by setting session invalidation
-    db.prepare("INSERT OR REPLACE INTO usuario_sesion_invalidada (usuario_id, invalidado_en) VALUES (?, datetime('now'))").run(sesion.usuario_id);
+    if (sesion.session_id) {
+      db.prepare("INSERT OR REPLACE INTO sesiones_revocadas (session_id, usuario_id, motivo) VALUES (?, ?, 'revocacion_remota')").run(sesion.session_id, sesion.usuario_id);
+    }
     db.prepare("DELETE FROM sesiones_activas WHERE id = ?").run(id);
     res.json({ ok: true, message: `Sesión de ${sesion.usuario_nombre} cerrada` });
   } catch (e) {
@@ -1289,6 +1350,11 @@ app.post('/api/auth/forgot', loginRateLimit, async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email requerido' });
   const emailNorm = email.toLowerCase().trim();
+  void auditarEvento({
+    modulo: 'launcher', categoria: 'auth', accion: 'password_reset_solicitado', resultado: 'exito',
+    actor_email: emailNorm, ip: req.ip, user_agent: req.headers['user-agent'],
+    resumen: 'Solicitud de restablecimiento de contraseña'
+  });
   const lastSent = forgotCooldowns[emailNorm];
   if (lastSent && (Date.now() - lastSent) < 60000) return res.status(429).json({ error: 'Espera un minuto antes de solicitar otro restablecimiento' });
   const user = db.prepare('SELECT id, email, nombre FROM usuarios WHERE email = ? AND activo = 1').get(emailNorm);
@@ -1336,6 +1402,11 @@ app.post('/api/auth/reset', loginRateLimit, async (req, res) => {
     db.prepare('UPDATE reset_tokens SET usado = 1 WHERE id = ?').run(row.id);
     const user = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(row.email);
     if (user) invalidarSesionUsuario(user.id);
+    void auditarEvento({
+      modulo: 'launcher', categoria: 'auth', accion: 'password_reset_completado', resultado: 'exito',
+      actor_id: user?.id, actor_email: row.email, ip: req.ip, user_agent: req.headers['user-agent'],
+      resumen: 'Contraseña restablecida'
+    });
     res.json({ ok: true, message: 'Contraseña actualizada correctamente' });
   } catch (err) {
     console.error('[RESET] Error:', err.message, err.stack);
