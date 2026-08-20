@@ -510,6 +510,7 @@ Nueva branch `feat/tareas-archivo-fase1` (commit `0948c2e`) con el submódulo **
 
 ## Estado actual (20 Ago 2026)
 ### Últimos cambios
+- **Sesión 47**: Workflow persistente de sprints, auditoría central, retención diaria, revocación selectiva de sesiones e instrumentación local de autenticación. PR #118 fusionado a `dev`.
 - **Sprint actual**: Seguridad y observabilidad — branch `chore/open-issues-triage`; workflow persistente en `docs/WORKFLOW.md` y estado en `docs/SPRINT.md`.
 - **Issues #65, #70, #71, #93 y #94**: cerrados o marcados obsoletos tras verificación.
 - **Issues #111 y #112**: base de auditoría central, retención y helper implementados.

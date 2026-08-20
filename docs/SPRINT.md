@@ -24,6 +24,14 @@ central antes de abordar los cambios de experiencia frontend.
 - #113 Sesiones y autenticacion: revocacion selectiva e instrumentacion local
   implementadas; faltan OAuth y cobertura completa.
 
+## Avances de la sesion 47
+
+- PR #118 fusionado a `dev`.
+- Workflow persistente de sprints agregado al repositorio y a OpenCode.
+- Migracion y retencion de auditoria central verificadas en desarrollo.
+- Eventos locales de autenticacion verificados en PostgreSQL.
+- PM2 verificado en estado `online` despues de aplicar cambios.
+
 ## Criterios de cierre
 
 - [x] Seguridad critica revisada.
@@ -31,7 +39,7 @@ central antes de abordar los cambios de experiencia frontend.
 - [x] Helper de auditoria probado.
 - [x] Cambios persistidos en commits y branch remota.
 - [ ] Completar eventos OAuth y rate-limit.
-- [ ] Abrir PR contra `dev`.
+- [x] Abrir y fusionar PR contra `dev` (#118).
 
 ## Retrospectiva parcial
 
