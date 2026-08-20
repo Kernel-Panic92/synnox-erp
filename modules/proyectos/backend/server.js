@@ -150,12 +150,18 @@ app.get('/api/version', (req, res) => {
 import { createMiddleware } from './mcp/index.js';
 app.use('/mcp', createMiddleware());
 
+import { configureAudit, startAuditRetentionJob } from '../../../framework/audit.js';
 import { checkDueDateNotifications } from './utils/scheduler.js';
 import { startArchivarJob } from './utils/archivarJob.js';
 import pool from './config/db.js';
+configureAudit(pool, {
+  maskIp: process.env.AUDIT_MASK_IP === 'true',
+  integritySecret: process.env.AUDIT_INTEGRITY_SECRET
+});
 checkDueDateNotifications();
 setInterval(checkDueDateNotifications, 24 * 60 * 60 * 1000);
 startArchivarJob(pool);
+startAuditRetentionJob(pool);
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));

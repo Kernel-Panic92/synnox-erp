@@ -168,6 +168,7 @@ async function runInstall(config) {
 
     // Step 3: Generate secrets
     const jwtSecret = require('crypto').randomBytes(32).toString('hex');
+    const logEncryptionSecret = require('crypto').randomBytes(32).toString('hex');
     const companyName = config.companyName || 'Mi Empresa';
     const companyDomain = config.domain || 'localhost';
     const adminEmail = config.adminEmail || `admin@${companyDomain === 'localhost' ? 'miempresa.com' : companyDomain}`;
@@ -179,6 +180,7 @@ async function runInstall(config) {
     const envVars = {
       PORT: config.serverPort || 3002,
       JWT_SECRET: jwtSecret,
+      LOG_ENCRYPTION_SECRET: logEncryptionSecret,
       COMPANY_NAME: companyName,
       COMPANY_DOMAIN: companyDomain,
       PGHOST: config.dbHost || 'localhost',
@@ -206,7 +208,7 @@ async function runInstall(config) {
     // Also write launcher .env (needed for SQLite launcher)
     const launcherEnvDir = path.join(INSTALL_DIR, 'launcher');
     if (!fs.existsSync(launcherEnvDir)) fs.mkdirSync(launcherEnvDir, { recursive: true });
-    fs.writeFileSync(path.join(launcherEnvDir, '.env'), `JWT_SECRET=${jwtSecret}\nADMIN_EMAIL=${adminEmail}\nADMIN_PASS=${adminPass}\nPORT=${config.serverPort || 3002}\nCOMPANY_NAME=${companyName}\nSMTP_FROM_NAME=${config.smtpFromName || companyName}\n`);
+    fs.writeFileSync(path.join(launcherEnvDir, '.env'), `JWT_SECRET=${jwtSecret}\nLOG_ENCRYPTION_SECRET=${logEncryptionSecret}\nADMIN_EMAIL=${adminEmail}\nADMIN_PASS=${adminPass}\nPORT=${config.serverPort || 3002}\nCOMPANY_NAME=${companyName}\nSMTP_FROM_NAME=${config.smtpFromName || companyName}\n`);
     log('.env creado en raíz y launcher/', 'ok');
 
     // Step 5: npm install (single root)
@@ -224,6 +226,8 @@ async function runInstall(config) {
     const dbEnv = { ...process.env, PGPASSWORD: dbPass, PGHOST: config.dbHost || 'localhost', PGUSER: config.dbUser, PGDATABASE: dbName, DB_USER: config.dbUser, DB_PASSWORD: dbPass, DB_NAME: dbName };
     try {
       await runCmd('psql', ['-U', config.dbUser, '-h', config.dbHost || 'localhost', '-d', dbName, '-c', 'CREATE SCHEMA IF NOT EXISTS logistics;'], { env: pgEnv });
+      await runCmd('psql', ['-U', config.dbUser, '-h', config.dbHost || 'localhost', '-d', dbName, '-f', path.join(INSTALL_DIR, 'framework/migrations/001_auditoria_central.sql')], { env: pgEnv });
+      log('Auditoria central: migracion ok', 'ok');
       const migDir = path.join(INSTALL_DIR, 'modules/logistica/backend/migrations');
       if (fs.existsSync(migDir)) {
         const files = fs.readdirSync(migDir).filter(f => f.endsWith('.sql')).sort();
@@ -299,7 +303,6 @@ server {
 }
 server { listen 80; server_name ${domain}; return 301 https://\$host\$request_uri; }
 `;
-      const appName = (config.companyName || 'mi-empresa').toLowerCase().replace(/[^a-z0-9]/g, '-');
       fs.writeFileSync(`/etc/nginx/sites-available/${appName}`, nginxConf);
       try { execSync(`ln -sf /etc/nginx/sites-available/${appName} /etc/nginx/sites-enabled/`, { stdio: 'ignore' }); } catch {}
       try { execSync('nginx -t 2>/dev/null && systemctl reload nginx || true', { stdio: 'ignore' }); } catch {}

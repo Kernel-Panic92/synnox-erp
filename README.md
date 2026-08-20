@@ -107,6 +107,7 @@ Crear `.env` en la raíz del proyecto:
 ```env
 PORT=3002
 JWT_SECRET=<tu-secret-fuerte-de-64-chars>
+LOG_ENCRYPTION_SECRET=<otro-secret-fuerte-distinto>
 ADMIN_EMAIL=admin@tudominio.com
 ADMIN_PASS=<contraseña-segura>
 NODE_ENV=production
