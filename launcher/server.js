@@ -113,6 +113,7 @@ const INSTALL_DIR = process.env.INSTALL_DIR || path.resolve(__dirname, '..');
 
 const PORT = parseInt(process.env.PORT || '3002', 10);
 const JWT_SECRET = process.env.JWT_SECRET;
+const LOG_ENCRYPTION_SECRET = process.env.LOG_ENCRYPTION_SECRET;
 
 // Base URL for emails and external links
 // In production (COMPANY_DOMAIN set), uses HTTPS on standard port (no port needed)
@@ -123,6 +124,10 @@ function getBaseUrl() {
 }
 if (!JWT_SECRET) {
   console.error('ERROR: JWT_SECRET no está configurado. Establece la variable de entorno JWT_SECRET.');
+  process.exit(1);
+}
+if (!LOG_ENCRYPTION_SECRET) {
+  console.error('ERROR: LOG_ENCRYPTION_SECRET no está configurado. Debe ser un secreto independiente de JWT_SECRET.');
   process.exit(1);
 }
 const SERVER_START = Date.now();

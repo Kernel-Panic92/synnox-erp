@@ -315,6 +315,7 @@ initTableFilters('mi-tabla', { searchId: 'fil-q', statusId: 'fil-estado', countI
 ```bash
 PORT=3002
 JWT_SECRET=<64 chars hex>
+LOG_ENCRYPTION_SECRET=<64 chars hex, distinto de JWT_SECRET>
 ADMIN_EMAIL=admin@tudominio.com
 ADMIN_PASS=<password>
 NODE_ENV=production
