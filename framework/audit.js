@@ -9,6 +9,7 @@ const MAX_DEPTH = 8;
 let configuredPool = null;
 let configuredOptions = {};
 let auditFailures = 0;
+const RETENTION_INTERVAL_MS = 24 * 60 * 60 * 1000;
 
 function configureAudit(pool, options = {}) {
   configuredPool = pool;
@@ -107,6 +108,35 @@ function getAuditFailureCount() {
   return auditFailures;
 }
 
+async function ejecutarRetencion(pool = configuredPool) {
+  if (!pool) return 0;
+  try {
+    const config = await pool.query(
+      "SELECT clave, valor FROM public.auditoria_config WHERE clave IN ('retencion_dias', 'retencion_habilitada')"
+    );
+    const values = Object.fromEntries(config.rows.map(row => [row.clave, row.valor]));
+    if (values.retencion_habilitada !== 'true') return 0;
+    const result = await pool.query(
+      'SELECT public.purgar_auditoria_central($1) AS eliminadas',
+      [Math.max(1, parseInt(values.retencion_dias, 10) || 365)]
+    );
+    const deleted = Number(result.rows[0]?.eliminadas || 0);
+    if (deleted) console.log(`[audit] eventos eliminados por retencion: ${deleted}`);
+    return deleted;
+  } catch (error) {
+    console.error('[audit] retention failed', error.message);
+    return 0;
+  }
+}
+
+function startAuditRetentionJob(pool = configuredPool) {
+  const check = () => ejecutarRetencion(pool);
+  const timer = setInterval(check, RETENTION_INTERVAL_MS);
+  timer.unref?.();
+  check();
+  return timer;
+}
+
 function diffSeguro(before = {}, after = {}) {
   const cleanBefore = sanitizeMetadata(before);
   const cleanAfter = sanitizeMetadata(after);
@@ -125,5 +155,7 @@ module.exports = {
   auditarEvento,
   sanitizeMetadata,
   diffSeguro,
-  getAuditFailureCount
+  getAuditFailureCount,
+  ejecutarRetencion,
+  startAuditRetentionJob
 };
