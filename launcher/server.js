@@ -550,7 +550,18 @@ db.exec(`
     creado TEXT NOT NULL DEFAULT (datetime('now','localtime'))
   )
 `);
+try { db.exec('ALTER TABLE sesiones_activas ADD COLUMN session_id TEXT'); } catch {}
 db.exec("CREATE INDEX IF NOT EXISTS idx_sesiones_usuario ON sesiones_activas(usuario_id)");
+db.exec("CREATE UNIQUE INDEX IF NOT EXISTS idx_sesiones_session ON sesiones_activas(session_id) WHERE session_id IS NOT NULL");
+db.exec(`
+  CREATE TABLE IF NOT EXISTS sesiones_revocadas (
+    session_id TEXT PRIMARY KEY,
+    usuario_id INTEGER NOT NULL,
+    revocado_en TEXT NOT NULL DEFAULT (datetime('now','localtime')),
+    motivo TEXT NOT NULL DEFAULT 'revocacion_remota'
+  )
+`);
+db.exec("CREATE INDEX IF NOT EXISTS idx_sesiones_revocadas_fecha ON sesiones_revocadas(revocado_en)");
 // Purge stale sessions (>2 min without heartbeat)
 db.prepare("DELETE FROM sesiones_activas WHERE datetime(ultimo_heartbeat, '+2 minutes') < datetime('now')").run();
 
@@ -878,6 +889,9 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
 app.post('/api/auth/logout', verificarToken, (req, res) => {
   if (req.usuario && req.usuario.id) {
     db.prepare("UPDATE oauth_accounts SET access_token = NULL, expires_at = NULL WHERE user_id = ?").run(req.usuario.id);
+    if (req.usuario.jti) {
+      db.prepare('DELETE FROM sesiones_activas WHERE session_id = ?').run(req.usuario.jti);
+    }
   }
   const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
   res.setHeader('Set-Cookie', `launcher_jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax${isSecure ? '; Secure' : ''}`);
@@ -897,12 +911,15 @@ app.post('/api/heartbeat', verificarToken, (req, res) => {
     const nombre = req.usuario.nombre || '';
     const ip = req.ip || req.connection?.remoteAddress || '';
     const userAgent = req.headers['user-agent'] || '';
-    // Upsert session
-    const existing = db.prepare('SELECT id FROM sesiones_activas WHERE usuario_id = ?').get(userId);
+    const sessionId = req.usuario.jti || null;
+    // Upsert by JWT jti so a user can keep multiple devices active.
+    const existing = sessionId
+      ? db.prepare('SELECT id FROM sesiones_activas WHERE session_id = ?').get(sessionId)
+      : db.prepare('SELECT id FROM sesiones_activas WHERE usuario_id = ? AND session_id IS NULL').get(userId);
     if (existing) {
-      db.prepare("UPDATE sesiones_activas SET ultimo_heartbeat = datetime('now','localtime'), ip = ?, user_agent = ? WHERE usuario_id = ?").run(ip, userAgent, userId);
+      db.prepare("UPDATE sesiones_activas SET ultimo_heartbeat = datetime('now','localtime'), ip = ?, user_agent = ? WHERE id = ?").run(ip, userAgent, existing.id);
     } else {
-      db.prepare('INSERT INTO sesiones_activas (usuario_id, usuario_nombre, ip, user_agent) VALUES (?, ?, ?, ?)').run(userId, nombre, ip, userAgent);
+      db.prepare('INSERT INTO sesiones_activas (usuario_id, usuario_nombre, session_id, ip, user_agent) VALUES (?, ?, ?, ?, ?)').run(userId, nombre, sessionId, ip, userAgent);
     }
     res.json({ ok: true });
   } catch (e) {
@@ -1280,8 +1297,9 @@ app.post('/api/admin/sesiones/:id/kill', verificarToken, soloAdmin, (req, res) =
     const { id } = req.params;
     const sesion = db.prepare("SELECT * FROM sesiones_activas WHERE id = ?").get(id);
     if (!sesion) return res.status(404).json({ error: 'Sesión no encontrada' });
-    // Invalidate all JWTs for this user by setting session invalidation
-    db.prepare("INSERT OR REPLACE INTO usuario_sesion_invalidada (usuario_id, invalidado_en) VALUES (?, datetime('now'))").run(sesion.usuario_id);
+    if (sesion.session_id) {
+      db.prepare("INSERT OR REPLACE INTO sesiones_revocadas (session_id, usuario_id, motivo) VALUES (?, ?, 'revocacion_remota')").run(sesion.session_id, sesion.usuario_id);
+    }
     db.prepare("DELETE FROM sesiones_activas WHERE id = ?").run(id);
     res.json({ ok: true, message: `Sesión de ${sesion.usuario_nombre} cerrada` });
   } catch (e) {

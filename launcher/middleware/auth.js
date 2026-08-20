@@ -1,5 +1,5 @@
 const jwt = require('jsonwebtoken');
-const { parseCookies } = require('../../framework/auth');
+const { parseCookies, verifySessionValid } = require('../../framework/auth');
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -14,6 +14,9 @@ function verificarToken(req, res, next) {
   if (!token) return res.status(401).json({ error: 'Token requerido' });
   try {
     req.usuario = jwt.verify(token, JWT_SECRET);
+    if (!verifySessionValid(req.usuario)) {
+      return res.status(401).json({ error: 'Sesión invalidada. Inicia sesión nuevamente.' });
+    }
     next();
   } catch {
     res.status(401).json({ error: 'Token inválido o expirado' });
