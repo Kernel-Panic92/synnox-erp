@@ -7,7 +7,6 @@ const rateLimit  = require('express-rate-limit');
 const crypto     = require('crypto');
 const nodemailer = require('nodemailer');
 const multer     = require('multer');
-const AdmZip     = require('adm-zip');
 const escapeHtml = require('escape-html');
 
 const ExcelJS   = require('exceljs');
@@ -16,11 +15,10 @@ const upload     = multer({ storage: multer.memoryStorage(), limits: { fileSize:
 
 const { db, uid } = require('./src/db');
 require('./src/db/migrations')(db);
-const { parseCookies, createAuth } = require('./src/middleware/auth');
-const { encryptSmtp, hashPassword } = require('./src/utils/crypto');
-const { getConfig, getAdminEmail } = require('./src/utils/config');
+const { createAuth } = require('./src/middleware/auth');
+const { encryptSmtp } = require('./src/utils/crypto');
+const { getConfig } = require('./src/utils/config');
 const { permisosPorRol, rolTienePermiso, tienePermiso } = require('./src/utils/permisos');
-const { restoreData } = require('./src/utils/restore')({ db, encryptSmtp });
 
 const APP_NAME     = process.env.APP_NAME || 'Nómina';
 const COMPANY_DOMAIN = process.env.COMPANY_DOMAIN || 'localhost';
@@ -28,7 +26,6 @@ const BASE_URL     = process.env.BASE_URL || (COMPANY_DOMAIN !== 'localhost' ? `
 const enviarCorreo = require('./src/utils/email')({ getConfig, nodemailer, escapeHtml, BASE_URL, APP_NAME });
 const PORT         = parseInt(process.env.PORT || '3000', 10);
 const CORS_ORIGIN  = process.env.CORS_ORIGIN || '';
-const BACKUP_TOKEN = process.env.BACKUP_TOKEN || '';
 const app = express();
 app.use((req, res, next) => { console.log(`[nomina] ${req.method} ${req.path}`); next(); });
 app.set('trust proxy', 1);
@@ -137,8 +134,7 @@ const boot = (async () => {
   if (legacyUsers.length) console.warn(`⚠ [NOMINA] ${legacyUsers.length} usuario(s) con hash SHA-256 legacy: ${legacyUsers.map(u => u.email).join(', ')}. Ejecuta la migración a bcrypt.`);
 })().catch(e => console.error('[nomina] Error en seeds:', e.message));
 
-const { soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles, soloAdminOBkp, autenticar, requierePermiso, requireModule } = createAuth({
-  BACKUP_TOKEN,
+const { soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles, autenticar, requierePermiso, requireModule } = createAuth({
   enviarCorreo,
   getConfig
 });
@@ -191,12 +187,8 @@ app.use('/api/registros', require('./src/routes/registros')({
 app.use('/api', require('./src/routes/dashboard')({ db, middlewares: { todosRoles } }));
 
 // ─────────────────────────────────────────────
-app.use('/api/backup', require('./src/routes/backup')({ db, AdmZip, fs, path, __dirname, encryptSmtp, getConfig, getAdminEmail, enviarCorreo, restoreData, middlewares: { soloAdminOBkp, soloAdmin } }));
-app.use('/api/restore', require('./src/routes/backup').createRestoreRouter({ db, AdmZip, encryptSmtp, restoreData, middlewares: { soloAdmin } }));
-
 app.use('/api', require('./src/routes/adjuntos')({ db, uid, tienePermiso, middlewares: { todosRoles, adminRrhhOp, podeEditar, autenticar, requierePermiso } }));
 app.use('/api', require('./src/routes/exportar')({ db, ExcelJS, getConfig, enviarCorreo, rolTienePermiso, middlewares: { autenticar, requierePermiso, todosRoles } }));
-app.use('/api', require('./src/routes/telemetry')({ db, parseCookies, middlewares: { soloAdmin } }));
 
 // ─────────────────────────────────────────────
 // CONSULTA — endpoint REST para chat web/móvil
@@ -223,13 +215,9 @@ app.get('/api/version', (req, res) => {
   } catch { res.json({ version: '1.0.0', name: APP_NAME }); }
 });
 
-const logErrorTelemetry = db.prepare('INSERT INTO telemetria (evento, pagina, usuarioId, datos, creado) VALUES (?,?,?,?,?)');
-// Error handler global — siempre responde JSON y registra en telemetría
+// Error handler global — siempre responde JSON
 app.use((err, req, res, next) => {
   console.error('❌ Error no manejado:', err?.message || err);
-  try {
-    logErrorTelemetry.run('error_backend', req.path || '', req.usuario?.id || '', JSON.stringify({ msg: err?.message }), new Date().toISOString());
-  } catch (e2) { console.error('Error logging to telemetry:', e2.message); }
   res.status(500).json({ error: 'Error interno del servidor' });
 });
 

@@ -1,1 +1,0 @@
-// Telemetry removed — no-op

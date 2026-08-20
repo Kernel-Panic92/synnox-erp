@@ -1,12 +1,13 @@
-# SynnoxERP — Sistema de Control de Horas Extra
+# SynnoxERP — Módulo de Nómina
 
-Sistema web para la gestión y control de horas extra, reportes e histórico
+Módulo integrado de SynnoxERP para la gestión de novedades, horas extra,
+conceptos monetarios, empleados, períodos, aprobaciones y reportes.
 
 ## Requisitos
 
 | Componente | Versión mínima | Notas |
 |-----------|---------------|-------|
-| Node.js   | 18.0.0        | Instalado automáticamente por el instalador |
+| Node.js   | 20.0.0        | Requerido por el monorepo |
 | PM2       | cualquiera    | Instalado automáticamente por el instalador |
 | Fail2Ban  | cualquiera    | Instalado automáticamente por el instalador |
 | Nginx     | cualquiera    | Solo si se configura HTTPS. `sudo apt install nginx -y` |
@@ -35,9 +36,8 @@ El instalador configura interactivamente:
 - Puerto del servidor
 - Nombre de la empresa
 - Email y contraseña del administrador
-- Centro de operación inicial
-- Backup local y en servidor NAS (opcional)
-- Cron de backup automático diario (opcional)
+- Centro de operación inicial desde el Launcher
+- Configuración de autenticación y permisos desde el Launcher
 - **HTTPS con Nginx** — dominio y puerto configurables (opcional)
 
 ## Configuración HTTPS
@@ -72,16 +72,17 @@ Luego aplica con `gpupdate /force` en los equipos cliente.
 1. Abre la URL del sistema en el navegador
 2. Inicia sesión con las credenciales definidas en el instalador
 3. Ve a **Configuración → Config. Correo** para configurar el servidor SMTP
-4. Ve a **Centros de Operación** para agregar las sedes de tu organización
+4. Administra usuarios, módulos, permisos y centros de operación desde el Launcher
 
 ## Roles de usuario
 
 | Rol | Permisos |
 |-----|----------|
 | Admin | Acceso total |
-| RRHH | Registrar, editar, aprobar, gestionar centros |
-| Consulta | Solo lectura |
-| Operador | Ver y registrar solo su centro |
+| RRHH | Según permisos asignados desde el Launcher |
+| Gerencia | Según permisos asignados desde el Launcher |
+| Consulta | Normalmente solo lectura |
+| Operador | Normalmente registra y consulta sus registros |
 
 ## Comandos útiles
 
@@ -89,7 +90,6 @@ Luego aplica con `gpupdate /force` en los equipos cliente.
 pm2 logs synnox-nomina          # Ver logs en tiempo real
 pm2 restart synnox-nomina       # Reiniciar servidor
 pm2 stop synnox-nomina          # Detener servidor
-./backup_horasextra_template.sh  # Ejecutar backup manual
 node seed-demo.js       # Cargar datos de prueba
 sudo crontab -l         # Ver tareas programadas
 sudo fail2ban-client status synnox-nomina-login   # Ver IPs bloqueadas
@@ -118,17 +118,12 @@ synnox-nomina/
 │   │   ├── reports.js       # Reportes y análisis
 │   │   ├── siesa.js         # Exportar novedades a Siesa
 │   │   ├── attachments.js   # Archivos adjuntos
-│   │   ├── backup.js        # Backup y restauración
-│   │   ├── security.js      # Seguridad y rate limiting
-│   │   ├── smtp.js          # Config. de correo SMTP
-│   │   ├── telemetry.js     # Telemetría anónima
 │   │   └── import.js        # Importar empleados CSV
 │       └── utils/
 │           └── helpers.js       # Funciones compartidas (toast, permisos, CSV)
 ├── scripts/                     # Scripts de utilidad
 ├── install.sh                   # Instalador interactivo
 ├── seed-demo.js                # Script para cargar datos de prueba
-├── backup_horasextra_template.sh # Template para backups
 ├── package.json
 └── .env.example               # Variables de entorno de ejemplo
 ```
@@ -150,8 +145,8 @@ Los bugs conocidos de esta rama están documentados en [CHANGELOG.md](CHANGELOG.
 - Gestión de empleados y centros de operación
 - Registro y aprobación de horas extra
 - Generación de nóminas y reportes
-- Backups automáticos (local y NAS SMB)
-- Actualizaciones desde la interfaz web
+- Exportación de novedades para Siesa
+- Adjuntos de evidencia en registros
 - Gestión de permisos por rol
 - Flujo seguro de creación de usuarios (contraseña temporal + reset)
 
@@ -162,7 +157,8 @@ Los bugs conocidos de esta rama están documentados en [CHANGELOG.md](CHANGELOG.
 - Tokens de sesión con expiración
 - HTTPS mediante Nginx como reverse proxy
 - Rate limiting y Fail2Ban para protección contra ataques
-- Script de backup con credenciales generado localmente, nunca versionado
+- Los backups y restauraciones completos son responsabilidad del Launcher y de
+  `scripts/backup_synnox.sh`; Nómina no debe crear cron ni copias propias.
 
 ## Licencia
 

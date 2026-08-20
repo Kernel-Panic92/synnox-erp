@@ -1,11 +1,5 @@
 // helpers.js - Funciones utilitarias
 
-function teleError(path, status, method) {
-  if (typeof enviarTelemetria === 'function') {
-    enviarTelemetria('error_api', { path, status, method: method || 'GET' });
-  }
-}
-
 function esc(str) {
   if (str == null) return '';
   return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;');
@@ -332,7 +326,7 @@ async function fetchCSRF(url, options = {}) {
   const res = await fetch(fullUrl, options);
   const newCsrf = res.headers.get('x-csrf-token');
   if (newCsrf && sesion) sesion.csrfToken = newCsrf;
-  if (res.status >= 400 && res.status !== 404) teleError(url, res.status, options.method);
+  // Errors are surfaced to the caller; observability is centralized in the Launcher.
   return res;
 }
 
@@ -363,11 +357,10 @@ async function exportarXLSX() {
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
   showToast('Reporte exportado en Excel', 'success');
-  if (typeof enviarTelemetria === 'function') enviarTelemetria('exportar_reporte', { formato: 'xlsx' });
 }
 
 // ── Manual / Ayuda ──
 function abrirManual() {
   const rol = sesion?.usuario?.rol || 'operador';
-  window.open('/nomina/manual.html?rol=' + rol, '_blank');
+  window.location.href = '/nomina/manual.html?rol=' + encodeURIComponent(rol);
 }

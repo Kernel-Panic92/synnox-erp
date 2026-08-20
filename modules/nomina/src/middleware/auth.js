@@ -8,7 +8,7 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 
-function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
+function createAuth({ enviarCorreo, getConfig }) {
   function autenticar(rolesPermitidos = []) {
     return async (req, res, next) => {
       const cookies = parseCookies(req);
@@ -70,20 +70,6 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
   const podeEditar     = [autenticar([]), requierePermiso('editar')];
   const todosRoles     = autenticar([]);
 
-  function requiereBackupToken(req, res, next) {
-    if (!BACKUP_TOKEN) return res.status(500).json({ error: 'BACKUP_TOKEN no configurado en .env' });
-    const token = req.headers['authorization']?.replace('Bearer ', '');
-    if (!token || token !== BACKUP_TOKEN) return res.status(401).json({ error: 'Token de backup inválido' });
-    req.usuario = { rol: 'admin', id: null, nombre: 'Backup Automático' };
-    next();
-  }
-
-  const soloAdminOBkp = (req, res, next) => {
-    const token = req.headers['authorization']?.replace('Bearer ', '');
-    if (token) return requiereBackupToken(req, res, next);
-    soloAdmin(req, res, next);
-  };
-
   function requireModule(moduleId) {
     return (req, res, next) => {
       if (!req.usuario) return res.status(401).json({ error: 'No autenticado' });
@@ -119,7 +105,7 @@ function createAuth({ BACKUP_TOKEN, enviarCorreo, getConfig }) {
     };
   }
 
-  return { autenticar, requierePermiso, requierePermisoJWT, requireModule, soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles, requiereBackupToken, soloAdminOBkp };
+  return { autenticar, requierePermiso, requierePermisoJWT, requireModule, soloAdmin, adminRrhh, adminRrhhOp, podeAprobar, podeEditar, todosRoles };
 }
 
 module.exports = { parseCookies, createAuth };

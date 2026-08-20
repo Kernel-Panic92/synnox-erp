@@ -119,7 +119,6 @@ async function guardarRegistro() {
       if (nominaId) localStorage.setItem('he_last_nomina', nominaId);
       
       showToast('Registro guardado exitosamente', 'success');
-      if (typeof enviarTelemetria === 'function') enviarTelemetria('registro_guardado', { tipo });
       limpiarFormulario();
       document.getElementById('reg-fecha')?.focus();
       await refreshRegistros();
@@ -320,7 +319,6 @@ async function aprobarMasivo(aprobar) {
       const n = body.actualizados ?? ids.length;
       const tipo = n > 0 ? 'success' : 'warning';
       showToast(`${n} registro(s) ${aprobar ? 'aprobado(s)' : 'rechazado(s)'}${n < ids.length ? ` (${ids.length - n} omitido(s))` : ''}`, tipo);
-      if (typeof enviarTelemetria === 'function') enviarTelemetria(aprobar ? 'registro_aprobado_masivo' : 'registro_rechazado_masivo', { cantidad: n });
       seleccionHistorial.clear();
       await refreshRegistros();
       await reloadDashboardData();
@@ -723,7 +721,6 @@ async function editarRegistro(id) {
 
     setLoading('btn-guardar-edit', false);
     showToast('Registro actualizado', 'success');
-    if (typeof enviarTelemetria === 'function') enviarTelemetria('registro_editado', { id, tipo: body.tipo });
     overlay.remove();
     await refreshRegistros();
     await reloadDashboardData();
@@ -741,7 +738,6 @@ async function revertirRegistro(id) {
       const res = await POST(`/api/registros/${id}/revertir`, {});
       if (!res.ok) { const d = await res.json(); showToast(d.error || 'Error', 'error'); return; }
       showToast('Registro revertido a pendiente', 'success');
-      if (typeof enviarTelemetria === 'function') enviarTelemetria('registro_revertido', { id });
       await refreshRegistros();
       await reloadDashboardData();
       renderHistorial();
@@ -759,7 +755,6 @@ async function eliminarRegistro(id) {
         const res = await DEL(`/api/registros/${id}`);
         if (res.ok) {
           showToast('Registro eliminado', 'success');
-          if (typeof enviarTelemetria === 'function') enviarTelemetria('registro_eliminado', { id });
           await refreshRegistros();
           await reloadDashboardData();
           renderHistorial();
@@ -792,7 +787,6 @@ async function aprobarRegistro(id, aprobar) {
         return;
       }
       showToast(`Registro ${aprobar ? 'aprobado' : 'rechazado'}`, 'success');
-      if (typeof enviarTelemetria === 'function') enviarTelemetria(aprobar ? 'registro_aprobado' : 'registro_rechazado', { id, observaciones: obs });
       await refreshRegistros();
       await reloadDashboardData();
       renderHistorial();

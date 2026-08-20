@@ -14,7 +14,7 @@
 
 ## 2. Visión General
 
-Como usuario de consulta puedes **ver** toda la información del sistema, pero no crear, editar ni aprobar registros.
+Como usuario de consulta puedes **ver** la información permitida por tu perfil. Normalmente no puedes crear, editar ni aprobar registros, pero el administrador puede ajustar los permisos desde el Launcher.
 
 ### Módulos disponibles
 
@@ -24,7 +24,9 @@ Como usuario de consulta puedes **ver** toda la información del sistema, pero n
 | Historial | Registro detallado de todas las horas extra |
 | Empleados | Directorio de empleados con sus datos |
 | Reportes | Análisis detallado por empleado y período |
-| Nóminas | Períodos de nómina y cierres |
+| Nóminas | Períodos de nómina, fechas límite y cierres |
+| Siesa | Vista previa de novedades aprobadas, si tu perfil tiene permiso |
+| Conceptos de Nómina | Consulta de conceptos disponibles, si tu perfil tiene permiso |
 
 ---
 
@@ -39,7 +41,7 @@ Muestra tarjetas resumen con:
 
 ## 4. Historial
 
-- Filtra por **fecha, empleado, tipo, sede, nómina o estado**
+- Filtra por **empleado, tipo, sede, nómina o estado**
 - Haz clic en los encabezados de columna para ordenar
 - Haz clic en cualquier fila para ver el detalle completo del registro
 
@@ -60,8 +62,10 @@ Muestra tarjetas resumen con:
 - La tabla detalle se actualiza automáticamente al cambiar filtros
 - Usa el botón **Exportar** para descargar un archivo Excel con todos los datos filtrados
 
+El historial y los reportes incluyen paginación para consultar conjuntos grandes de registros.
+
 ---
 
 ## 7. Soporte
 
-Si encuentras algún problema o necesitas acceso a más funcionalidades, contacta a tu administrador de RRHH.
+Si encuentras algún problema o necesitas acceso a más funcionalidades, contacta al administrador del sistema. Las cuentas, módulos y permisos se gestionan desde el Launcher.

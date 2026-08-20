@@ -8,10 +8,8 @@ async function rConfig(){
   const tabs = [
     { id: 'smtp', label: '📧 Correo' },
     { id: 'calendario', label: '📅 Calendario' },
-    { id: 'backup', label: '💾 Backup' },
     { id: 'seguridad', label: '🛡️ Seguridad' },
-    { id: 'auditoria', label: '📋 Auditoría' },
-    { id: 'telemetria', label: '📡 Telemetría' }
+    { id: 'auditoria', label: '📋 Auditoría' }
   ];
 
   tabBar.innerHTML = tabs.map(t =>
@@ -76,76 +74,6 @@ async function renderCfgTab(){
         </div>
         </div>`;
     } catch(e) { c.innerHTML = `<div style="text-align:center;padding:40px;color:var(--danger)">Error: ${esc(e.message)}</div>`; }
-  }
-  else if (cfgTab === 'backup') {
-    c.innerHTML = `
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px;">
-        <div class="table-wrap" style="padding:28px 32px;">
-          <div style="font-family:var(--font-head);font-weight:700;font-size:16px;margin-bottom:6px;">📦 Exportar Backup</div>
-          <p style="color:var(--muted);font-size:13px;margin-bottom:24px;line-height:1.6;">
-            Descarga un archivo <strong style="color:var(--text)">ZIP</strong> con toda la información del sistema.
-            Incluye un <code style="color:var(--accent)">backup.json</code> para restaurar y archivos
-            <code style="color:var(--accent)">.csv</code> para abrir en Excel.
-          </p>
-          <div style="background:var(--surface2);border-radius:10px;padding:16px 18px;margin-bottom:24px;font-size:13px;">
-            <div style="font-weight:600;margin-bottom:10px;color:var(--text);">El backup incluye:</div>
-            <div style="display:flex;flex-direction:column;gap:6px;color:var(--muted);">
-              <span>✓ Empleados</span>
-              <span>✓ Registros de novedades</span>
-              <span>✓ Períodos de nómina</span>
-              <span>✓ Usuarios del sistema</span>
-              <span>✓ Configuración SMTP</span>
-            </div>
-          </div>
-          <button class="btn btn-primary" id="btn-descargar-backup" onclick="descargarBackup()" style="width:100%;justify-content:center;padding:13px;">💾 Descargar Backup ZIP</button>
-          <div id="backup-ok" style="display:none;margin-top:14px;padding:10px 14px;background:rgba(79,190,150,0.1);border:1px solid rgba(79,190,150,0.3);border-radius:9px;font-size:13px;color:var(--success);">✓ Backup generado y descargado correctamente.</div>
-          <div id="ultimo-backup-card" style="margin-top:20px;border:1px solid var(--border);border-radius:12px;padding:16px 18px;display:none;">
-            <div style="font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:10px;">🤖 Último Backup Automático</div>
-            <div style="display:flex;flex-direction:column;gap:7px;">
-              <div style="display:flex;align-items:center;gap:8px;"><span style="font-size:18px;">📅</span><div><div style="font-size:13px;font-weight:600;color:var(--text);" id="ultimo-bk-fecha">—</div><div style="font-size:11px;color:var(--muted);" id="ultimo-bk-hace">—</div></div></div>
-              <div style="display:flex;align-items:center;gap:8px;padding-top:6px;border-top:1px solid var(--border);"><span style="font-size:16px;">📄</span><code style="font-size:11px;color:var(--accent);word-break:break-all;" id="ultimo-bk-archivo">—</code></div>
-              <div style="display:flex;gap:16px;padding-top:6px;border-top:1px solid var(--border);"><div style="font-size:12px;color:var(--muted);">Tamaño: <strong style="color:var(--text);" id="ultimo-bk-size">—</strong></div><div style="font-size:12px;color:var(--muted);">Red: <strong id="ultimo-bk-red">—</strong></div></div>
-            </div>
-          </div>
-          <div id="ultimo-backup-none" style="margin-top:16px;font-size:12px;color:var(--muted);text-align:center;padding:12px;background:var(--surface2);border-radius:9px;">🕐 Aún no se ha ejecutado el backup automático</div>
-          <div style="margin-top:20px;border-top:1px solid var(--border);padding-top:20px;">
-            <div style="font-size:13px;font-weight:600;margin-bottom:6px;">🚀 Ejecutar Backup Automático</div>
-            <p style="color:var(--muted);font-size:12px;margin-bottom:14px;line-height:1.6;">Ejecuta el script de backup del servidor (backup local + copia NAS si está configurado).</p>
-            <button class="btn btn-primary" id="btn-ejecutar-backup-script" onclick="ejecutarBackupScript()" style="width:100%;justify-content:center;padding:13px;">▶ Ejecutar Backup Automático</button>
-            <div id="bk-script-log" style="display:none;margin-top:14px;padding:12px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:9px;font-size:12px;font-family:monospace;color:var(--text);max-height:200px;overflow-y:auto;white-space:pre-wrap;"></div>
-          </div>
-        </div>
-        <div class="table-wrap" style="padding:28px 32px;">
-          <div style="font-family:var(--font-head);font-weight:700;font-size:16px;margin-bottom:6px;">♻️ Restaurar Backup</div>
-          <div style="background:rgba(231,76,60,0.06);border:1px solid rgba(231,76,60,0.2);border-radius:10px;padding:14px 16px;margin-bottom:20px;font-size:12px;color:var(--danger);">⚠ Los datos actuales de empleados, registros y nóminas serán reemplazados por los del backup. Tu usuario administrador actual no será afectado.</div>
-          <div style="margin-bottom:24px;">
-            <div style="font-size:13px;font-weight:600;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;"><span>🤖 Backups Automáticos en el Servidor</span><button class="btn btn-secondary btn-sm" onclick="cargarListaBackups()">🔄 Actualizar</button></div>
-            <div id="lista-backups-loading" style="text-align:center;padding:16px;"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
-            <div id="lista-backups-none" style="display:none;text-align:center;padding:16px;color:var(--muted);font-size:12px;background:var(--surface2);border-radius:9px;">🕐 No hay backups automáticos disponibles en el servidor</div>
-            <div id="lista-backups-body" style="display:none;display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;"></div>
-          </div>
-          <div style="border-top:1px solid var(--border);padding-top:20px;">
-            <div style="font-size:13px;font-weight:600;margin-bottom:10px;">📂 Restaurar desde Archivo</div>
-            <p style="color:var(--muted);font-size:12px;margin-bottom:14px;line-height:1.6;">Sube un <strong style="color:var(--text)">.zip</strong> o <strong style="color:var(--text)">.json</strong> generado por el sistema.</p>
-            <div id="restore-drop" onclick="document.getElementById('restore-file').click()"
-              style="border:2px dashed var(--border);border-radius:12px;padding:24px;text-align:center;cursor:pointer;margin-bottom:12px;transition:border-color 0.2s;"
-              onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'"
-              ondragover="event.preventDefault();this.style.borderColor='var(--accent)'" ondragleave="this.style.borderColor='var(--border)'"
-              ondrop="handleRestoreDrop(event)">
-              <div style="font-size:28px;margin-bottom:6px;">📂</div>
-              <div style="font-size:13px;color:var(--muted);">Clic o arrastra tu archivo <strong style="color:var(--text)">.zip</strong> / <strong style="color:var(--text)">.json</strong></div>
-              <div id="restore-filename" style="margin-top:6px;font-size:12px;color:var(--accent);display:none;"></div>
-            </div>
-            <input type="file" id="restore-file" accept=".zip,.json" style="display:none"/>
-            <button class="btn btn-danger" id="btn-restaurar" onclick="restaurarBackup()" disabled style="width:100%;justify-content:center;padding:11px;opacity:0.5;">♻️ Restaurar desde Archivo</button>
-          </div>
-          <div id="restore-ok" style="display:none;margin-top:14px;padding:10px 14px;background:rgba(79,190,150,0.1);border:1px solid rgba(79,190,150,0.3);border-radius:9px;font-size:13px;color:var(--success);"></div>
-          <div id="restore-err" style="display:none;margin-top:14px;padding:10px 14px;background:rgba(231,76,60,0.1);border:1px solid rgba(231,76,60,0.3);border-radius:9px;font-size:13px;color:var(--danger);"></div>
-        </div>
-      </div>`;
-    initBackupListeners();
-    cargarUltimoBackup();
-    cargarListaBackups();
   }
   else if (cfgTab === 'seguridad') {
     c.innerHTML = `
@@ -259,10 +187,6 @@ async function renderCfgTab(){
       });
     } catch(e) { c.innerHTML = `<div style="text-align:center;padding:40px;color:var(--danger)">Error: ${esc(e.message)}</div>`; }
   }
-  else if (cfgTab === 'telemetria') {
-    c.innerHTML = '<div id="diag-content" style="padding:4px 0;"><div style="text-align:center;padding:40px;color:var(--muted);">Cargando telemetría...</div></div>';
-    cargarDiagnostico();
-  }
 }
 
 // ── SMTP ──
@@ -336,11 +260,6 @@ async function guardarCalendario() {
     }
   } catch(e) { msg.innerHTML = '<span style="color:var(--danger)">✗ ' + e.message + '</span>'; }
 }
-
-// ── BACKUP ──
-
-let _cfgRestoreFile = null;
-let _cfgBackupListenerInit = false;
 
 async function cargarUltimoBackup() {
   const card = document.getElementById('ultimo-backup-card');
@@ -442,7 +361,6 @@ async function restaurarBackupLocal(nombre) {
         } else {
           if (ok) { ok.textContent = '✓ ' + (data.mensaje || 'Restauración completada correctamente'); ok.style.display = 'block'; }
           showToast('Restauración completada', 'success');
-          if (typeof enviarTelemetria === 'function') enviarTelemetria('backup_restaurado', { nombre });
         }
       } catch (e) {
         if (err) { err.textContent = '✗ ' + e.message; err.style.display = 'block'; }
@@ -465,7 +383,6 @@ async function descargarBackup() {
     a.href = url; a.download = 'horasextra_backup_' + new Date().toISOString().slice(0, 10) + '.zip';
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
     if (backupOk) { backupOk.style.display = 'block'; setTimeout(() => backupOk.style.display = 'none', 5000); }
-    if (typeof enviarTelemetria === 'function') enviarTelemetria('backup_generado', {});
   } catch (e) { showToast('Error al descargar: ' + e.message, 'error'); }
   document.getElementById('btn-descargar-backup').innerHTML = '💾 Descargar Backup ZIP';
 }
@@ -529,7 +446,6 @@ async function restaurarBackup() {
         if (!res.ok) { if (errEl) { errEl.textContent = '✗ ' + (json.error || 'Error al restaurar'); errEl.style.display = 'block'; } }
         else {
           if (okEl) { okEl.textContent = '✓ ' + json.mensaje; okEl.style.display = 'block'; }
-          if (typeof enviarTelemetria === 'function') enviarTelemetria('backup_restaurado', { archivo: _cfgRestoreFile.name });
           _cfgRestoreFile = null;
           ['restore-file','restore-filename','btn-restaurar'].forEach(id => {
             const el = document.getElementById(id);
@@ -833,4 +749,3 @@ async function guardarPermisos() {
     showToast('Permisos de "' + rolLabel(_cfgPermRolSeleccionado) + '" actualizados. Los cambios aplican al próximo inicio de sesión.', 'success');
   } catch (e) { showToast('Error al guardar permisos: ' + e.message, 'error'); }
 }
-

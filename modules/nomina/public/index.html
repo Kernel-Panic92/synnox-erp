@@ -674,7 +674,7 @@
           </div>
           <div class="form-group"><label>Sede</label><input type="text" id="reg-sede" readonly placeholder="Se completa al elegir empleado" style="background:var(--surface2);color:var(--muted);cursor:default;opacity:0.8;"/></div>
           <div class="form-group"><label>Período de Nómina *</label><select id="reg-nomina"><option value="">Seleccionar...</option></select></div>
-          <div class="form-group"><label>Fecha *</label><input type="date" id="reg-fecha" max=""/><script nonce="__NONCE__">document.getElementById('reg-fecha').max=new Date().toISOString().split('T')[0];</script></div>
+          <div class="form-group"><label>Fecha *</label><input type="date" id="reg-fecha" max=""/></div>
           <div class="form-group" id="wrap-horas"><label>Horas Laboradas * <span style="font-weight:400;color:var(--muted);font-size:12px;">(HH:mm, máx. 12h)</span></label><input type="text" id="reg-horas" placeholder="HH:mm" inputmode="numeric" onblur="validarHoraInput(this)" onfocus="document.getElementById('reg-horas-err').style.display='none'"/><small id="reg-horas-err" style="color:var(--danger);display:none;margin-top:4px;"></small></div>
           <div class="form-group"><label>Tipo *</label>
 <select id="reg-tipo" onchange="onTipoChange()"></select>
@@ -1039,7 +1039,7 @@
       <div style="font-weight:600;color:var(--text);margin-bottom:6px;">Columnas requeridas:</div>
       <code style="color:var(--accent)">nombre, cedula, cargo, departamento, sede</code>
       <div style="margin-top:4px;">Opcionales: <code style="color:var(--accent)">email, telefono</code></div>
-      <div style="margin-top:8px;">💡 Puedes usar el CSV de empleados generado por el Backup como plantilla.</div>
+       <div style="margin-top:8px;">💡 Puedes usar cualquier CSV de empleados con las columnas indicadas como plantilla.</div>
     </div>
     <button id="imp-drop" onclick="document.getElementById('imp-file').click()"
       style="border:2px dashed var(--border);border-radius:10px;padding:24px;text-align:center;cursor:pointer;margin-bottom:12px;transition:border-color 0.2s;width:100%;"
@@ -1157,7 +1157,7 @@
 
 
 <!-- Modular JS -->
-<script nonce="__NONCE__">window.BASE = window.location.pathname.replace(/\/[^/]*$/,'').replace(/\/+$/,'') || '';</script>
+<script src="js/init.js?v=1"></script>
 <script src="js/utils/helpers.js?v=21"></script>
 <script src="js/utils/api.js?v=3"></script>
 <script src="js/components/modals.js?v=6"></script>
@@ -1172,7 +1172,7 @@
 <script src="js/modules/import.js?v=4"></script>
 <script src="js/modules/siesa.js?v=1"></script>
 
-<script src="js/modules/configuracion.js?v=5"></script>
+<script src="js/modules/configuracion.js?v=6"></script>
 <script src="js/modules/users.js?v=2"></script>
 <script src="js/app.js?v=14"></script>
 

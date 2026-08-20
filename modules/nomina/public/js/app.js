@@ -118,7 +118,7 @@ async function navigate(page) {
   }
   
   // Save last page
-  localStorage.setItem('he_last_page', page);
+  localStorage.setItem('sy_last_page', page);
   
   // Hide all pages
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -135,7 +135,6 @@ async function navigate(page) {
   // Update URL
   history.pushState(null, '', '#' + page);
   
-  // Track current page for telemetry
   window._currentPage = page;
   
   // Load page-specific data
@@ -287,7 +286,7 @@ async function iniciarApp() {
   }
   
   // Navigate to dashboard or from URL hash or last page
-  const savedPage = localStorage.getItem('he_last_page');
+  const savedPage = localStorage.getItem('sy_last_page');
   const hash = paginaSegura(location.hash.slice(1) || savedPage || 'dashboard');
   navigate(hash);
 }

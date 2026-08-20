@@ -46,10 +46,10 @@ A la izquierda encontrarás el menú principal:
 |---|---|---|
 | 📊 | **Dashboard** | Panel de inicio con resumen |
 | 📝 | **Historial** | Consulta todos los registros que has creado |
-| ➕ | **Nuevo Registro** | Formulario para cargar horas extras o novedades |
+| ➕ | **Registrar Novedades** | Formulario para cargar horas extras o novedades |
 | 📈 | **Reportes** | Exportar y filtrar registros |
 
-> Si el menú se ve muy pequeño, usa el botón ≡ para colapsarlo o ☰ en móvil.
+> El menú depende de los permisos asignados al perfil desde el Launcher. Si el menú se ve muy pequeño, usa el botón ≡ para colapsarlo o ☰ en móvil.
 
 ---
 
@@ -121,7 +121,7 @@ Ordena la tabla haciendo clic en los encabezados.
 
 ![Editar registro](screenshots/08-editar-registro.png)
 
-> Solo puedes editar registros Pendiente que hayas creado tú.
+> Solo puedes editar registros Pendiente que hayas creado tú, salvo que tu perfil tenga el permiso adicional `editar`.
 
 ---
 
@@ -147,7 +147,7 @@ Haz clic en **⎋** (barra superior derecha) y confirma.
 
 ![Cerrar sesión](screenshots/12-cerrar-sesion.png)
 
-> La sesión expira automáticamente tras 30 días de inactividad.
+> La sesión utiliza la autenticación central del Launcher.
 
 ---
 
@@ -155,7 +155,7 @@ Haz clic en **⎋** (barra superior derecha) y confirma.
 
 | Problema | Solución |
 |---|---|
-| No veo Editar | El registro ya fue aprobado/rechazado o no es tuyo |
+| No veo Editar | El registro ya fue aprobado/rechazado, no es tuyo o tu perfil no tiene el permiso `editar` |
 | No encuentro un empleado | Solo ves los de tu sede. Contacta a RRHH |
 | Valor COP no aparece | Selecciona un tipo marcado como "Tipo valor" |
 | "Motivo requerido" | El motivo es obligatorio |
@@ -178,11 +178,11 @@ Haz clic en **⎋** (barra superior derecha) y confirma.
 | Aprobar/Rechazar | ❌ |
 | Revertir | ❌ |
 | Gestionar empleados/usuarios/tipos/centros/nóminas | ❌ |
-| Configuración/Backup | ❌ |
+| Configuración/Backup | Depende de permisos |
 
 ---
 
-*Documento generado para SynnoxERP v2.10.0*
+*Documento actualizado para SynnoxERP v2.1.1 (20 de agosto de 2026)*
 © 2026 Edgar Velasquez
 github.com/Kernel-Panic92/synnox-erp
 Todos los derechos reservados

@@ -48,16 +48,16 @@ A la izquierda encontrarás el menú principal:
 |---|---|---|
 | 📊 | **Dashboard** | Panel de inicio con resumen |
 | 📝 | **Historial** | Consulta todos los registros de la organización |
-| ➕ | **Nuevo Registro** | Formulario para cargar horas extras o novedades |
+| ➕ | **Registrar Novedades** | Formulario para cargar horas extras o novedades |
 | 📈 | **Reportes** | Exportar y filtrar registros |
 
-> Si el menú se ve muy pequeño, usa el botón ≡ para colapsarlo o ☰ en móvil.
+> El menú depende de los permisos asignados al perfil desde el Launcher. Si el menú se ve muy pequeño, usa el botón ≡ para colapsarlo o ☰ en móvil.
 
 ---
 
 ## 4. Aprobar o Rechazar Registros
 
-Esta es tu función principal como Gerencia. Eres el único rol con capacidad de aprobar o rechazar registros.
+La aprobación y el rechazo requieren el permiso `aprobar`. Normalmente este permiso se asigna al perfil de Gerencia, pero el administrador puede configurarlo desde el Launcher.
 
 ### 4.1 Aprobación o Rechazo Individual
 
@@ -119,7 +119,7 @@ También puedes aprobar o rechazar desde el modal de detalle:
 
 ![Detalle del registro con botones de aprobación](screenshots/05-registro-exitoso.png)
 
-> Una vez aprobado o rechazado, el registro no podrá editarse. Si cometiste un error, puedes **revertir** la acción (ver sección 6).
+> Una vez aprobado o rechazado, el registro no podrá editarse. Si tienes el permiso `revertir` y cometiste un error, puedes **revertir** la acción (ver sección 6).
 
 ---
 
@@ -229,7 +229,7 @@ Ordena la tabla haciendo clic en los encabezados.
 | ↩️ | **Revertir** — si está Aprobado o Rechazado |
 | 👁️ | **Ver detalle** — haz clic en la fila |
 
-> La tabla se actualiza automáticamente cada 30 segundos.
+> La tabla se actualiza automáticamente cada 30 segundos. La cantidad de registros por página puede cambiarse en el control de paginación.
 
 ---
 
@@ -255,7 +255,7 @@ Haz clic en **⎋** (barra superior derecha) y confirma.
 
 ![Cerrar sesión](screenshots/12-cerrar-sesion.png)
 
-> La sesión expira automáticamente tras 30 días de inactividad.
+> La sesión utiliza la autenticación central del Launcher y puede invalidarse remotamente desde Auditoría.
 
 ---
 
@@ -263,7 +263,7 @@ Haz clic en **⎋** (barra superior derecha) y confirma.
 
 | Problema | Solución |
 |---|---|
-| No veo botón de Aprobar/Rechazar | Asegúrate de haber iniciado sesión con tu cuenta de Gerencia |
+| No veo botón de Aprobar/Rechazar | Verifica que tu perfil tenga el permiso `aprobar`; los permisos se administran desde el Launcher |
 | No aparece la barra de aprobación masiva | Marca al menos un checkbox en un registro Pendiente |
 | No aparecen los checkboxes | Solo se muestran en registros con estado Pendiente |
 | No aparece el registro que busco | Usa los filtros o verifica el período de nómina |
@@ -288,13 +288,12 @@ Haz clic en **⎋** (barra superior derecha) y confirma.
 | Revertir aprobaciones/rechazos | ✅ |
 | Ver Reportes | ✅ |
 | Exportar Excel | ✅ |
-| Gestionar empleados/usuarios | ❌ |
-| Gestionar tipos/centros/nóminas | ❌ |
-| Configuración/Backup | ❌ |
+| Gestionar empleados/usuarios/tipos/centros/nóminas | Depende de permisos |
+| Configuración/Backup | Depende de permisos |
 
 ---
 
-*Documento generado para SynnoxERP v2.10.0*
+*Documento actualizado para SynnoxERP v2.1.1 (20 de agosto de 2026)*
 © 2026 Edgar Velasquez
 github.com/Kernel-Panic92/synnox-erp
 Todos los derechos reservados

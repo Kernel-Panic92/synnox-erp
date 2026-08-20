@@ -47,7 +47,7 @@ A la izquierda encontrarás el menú principal con **todas las opciones** del si
 | Ícono | Sección | Descripción |
 |---|---|---|
 | 📊 | **Dashboard** | Panel de inicio con resumen |
-| ➕ | **Registrar Horas** | Formulario para cargar horas extras |
+| ➕ | **Registrar Novedades** | Formulario para cargar horas extras y conceptos monetarios |
 | 📋 | **Historial** | Todos los registros de la organización |
 | 👥 | **Empleados** | Gestión de empleados |
 | 🏢 | **Centros de Op.** | Gestión de centros de operación |
@@ -55,13 +55,11 @@ A la izquierda encontrarás el menú principal con **todas las opciones** del si
 | 📈 | **Reportes** | Exportar y filtrar registros |
 | 📤 | **Exportar Siesa** | Exportación para Siesa Nómina Web |
 | 🔐 | **Usuarios** | Gestión de usuarios del sistema |
-| 🏷️ | **Tipos de Hora** | Gestión de tipos de hora extra |
+| 🏷️ | **Conceptos de Nómina** | Gestión de tipos de hora y conceptos monetarios |
 | ⚙️ | **Configuración** | Submenú con opciones avanzadas |
 | ↳ 📧 | Config. Correo | Configuración SMTP |
-| ↳ 💾 | Backup | Respaldo y restauración |
 | ↳ 🛡️ | Seguridad | Rate limiting y bloqueos |
 | ↳ 📋 | Auditoría | Sesiones e inicios de sesión |
-| ↳ 🔬 | Diagnóstico | Telemetría de uso y errores |
 
 > Si el menú se ve muy pequeño, usa el botón ≡ para colapsarlo o ☰ en móvil.
 
@@ -75,25 +73,22 @@ Esta sección te permite crear y administrar las cuentas de todos los usuarios d
 
 ### Crear un usuario:
 
-1. Ve a **Usuarios** en el menú lateral
-2. Haz clic en **"Nuevo Usuario"**
-3. Completa los campos:
-   - **Nombre** completo
-   - **Correo electrónico** (será su usuario de inicio de sesión)
-   - **Rol**: Admin, RRHH, Gerencia, Operador o Consulta
-   - **Sede** asignada (solo aplica para RRHH/Operador)
-4. Haz clic en **"Guardar"**
-5. El sistema enviará un correo de recuperación al usuario para que establezca su contraseña
+Las cuentas de usuario, sus roles, módulos y permisos se crean y administran desde el **Launcher**. La página **Usuarios** de Nómina es de consulta y permite asignar empleados autorizados a cada usuario.
+
+1. En el Launcher, ve a la administración de usuarios
+2. Crea o edita la cuenta y asigna su rol, módulos y permisos de Nómina
+3. En Nómina, abre **Usuarios** para revisar la cuenta y asignar empleados autorizados
+4. Usa el flujo de recuperación de contraseña del Launcher cuando sea necesario
 
 ### Roles disponibles:
 
 | Rol | Permisos principales |
 |---|---|
-| **Admin** | Acceso total a todas las funciones |
-| **RRHH** | Gestión de empleados, usuarios, nóminas, registros, tipos, reportes, Siesa |
-| **Gerencia** | Ver todos los registros, aprobar/rechazar, reportes |
-| **Operador** | Crear y ver sus propios registros, reportes |
-| **Consulta** | Solo ver reportes |
+| **Admin** | Acceso total |
+| **RRHH** | Permisos asignados por el administrador, normalmente gestión operativa |
+| **Gerencia** | Permisos asignados por el administrador, normalmente revisión y aprobación |
+| **Operador** | Permisos asignados por el administrador, normalmente registro y consulta propia |
+| **Consulta** | Permisos de lectura asignados por el administrador |
 
 ### Asignación de empleados:
 
@@ -158,17 +153,15 @@ Si ves un banner de advertencia **"⚠️ Empleados con datos corruptos"** al en
 
 ---
 
-## 6. Centros de Operación (Sedees)
+## 6. Centros de Operación (Sedes)
 
-Gestiona las sedes o centros de operación de la empresa.
+Los centros de operación son la fuente compartida para los módulos y se administran desde el **Launcher**. En Nómina puedes consultarlos y usarlos en empleados, filtros y reportes.
 
 ![Centros de operación](screenshots/18-centros.png)
 
-1. Ve a **Centros de Op.**
-2. Haz clic en **"Nuevo Centro"**
-3. Ingresa el **nombre** del centro
-4. Opcionalmente puedes **desactivar** un centro en lugar de eliminarlo
-5. Al eliminar, el sistema verifica que no tenga empleados asignados
+1. En el Launcher, ve a **Centros de operación**
+2. Crea, edita, activa o desactiva el centro
+3. Regresa a Nómina para consultar el centro en los formularios y filtros
 
 > Si un centro tiene empleados, no podrás eliminarlo. Desactívalo en su lugar.
 
@@ -202,9 +195,11 @@ Gestiona los períodos de nómina del sistema.
 
 > Solo el administrador puede eliminar períodos de nómina.
 
+Cada período puede tener una **fecha límite de registro**. Esta fecha se configura desde la tabla de períodos y ayuda a controlar el cierre de novedades.
+
 ---
 
-## 8. Tipos de Hora
+## 8. Conceptos de Nómina
 
 Define los tipos de hora extra o concepto de nómina disponibles.
 
@@ -212,7 +207,7 @@ Define los tipos de hora extra o concepto de nómina disponibles.
 
 ### Crear un tipo:
 
-1. Ve a **Tipos de Hora**
+1. Ve a **Conceptos de Nómina**
 2. Haz clic en **"Nuevo Tipo"**
 3. Ingresa:
    - **Nombre**: identificador único
@@ -235,11 +230,10 @@ Exporta las novedades de horas extra aprobadas para Siesa Nómina Web.
 ![Exportar Siesa](screenshots/20-siesa.png)
 
 1. Ve a **Exportar Siesa**
-2. Selecciona **rango de fechas** (desde/hasta)
-3. Opcionalmente filtra por **concepto** (código Siesa)
-4. Revisa la **vista previa** con los registros a exportar
-5. Haz clic en **"Exportar"**
-6. Se descarga un `.xlsx` listo para importar en Siesa
+2. Filtra por **concepto**, **vinculación** y **período de nómina**
+3. Revisa la **vista previa** con los registros a exportar
+4. Haz clic en **"Exportar .xlsx"**
+5. Se descarga un archivo listo para importar en Siesa
 
 > Solo se exportan registros con estado **Aprobado**. Los pendientes o rechazados no se incluyen.
 
@@ -310,31 +304,11 @@ Puedes personalizar el asunto y cuerpo HTML del correo de recuperación de contr
 
 ---
 
-## 13. Backup
+## 13. Backup y recuperación
 
-Respalda y restaura la información completa del sistema.
+Los backups completos, la restauración y las copias externas son responsabilidad del **Launcher/servidor**. Nómina no ofrece una pantalla propia de backup ni debe configurar cron, NAS o scripts de respaldo por separado.
 
-![Backup](screenshots/23-backup.png)
-
-### Descargar backup:
-
-1. Ve a **Configuración → Backup**
-2. Haz clic en **"Descargar Backup"**
-3. Obtienes un archivo `.zip` con `backup.json` y CSVs de cada tabla
-
-### Restaurar desde archivo:
-
-1. Arrastra un archivo `.zip` o `.json` al área designada
-2. Confirma la restauración
-3. El sistema reemplaza los datos actuales (excepto tu sesión)
-
-### Backups automáticos del servidor:
-
-- El servidor genera backups automáticos periódicamente
-- Puedes ver la lista con fecha, tamaño y estado
-- Descarga o restaura directamente desde la lista
-
-> La restauración reemplaza TODOS los datos. Asegúrate de tener un backup actual antes de restaurar.
+Para una recuperación, consulta el runbook de Disaster Recovery del proyecto y coordina la operación con el administrador de la plataforma.
 
 ---
 
@@ -392,36 +366,17 @@ Lista de usuarios con sesión abierta, mostrando:
 
 ---
 
-## 16. Diagnóstico (Telemetría)
-
-Visualiza estadísticas de uso del sistema y errores reportados por los usuarios.
-
-![Diagnóstico](screenshots/27-diagnostico.png)
-
-### Secciones:
-
-| Sección | Descripción |
-|---|---|
-| **Totales** | Conteo de eventos por tipo (page views, exportaciones, etc.) |
-| **Páginas más visitadas** | Top de páginas en los últimos 30 días (gráfico de barras) |
-| **Errores JS** | Errores más frecuentes en el frontend (últimos 30 días), con módulo y línea |
-| **Eventos recientes** | Últimos 50 eventos registrados con fecha, evento, página y usuario |
-
-> Esta información ayuda a detectar problemas de usabilidad o errores técnicos reportados por los usuarios.
-
----
-
-## 17. Cerrar Sesión
+## 16. Cerrar Sesión
 
 Haz clic en **⎋** en el sidebar (parte inferior) y confirma.
 
 ![Cerrar sesión](screenshots/12-cerrar-sesion.png)
 
-> La sesión expira automáticamente tras 30 días de inactividad.
+> La sesión utiliza la autenticación central del Launcher y puede invalidarse remotamente desde Auditoría.
 
 ---
 
-## 18. Solución de Problemas
+## 17. Solución de Problemas
 
 | Problema | Solución |
 |---|---|
@@ -429,7 +384,7 @@ Haz clic en **⎋** en el sidebar (parte inferior) y confirma.
 | Usuario no recibe correo de recuperación | Verifica configuración SMTP en Config. Correo y haz una prueba |
 | Empleados con caracteres extraños (�) | Usa "Limpiar corruptos" en Empleados y edita uno por uno |
 | Error al importar CSV | Verifica que las columnas sean: nombre, cedula, cargo, departamento, sede |
-| Backup no se descarga | Revisa el espacio en disco del servidor |
+| Necesitas restaurar información | Contacta al administrador de la plataforma; la recuperación se gestiona desde el Launcher/servidor |
 | IP bloqueada por error | Ve a Seguridad y desbloquéala manualmente |
 | No aparecen datos en Dashboard | Verifica que haya registros creados y aprobados |
 | Error de permisos en alguna función | Solo el admin tiene acceso completo. Los demás roles tienen restricciones |
@@ -453,17 +408,16 @@ Haz clic en **⎋** en el sidebar (parte inferior) y confirma.
 | Gestionar tipos de hora | ✅ |
 | Exportar Siesa | ✅ |
 | Configurar SMTP | ✅ |
-| Backup y restauración | ✅ |
+| Backup y restauración | Se gestionan desde el Launcher/servidor |
 | Gestionar seguridad (rate limiting) | ✅ |
 | Auditoría (sesiones e inicios) | ✅ |
-| Diagnóstico (telemetría y errores) | ✅ |
-| Aprobar/Rechazar registros | ❌ (solo Gerencia) |
+| Aprobar/Rechazar registros | Depende del permiso `aprobar` |
 
-> Nota: Aunque el Admin tiene acceso a todo el sistema, la **aprobación de registros** está reservada exclusivamente para el rol de **Gerencia**. Como admin puedes editar, eliminar o revertir registros, pero no aprobarlos.
+> Los permisos se asignan desde el Launcher y pueden ajustarse por perfil. El permiso `aprobar` controla la aprobación y el rechazo; no debe asumirse que todos los perfiles no administrativos tienen el mismo menú.
 
 ---
 
-*Documento generado para SynnoxERP v2.10.0*
+*Documento actualizado para SynnoxERP v2.1.1 (20 de agosto de 2026)*
 © 2026 Edgar Velasquez
 github.com/Kernel-Panic92/synnox-erp
 Todos los derechos reservados

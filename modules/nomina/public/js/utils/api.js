@@ -52,8 +52,6 @@ const api = async (method, path, body = undefined) => {
     }
   } else if (res.status === 403 && path === '/api/auth/me') {
     // Handled by app.js init - don't redirect here
-  } else if (res.status >= 400 && res.status !== 404 && res.status !== 403 && !(res.status === 401 && path === '/api/auth/me')) {
-    teleError(path, res.status, method);
   }
   return res;
 };

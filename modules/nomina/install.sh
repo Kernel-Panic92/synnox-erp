@@ -105,75 +105,14 @@ if [[ "$EDIT_ENV" =~ ^[Ss]$ ]]; then
 fi
 ok "Variables de entorno configuradas"
 
-# ── 6. .backup_token (token de automatización para el script de backup)
-BACKUP_TOKEN=$(openssl rand -hex 32)
-echo "$BACKUP_TOKEN" > .backup_token
-chmod 600 .backup_token
-# Agregar BACKUP_TOKEN al .env si no existe
-if ! grep -q "^BACKUP_TOKEN=" .env; then
-  echo "BACKUP_TOKEN=$BACKUP_TOKEN" >> .env
-else
-  sed -i "s/^BACKUP_TOKEN=.*/BACKUP_TOKEN=$BACKUP_TOKEN/" .env
-fi
-ok ".backup_token creado"
-
-# ── 7. Carpeta de backups
-BACKUP_LOCAL="$HOME/backups/nomina"
-mkdir -p "$BACKUP_LOCAL"
-ok "Carpeta de backups: $BACKUP_LOCAL"
-
-# ── 8. Backup en NAS
-echo ""
-echo -e "${AZUL}── Configuración de Backup ──────────────────${RESET}"
-read -p "  ¿Configurar backup en servidor NAS/red? [s/N]: " CONF_NAS
-USAR_NAS="false"
-SMB_SERVER="" SMB_MOUNT="/mnt/nas_backup" SMB_USER="" SMB_PASS="" BACKUP_RED=""
-
-if [[ "$CONF_NAS" =~ ^[Ss]$ ]]; then
-  USAR_NAS="true"
-  read -p "  IP/ruta del share (ej: //192.168.1.10/Backups): " SMB_SERVER
-  read -p "  Usuario del NAS: " SMB_USER
-  read -s -p "  Contraseña del NAS: " SMB_PASS; echo ""
-  read -p "  Subcarpeta en el NAS [Nomina_Backups]: " NAS_SUB
-  NAS_SUB=${NAS_SUB:-"Nomina_Backups"}
-  BACKUP_RED="$SMB_MOUNT/$NAS_SUB"
-  ok "NAS configurado: $SMB_SERVER"
-fi
-
-if [[ -f "backup_horasextra_template.sh" ]]; then
-  info "Generando script de backup..."
-  cp backup_horasextra_template.sh backup_horasextra.sh
-  sed -i "s|__PORT__|$PUERTO|g"               backup_horasextra.sh
-  sed -i "s|__INSTALL_DIR__|$INSTALL_DIR|g"   backup_horasextra.sh
-  sed -i "s|__BACKUP_LOCAL__|$BACKUP_LOCAL|g" backup_horasextra.sh
-  sed -i "s|__USAR_NAS__|$USAR_NAS|g"         backup_horasextra.sh
-  sed -i "s|__BACKUP_RED__|$BACKUP_RED|g"     backup_horasextra.sh
-  sed -i "s|__SMB_SERVER__|$SMB_SERVER|g"     backup_horasextra.sh
-  sed -i "s|__SMB_MOUNT__|$SMB_MOUNT|g"       backup_horasextra.sh
-  sed -i "s|__SMB_USER__|$SMB_USER|g"         backup_horasextra.sh
-  sed -i "s|__SMB_PASS__|$SMB_PASS|g"         backup_horasextra.sh
-  chmod +x backup_horasextra.sh
-  ok "backup_horasextra.sh generado"
-fi
-
-# ── 9. PM2
+# ── 6. PM2
 info "Iniciando con PM2..."
 if pm2 list | grep -q "synnox-nomina"; then pm2 restart synnox-nomina; else pm2 start server.js --name "synnox-nomina"; fi
 pm2 save
 pm2 startup | tail -1 | bash 2>/dev/null || warn "Ejecuta manualmente: pm2 startup"
 ok "Aplicación en PM2"
 
-# ── 10. Cron de backup
-echo ""
-read -p "  ¿Configurar backup automático diario a las 2 AM? [s/N]: " CONF_CRON
-if [[ "$CONF_CRON" =~ ^[Ss]$ ]]; then
-  chmod +x "$INSTALL_DIR/backup_horasextra.sh"
-  CRON_LINE="0 2 * * * $INSTALL_DIR/backup_horasextra.sh >> /var/log/backup_nomina.log 2>&1"
-  (sudo crontab -l 2>/dev/null | grep -v "backup_horasextra"; echo "$CRON_LINE") | sudo crontab -
-  ok "Cron configurado"
-fi
-
-# ── 11. HTTPS con Nginx
+# ── 7. HTTPS con Nginx
 echo ""
 echo -e "${AZUL}── Configuración HTTPS (opcional) ───────────${RESET}"
 read -p "  ¿Configurar HTTPS con Nginx? [s/N]: " CONF_HTTPS

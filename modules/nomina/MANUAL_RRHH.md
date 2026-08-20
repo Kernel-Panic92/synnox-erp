@@ -47,7 +47,7 @@ A la izquierda encontrarás el menú principal con las opciones de gestión:
 | Ícono | Sección | Descripción |
 |---|---|---|
 | 📊 | **Dashboard** | Panel de inicio con resumen |
-| ➕ | **Registrar Horas** | Formulario para cargar horas extras |
+| ➕ | **Registrar Novedades** | Formulario para cargar horas extras y conceptos monetarios |
 | 📋 | **Historial** | Todos los registros de la organización |
 | 👥 | **Empleados** | Gestión completa de empleados |
 | 🏢 | **Centros de Op.** | Gestión de centros de operación |
@@ -55,9 +55,9 @@ A la izquierda encontrarás el menú principal con las opciones de gestión:
 | 📈 | **Reportes** | Exportar y filtrar registros |
 | 📤 | **Exportar Siesa** | Exportación para Siesa Nómina Web |
 | 🔐 | **Usuarios** | Consulta de usuarios del sistema |
-| 🏷️ | **Tipos de Hora** | Gestión de tipos de hora extra |
+| 🏷️ | **Conceptos de Nómina** | Gestión de tipos de hora y conceptos monetarios |
 
-> Si el menú se ve muy pequeño, usa el botón ≡ para colapsarlo o ☰ en móvil.
+> El menú depende de los permisos asignados al perfil desde el Launcher. Si el menú se ve muy pequeño, usa el botón ≡ para colapsarlo o ☰ en móvil.
 
 ---
 
@@ -110,12 +110,12 @@ Gestiona las sedes o centros de operación.
 
 ![Centros de operación](screenshots/18-centros.png)
 
-1. Ve a **Centros de Op.**
-2. Haz clic en **"Nuevo Centro"**
-3. Ingresa el **nombre** del centro
-4. Opcionalmente puedes **desactivar** un centro
+Los centros se administran desde el panel de **Centros de operación** del Launcher. En Nómina se consultan para asignar empleados y filtrar información.
 
-> RRHH puede crear y editar centros, pero **no puede eliminarlos**. Si un centro tiene empleados asignados, no podrás eliminarlo. Desactívalo en su lugar.
+1. En el Launcher, crea, edita, activa o desactiva el centro
+2. Regresa a Nómina y actualiza la vista para usar el centro
+
+> Si un centro tiene empleados asignados, desactívalo en lugar de eliminarlo.
 
 ---
 
@@ -141,9 +141,11 @@ Gestiona los períodos de nómina del sistema.
 
 > RRHH puede crear y editar períodos, pero **no puede eliminarlos**. Solo el administrador puede eliminar períodos de nómina.
 
+La tabla permite actualizar la **fecha límite de registro** de cada período cuando el calendario de cierre está habilitado.
+
 ---
 
-## 7. Tipos de Hora
+## 7. Conceptos de Nómina
 
 Define los tipos de hora extra o concepto de nómina disponibles.
 
@@ -151,7 +153,7 @@ Define los tipos de hora extra o concepto de nómina disponibles.
 
 ### Crear un tipo:
 
-1. Ve a **Tipos de Hora**
+1. Ve a **Conceptos de Nómina**
 2. Haz clic en **"Nuevo Tipo"**
 3. Ingresa:
    - **Nombre**: identificador único
@@ -180,7 +182,7 @@ Exporta las novedades de horas extra aprobadas para Siesa Nómina Web.
 5. Haz clic en **"Exportar"**
 6. Se descarga un `.xlsx` listo para importar en Siesa
 
-> Solo se exportan registros con estado **Aprobado**.
+> Solo se exportan registros con estado **Aprobado**. Los filtros disponibles son concepto, vinculación y período.
 
 ---
 
@@ -190,7 +192,7 @@ Puedes crear registros de horas extra o novedades para cualquier empleado.
 
 ![Formulario de nuevo registro](screenshots/04-nuevo-registro.png)
 
-1. Ve a **Registrar Horas**
+1. Ve a **Registrar Novedades**
 2. **Empleado** — empieza a escribir su nombre y elige de la lista
 3. **Período de Nómina** — selecciona el período
 4. **Fecha** — escoge la fecha del registro
@@ -260,7 +262,7 @@ Haz clic en **⎋** en el sidebar (parte inferior) y confirma.
 
 ![Cerrar sesión](screenshots/12-cerrar-sesion.png)
 
-> La sesión expira automáticamente tras 30 días de inactividad.
+> La sesión utiliza la autenticación central del Launcher y puede invalidarse remotamente desde Auditoría.
 
 ---
 
@@ -275,7 +277,7 @@ Haz clic en **⎋** en el sidebar (parte inferior) y confirma.
 | No veo la opción de eliminar | Es correcto — RRHH no puede eliminar registros permanentemente |
 | No aparecen todos los registros | El Historial muestra todos. Verifica los filtros de búsqueda |
 | Valor COP no aparece en el formulario | Selecciona un tipo marcado como "Tipo valor" |
-| No veo Configuración en el menú | La configuración (SMTP, backup, seguridad) es solo para administradores |
+| No veo Configuración en el menú | La configuración depende de los permisos del perfil y las cuentas se administran desde el Launcher |
 | Historial desactualizado | Espera hasta 30 segundos (auto-refresh) |
 
 ---
@@ -297,15 +299,15 @@ Haz clic en **⎋** en el sidebar (parte inferior) y confirma.
 | Exportar Siesa | ✅ |
 | Ver usuarios del sistema | ✅ (solo lectura) |
 | Exportar reportes Excel | ✅ |
-| Configuración SMTP / Backup / Logo / Seguridad | ❌ |
-| Auditoría / Diagnóstico | ❌ |
-| Aprobar/Rechazar registros | ❌ (solo Gerencia) |
+| Configuración SMTP / Backup / Seguridad | Depende de permisos |
+| Auditoría / Telemetría | ❌ (se gestionan centralmente desde el Launcher) |
+| Aprobar/Rechazar registros | Depende del permiso `aprobar` |
 | Eliminar empleados / centros / períodos | ❌ (solo Admin) |
 | Gestionar usuarios (crear/editar/eliminar) | ❌ (solo Admin) |
 
 ---
 
-*Documento generado para SynnoxERP v2.10.0*
+*Documento actualizado para SynnoxERP v2.1.1 (20 de agosto de 2026)*
 © 2026 Edgar Velasquez
 github.com/Kernel-Panic92/synnox-erp
 Todos los derechos reservados

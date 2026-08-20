@@ -122,7 +122,6 @@ async function exportarSiesa() {
     a.click();
     URL.revokeObjectURL(urlBlob);
     showToast('Archivo exportado correctamente.', 'success');
-    if (typeof enviarTelemetria === 'function') enviarTelemetria('exportar_siesa', { concepto, vinculo, nominaId });
   } catch (e) {
     showToast('Error: ' + e.message, 'error');
   }
