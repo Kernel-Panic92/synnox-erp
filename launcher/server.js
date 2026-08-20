@@ -15,6 +15,8 @@ const { verificarToken, soloAdmin, parseCookies, firmarToken } = require('./midd
 const { encryptEmail, decryptEmail } = require('./services/crypto');
 const { createLoginRateLimit, getLoginAttempts } = require('./services/rateLimit');
 const { debeEnviarEmail } = require('../framework/email-check');
+const { Pool } = require('pg');
+const { configureAudit, auditarEvento } = require('../framework/audit');
 const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 const mcpLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 200, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
 const dcrLimiter = rateLimit({ windowMs: 60 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiados registros de clientes — intenta más tarde' } });
@@ -130,6 +132,19 @@ if (!LOG_ENCRYPTION_SECRET) {
   console.error('ERROR: LOG_ENCRYPTION_SECRET no está configurado. Debe ser un secreto independiente de JWT_SECRET.');
   process.exit(1);
 }
+const auditPool = new Pool({
+  host: process.env.DB_HOST || 'localhost',
+  port: parseInt(process.env.DB_PORT || '5432', 10),
+  database: process.env.DB_NAME || 'synnox_erp',
+  user: process.env.DB_USER || 'synnox',
+  password: process.env.DB_PASSWORD || '',
+  ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+  connectionTimeoutMillis: 3000
+});
+configureAudit(auditPool, {
+  maskIp: process.env.AUDIT_MASK_IP === 'true',
+  integritySecret: process.env.AUDIT_INTEGRITY_SECRET
+});
 const SERVER_START = Date.now();
 
 
@@ -842,9 +857,22 @@ function getModulos(onlyMcp) {
 // ── Forgot-password cooldown (1 min per email) ──
 var forgotCooldowns = {};
 
-function logLoginAttempt(ip, email, exitoso) {
+function logLoginAttempt(ip, email, exitoso, context = {}) {
   const encEmail = email ? encryptEmail((email || '').toLowerCase().trim()) : '';
   db.prepare("INSERT INTO login_logs (ip, email, exitoso) VALUES (?, ?, ?)").run(ip || '', encEmail, exitoso ? 1 : 0);
+  void auditarEvento({
+    modulo: 'launcher',
+    categoria: exitoso ? 'auth' : 'security',
+    accion: exitoso ? 'login_exitoso' : 'login_fallido',
+    resultado: exitoso ? 'exito' : 'fallido',
+    actor_id: context.userId,
+    actor_tipo: context.actor_tipo || 'usuario',
+    actor_email: email,
+    ip,
+    user_agent: context.userAgent,
+    resumen: exitoso ? 'Inicio de sesion exitoso' : 'Intento de inicio de sesion fallido',
+    metadata: { motivo: context.motivo || (exitoso ? null : 'credenciales_invalidas') }
+  });
 }
 
 const { buildPayload, getUserWithPermissions, verifySessionValid } = require('./../framework/auth');
@@ -858,7 +886,7 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
     const user = db.prepare('SELECT * FROM usuarios WHERE email = ? AND activo = 1').get(email.toLowerCase().trim());
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
       if (req._loginRateLimitKey) loginAttempts[req._loginRateLimitKey].push(req._loginRateLimitNow);
-      logLoginAttempt(req.ip, email, false);
+      logLoginAttempt(req.ip, email, false, { userAgent: req.headers['user-agent'] });
       return res.status(401).json({ error: 'Credenciales inválidas' });
     }
     // Check blacklist
@@ -866,7 +894,7 @@ app.post('/api/auth/login', loginRateLimit, async (req, res) => {
       const entry = db.prepare('SELECT reason FROM user_blacklist WHERE user_id = ?').get(user.id);
       return res.status(403).json({ error: 'Tu cuenta ha sido bloqueada', reason: entry?.reason || '' });
     }
-    logLoginAttempt(req.ip, email, true);
+    logLoginAttempt(req.ip, email, true, { userId: user.id, userAgent: req.headers['user-agent'] });
     const userWithPerms = getUserWithPermissions(db, user.id);
     if (!userWithPerms) return res.status(500).json({ error: 'Error al cargar permisos' });
     const payload = buildPayload(userWithPerms);
@@ -893,6 +921,11 @@ app.post('/api/auth/logout', verificarToken, (req, res) => {
       db.prepare('DELETE FROM sesiones_activas WHERE session_id = ?').run(req.usuario.jti);
     }
   }
+  void auditarEvento({
+    modulo: 'launcher', categoria: 'auth', accion: 'logout', resultado: 'exito',
+    actor_id: req.usuario?.id, actor_email: req.usuario?.email, sesion_id: req.usuario?.jti,
+    ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'Cierre de sesion'
+  });
   const isSecure = req.protocol === 'https' || req.headers['x-forwarded-proto'] === 'https';
   res.setHeader('Set-Cookie', `launcher_jwt=; Path=/; Expires=Thu, 01 Jan 1970 00:00:00 GMT; HttpOnly; SameSite=Lax${isSecure ? '; Secure' : ''}`);
   res.json({ ok: true });
@@ -933,6 +966,11 @@ app.post('/api/auth/refresh', verificarToken, (req, res) => {
   if (!userWithPerms) return res.status(401).json({ error: 'Usuario no encontrado' });
   const payload = buildPayload(userWithPerms);
   const token = firmarToken(payload, res, req);
+  void auditarEvento({
+    modulo: 'launcher', categoria: 'auth', accion: 'token_refresh', resultado: 'exito',
+    actor_id: req.usuario.id, actor_email: req.usuario.email, sesion_id: payload.jti,
+    ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'Token renovado'
+  });
   res.json({ jwt: token });
 });
 
@@ -1312,6 +1350,11 @@ app.post('/api/auth/forgot', loginRateLimit, async (req, res) => {
   const { email } = req.body;
   if (!email) return res.status(400).json({ error: 'Email requerido' });
   const emailNorm = email.toLowerCase().trim();
+  void auditarEvento({
+    modulo: 'launcher', categoria: 'auth', accion: 'password_reset_solicitado', resultado: 'exito',
+    actor_email: emailNorm, ip: req.ip, user_agent: req.headers['user-agent'],
+    resumen: 'Solicitud de restablecimiento de contraseña'
+  });
   const lastSent = forgotCooldowns[emailNorm];
   if (lastSent && (Date.now() - lastSent) < 60000) return res.status(429).json({ error: 'Espera un minuto antes de solicitar otro restablecimiento' });
   const user = db.prepare('SELECT id, email, nombre FROM usuarios WHERE email = ? AND activo = 1').get(emailNorm);
@@ -1343,17 +1386,27 @@ app.get('/api/auth/reset', loginRateLimit, (req, res) => {
 });
 
 app.post('/api/auth/reset', loginRateLimit, async (req, res) => {
-  const { token, password } = req.body;
-  if (!token || !password) return res.status(400).json({ error: 'Token y contraseña requeridos' });
-  if (password.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
-  const row = db.prepare('SELECT * FROM reset_tokens WHERE token = ? AND usado = 0 AND expires_at > datetime("now")').get(token);
-  if (!row) return res.status(400).json({ error: 'Token inválido o expirado' });
-  const hash = bcrypt.hashSync(password, 10);
-  db.prepare("UPDATE usuarios SET password_hash = ?, actualizado = datetime('now') WHERE email = ?").run(hash, row.email);
-  db.prepare('UPDATE reset_tokens SET usado = 1 WHERE id = ?').run(row.id);
-  const user = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(row.email);
-  if (user) invalidarSesionUsuario(user.id);
-  res.json({ ok: true, message: 'Contraseña actualizada correctamente' });
+  try {
+    const { token, password } = req.body;
+    if (!token || !password) return res.status(400).json({ error: 'Token y contraseña requeridos' });
+    if (password.length < 6) return res.status(400).json({ error: 'La contraseña debe tener al menos 6 caracteres' });
+    const row = db.prepare(`SELECT * FROM reset_tokens WHERE token = ? AND usado = 0 AND expires_at > datetime('now')`).get(token);
+    if (!row) return res.status(400).json({ error: 'Token inválido o expirado' });
+    const hash = bcrypt.hashSync(password, 10);
+    db.prepare("UPDATE usuarios SET password_hash = ?, actualizado = datetime('now') WHERE email = ?").run(hash, row.email);
+    db.prepare('UPDATE reset_tokens SET usado = 1 WHERE id = ?').run(row.id);
+    const user = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(row.email);
+    if (user) invalidarSesionUsuario(user.id);
+    void auditarEvento({
+      modulo: 'launcher', categoria: 'auth', accion: 'password_reset_completado', resultado: 'exito',
+      actor_id: user?.id, actor_email: row.email, ip: req.ip, user_agent: req.headers['user-agent'],
+      resumen: 'Contraseña restablecida'
+    });
+    res.json({ ok: true, message: 'Contraseña actualizada correctamente' });
+  } catch (err) {
+    console.error('[RESET] Error:', err.message, err.stack);
+    if (!res.headersSent) res.status(500).json({ error: 'Error al restablecer contraseña' });
+  }
 });
 
 app.get('/api/modulos', verificarToken, (req, res) => {
