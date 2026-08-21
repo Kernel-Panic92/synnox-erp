@@ -623,6 +623,7 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
         <div class="page-header flex" style="justify-content:space-between;align-items:center;">
           <div><h3>↩️ Devoluciones</h3><p>Gestión y análisis de devoluciones de productos</p></div>
           <div class="flex gap-sm">
+            <button class="btn btn-secondary btn-sm" id="btn-gestionar-causales" onclick="abrirGestionCausales()" style="display:none;">⚙️ Causales</button>
             <button class="btn btn-secondary btn-sm" onclick="abrirImportarDevoluciones()">📥 Importar Excel</button>
             <button class="btn btn-primary btn-sm" onclick="abrirModalDevolucion()">+ Nueva</button>
           </div>
@@ -630,14 +631,14 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
         <!-- Stats -->
         <div id="dev-stats" class="stats-row" style="margin-bottom:16px;"></div>
         <!-- Charts -->
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px;">
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;">
+        <div style="display:grid;grid-template-columns:repeat(auto-fit, minmax(320px, 1fr));gap:16px;margin-bottom:16px;">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;min-width:0;">
             <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">Devoluciones por causa</h4>
-            <canvas id="chart-dev-causa" height="200"></canvas>
+            <canvas id="chart-dev-causa" data-resize="manual" style="width:100%;display:block;"></canvas>
           </div>
-          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;">
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;min-width:0;">
             <h4 style="font-size:14px;font-weight:600;margin-bottom:12px;">Tendencia temporal</h4>
-            <canvas id="chart-dev-tendencia" height="200"></canvas>
+            <canvas id="chart-dev-tendencia" data-resize="manual" style="width:100%;display:block;"></canvas>
           </div>
         </div>
         <!-- Filtros -->
@@ -650,10 +651,14 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
           </select>
           <select id="dev-filtro-causa" onchange="cargarDevoluciones()" style="width:auto;min-width:140px;">
             <option value="">Todas las causas</option>
-            <option value="Fecha vencimiento">Fecha vencimiento</option>
+            <option value="Vencimiento">Vencimiento</option>
+            <option value="Choque térmico">Choque térmico</option>
+            <option value="Pérdida de vacío">Pérdida de vacío</option>
             <option value="Calidad">Calidad</option>
             <option value="Mal estado">Mal estado</option>
             <option value="Rotura">Rotura</option>
+            <option value="Daño">Daño</option>
+            <option value="Otra">Otra</option>
           </select>
           <select id="dev-filtro-estado" onchange="cargarDevoluciones()" style="width:auto;min-width:130px;">
             <option value="">Todos los estados</option>
@@ -843,15 +848,18 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
       <div><label>Documento devolución</label><input type="text" id="dev-documento" placeholder="N° documento"></div>
       <div><label>Quien recibe</label><input type="text" id="dev-quien-recibe" placeholder="Nombre de quien recibe"></div>
       <div><label>Mercaderista</label><input type="text" id="dev-mercaderista" placeholder="Mercaderista"></div>
-      <div style="grid-column:1/-1;"><label>Productos (referencias a devolver)</label><textarea id="dev-productos-texto" rows="3" placeholder="Un producto por línea, cantidad entre paréntesis ej: Filete basa(3)"></textarea></div>
+      <div style="grid-column:1/-1;"><label>Productos (referencias a devolver)</label><textarea id="dev-productos-texto" rows="3" placeholder="Un producto por línea. Formato nuevo: EAN Nombre,cantidad,causal (ej: 7705946394048 LOMITO SALMON,4,CHOQUE TERMICO) o clásico: Filete basa(3)"></textarea></div>
       <div><label>Valor devolución ($)</label><input type="number" id="dev-valor" placeholder="0" step="100"></div>
       <div><label>Causa *</label>
         <select id="dev-causa">
           <option value="">Seleccionar...</option>
-          <option value="Fecha vencimiento">Fecha vencimiento</option>
+          <option value="Vencimiento">Vencimiento</option>
+          <option value="Choque térmico">Choque térmico</option>
+          <option value="Pérdida de vacío">Pérdida de vacío</option>
           <option value="Calidad">Calidad</option>
           <option value="Mal estado">Mal estado</option>
           <option value="Rotura">Rotura</option>
+          <option value="Daño">Daño</option>
           <option value="Otra">Otra</option>
         </select>
       </div>
@@ -872,6 +880,31 @@ body.light .cli-card{background:#fff;border-color:#d0d4e4;box-shadow:0 1px 4px r
       <button class="btn btn-secondary" onclick="document.getElementById('modal-devolucion').classList.remove('show')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarDevolucion()">Guardar</button>
     </div>
+  </div>
+</div>
+
+<!-- Modal Gestión de causales -->
+<div class="modal-overlay" id="modal-causales" onclick="if(event.target===this)this.classList.remove('show')">
+  <div class="modal" style="max-width:820px;max-height:90vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px;">
+      <div><h3>⚙️ Causales de devolución</h3><p class="modal-desc" style="margin-bottom:0;">Las causales inactivas se conservan para el histórico.</p></div>
+      <button class="btn btn-primary btn-sm" onclick="nuevaCausalDevolucion()">+ Nueva causal</button>
+    </div>
+    <div id="dev-causal-form" style="display:none;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:14px;">
+      <h4 id="dev-causal-form-title" style="margin-bottom:10px;">Nueva causal</h4>
+      <input type="hidden" id="dev-causal-edit-id">
+      <div class="form-grid" style="margin-bottom:10px;">
+        <div><label>Código</label><input id="dev-causal-codigo" placeholder="Ej: A1"></div>
+        <div><label>Nombre *</label><input id="dev-causal-nombre" placeholder="Descripción de la causal"></div>
+        <div><label>Notas / área responsable</label><input id="dev-causal-notas" placeholder="Ej: Calidad, Logística"></div>
+        <div style="display:flex;align-items:end;padding-bottom:8px;"><label><input type="checkbox" id="dev-causal-activo" checked> Activa</label></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;"><button class="btn btn-secondary btn-sm" onclick="cerrarFormCausal()">Cancelar</button><button class="btn btn-primary btn-sm" onclick="guardarCausalDevolucion()">Guardar</button></div>
+    </div>
+    <div class="tbl-wrap" style="max-height:52vh;overflow:auto;">
+      <table class="tbl"><thead><tr><th>Código</th><th>Nombre</th><th>Notas</th><th>Estado</th><th>Acciones</th></tr></thead><tbody id="dev-causales-tbody"></tbody></table>
+    </div>
+    <div class="modal-actions"><button class="btn btn-secondary" onclick="document.getElementById('modal-causales').classList.remove('show')">Cerrar</button></div>
   </div>
 </div>
 
@@ -948,8 +981,8 @@ fetch('/api/config/gmaps/key').then(r=>r.json()).then(d=>{
 }).catch(()=>{});
 </script>
 
-<script src="framework.js"></script>
-<script src="app.js?v=20260727b"></script>
+<script src="framework.js?v=20260821charts3"></script>
+<script src="app.js?v=20260821causales3"></script>
 <script>if('serviceWorker'in navigator)navigator.serviceWorker.register('sw.js');</script>
 
 <!-- Bulk Actions Bar -->

@@ -90,6 +90,9 @@ let _canvasResizeTimer;
 function resizeAllCanvases() {
   document.querySelectorAll('canvas').forEach(canvas => {
     try {
+      // Some canvases are rendered manually and must not be reset here:
+      // assigning canvas.width clears their bitmap before their renderer runs.
+      if (canvas.dataset.resize === 'manual') return;
       const parent = canvas.parentElement;
       if (parent) {
         const rect = parent.getBoundingClientRect();

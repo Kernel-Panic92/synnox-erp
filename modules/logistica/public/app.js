@@ -126,12 +126,23 @@ function navigate(page) {
   else if (page === 'sedes') cargarSedes();
   else if (page === 'widetech') rWidetech();
   else if (page === 'geocercas') cargarGeocercas();
-  else if (page === 'devoluciones') cargarDevoluciones();
+  else if (page === 'devoluciones') {
+    cargarCausalesDevolucion();
+    cargarDevoluciones();
+    // Re-render cached charts once layout is visible (fixes resize while hidden)
+    setTimeout(() => {
+      if (window._lastCausaData) renderChartCausa(window._lastCausaData);
+      if (window._lastTendenciaData) renderChartTendencia(window._lastTendenciaData);
+    }, 100);
+  }
 }
 
 /* ── Init ── */
 function renderSidebar(usuario) {
   window._devIsAdmin = usuario.rol === 'admin';
+  window._devCanConfig = ['admin', 'gerente'].includes(usuario.rol);
+  const causalButton = document.getElementById('btn-gestionar-causales');
+  if (causalButton) causalButton.style.display = window._devCanConfig ? 'inline-flex' : 'none';
   const isAdmin = window._devIsAdmin;
   const modPermisos = usuario.modulos_permisos?.logistica || [];
   const items = [
@@ -3414,7 +3425,7 @@ async function cargarDevolucionesLista() {
           <td data-label="Centro" style="font-size:12px;">${esc(r.centro_operaciones || '-')}</td>
           <td data-label="Productos" style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${esc(r.productos_texto || '')}">${esc((r.productos_texto || '').substring(0, 60))}${(r.productos_texto||'').length > 60 ? '...' : ''}</td>
           <td data-label="Total" style="white-space:nowrap;font-weight:600;">$${Math.round(Number(r.valor_total || 0))}</td>
-          <td data-label="Causa"><span class="badge badge-${r.causa === 'Calidad' ? 'warning' : r.causa === 'Fecha vencimiento' ? 'info' : r.causa === 'Mal estado' ? 'danger' : r.causa === 'Rotura' ? 'danger' : 'muted'}" style="font-size:11px;">${esc(r.causa)}</span></td>
+          <td data-label="Causa"><span class="badge badge-${r.causa === 'Calidad' ? 'warning' : (r.causa === 'Vencimiento' || r.causa === 'Fecha vencimiento') ? 'info' : r.causa === 'Choque térmico' ? 'info' : r.causa === 'Pérdida de vacío' ? 'warning' : r.causa === 'Mal estado' ? 'danger' : r.causa === 'Rotura' ? 'danger' : 'muted'}" style="font-size:11px;">${esc(r.causa)}</span></td>
           <td data-label="Fuente"><span style="font-size:12px;" title="${esc(r.fuente || 'manual')}">${fuenteIcons[r.fuente] || '✋'} ${esc(r.fuente || 'manual')}</span></td>
           <td data-label="Estado"><span class="badge badge-${r.estado === 'resuelta' || r.estado === 'cerrada' ? 'success' : r.estado === 'en_proceso' ? 'info' : 'muted'}" style="font-size:11px;">${esc(r.estado || 'registrada')}</span></td>
           <td data-label="" onclick="event.stopPropagation()">
@@ -3439,7 +3450,10 @@ async function cargarDevolucionesResumen() {
     if (fi) params.set('fecha_inicio', fi);
     if (ff) params.set('fecha_fin', ff);
 
-    const data = await api('/devoluciones/resumen?' + params.toString());
+    const [data, causalesData] = await Promise.all([
+      api('/devoluciones/resumen?' + params.toString()),
+      api('/devoluciones/causales').catch(() => ({ rows: [] }))
+    ]);
     const statsEl = document.getElementById('dev-stats');
     statsEl.innerHTML = `
       <div class="stat-card"><div class="stat-label">Total devoluciones</div><div class="stat-value">${data.total}</div></div>
@@ -3447,9 +3461,25 @@ async function cargarDevolucionesResumen() {
       <div class="stat-card"><div class="stat-label">Top causa</div><div class="stat-value">${data.por_causa?.[0] ? esc(data.por_causa[0].causa) : '-'}</div><div class="stat-sub">${data.por_causa?.[0] ? data.por_causa[0].cantidad + ' registros' : ''}</div></div>
       <div class="stat-card"><div class="stat-label">Con conductor</div><div class="stat-value">${data.con_conductor}</div></div>
     `;
-    renderChartCausa(data.por_causa || []);
+    renderChartCausa(alinearCausasGrafica(data.por_causa || [], causalesData.rows || []));
     renderChartTendencia(data.tendencia || []);
   } catch (err) { console.error('[devoluciones resumen]', err); }
+}
+
+function claveCausalGrafica(value) {
+  return String(value || '')
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+function alinearCausasGrafica(rows, causales) {
+  if (!causales.length) return rows;
+  const catalogo = causales.map(c => ({ ...c, clave: claveCausalGrafica(c.nombre) }));
+  return rows.map(row => {
+    const clave = claveCausalGrafica(row.causa);
+    const match = catalogo.find(c => c.clave === clave);
+    return match ? { ...row, causa: match.nombre } : null;
+  }).filter(Boolean);
 }
 
 async function cargarDevolucionesClientes() {
@@ -3460,6 +3490,98 @@ async function cargarDevolucionesClientes() {
     sel.innerHTML = '<option value="">Todos los clientes</option>' +
       (data.rows || []).map(c => `<option value="${esc(c)}" ${c === current ? 'selected' : ''}>${esc(c)}</option>`).join('');
   } catch {}
+}
+
+async function cargarCausalesDevolucion() {
+  try {
+    const data = await api('/devoluciones/causales');
+    const causales = data.rows || [];
+    const filtro = document.getElementById('dev-filtro-causa');
+    const actualFiltro = filtro?.value || '';
+    if (filtro) filtro.innerHTML = '<option value="">Todas las causas</option>' + causales.map(c => `<option value="${esc(c.nombre)}">${esc(c.nombre)}</option>`).join('');
+    if (filtro && causales.some(c => c.nombre === actualFiltro)) filtro.value = actualFiltro;
+    const causa = document.getElementById('dev-causa');
+    const actual = causa?.value || '';
+    if (causa) causa.innerHTML = '<option value="">Seleccionar...</option>' + causales.map(c => `<option value="${esc(c.nombre)}">${esc(c.nombre)}</option>`).join('');
+    if (causa && causales.some(c => c.nombre === actual)) causa.value = actual;
+    return causales;
+  } catch (err) {
+    console.error('[causales]', err);
+    return [];
+  }
+}
+
+async function abrirGestionCausales() {
+  if (!window._devCanConfig) return toast('No tienes permisos para administrar causales', 'error');
+  await cargarTablaCausales();
+  document.getElementById('modal-causales').classList.add('show');
+}
+
+async function cargarTablaCausales() {
+  const body = document.getElementById('dev-causales-tbody');
+  if (!body) return;
+  try {
+    const data = await api('/devoluciones/causales?incluir_inactivas=true');
+    body.innerHTML = (data.rows || []).map(c => `<tr>
+      <td>${esc(c.codigo || '-')}</td><td>${esc(c.nombre)}</td><td>${esc(c.notas || '-')}</td>
+      <td><span class="badge badge-${c.activo ? 'success' : 'muted'}">${c.activo ? 'Activa' : 'Inactiva'}</span></td>
+      <td style="white-space:nowrap;"><button class="btn btn-secondary btn-sm" onclick="editarCausalDevolucion(${c.id})">✏️</button> <button class="btn btn-danger btn-sm" onclick="eliminarCausalDevolucion(${c.id})" ${c.activo ? '' : 'disabled'}>🗑️</button></td>
+    </tr>`).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:18px;">No hay causales</td></tr>';
+    window._causalesDevolucion = data.rows || [];
+  } catch (err) { toast('Error cargando causales: ' + err.message, 'error'); }
+}
+
+function nuevaCausalDevolucion() {
+  document.getElementById('dev-causal-edit-id').value = '';
+  document.getElementById('dev-causal-codigo').value = '';
+  document.getElementById('dev-causal-nombre').value = '';
+  document.getElementById('dev-causal-notas').value = '';
+  document.getElementById('dev-causal-activo').checked = true;
+  document.getElementById('dev-causal-form-title').textContent = 'Nueva causal';
+  document.getElementById('dev-causal-form').style.display = 'block';
+}
+
+function editarCausalDevolucion(id) {
+  const c = (window._causalesDevolucion || []).find(x => x.id === id);
+  if (!c) return;
+  document.getElementById('dev-causal-edit-id').value = c.id;
+  document.getElementById('dev-causal-codigo').value = c.codigo || '';
+  document.getElementById('dev-causal-nombre').value = c.nombre || '';
+  document.getElementById('dev-causal-notas').value = c.notas || '';
+  document.getElementById('dev-causal-activo').checked = c.activo;
+  document.getElementById('dev-causal-form-title').textContent = 'Editar causal';
+  document.getElementById('dev-causal-form').style.display = 'block';
+}
+
+function cerrarFormCausal() { document.getElementById('dev-causal-form').style.display = 'none'; }
+
+async function guardarCausalDevolucion() {
+  const id = document.getElementById('dev-causal-edit-id').value;
+  const body = {
+    codigo: document.getElementById('dev-causal-codigo').value,
+    nombre: document.getElementById('dev-causal-nombre').value,
+    notas: document.getElementById('dev-causal-notas').value,
+    activo: document.getElementById('dev-causal-activo').checked
+  };
+  if (!body.nombre.trim()) return toast('El nombre de la causal es requerido', 'error');
+  try {
+    await api('/devoluciones/causales' + (id ? '/' + id : ''), { method: id ? 'PUT' : 'POST', body: JSON.stringify(body) });
+    toast(id ? 'Causal actualizada' : 'Causal creada', 'success');
+    cerrarFormCausal();
+    await cargarTablaCausales();
+    await cargarCausalesDevolucion();
+  } catch (err) { toast('Error guardando causal: ' + err.message, 'error'); }
+}
+
+async function eliminarCausalDevolucion(id) {
+  const ok = await confirmModal('La causal se marcará como inactiva y no aparecerá en nuevos registros. El histórico se conservará.', 'Desactivar causal', 'delete');
+  if (!ok) return;
+  try {
+    await api('/devoluciones/causales/' + id, { method: 'DELETE' });
+    toast('Causal desactivada', 'success');
+    await cargarTablaCausales();
+    await cargarCausalesDevolucion();
+  } catch (err) { toast('Error desactivando causal: ' + err.message, 'error'); }
 }
 
 function renderDevPagination(total, totalPages) {
@@ -3612,7 +3734,7 @@ async function verDetalleDevolucion(id) {
     const r = data.row;
     const productos = Array.isArray(r.productos) ? r.productos : [];
     const productosHtml = productos.length > 0
-      ? productos.map(p => `<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid var(--border);"><span>${esc(p.nombre)}</span><span style="font-weight:600;">x${p.cantidad}</span></div>`).join('')
+      ? productos.map(p => `<div style="display:flex;justify-content:space-between;gap:8px;padding:4px 0;border-bottom:1px solid var(--border);"><span>${esc(p.nombre)}${p.causa_normalizada || p.causa ? ' <small style="color:var(--muted);">(' + esc(p.causa_normalizada || p.causa) + ')</small>' : ''}</span><span style="font-weight:600;white-space:nowrap;">x${p.cantidad}</span></div>`).join('')
       : '<div style="color:var(--muted);font-size:13px;">Sin productos parseados</div>';
 
     document.getElementById('dev-detalle-body').innerHTML = `
@@ -3626,7 +3748,7 @@ async function verDetalleDevolucion(id) {
         <div><b>Mercaderista:</b> ${esc(r.mercaderista || '-')}</div>
         <div><b>Quien recibe:</b> ${esc(r.quien_recibe || '-')}</div>
         <div style="grid-column:1/-1;"><b>Valor:</b> <span style="font-size:16px;font-weight:700;">$${Math.round(Number(r.valor_total || 0))}</span></div>
-        <div><b>Causa:</b> <span class="badge badge-${r.causa === 'Calidad' ? 'warning' : r.causa === 'Fecha vencimiento' ? 'info' : 'muted'}">${esc(r.causa)}</span></div>
+        <div><b>Causa:</b> <span class="badge badge-${r.causa === 'Calidad' ? 'warning' : (r.causa === 'Vencimiento' || r.causa === 'Fecha vencimiento') ? 'info' : r.causa === 'Choque térmico' ? 'info' : r.causa === 'Pérdida de vacío' ? 'warning' : 'muted'}">${esc(r.causa)}</span></div>
         <div><b>Fuente:</b> ${esc(r.fuente || 'manual')}</div>
       </div>
       ${r.causa_detalle ? `<div style="margin-top:10px;"><b>Observaciones:</b><p style="font-size:13px;color:var(--muted);">${esc(r.causa_detalle)}</p></div>` : ''}
@@ -3757,88 +3879,247 @@ async function ejecutarImportarDevoluciones() {
 function renderChartCausa(data) {
   const canvas = document.getElementById('chart-dev-causa');
   if (!canvas) return;
+  window._lastCausaData = data;
+  if (canvas.offsetParent === null) return;
   const ctx = canvas.getContext('2d');
-  const w = canvas.parentElement.clientWidth - 32;
-  canvas.width = w;
-  canvas.height = 200;
-  ctx.clearRect(0, 0, w, 200);
+  const dpr = window.devicePixelRatio || 1;
+  const boxW = canvas.parentElement.getBoundingClientRect().width || canvas.parentElement.clientWidth;
+  if (!Number.isFinite(boxW) || boxW < 100) return;
+  const parentW = Math.max(280, Math.floor(boxW - 32));
+  const w = parentW;
+  // Horizontal bars: dynamic height based on rows
+  const barH = 22;
+  const gap = 12;
+  const topPad = 8;
+  const leftPad = 132; // space for full cause labels
+  const rightPad = 36;
+  const bottomPad = 8;
+  const rows = Math.max(data.length, 1);
+  const h = Math.max(160, topPad + rows * (barH + gap) - gap + bottomPad);
+  canvas.style.height = h + 'px';
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
 
   if (!data.length) {
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#7a85a0';
+    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted').trim() || '#5a6180';
     ctx.font = '13px DM Sans, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Sin datos', w / 2, 100);
+    ctx.fillText('Sin datos', w / 2, h / 2);
     return;
   }
 
-  const colors = ['#00A86B', '#f7944f', '#f7614f', '#f7d44f', '#4fbe96', '#8b5cf6'];
-  const maxVal = Math.max(...data.map(d => parseInt(d.cantidad)));
-  const barW = Math.min(60, (w - 40) / data.length - 10);
-  const chartH = 160;
-  const startX = (w - (barW + 10) * data.length) / 2;
+  const isLight = document.body.classList.contains('light');
+  const colors = ['#00A86B', '#f7944f', '#ef4444', '#f7d44f', '#4fbe96', '#8b5cf6', '#06b6d4', '#a78bfa'];
+  const muted = isLight ? '#5a6180' : '#aeb7ca';
+  const text = isLight ? '#1a1d2e' : '#e8ecf5';
+  const border = isLight ? '#d0d4e4' : '#394156';
+  const maxVal = Math.max(...data.map(d => parseInt(d.cantidad) || 0), 1);
+  const chartW = w - leftPad - rightPad;
+  const niceMax = Math.ceil(maxVal * 1.15) || 1;
+
+  // vertical grid (4 lines)
+  ctx.strokeStyle = border;
+  ctx.lineWidth = 1;
+  for (let g = 0; g <= 4; g++) {
+    const x = leftPad + (chartW / 4) * g;
+    ctx.beginPath();
+    ctx.moveTo(x, topPad);
+    ctx.lineTo(x, h - bottomPad);
+    ctx.stroke();
+    // tick label
+    ctx.fillStyle = muted;
+    ctx.font = '10px DM Sans, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText(Math.round((niceMax / 4) * g), x, h - 2);
+  }
 
   data.forEach((d, i) => {
-    const barH = maxVal > 0 ? (parseInt(d.cantidad) / maxVal) * (chartH - 30) : 0;
-    const x = startX + i * (barW + 10);
-    const y = chartH - barH - 20;
+    const val = parseInt(d.cantidad) || 0;
+    const y = topPad + i * (barH + gap);
+    const barW = (val / niceMax) * chartW;
+
+    // label left (full text, ellipsis if too long)
+    ctx.fillStyle = text;
+    ctx.font = '12px DM Sans, sans-serif';
+    ctx.textAlign = 'right';
+    let label = String(d.causa || 'Otra');
+    // ellipsis if wider than leftPad - 12
+    const maxLabelW = leftPad - 14;
+    let labelToDraw = label;
+    if (ctx.measureText(labelToDraw).width > maxLabelW) {
+      while (labelToDraw.length > 3 && ctx.measureText(labelToDraw + '…').width > maxLabelW) labelToDraw = labelToDraw.slice(0, -1);
+      labelToDraw += '…';
+    }
+    ctx.fillText(labelToDraw, leftPad - 10, y + barH / 2 + 4);
+    // tooltip-like full label on hover not needed; title via parent could be added
+
+    // track background
+    ctx.fillStyle = 'rgba(0,0,0,0.04)';
+    // use border color with alpha
+    ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(leftPad, y, chartW, barH, 6);
+    else ctx.rect(leftPad, y, chartW, barH);
+    ctx.fill();
+
+    // bar
     ctx.fillStyle = colors[i % colors.length];
     ctx.beginPath();
-    ctx.roundRect(x, y, barW, barH, [4, 4, 0, 0]);
+    if (ctx.roundRect) ctx.roundRect(leftPad, y, Math.max(barW, 2), barH, 6);
+    else ctx.rect(leftPad, y, Math.max(barW, 2), barH);
     ctx.fill();
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#e8ecf5';
+
+    // value at end of bar
+    ctx.fillStyle = text;
     ctx.font = 'bold 11px DM Sans, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.fillText(d.cantidad, x + barW / 2, y - 4);
-    ctx.font = '10px DM Sans, sans-serif';
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#7a85a0';
-    const label = d.causa.length > 12 ? d.causa.substring(0, 10) + '...' : d.causa;
-    ctx.fillText(label, x + barW / 2, chartH - 4);
+    ctx.textAlign = 'left';
+    const valX = leftPad + barW + 6;
+    // if bar is very long, draw inside in white
+    if (barW > chartW * 0.75) {
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'right';
+      ctx.fillText(String(val), leftPad + barW - 6, y + barH / 2 + 4);
+    } else {
+      ctx.fillStyle = text;
+      ctx.textAlign = 'left';
+      ctx.fillText(String(val), valX, y + barH / 2 + 4);
+    }
   });
+  // cache for resize
+  window._lastCausaData = data;
 }
 
 function renderChartTendencia(data) {
   const canvas = document.getElementById('chart-dev-tendencia');
   if (!canvas) return;
+  window._lastTendenciaData = data;
+  if (canvas.offsetParent === null) return;
   const ctx = canvas.getContext('2d');
-  const w = canvas.parentElement.clientWidth - 32;
-  canvas.width = w;
-  canvas.height = 200;
-  ctx.clearRect(0, 0, w, 200);
+  const dpr = window.devicePixelRatio || 1;
+  const boxW = canvas.parentElement.getBoundingClientRect().width || canvas.parentElement.clientWidth;
+  if (!Number.isFinite(boxW) || boxW < 100) return;
+  const parentW = Math.max(280, Math.floor(boxW - 32));
+  const w = parentW;
+  const h = 200;
+  canvas.style.height = h + 'px';
+  canvas.width = w * dpr;
+  canvas.height = h * dpr;
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, w, h);
 
   if (!data.length) {
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#7a85a0';
+    ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--muted').trim() || '#5a6180';
     ctx.font = '13px DM Sans, sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('Sin datos', w / 2, 100);
+    ctx.fillText('Sin datos', w / 2, h / 2);
     return;
   }
 
-  const maxVal = Math.max(...data.map(d => parseInt(d.cantidad)));
-  const chartH = 160;
-  const padding = 40;
-  const chartW = w - padding * 2;
-  const stepX = data.length > 1 ? chartW / (data.length - 1) : chartW / 2;
+  const isLight = document.body.classList.contains('light');
+  const muted = isLight ? '#5a6180' : '#aeb7ca';
+  const text = isLight ? '#1a1d2e' : '#e8ecf5';
+  const border = isLight ? '#d0d4e4' : '#394156';
+  const rawMax = Math.max(...data.map(d => parseInt(d.cantidad) || 0), 1);
+  // nice max with headroom
+  const niceMax = Math.max(2, Math.ceil(rawMax * 1.25));
+  const leftPad = 36;
+  const rightPad = 12;
+  const topPad = 16;
+  const bottomPad = 28;
+  const chartW = w - leftPad - rightPad;
+  const chartH = h - topPad - bottomPad;
+  const stepX = data.length > 1 ? chartW / (data.length - 1) : chartW;
 
-  ctx.strokeStyle = '#00A86B';
-  ctx.lineWidth = 2;
+  // grid + y labels
+  ctx.strokeStyle = border;
+  ctx.lineWidth = 1;
+  ctx.fillStyle = muted;
+  ctx.font = '10px DM Sans, sans-serif';
+  ctx.textAlign = 'right';
+  for (let g = 0; g <= 4; g++) {
+    const y = topPad + (chartH / 4) * g;
+    ctx.beginPath();
+    ctx.moveTo(leftPad, y);
+    ctx.lineTo(w - rightPad, y);
+    ctx.stroke();
+    const val = Math.round(niceMax - (niceMax / 4) * g);
+    ctx.fillText(String(val), leftPad - 8, y + 3);
+  }
+
+  const yFor = (v) => topPad + chartH - (v / niceMax) * chartH;
+  const xFor = (i) => data.length === 1 ? leftPad + chartW / 2 : leftPad + i * stepX;
+
+  // fill under line (gradient)
+  const grad = ctx.createLinearGradient(0, topPad, 0, topPad + chartH);
+  grad.addColorStop(0, 'rgba(0,168,107,0.22)');
+  grad.addColorStop(1, 'rgba(0,168,107,0)');
+  ctx.fillStyle = grad;
   ctx.beginPath();
   data.forEach((d, i) => {
-    const x = padding + i * stepX;
-    const y = maxVal > 0 ? chartH - (parseInt(d.cantidad) / maxVal) * (chartH - 30) - 20 : chartH / 2;
+    const x = xFor(i);
+    const y = yFor(parseInt(d.cantidad) || 0);
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  });
+  // close to baseline
+  if (data.length > 1) {
+    ctx.lineTo(xFor(data.length - 1), topPad + chartH);
+    ctx.lineTo(xFor(0), topPad + chartH);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  // line
+  ctx.strokeStyle = '#00A86B';
+  ctx.lineWidth = 2.5;
+  ctx.lineJoin = 'round';
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  data.forEach((d, i) => {
+    const x = xFor(i);
+    const y = yFor(parseInt(d.cantidad) || 0);
     if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
   });
   ctx.stroke();
 
+  // points + value labels + x labels
   data.forEach((d, i) => {
-    const x = padding + i * stepX;
-    const y = maxVal > 0 ? chartH - (parseInt(d.cantidad) / maxVal) * (chartH - 30) - 20 : chartH / 2;
+    const x = xFor(i);
+    const y = yFor(parseInt(d.cantidad) || 0);
+    // outer white ring for legibility
+    ctx.fillStyle = '#fff';
+    ctx.beginPath();
+    ctx.arc(x, y, 6, 0, Math.PI * 2);
+    ctx.fill();
     ctx.fillStyle = '#00A86B';
     ctx.beginPath();
     ctx.arc(x, y, 4, 0, Math.PI * 2);
     ctx.fill();
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#7a85a0';
+
+    // value label above point (pill background for contrast)
+    const vText = String(d.cantidad);
+    ctx.font = 'bold 11px DM Sans, sans-serif';
+    const tw = ctx.measureText(vText).width;
+    const pillW = tw + 10;
+    const pillH = 16;
+    const pillX = x - pillW / 2;
+    const pillY = y - 22;
+    // only draw if inside chart
+    if (pillY > 2) {
+      ctx.fillStyle = 'rgba(0,0,0,0.72)';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(pillX, pillY, pillW, pillH, 8);
+      else ctx.rect(pillX, pillY, pillW, pillH);
+      ctx.fill();
+      ctx.fillStyle = '#fff';
+      ctx.textAlign = 'center';
+      ctx.fillText(vText, x, pillY + 11);
+    }
+
+    // x label
+    ctx.fillStyle = muted;
     ctx.font = '10px DM Sans, sans-serif';
-    ctx.textAlign = 'center';
+    ctx.textAlign = data.length === 1 ? 'center' : i === 0 ? 'left' : i === data.length - 1 ? 'right' : 'center';
     let label = '';
     if (d.fecha) {
       const rawF = d.fecha instanceof Date ? d.fecha.toISOString() : String(d.fecha);
@@ -3847,16 +4128,18 @@ function renderChartTendencia(data) {
       if (partes.length === 3) {
         const meses = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
         label = parseInt(partes[2]) + ' ' + meses[parseInt(partes[1]) - 1];
-      } else {
-        label = fechaStr.substring(0, 10);
-      }
+      } else label = fechaStr.slice(5);
     }
-    ctx.fillText(label, x, chartH - 4);
-    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--text').trim() || '#e8ecf5';
-    ctx.font = 'bold 10px DM Sans, sans-serif';
-    ctx.fillText(d.cantidad, x, y - 8);
+    ctx.fillText(label, x, topPad + chartH + 16);
   });
+  window._lastTendenciaData = data;
 }
 
-init();
+document.addEventListener('themechange', () => {
+  requestAnimationFrame(() => {
+    if (window._lastCausaData) renderChartCausa(window._lastCausaData);
+    if (window._lastTendenciaData) renderChartTendencia(window._lastTendenciaData);
+  });
+});
 
+init();
