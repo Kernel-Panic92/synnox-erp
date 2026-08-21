@@ -2136,7 +2136,7 @@ function showAdminTab(tab) {
   else if (tab === 'mcp-logs') { mcpLogsOffset = 0; loadMcpLogs(); loadMcpLogsStats(); }
   else if (tab === 'mcp-oauth') loadMcpOAuthConfig();
   else if (tab === 'respaldo') { 
-    loadBackupStatus(); loadBackupList(); loadBackupHistory();
+    loadBackupStatus(); loadBackupList(); loadBackupHistory(); loadBackupNasConfig();
   }
   else if (tab === 'acerca-de') loadAcercaDe();
 
@@ -3168,6 +3168,59 @@ async function revokeMcpToken(tokenId) {
 }
 
 // ── Backup Management (new system: scripts/backup_synnox.sh) ──
+async function loadBackupNasConfig() {
+  const el = document.getElementById('backup-nas-form');
+  if (!el) return;
+  try {
+    const res = await fetch('/api/admin/backup/nas', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'No se pudo cargar la configuración');
+    const c = data.config;
+    el.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;">
+        <label style="display:flex;align-items:center;gap:8px;grid-column:1/-1;"><input type="checkbox" id="backup-nas-enabled" ${c.enabled ? 'checked' : ''}> Activar copia remota</label>
+        <div><label>Recurso compartido SMB</label><input id="backup-nas-share" value="${esc(c.share || '')}" placeholder="//192.168.1.100/backups"></div>
+        <div><label>Punto de montaje</label><input id="backup-nas-mount" value="${esc(c.mount || '/mnt/synnox-nas')}" placeholder="/mnt/synnox-nas"></div>
+        <div><label>Usuario NAS</label><input id="backup-nas-user" value="${esc(c.user || '')}"></div>
+        <div><label>Contraseña NAS ${c.configured ? '<small style="color:var(--success);">(configurada)</small>' : ''}</label><input id="backup-nas-password" type="password" placeholder="${c.configured ? 'Dejar sin cambios' : 'Contraseña'}"></div>
+        <div><label>Subcarpeta</label><input id="backup-nas-subdir" value="${esc(c.subdir || 'synnoxerp')}"></div>
+        <div><label>Retención remota (días)</label><input id="backup-nas-retain" type="number" min="1" max="3650" value="${c.retain_days || 30}"></div>
+      </div>
+      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:12px;"><button class="btn btn-sm btn-secondary" onclick="testBackupNas()">🔌 Probar montaje</button><button class="btn btn-sm btn-primary" onclick="saveBackupNasConfig()">Guardar configuración NAS</button></div>`;
+  } catch (err) { el.innerHTML = `<span style="color:var(--danger);">${esc(err.message)}</span>`; }
+}
+
+async function testBackupNas() {
+  const btn = document.querySelector('#backup-nas-form button[onclick="testBackupNas()"]');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Probando...'; }
+  try {
+    const res = await fetch('/api/admin/backup/nas/test', { method: 'POST', headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'La NAS no está disponible');
+    toast(data.message || 'NAS accesible', 'success');
+  } catch (err) { toast(err.message, 'error'); }
+  finally { if (btn) { btn.disabled = false; btn.textContent = '🔌 Probar montaje'; } }
+}
+
+async function saveBackupNasConfig() {
+  const body = {
+    enabled: document.getElementById('backup-nas-enabled').checked,
+    share: document.getElementById('backup-nas-share').value.trim(),
+    mount: document.getElementById('backup-nas-mount').value.trim(),
+    user: document.getElementById('backup-nas-user').value.trim(),
+    password: document.getElementById('backup-nas-password').value,
+    subdir: document.getElementById('backup-nas-subdir').value.trim(),
+    retain_days: document.getElementById('backup-nas-retain').value
+  };
+  try {
+    const res = await fetch('/api/admin/backup/nas', { method: 'PUT', headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + jwtToken }, body: JSON.stringify(body) });
+    const data = await res.json();
+    if (!res.ok || !data.ok) throw new Error(data.error || 'No se pudo guardar');
+    toast(data.message || 'Configuración NAS guardada', 'success');
+    loadBackupNasConfig();
+  } catch (err) { toast(err.message, 'error'); }
+}
+
 async function loadBackupStatus() {
   const el = document.getElementById('backup-status');
   if (!el) return;
@@ -3999,4 +4052,3 @@ function clearTableFilters(containerId) {
   const inputs = root.querySelectorAll('.table-filters .filter-input, .table-filters .filter-select');
   inputs.forEach(el => { el.value = ''; el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input')); });
 }
-

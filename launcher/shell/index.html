@@ -1012,8 +1012,14 @@
             <div id="backup-progress-bar" style="background:var(--accent);height:100%;width:0%;transition:width 0.3s;border-radius:6px;"></div>
           </div>
         </div>
-        <div id="backup-run-msg" style="margin-top:10px;"></div>
-      </div>
+      <div id="backup-run-msg" style="margin-top:10px;"></div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <div style="font-family:var(--font-head);font-weight:700;font-size:16px;margin-bottom:6px;">🌐 Destino remoto NAS</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:14px;">Copia los backups a un recurso SMB/CIFS. La contraseña se guarda solo en el servidor.</div>
+      <div id="backup-nas-form">Cargando configuración NAS...</div>
+    </div>
 
       <!-- Lista de backups disponibles -->
       <div class="table-wrap" style="padding:28px 32px;">
@@ -1233,7 +1239,7 @@ fetch('/api/config/gmaps/key')
   }).catch(function(){});
 </script>
 <script src="config.js?v=20260630"></script>
-<script src="app.js?v=20260729"></script>
+  <script src="app.js?v=20260821nas1"></script>
 <!-- Prefetch module assets for faster navigation -->
 <link rel="prefetch" href="/proveedores/js/app.js" as="script">
 <link rel="prefetch" href="/proveedores/js/config.js" as="script">
