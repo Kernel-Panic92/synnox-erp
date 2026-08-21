@@ -15,6 +15,63 @@ const upload = multer({ dest: uploadDir });
 const router = express.Router();
 const MODULE = 'logistica';
 
+// ── Causales configurables ──
+router.get('/causales', requirePermiso('ver', MODULE), async (req, res) => {
+  try {
+    const incluirInactivas = req.query.incluir_inactivas === 'true';
+    const result = await pool.query(
+      `SELECT id, codigo, nombre, concepto, notas, activo, created_at, updated_at
+       FROM logistics.causales_devolucion
+       ${incluirInactivas ? '' : 'WHERE activo = TRUE'}
+       ORDER BY activo DESC, codigo NULLS LAST, nombre`
+    );
+    res.json({ exitosa: true, rows: result.rows });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+router.post('/causales', requirePermiso('configurar', MODULE), async (req, res) => {
+  try {
+    const { codigo, nombre, concepto, notas, activo = true } = req.body;
+    if (!nombre || !String(nombre).trim()) return res.status(400).json({ error: 'El nombre de la causal es requerido' });
+    const result = await pool.query(
+      `INSERT INTO logistics.causales_devolucion (codigo, nombre, concepto, notas, activo)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [codigo?.trim() || null, nombre.trim(), concepto?.trim() || 'Devolución de venta', notas?.trim() || null, activo !== false]
+    );
+    res.json({ exitosa: true, row: result.rows[0] });
+  } catch (err) {
+    res.status(err.code === '23505' ? 409 : 500).json({ error: err.code === '23505' ? 'Ya existe una causal con ese nombre' : err.message });
+  }
+});
+
+router.put('/causales/:id', requirePermiso('configurar', MODULE), async (req, res) => {
+  try {
+    const { codigo, nombre, concepto, notas, activo } = req.body;
+    if (!nombre || !String(nombre).trim()) return res.status(400).json({ error: 'El nombre de la causal es requerido' });
+    const result = await pool.query(
+      `UPDATE logistics.causales_devolucion
+       SET codigo = $1, nombre = $2, concepto = $3, notas = $4, activo = $5, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $6 RETURNING *`,
+      [codigo?.trim() || null, nombre.trim(), concepto?.trim() || 'Devolución de venta', notas?.trim() || null, activo !== false, req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Causal no encontrada' });
+    res.json({ exitosa: true, row: result.rows[0] });
+  } catch (err) {
+    res.status(err.code === '23505' ? 409 : 500).json({ error: err.code === '23505' ? 'Ya existe una causal con ese nombre' : err.message });
+  }
+});
+
+router.delete('/causales/:id', requirePermiso('configurar', MODULE), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `UPDATE logistics.causales_devolucion SET activo = FALSE, updated_at = CURRENT_TIMESTAMP
+       WHERE id = $1 AND activo = TRUE RETURNING *`, [req.params.id]
+    );
+    if (!result.rows.length) return res.status(404).json({ error: 'Causal no encontrada o ya inactiva' });
+    res.json({ exitosa: true, row: result.rows[0] });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 function sanitizePath(input, base) {
   const resolved = path.resolve(base, input);
   const normalized = path.normalize(resolved);
