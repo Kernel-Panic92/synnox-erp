@@ -32,6 +32,13 @@ central antes de abordar los cambios de experiencia frontend.
 - Eventos locales de autenticacion verificados en PostgreSQL.
 - PM2 verificado en estado `online` despues de aplicar cambios.
 
+## Avances de la sesion 48
+
+- Release `v2.3.0` publicada en `main` y deploy de producción verificado.
+- Sidebars de Proyectos, Logística, Nómina y Proveedores cargan el nombre del módulo desde el Launcher mediante `GET /api/modulos`.
+- Copyright y avisos de titularidad actualizados a `Kernel-Panic92`.
+- No hubo migraciones de base de datos en esta sesión.
+
 ## Criterios de cierre
 
 - [x] Seguridad critica revisada.
@@ -54,7 +61,7 @@ central antes de abordar los cambios de experiencia frontend.
 - La branch se creo desde `main`, aunque el flujo normal documentado debe usar
   `dev`.
 - El entorno remoto debe ejecutar la migracion central antes del deploy.
-- `AGENTS.md` historico necesita sincronizar sus issues cerrados.
+- `AGENTS.md` y el estado de la sesión actualizados al cerrar el bloque.
 
 ## Siguiente paso
 
