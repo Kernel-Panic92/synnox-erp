@@ -1,6 +1,6 @@
 # Licencia Propietaria — SynnoxERP
 
-**Copyright © 2026 Edgar Velasquez. Todos los derechos reservados.**
+**Copyright © 2026 Kernel-Panic92. Todos los derechos reservados.**
 
 ---
 
@@ -9,7 +9,7 @@
 ### 1. Definiciones
 
 - **"Software"**: SynnoxERP, incluyendo código fuente, documentación, scripts, base de datos y todos los archivos contenidos en este repositorio.
-- **"Autor"**: Edgar Velasquez.
+- **"Autor"**: Kernel-Panic92.
 - **"Usuario"**: Toda persona o entidad que acceda, use o instale el Software.
 - **"Uso Autorizado"**: Uso dentro de la organización del Usuario bajo una licencia válida otorgada por el Autor.
 

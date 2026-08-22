@@ -183,6 +183,6 @@ Haz clic en **⎋** (barra superior derecha) y confirma.
 ---
 
 *Documento generado para SynnoxERP v2.10.0*
-© 2026 Edgar Velasquez
+© 2026 Kernel-Panic92
 github.com/Kernel-Panic92/synnox-erp
 Todos los derechos reservados

@@ -277,4 +277,4 @@ synnox-erp/
 
 ## Licencia
 
-Privado — Edgar Velásquez © 2026
+Privado — Kernel-Panic92 © 2026
