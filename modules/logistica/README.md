@@ -10,7 +10,7 @@ Sistema de optimización de rutas y logística. Integrado con SynnoxERP.
 - ✅ Dashboard SPA (tema oscuro/claro, sidebar, responsive)
 - ✅ Autenticación JWT
 - ✅ API REST completa con rutas protegidas
-- ✅ Integración MCP (3 tools para Claude)
+- ✅ Integración MCP (16 herramientas para Claude)
 - ✅ Instalador automatizado (`sudo ./install.sh`)
 - ✅ PM2 para producción
 
@@ -200,7 +200,7 @@ synnox-logistics/
 │   │   ├── importadores.js      ← SIESA + Widetech
 │   │   └── health.js            ← Health check
 │   ├── mcp/
-│   │   └── index.js             ← 3 herramientas MCP
+│   │   └── index.js             ← 16 herramientas MCP
 │   ├── utils/
 │   │   ├── vrp.js               ← Motor VRP (OSRM + NN + 2-opt)
 │   │   ├── siesaPdfParser.js    ← Parser PDF

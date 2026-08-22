@@ -20,9 +20,9 @@ Módulo de optimización de rutas y logística con geocodificación, VRP, mapa L
 
 Endpoint interno: `POST /mcp` (sin auth, confianza local).
 
-9 tools expuestas: `dashboard`, `listar_vehiculos`, `listar_sedes`, `listar_pedidos`, `buscar_clientes`, `crear_pedido`, `generar_rutas`, `listar_rutas`, `obtener_ruta`.
+16 tools expuestas: `dashboard`, `listar_vehiculos`, `listar_sedes`, `listar_pedidos`, `buscar_clientes`, `crear_pedido`, `generar_rutas`, `listar_rutas`, `obtener_ruta`, `listar_devoluciones`, `obtener_devolucion`, `resumen_devoluciones`, `listar_causales_devolucion`, `listar_geocercas`, `obtener_geocerca`, `listar_alertas_geocerca`.
 
-El gateway de SynnoxERP las expone con prefijo `logistics_*`.
+El gateway de SynnoxERP las expone con prefijo `logistica_*`.
 
 ## Dependencias
 
