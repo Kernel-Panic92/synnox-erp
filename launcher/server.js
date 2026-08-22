@@ -3657,6 +3657,80 @@ app.post('/api/admin/import', verificarToken, soloAdmin, (req, res) => {
 const multer = require('multer');
 const BACKUP_ROOT = path.join(LAUNCHER_DIR, 'backups');
 const BACKUP_SCRIPT = path.join(LAUNCHER_DIR, 'scripts', 'backup_synnox.sh');
+const NAS_CONFIG_FILE = path.join(BACKUP_ROOT, '.nas.conf');
+
+function readNasConfig() {
+  const values = { NAS_ENABLED: 'false', NAS_SHARE: '', NAS_MOUNT: '/mnt/synnox-nas', NAS_USER: '', NAS_PASS: '', NAS_SUBDIR: 'synnoxerp', NAS_RETAIN_DAYS: '30' };
+  try {
+    const content = fs.readFileSync(NAS_CONFIG_FILE, 'utf8');
+    for (const line of content.split('\n')) {
+      const match = line.match(/^\s*(NAS_[A-Z_]+)\s*=\s*['"]?([^'"\r\n]*)['"]?\s*$/);
+      if (match && match[1] in values) values[match[1]] = match[2];
+    }
+  } catch {}
+  return values;
+}
+
+function shellQuote(value) {
+  return "'" + String(value || '').replace(/'/g, "'\\''") + "'";
+}
+
+// GET/PUT NAS configuration. Password is never returned to the browser.
+app.get('/api/admin/backup/nas', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const c = readNasConfig();
+    res.json({ ok: true, config: { enabled: c.NAS_ENABLED === 'true', share: c.NAS_SHARE, mount: c.NAS_MOUNT, user: c.NAS_USER, subdir: c.NAS_SUBDIR, retain_days: parseInt(c.NAS_RETAIN_DAYS, 10) || 30, configured: Boolean(c.NAS_PASS) } });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.put('/api/admin/backup/nas', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const { enabled, share, mount, user, password, subdir, retain_days } = req.body || {};
+    if (enabled && (!share || !mount || !user)) return res.status(400).json({ error: 'Para activar NAS se requieren recurso compartido, punto de montaje y usuario' });
+    const old = readNasConfig();
+    const pass = password ? String(password) : old.NAS_PASS;
+    const days = Math.max(1, Math.min(3650, parseInt(retain_days, 10) || 30));
+    const content = [
+      `NAS_ENABLED=${enabled === true ? 'true' : 'false'}`,
+      `NAS_SHARE=${shellQuote(share)}`,
+      `NAS_MOUNT=${shellQuote(mount || '/mnt/synnox-nas')}`,
+      `NAS_USER=${shellQuote(user)}`,
+      `NAS_PASS=${shellQuote(pass)}`,
+      `NAS_SUBDIR=${shellQuote(subdir || 'synnoxerp')}`,
+      `NAS_RETAIN_DAYS=${days}`,
+      ''
+    ].join('\n');
+    fs.mkdirSync(BACKUP_ROOT, { recursive: true });
+    const temp = NAS_CONFIG_FILE + '.tmp-' + process.pid;
+    fs.writeFileSync(temp, content, { mode: 0o600 });
+    fs.chmodSync(temp, 0o600);
+    fs.renameSync(temp, NAS_CONFIG_FILE);
+    res.json({ ok: true, message: 'Configuración NAS guardada' });
+  } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+app.post('/api/admin/backup/nas/test', verificarToken, soloAdmin, (req, res) => {
+  const c = readNasConfig();
+  if (!c.NAS_SHARE || !c.NAS_MOUNT || !c.NAS_USER || !c.NAS_PASS) return res.status(400).json({ error: 'Guarda primero una configuración NAS completa' });
+  let mountedByTest = false;
+  try {
+    fs.mkdirSync(c.NAS_MOUNT, { recursive: true });
+    try { execFileSync('mountpoint', ['-q', c.NAS_MOUNT], { timeout: 10000 }); }
+    catch {
+      execFileSync('mount', ['-t', 'cifs', c.NAS_SHARE, c.NAS_MOUNT, '-o', `username=${c.NAS_USER},password=${c.NAS_PASS},iocharset=utf8,vers=3.0,noperm`], { timeout: 30000, stdio: 'pipe' });
+      mountedByTest = true;
+    }
+    fs.accessSync(c.NAS_MOUNT, fs.constants.R_OK | fs.constants.X_OK);
+    res.json({ ok: true, mounted: true, message: mountedByTest ? 'NAS montada correctamente (se desmontará ahora)' : 'NAS ya estaba montada y es accesible' });
+  } catch (err) {
+    const detail = err.stderr ? String(err.stderr).trim() : err.message;
+    res.status(502).json({ error: `No se pudo montar o acceder a la NAS: ${detail}` });
+  } finally {
+    if (mountedByTest) {
+      try { execFileSync('umount', [c.NAS_MOUNT], { timeout: 15000, stdio: 'pipe' }); } catch {}
+    }
+  }
+});
 
 // GET /api/admin/backup/status — último resultado del backup
 app.get('/api/admin/backup/status', verificarToken, soloAdmin, (req, res) => {

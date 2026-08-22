@@ -87,7 +87,8 @@ async function cargarNombresUsuarios(ids) {
     return;
   }
   for (const id of faltantes) {
-    const u = _todosUsuarios.find(x => x.id === id);
+    // PostgreSQL IDs can arrive as numbers while SQLite/JSON cache IDs arrive as strings.
+    const u = _todosUsuarios.find(x => String(x.id) === String(id));
     if (u) _nombresUsuarios[id] = u.nombre;
   }
 }
