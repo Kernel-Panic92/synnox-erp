@@ -19,6 +19,24 @@ let _centrosCacheTs = 0;
 const CENTROS_CACHE_TTL = 30000; // 30 segundos
 let _centrosPromise = null;
 
+async function cargarNombreModulo() {
+  const logo = document.querySelector('.logo[data-module-id]');
+  const nombreEl = logo?.querySelector('[data-module-name]');
+  if (!logo || !nombreEl) return;
+  try {
+    const token = localStorage.getItem('platform_jwt') || localStorage.getItem('launcher_jwt');
+    const headers = token ? { Authorization: 'Bearer ' + token } : {};
+    const res = await fetch('/api/modulos', { credentials: 'include', headers });
+    if (!res.ok) return;
+    const modulos = await res.json();
+    const modulo = modulos.find(m => m.id === logo.dataset.moduleId);
+    if (!modulo?.nombre) return;
+    window._launcherModuleName = modulo.nombre;
+    nombreEl.textContent = modulo.nombre;
+    document.title = modulo.nombre + ' — SynnoxERP';
+  } catch {}
+}
+
 // Debounced search functions
 const debouncedRenderHistorial = debounce(renderHistorial, 300);
 const debouncedBuscarEmpleados = debounce(buscarEmpleados, 300);
@@ -233,6 +251,7 @@ async function iniciarApp() {
     const footerRole = document.getElementById('sidebar-user-role');
     if (footerRole) footerRole.textContent = sesion.usuario.perfil_nombre || rolLabel(sesion.usuario.rol);
   }
+  cargarNombreModulo();
   
   // Load all data
   await loadAll();
