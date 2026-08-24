@@ -102,6 +102,98 @@ const TOOLS = [
       },
       required: ['id']
     }
+  },
+  {
+    name: 'listar_devoluciones',
+    description: 'Lista devoluciones con filtros, búsqueda y paginación. Solo lectura.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        fecha_inicio: { type: 'string', description: 'Fecha inicial YYYY-MM-DD' },
+        fecha_fin: { type: 'string', description: 'Fecha final YYYY-MM-DD' },
+        cliente: { type: 'string', description: 'Filtrar por nombre del cliente' },
+        centro_operaciones: { type: 'string', description: 'Filtrar por centro de operaciones' },
+        causa: { type: 'string', description: 'Filtrar por causal de devolución' },
+        estado: { type: 'string', enum: ['registrada', 'en_proceso', 'resuelta', 'cerrada'] },
+        fuente: { type: 'string', enum: ['manual', 'smart2go'] },
+        busqueda: { type: 'string', description: 'Buscar por cliente, sucursal, mercaderista, factura o productos' },
+        ordenar_por: { type: 'string', enum: ['fecha_reporte', 'created_at', 'cliente_nombre', 'valor_total', 'causa', 'estado'] },
+        orden: { type: 'string', enum: ['ASC', 'DESC'], default: 'DESC' },
+        pagina: { type: 'number', minimum: 1, default: 1 },
+        limite: { type: 'number', minimum: 1, maximum: 100, default: 50 }
+      }
+    }
+  },
+  {
+    name: 'obtener_devolucion',
+    description: 'Obtiene el detalle de una devolución y la referencia del pedido asociado. Solo lectura.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'number', description: 'ID de la devolución' }
+      },
+      required: ['id']
+    }
+  },
+  {
+    name: 'resumen_devoluciones',
+    description: 'Obtiene estadísticas de devoluciones por causa, cliente, estado y fecha. Solo lectura.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        fecha_inicio: { type: 'string', description: 'Fecha inicial YYYY-MM-DD' },
+        fecha_fin: { type: 'string', description: 'Fecha final YYYY-MM-DD' }
+      }
+    }
+  },
+  {
+    name: 'listar_causales_devolucion',
+    description: 'Lista las causales de devolución activas o todas las causales. Solo lectura.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        incluir_inactivas: { type: 'boolean', default: false }
+      }
+    }
+  },
+  {
+    name: 'listar_geocercas',
+    description: 'Lista geocercas con filtros por estado, fuente y nombre. Solo lectura.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        activa: { type: 'boolean', description: 'Filtrar por geocercas activas o inactivas' },
+        fuente: { type: 'string', description: 'Fuente de la geocerca, por ejemplo manual o widetech' },
+        q: { type: 'string', description: 'Buscar por nombre' }
+      }
+    }
+  },
+  {
+    name: 'obtener_geocerca',
+    description: 'Obtiene una geocerca específica y la cantidad de alertas registradas.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        id: { type: 'number', description: 'ID de la geocerca' }
+      },
+      required: ['id']
+    }
+  },
+  {
+    name: 'listar_alertas_geocerca',
+    description: 'Lista el historial de entradas y salidas de una geocerca. Solo lectura.',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        geocerca_id: { type: 'number', description: 'ID de la geocerca' },
+        vehiculo_id: { type: 'number', description: 'Filtrar por vehículo' },
+        fecha_desde: { type: 'string', description: 'Fecha inicial YYYY-MM-DD' },
+        fecha_hasta: { type: 'string', description: 'Fecha final YYYY-MM-DD' },
+        pagina: { type: 'number', minimum: 1, default: 1 },
+        limite: { type: 'number', minimum: 1, maximum: 100, default: 50 }
+      },
+      required: ['geocerca_id']
+    }
   }
 ];
 
@@ -134,7 +226,14 @@ async function handleCallTool(id, name, args) {
     crear_pedido: () => toolCrearPedido(args),
     generar_rutas: () => toolGenerarRutas(args),
     listar_rutas: () => toolListarRutas(args),
-    obtener_ruta: () => toolObtenerRuta(args)
+    obtener_ruta: () => toolObtenerRuta(args),
+    listar_devoluciones: () => toolListarDevoluciones(args),
+    obtener_devolucion: () => toolObtenerDevolucion(args),
+    resumen_devoluciones: () => toolResumenDevoluciones(args),
+    listar_causales_devolucion: () => toolListarCausalesDevolucion(args),
+    listar_geocercas: () => toolListarGeocercas(args),
+    obtener_geocerca: () => toolObtenerGeocerca(args),
+    listar_alertas_geocerca: () => toolListarAlertasGeocerca(args)
   };
 
   if (!handlers[name]) {
@@ -147,6 +246,41 @@ async function handleCallTool(id, name, args) {
   } catch (err) {
     return { jsonrpc: '2.0', id, error: { code: -32000, message: err.message } };
   }
+}
+
+const MCP_MAX_PAGE_SIZE = 100;
+
+function positiveInteger(value, name) {
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed < 1) {
+    throw new Error(`${name} debe ser un entero positivo`);
+  }
+  return parsed;
+}
+
+function pagination(args = {}, defaultLimit = 50) {
+  const page = positiveInteger(args.pagina ?? 1, 'pagina');
+  const requestedLimit = positiveInteger(args.limite ?? defaultLimit, 'limite');
+  const limit = Math.min(requestedLimit, MCP_MAX_PAGE_SIZE);
+  return { page, limit, offset: (page - 1) * limit };
+}
+
+function addDateRange(conditions, params, desde, hasta, column) {
+  if (desde) {
+    params.push(desde);
+    conditions.push(`${column} >= $${params.length}`);
+  }
+  if (hasta) {
+    params.push(hasta);
+    conditions.push(`${column} <= $${params.length}`);
+  }
+}
+
+function optionalBoolean(value, name) {
+  if (value === true || value === false) return value;
+  if (value === 'true') return true;
+  if (value === 'false') return false;
+  throw new Error(`${name} debe ser booleano`);
 }
 
 async function toolDashboard() {
@@ -321,6 +455,247 @@ async function toolObtenerRuta({ id } = {}) {
   );
 
   return { ruta: rutas[0], paradas };
+}
+
+async function toolListarDevoluciones(args = {}) {
+  const conditions = ['1=1'];
+  const params = [];
+  const {
+    fecha_inicio, fecha_fin, cliente, centro_operaciones, causa,
+    estado, fuente, busqueda
+  } = args;
+
+  addDateRange(conditions, params, fecha_inicio, fecha_fin, 'd.fecha_reporte');
+  if (cliente) {
+    params.push(`%${cliente}%`);
+    conditions.push(`d.cliente_nombre ILIKE $${params.length}`);
+  }
+  if (centro_operaciones) {
+    params.push(centro_operaciones);
+    conditions.push(`d.centro_operaciones = $${params.length}`);
+  }
+  if (causa) {
+    params.push(causa);
+    conditions.push(`d.causa = $${params.length}`);
+  }
+  if (estado) {
+    params.push(estado);
+    conditions.push(`d.estado = $${params.length}`);
+  }
+  if (fuente) {
+    params.push(fuente);
+    conditions.push(`d.fuente = $${params.length}`);
+  }
+  if (busqueda) {
+    params.push(`%${busqueda}%`);
+    const searchParam = `$${params.length}`;
+    conditions.push(`(
+      d.cliente_nombre ILIKE ${searchParam}
+      OR d.sucursal ILIKE ${searchParam}
+      OR d.mercaderista ILIKE ${searchParam}
+      OR d.productos_texto ILIKE ${searchParam}
+      OR d.numero_factura ILIKE ${searchParam}
+      OR d.documento_devolucion ILIKE ${searchParam}
+    )`);
+  }
+
+  const sortColumns = {
+    fecha_reporte: 'd.fecha_reporte',
+    created_at: 'd.created_at',
+    cliente_nombre: 'd.cliente_nombre',
+    valor_total: 'd.valor_total',
+    causa: 'd.causa',
+    estado: 'd.estado'
+  };
+  const sortColumn = sortColumns[args.ordenar_por] || sortColumns.fecha_reporte;
+  const sortOrder = String(args.orden || 'DESC').toUpperCase() === 'ASC' ? 'ASC' : 'DESC';
+  const { page, limit, offset } = pagination(args);
+  const where = conditions.join(' AND ');
+
+  const countResult = await pool.query(
+    `SELECT COUNT(*)::int AS total FROM logistics.devoluciones d WHERE ${where}`,
+    params
+  );
+  const dataResult = await pool.query(
+    `SELECT d.*
+     FROM logistics.devoluciones d
+     WHERE ${where}
+     ORDER BY ${sortColumn} ${sortOrder}
+     LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    [...params, limit, offset]
+  );
+  const total = Number(countResult.rows[0]?.total || 0);
+
+  return {
+    rows: dataResult.rows,
+    total,
+    pagina: page,
+    limite: limit,
+    totalPaginas: Math.ceil(total / limit)
+  };
+}
+
+async function toolObtenerDevolucion({ id } = {}) {
+  const devolucionId = positiveInteger(id, 'id');
+  const { rows } = await pool.query(
+    `SELECT d.*,
+            p.numero_factura AS pedido_numero_factura,
+            p.estado AS pedido_estado,
+            p.ruta_id AS pedido_ruta_id
+     FROM logistics.devoluciones d
+     LEFT JOIN logistics.pedidos_logistica p ON p.id = d.pedido_id
+     WHERE d.id = $1`,
+    [devolucionId]
+  );
+  if (rows.length === 0) return { error: 'Devolución no encontrada' };
+  return { devolucion: rows[0] };
+}
+
+async function toolResumenDevoluciones({ fecha_inicio, fecha_fin } = {}) {
+  const conditions = [];
+  const params = [];
+  addDateRange(conditions, params, fecha_inicio, fecha_fin, 'fecha_reporte');
+  const where = conditions.length ? ' AND ' + conditions.join(' AND ') : '';
+
+  const [totalResult, porCausa, porCliente, tendencia, porEstado, conConductor, valorTotal] = await Promise.all([
+    pool.query(`SELECT COUNT(*)::int AS total FROM logistics.devoluciones WHERE 1=1${where}`, params),
+    pool.query(`SELECT causa, COUNT(*)::int AS cantidad
+                FROM logistics.devoluciones WHERE 1=1${where}
+                GROUP BY causa ORDER BY cantidad DESC`, params),
+    pool.query(`SELECT cliente_nombre, COUNT(*)::int AS cantidad,
+                       COALESCE(SUM(valor_total), 0)::numeric AS valor
+                FROM logistics.devoluciones WHERE 1=1${where}
+                GROUP BY cliente_nombre ORDER BY cantidad DESC LIMIT 10`, params),
+    pool.query(`SELECT fecha_reporte AS fecha, COUNT(*)::int AS cantidad
+                FROM logistics.devoluciones WHERE 1=1${where}
+                GROUP BY fecha_reporte ORDER BY fecha_reporte ASC`, params),
+    pool.query(`SELECT estado, COUNT(*)::int AS cantidad
+                FROM logistics.devoluciones WHERE 1=1${where}
+                GROUP BY estado`, params),
+    pool.query(`SELECT COUNT(*)::int AS total
+                FROM logistics.devoluciones
+                WHERE entregado_conductor = TRUE${where}`, params),
+    pool.query(`SELECT COALESCE(SUM(valor_total), 0)::numeric AS total
+                FROM logistics.devoluciones WHERE 1=1${where}`, params)
+  ]);
+
+  return {
+    total: Number(totalResult.rows[0]?.total || 0),
+    valor_total: Number(valorTotal.rows[0]?.total || 0),
+    con_conductor: Number(conConductor.rows[0]?.total || 0),
+    por_causa: porCausa.rows,
+    por_cliente: porCliente.rows.map(row => ({
+      ...row,
+      cantidad: Number(row.cantidad),
+      valor: Number(row.valor || 0)
+    })),
+    tendencia: tendencia.rows,
+    por_estado: porEstado.rows
+  };
+}
+
+async function toolListarCausalesDevolucion({ incluir_inactivas = false } = {}) {
+  const incluir = optionalBoolean(incluir_inactivas, 'incluir_inactivas');
+  const where = incluir ? '' : 'WHERE activo = TRUE';
+  const { rows } = await pool.query(
+    `SELECT id, codigo, nombre, concepto, notas, activo, created_at, updated_at
+     FROM logistics.causales_devolucion
+     ${where}
+     ORDER BY activo DESC, codigo NULLS LAST, nombre`
+  );
+  return { total: rows.length, causales: rows };
+}
+
+async function toolListarGeocercas({ activa, fuente, q } = {}) {
+  const conditions = ['1=1'];
+  const params = [];
+
+  if (activa !== undefined) {
+    params.push(optionalBoolean(activa, 'activa'));
+    conditions.push(`g.activa = $${params.length}`);
+  }
+  if (fuente) {
+    params.push(fuente);
+    conditions.push(`g.fuente = $${params.length}`);
+  }
+  if (q) {
+    params.push(`%${q}%`);
+    conditions.push(`g.nombre ILIKE $${params.length}`);
+  }
+
+  const { rows } = await pool.query(
+    `SELECT g.*,
+            (SELECT COUNT(*)::int
+             FROM logistics.alertas_geocerca a
+             WHERE a.geocerca_id = g.id) AS alertas_count
+     FROM logistics.geocercas g
+     WHERE ${conditions.join(' AND ')}
+     ORDER BY g.nombre`,
+    params
+  );
+  return { total: rows.length, geocercas: rows };
+}
+
+async function toolObtenerGeocerca({ id } = {}) {
+  const geocercaId = positiveInteger(id, 'id');
+  const { rows } = await pool.query(
+    `SELECT g.*,
+            (SELECT COUNT(*)::int
+             FROM logistics.alertas_geocerca a
+             WHERE a.geocerca_id = g.id) AS alertas_count
+     FROM logistics.geocercas g
+     WHERE g.id = $1`,
+    [geocercaId]
+  );
+  if (rows.length === 0) return { error: 'Geocerca no encontrada' };
+  return { geocerca: rows[0] };
+}
+
+async function toolListarAlertasGeocerca(args = {}) {
+  const geocercaId = positiveInteger(args.geocerca_id, 'geocerca_id');
+  const conditions = ['a.geocerca_id = $1'];
+  const params = [geocercaId];
+
+  if (args.vehiculo_id !== undefined) {
+    params.push(positiveInteger(args.vehiculo_id, 'vehiculo_id'));
+    conditions.push(`a.vehiculo_id = $${params.length}`);
+  }
+  if (args.fecha_desde) {
+    params.push(args.fecha_desde);
+    conditions.push(`a.fecha >= $${params.length}::timestamptz`);
+  }
+  if (args.fecha_hasta) {
+    params.push(args.fecha_hasta);
+    conditions.push(`a.fecha < ($${params.length}::date + INTERVAL '1 day')`);
+  }
+
+  const { page, limit, offset } = pagination(args);
+  const where = conditions.join(' AND ');
+  const countResult = await pool.query(
+    `SELECT COUNT(*)::int AS total
+     FROM logistics.alertas_geocerca a
+     WHERE ${where}`,
+    params
+  );
+  const dataResult = await pool.query(
+    `SELECT a.*, g.nombre AS geocerca_nombre, v.placa, v.alias
+     FROM logistics.alertas_geocerca a
+     JOIN logistics.geocercas g ON g.id = a.geocerca_id
+     JOIN logistics.vehiculos v ON v.id = a.vehiculo_id
+     WHERE ${where}
+     ORDER BY a.fecha DESC
+     LIMIT $${params.length + 1} OFFSET $${params.length + 2}`,
+    [...params, limit, offset]
+  );
+  const total = Number(countResult.rows[0]?.total || 0);
+
+  return {
+    alertas: dataResult.rows,
+    total,
+    pagina: page,
+    limite: limit,
+    totalPaginas: Math.ceil(total / limit)
+  };
 }
 
 export function createMiddleware() {
