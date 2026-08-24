@@ -51,6 +51,35 @@ Un item esta terminado cuando:
 - El issue tiene comentario de resultado y se cierra solo si no quedan
   pendientes concretos.
 
+## Versionado semantico
+
+El proyecto sigue **semver** (`major.minor.patch`):
+
+- **Major**: cambios breaking (migraciones de DB, auth, API incompatible).
+- **Minor**: features nuevas sin breaking changes.
+- **Patch**: bugs fixes, mejoras menores, documentacion.
+
+### Reglas de branch
+
+| Branch | Version | Ejemplo |
+|--------|---------|---------|
+| `main` | Ultimo release estable | `2.4.0` |
+| `dev` | Siempre +1 patch (o +1 minor) sobre main | `2.4.1` |
+
+### Flujo de release
+
+1. Actualizar `package.json` version en `main`.
+2. Crear tag anotado: `git tag -a vX.Y.Z -m "release: descripcion"`.
+3. Push: `git push origin main && git push origin vX.Y.Z`.
+4. Actualizar `package.json` version en `dev` (+1 patch sobre main).
+
+### Reglas
+
+- `main` **nunca** tiene version igual o menor que `dev`.
+- `dev` puede tener cambios sin versionar (version temporal).
+- Al hacer merge `dev` → `main`, ambas versiones se alinean y `dev` sube +1.
+- No hacer force push a `main`.
+
 ## Reglas para OpenCode
 
 - No asumir que el contexto de conversacion existe; leer siempre los tres
