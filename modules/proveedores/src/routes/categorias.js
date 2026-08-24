@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const db = require('../db');
 const { authMiddleware, requirePermiso } = require('../middleware/auth');
+const { auditarEvento } = require('../../../../framework/audit');
 
 router.use(authMiddleware);
 

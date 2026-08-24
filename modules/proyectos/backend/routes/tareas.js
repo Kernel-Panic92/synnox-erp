@@ -3,6 +3,7 @@ import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
 import { notificar, getTareaCompleta, getEmailBaseUrl } from '../utils/notify.js';
 import { enviarCorreo } from '../utils/email.js';
+import { auditarEvento } from '../../../../framework/audit.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { templateAsignacion, templateCambioEstado } = require('../../../../framework/email-templates');
@@ -141,6 +142,7 @@ router.post('/', requirePermiso('crear_tarea', 'proyectos'), async (req, res) =>
       } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
+    void auditarEvento({ modulo: 'proyectos', categoria: 'negocio', accion: 'tarea_creada', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'tarea', entidad_id: result.rows[0]?.id, resumen: `Tarea "${titulo}" creada`, metadata: { titulo, proyecto_id, asignado_a, prioridad } });
     res.status(201).json({ exitosa: true, tarea: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -402,6 +404,7 @@ router.put('/:id', requirePermiso('editar_tarea', 'proyectos'), async (req, res)
       } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
+    void auditarEvento({ modulo: 'proyectos', categoria: 'negocio', accion: 'tarea_editada', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'tarea', entidad_id: parseInt(req.params.id), resumen: 'Tarea editada', metadata: { titulo, estado, asignado_a } });
     res.json({ exitosa: true, tarea: tareaActualizada });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -412,6 +415,7 @@ router.delete('/:id', requirePermiso('eliminar_tarea', 'proyectos'), async (req,
   try {
     const result = await pool.query('DELETE FROM projects.tareas WHERE id = $1 RETURNING id', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Tarea no encontrada' });
+    void auditarEvento({ modulo: 'proyectos', categoria: 'negocio', accion: 'tarea_eliminada', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'tarea', entidad_id: parseInt(req.params.id), resumen: 'Tarea eliminada', metadata: {} });
     res.json({ exitosa: true, mensaje: 'Tarea eliminada' });
   } catch (err) {
     res.status(500).json({ error: err.message });

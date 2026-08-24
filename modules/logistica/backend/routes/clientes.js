@@ -1,6 +1,7 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
+import { auditarEvento } from '../../../../framework/audit.js';
 const MODULE = 'logistica';
 
 const router = express.Router();
@@ -50,6 +51,7 @@ router.post('/', requirePermiso('crear', MODULE), async (req, res) => {
        RETURNING *`,
       [nombre, direccion || '', ciudad || '', telefono || '', latitud, longitud, ruta || null, ruta_moto || null, codigo_siesa || null, latitud !== null && latitud !== undefined]
     );
+    void auditarEvento({ modulo: 'logistica', categoria: 'negocio', accion: 'cliente_creado', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'cliente', entidad_id: result.rows[0]?.id, resumen: 'Cliente creado', metadata: { nombre } });
     res.status(201).json({ cliente: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -103,6 +105,7 @@ router.put('/:id', requirePermiso('editar', MODULE), async (req, res) => {
       [nombre, direccion, ciudad, telefono, latitud, longitud, ruta, ruta_moto, codigo_siesa, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Cliente no encontrado' });
+    void auditarEvento({ modulo: 'logistica', categoria: 'negocio', accion: 'cliente_editado', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'cliente', entidad_id: parseInt(req.params.id), resumen: 'Cliente editado', metadata: {} });
     res.json({ cliente: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -122,6 +125,7 @@ router.delete('/:id', requirePermiso('eliminar', MODULE), async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM logistics.clientes WHERE id=$1 RETURNING id', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Cliente no encontrado' });
+    void auditarEvento({ modulo: 'logistica', categoria: 'negocio', accion: 'cliente_eliminado', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'cliente', entidad_id: parseInt(req.params.id), resumen: 'Cliente eliminado', metadata: {} });
     res.json({ mensaje: 'Cliente eliminado' });
   } catch (err) {
     res.status(500).json({ error: err.message });

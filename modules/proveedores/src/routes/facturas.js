@@ -6,6 +6,7 @@ const { v4: uuidv4 } = require('uuid');
 const db      = require('../db');
 const { authMiddleware, requirePermiso } = require('../middleware/auth');
 const { notificarInterna } = require('../../../../framework/notify');
+const { auditarEvento } = require('../../../../framework/audit');
 
 function sanitizePath(input, base) {
   const resolved = path.resolve(base, input);
@@ -360,6 +361,7 @@ router.post('/', requirePermiso('crear'), upload.fields([{ name:'pdf', maxCount:
 
     await registrarEvento(client, rows[0].id, req.usuario.id, 'recibida', 'Factura registrada manualmente');
     await client.query('COMMIT');
+    void auditarEvento({ modulo: 'proveedores', categoria: 'negocio', accion: 'factura_creada', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'factura', entidad_id: rows[0].id, resumen: 'Factura creada', metadata: {} });
     res.status(201).json(rows[0]);
 
     // Notificación in-app a admins y contadores
@@ -525,6 +527,7 @@ router.patch('/:id/aprobar', requirePermiso('aprobar'), async (req, res) => {
     await registrarEvento(client, req.params.id, req.usuario.id, 'aprobada', 
       comentario || `Aprobada para centro ${centro_operacion_id}, área ${area_responsable_id}${centro_costos ? ', CC: ' + centro_costos : ''}`);
     await client.query('COMMIT');
+    void auditarEvento({ modulo: 'proveedores', categoria: 'negocio', accion: 'factura_aprobada', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'factura', entidad_id: req.params.id, resumen: 'Factura aprobada', metadata: {} });
     res.json(rows[0]);
   } catch (err) {
     await client.query('ROLLBACK');
@@ -551,6 +554,7 @@ router.patch('/:id/rechazar', requirePermiso('rechazar'), async (req, res) => {
 
     await registrarEvento(client, req.params.id, req.usuario.id, 'rechazada', motivo);
     await client.query('COMMIT');
+    void auditarEvento({ modulo: 'proveedores', categoria: 'negocio', accion: 'factura_rechazada', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'factura', entidad_id: req.params.id, resumen: 'Factura rechazada', metadata: {} });
     res.json(rows[0]);
   } catch (err) {
     await client.query('ROLLBACK');
@@ -575,6 +579,7 @@ router.patch('/:id/causar', requirePermiso('causar'), async (req, res) => {
 
     await registrarEvento(client, req.params.id, req.usuario.id, 'causada', comentario || null);
     await client.query('COMMIT');
+    void auditarEvento({ modulo: 'proveedores', categoria: 'negocio', accion: 'factura_causada', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'factura', entidad_id: req.params.id, resumen: 'Factura causada', metadata: {} });
     res.json(rows[0]);
   } catch (err) {
     await client.query('ROLLBACK');
@@ -598,6 +603,7 @@ router.patch('/:id/pagar', requirePermiso('pagar'), async (req, res) => {
 
     await registrarEvento(client, req.params.id, req.usuario.id, 'pagada', 'Factura marcada como pagada');
     await client.query('COMMIT');
+    void auditarEvento({ modulo: 'proveedores', categoria: 'negocio', accion: 'factura_pagada', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'factura', entidad_id: req.params.id, resumen: 'Factura pagada', metadata: {} });
     res.json(rows[0]);
   } catch (err) {
     await client.query('ROLLBACK');

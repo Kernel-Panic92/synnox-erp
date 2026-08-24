@@ -2,6 +2,7 @@ import express from 'express';
 import pool from '../config/db.js';
 import { notificar, getProyectoCompleto, getEmailBaseUrl } from '../utils/notify.js';
 import { enviarCorreo } from '../utils/email.js';
+import { auditarEvento } from '../../../../framework/audit.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { templateAprobacion, templateAsignacion } = require('../../../../framework/email-templates');
@@ -101,6 +102,7 @@ router.put('/tareas/:id/aprobar', async (req, res) => {
       } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
+    void auditarEvento({ modulo: 'proyectos', categoria: 'negocio', accion: 'tarea_aprobada', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'tarea', entidad_id: parseInt(req.params.id), resumen: 'Tarea aprobada', metadata: {} });
     res.json({ exitosa: true, tarea });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -149,6 +151,7 @@ router.put('/tareas/:id/rechazar', async (req, res) => {
       } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
+    void auditarEvento({ modulo: 'proyectos', categoria: 'negocio', accion: 'tarea_rechazada', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'tarea', entidad_id: parseInt(req.params.id), resumen: 'Tarea rechazada', metadata: { motivo } });
     res.json({ exitosa: true, tarea });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -211,6 +214,7 @@ router.put('/proyectos/:id/aprobar', async (req, res) => {
       } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
+    void auditarEvento({ modulo: 'proyectos', categoria: 'negocio', accion: 'proyecto_aprobado', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'proyecto', entidad_id: parseInt(req.params.id), resumen: 'Proyecto aprobado', metadata: {} });
     res.json({ exitosa: true, proyecto });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -258,6 +262,7 @@ router.put('/proyectos/:id/rechazar', async (req, res) => {
       } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
+    void auditarEvento({ modulo: 'proyectos', categoria: 'negocio', accion: 'proyecto_rechazado', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'proyecto', entidad_id: parseInt(req.params.id), resumen: 'Proyecto rechazado', metadata: { motivo } });
     res.json({ exitosa: true, proyecto });
   } catch (err) {
     res.status(500).json({ error: err.message });

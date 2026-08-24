@@ -3,6 +3,7 @@ import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
 import { notificar, getProyectoCompleto, getEmailBaseUrl } from '../utils/notify.js';
 import { enviarCorreo } from '../utils/email.js';
+import { auditarEvento } from '../../../../framework/audit.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
 const { templateAsignacion, templateCambioEstado } = require('../../../../framework/email-templates');
@@ -263,6 +264,7 @@ router.post('/', requirePermiso('crear', 'proyectos'), async (req, res) => {
       } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
+    void auditarEvento({ modulo: 'proyectos', categoria: 'negocio', accion: 'proyecto_creado', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'proyecto', entidad_id: proyectoId, resumen: `Proyecto "${nombre}" creado`, metadata: { nombre, prioridad: prioridad || 'media', asignado_a } });
     res.status(201).json({ exitosa: true, proyecto: result.rows[0] });
   } catch (err) {
     await client.query('ROLLBACK').catch(() => {});
@@ -338,6 +340,7 @@ router.put('/:id', requirePermiso('editar', 'proyectos'), async (req, res) => {
       } catch (e) { console.warn('[notify] Error:', e.message); }
     }
 
+    void auditarEvento({ modulo: 'proyectos', categoria: 'negocio', accion: 'proyecto_editado', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'proyecto', entidad_id: parseInt(req.params.id), resumen: `Proyecto "${proyectoNombre}" editado`, metadata: { nombre, estado, asignado_a, prioridad } });
     res.json({ exitosa: true, proyecto: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -348,6 +351,7 @@ router.delete('/:id', requirePermiso('eliminar', 'proyectos'), async (req, res) 
   try {
     const result = await pool.query('DELETE FROM projects.proyectos WHERE id = $1 RETURNING id', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Proyecto no encontrado' });
+    void auditarEvento({ modulo: 'proyectos', categoria: 'negocio', accion: 'proyecto_eliminado', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'proyecto', entidad_id: parseInt(req.params.id), resumen: 'Proyecto eliminado', metadata: {} });
     res.json({ exitosa: true, mensaje: 'Proyecto eliminado' });
   } catch (err) {
     res.status(500).json({ error: err.message });

@@ -2485,31 +2485,125 @@ async function loadLoginLogs() {
 }
 
 // ── Auditoría ──
-async function loadAuditoria() {
-  try {
-    const sesionesRes = await fetch('/api/admin/sesiones', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null);
-    if (sesionesRes?.sesiones) {
-      const tbody = document.querySelector('#sesiones-table tbody');
-      tbody.innerHTML = sesionesRes.sesiones.map(s => `
-        <tr>
-          <td>${esc(s.usuario_nombre)}</td>
-          <td style="font-family:monospace;font-size:12px;">${esc(s.ip)}</td>
-          <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${esc(s.user_agent)}">${esc((s.user_agent || '').substring(0, 60))}</td>
-          <td style="white-space:nowrap;font-size:12px;">${esc(s.ultimo_heartbeat)}</td>
-          <td><button class="btn btn-sm btn-danger" onclick="killSession(${s.id}, '${esc(s.usuario_nombre)}')">⛔ Cerrar</button></td>
-        </tr>
-      `).join('') || '<tr><td colspan="5" style="color:var(--muted);text-align:center;">No hay sesiones activas</td></tr>';
-    }
-    await loadAuditoriaLogs();
-  } catch (e) { toast('Error cargando auditoría: ' + e.message, 'error'); }
+let _centralAuditPage = 1;
+let _centralAuditSort = 'ocurrido_en';
+let _centralAuditSortDir = 'DESC';
+
+function switchAuditSubtab(tab) {
+  document.querySelectorAll('.audit-subtab').forEach(b => b.classList.remove('active'));
+  document.querySelector(`.audit-subtab[onclick*="${tab}"]`)?.classList.add('active');
+  document.getElementById('audit-sub-sesiones').style.display = tab === 'sesiones' ? '' : 'none';
+  document.getElementById('audit-sub-operaciones').style.display = tab === 'operaciones' ? '' : 'none';
+  if (tab === 'sesiones') { loadSessionStats(); loadAuditoriaLogs(1); }
+  if (tab === 'operaciones') { loadCentralAuditStats(); loadCentralAudit(1); }
 }
 
-async function loadAuditoriaLogs() {
+function parseBrowser(ua) {
+  if (!ua) return '—';
+  if (ua.includes('Firefox/')) return 'Firefox ' + (ua.match(/Firefox\/(\d+)/)?.[1] || '');
+  if (ua.includes('Edg/')) return 'Edge ' + (ua.match(/Edg\/(\d+)/)?.[1] || '');
+  if (ua.includes('Chrome/')) return 'Chrome ' + (ua.match(/Chrome\/(\d+)/)?.[1] || '');
+  if (ua.includes('Safari/') && ua.includes('Version/')) return 'Safari ' + (ua.match(/Version\/(\d+)/)?.[1] || '');
+  if (ua.includes('Opera') || ua.includes('OPR/')) return 'Opera';
+  return ua.substring(0, 40);
+}
+
+async function loadSessionStats() {
   try {
+    const [statsRes, widgetsRes] = await Promise.all([
+      fetch('/api/admin/session-stats', { headers: { 'Authorization': 'Bearer ' + jwtToken } }),
+      fetch('/api/admin/session-widgets', { headers: { 'Authorization': 'Bearer ' + jwtToken } })
+    ]);
+    if (statsRes.ok) {
+      const s = await statsRes.json();
+      const cards = document.getElementById('session-stats-cards');
+      if (cards) {
+        const failColor = s.fallidosHoy > 0 ? 'var(--danger)' : 'var(--success)';
+        cards.innerHTML = `
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:22px;font-weight:700;">${s.totalActivas}</div>
+            <div style="font-size:12px;color:var(--muted);">Sesiones activas</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:22px;font-weight:700;color:var(--success);">${s.loginsHoy}</div>
+            <div style="font-size:12px;color:var(--muted);">Logins hoy</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:22px;font-weight:700;color:${failColor};">${s.fallidosHoy}</div>
+            <div style="font-size:12px;color:var(--muted);">Fallos hoy</div>
+          </div>
+          <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+            <div style="font-size:22px;font-weight:700;">${s.ipsHoy}</div>
+            <div style="font-size:12px;color:var(--muted);">IPs únicas hoy</div>
+          </div>
+        `;
+      }
+    }
+    if (widgetsRes.ok) {
+      const w = await widgetsRes.json();
+      const container = document.getElementById('session-widgets');
+      if (!container) return;
+      const maxHora = Math.max(...(w.porHora || []).map(h => h.total), 1);
+      const horasHtml = (w.porHora || []).map(h => {
+        const pct = Math.round((h.total / maxHora) * 100);
+        return `<div style="display:flex;align-items:center;gap:6px;font-size:12px;">
+          <span style="width:28px;text-align:right;color:var(--muted);">${String(h.hora).padStart(2,'0')}</span>
+          <div style="flex:1;height:14px;background:var(--surface2);border-radius:3px;overflow:hidden;">
+            <div style="height:100%;width:${pct}%;background:var(--accent);border-radius:3px;transition:width .3s;"></div>
+          </div>
+          <span style="width:24px;font-weight:600;">${h.total}</span>
+        </div>`;
+      }).join('');
+      const ipsHtml = (w.topIps || []).map(ip => {
+        const failPct = ip.total > 0 ? Math.round((ip.fallos / ip.total) * 100) : 0;
+        const color = failPct > 50 ? 'var(--danger)' : failPct > 0 ? 'var(--warning)' : 'var(--success)';
+        return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);">
+          <span style="font-family:monospace;">${esc(ip.ip)}</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span>${ip.total} intentos</span>
+            ${ip.fallos > 0 ? `<span style="color:${color};font-weight:600;">${ip.fallos} fallos</span>` : '<span style="color:var(--success);">0 fallos</span>'}
+          </div>
+        </div>`;
+      }).join('');
+      const usuariosHtml = (w.topUsuarios || []).map(u => {
+        const pct = u.total > 0 ? Math.round((u.exitosos / u.total) * 100) : 0;
+        return `<div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;padding:4px 0;border-bottom:1px solid var(--border);">
+          <span style="max-width:160px;overflow:hidden;text-overflow:ellipsis;" title="${esc(u.email)}">${esc(u.email)}</span>
+          <div style="display:flex;gap:8px;align-items:center;">
+            <span>${u.total} logins</span>
+            <span style="color:var(--success);font-weight:600;">${pct}% OK</span>
+          </div>
+        </div>`;
+      }).join('');
+      container.innerHTML = `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;">
+          <div style="font-weight:600;font-size:13px;margin-bottom:10px;">📊 Actividad por hora</div>
+          <div style="display:flex;flex-direction:column;gap:3px;">${horasHtml || '<div style="color:var(--muted);font-size:12px;text-align:center;padding:10px;">Sin datos hoy</div>'}</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;">
+          <div style="font-weight:600;font-size:13px;margin-bottom:10px;">🌐 Top IPs</div>
+          <div>${ipsHtml || '<div style="color:var(--muted);font-size:12px;text-align:center;padding:10px;">Sin datos hoy</div>'}</div>
+        </div>
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:14px;">
+          <div style="font-weight:600;font-size:13px;margin-bottom:10px;">👤 Top usuarios</div>
+          <div>${usuariosHtml || '<div style="color:var(--muted);font-size:12px;text-align:center;padding:10px;">Sin datos hoy</div>'}</div>
+        </div>
+      `;
+    }
+  } catch (e) {}
+}
+
+let _sessionLogsPage = 1;
+
+async function loadAuditoriaLogs(page) {
+  _sessionLogsPage = page || 1;
+  try {
+    const search = document.getElementById('aud-session-search')?.value || '';
     const desde = document.getElementById('aud-desde')?.value || '';
     const hasta = document.getElementById('aud-hasta')?.value || '';
     const estado = document.getElementById('aud-estado')?.value || '';
-    let url = '/api/admin/login-logs?limit=100';
+    let url = `/api/admin/login-logs?limit=50&page=${_sessionLogsPage}`;
+    if (search) url += '&search=' + encodeURIComponent(search);
     if (desde) url += '&desde=' + desde;
     if (hasta) url += '&hasta=' + hasta;
     if (estado !== '') url += '&exitoso=' + estado;
@@ -2521,9 +2615,57 @@ async function loadAuditoriaLogs() {
       const badge = r.exitoso
         ? '<span class="badge badge-admin">Exitoso</span>'
         : '<span class="badge badge-inactivo">Fallido</span>';
-      return `<tr><td style="white-space:nowrap;">${esc(r.fecha)}</td><td>${esc(r.ip)}</td><td>${esc(r.email)}</td><td>${badge}</td></tr>`;
-    }).join('');
+      const tipoBadge = '<span style="background:rgba(99,102,241,0.15);color:#6366f1;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">🔐 Login</span>';
+      const fecha = r.fecha ? new Date(r.fecha.replace(' ', 'T')).toLocaleString('es-CO', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
+      return `<tr>
+        <td style="white-space:nowrap;font-size:12px;">${fecha}</td>
+        <td>${tipoBadge}</td>
+        <td style="font-size:12px;">${esc(r.email || '—')}</td>
+        <td style="font-family:monospace;font-size:12px;">${esc(r.ip)}</td>
+        <td>${badge}</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="5" style="color:var(--muted);text-align:center;padding:20px;">No hay registros</td></tr>';
+    const total = (data.logs || []).length;
+    const pagination = document.getElementById('session-logs-pagination');
+    if (pagination) {
+      pagination.innerHTML = `
+        <span>${total} registros · Página ${_sessionLogsPage}</span>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm" onclick="loadAuditoriaLogs(${_sessionLogsPage - 1})" ${_sessionLogsPage <= 1 ? 'disabled style="opacity:0.4"' : ''}>◀ Anterior</button>
+          <button class="btn btn-sm" onclick="loadAuditoriaLogs(${_sessionLogsPage + 1})" ${total < 50 ? 'disabled style="opacity:0.4"' : ''}>Siguiente ▶</button>
+        </div>
+      `;
+    }
   } catch (e) {}
+}
+
+function clearSessionFilters() {
+  ['aud-session-search', 'aud-desde', 'aud-hasta', 'aud-estado'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  loadAuditoriaLogs(1);
+}
+
+async function loadAuditoria() {
+  try {
+    loadSessionStats();
+    const sesionesRes = await fetch('/api/admin/sesiones', { headers: { 'Authorization': 'Bearer ' + jwtToken } }).then(r => r.ok ? r.json() : null);
+    if (sesionesRes?.sesiones) {
+      const tbody = document.querySelector('#sesiones-table tbody');
+      tbody.innerHTML = sesionesRes.sesiones.map(s => `
+        <tr>
+          <td><span class="badge badge-admin" style="font-size:11px;">Activo</span></td>
+          <td style="font-size:13px;">${esc(s.usuario_nombre)}</td>
+          <td style="font-family:monospace;font-size:12px;">${esc(s.ip)}</td>
+          <td style="font-size:12px;">${esc(parseBrowser(s.user_agent))}</td>
+          <td style="white-space:nowrap;font-size:12px;">${esc(s.ultimo_heartbeat)}</td>
+          <td><button class="btn btn-sm btn-danger" onclick="killSession(${s.id}, '${esc(s.usuario_nombre)}')">Cerrar</button></td>
+        </tr>
+      `).join('') || '<tr><td colspan="6" style="color:var(--muted);text-align:center;">No hay sesiones activas</td></tr>';
+    }
+    await loadAuditoriaLogs(1);
+  } catch (e) { toast('Error cargando auditoría: ' + e.message, 'error'); }
 }
 
 async function killSession(id, nombre) {
@@ -2538,6 +2680,135 @@ async function killSession(id, nombre) {
     if (data.ok) { toast('Sesión cerrada', 'success'); loadAuditoria(); }
     else toast(data.error || 'Error', 'error');
   } catch (e) { toast('Error: ' + e.message, 'error'); }
+}
+
+async function loadCentralAuditStats() {
+  try {
+    const res = await fetch('/api/admin/audit/stats', { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) return;
+    const s = await res.json();
+    const cards = document.getElementById('audit-stats-cards');
+    if (!cards) return;
+    const failColor = s.fallidos_24h > 0 ? 'var(--danger)' : 'var(--success)';
+    cards.innerHTML = `
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;">${s.total.toLocaleString()}</div>
+        <div style="font-size:12px;color:var(--muted);">Total eventos</div>
+      </div>
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:22px;font-weight:700;color:${failColor};">${s.fallidos_24h}</div>
+        <div style="font-size:12px;color:var(--muted);">Fallos 24h</div>
+      </div>
+      ${(s.por_modulo || []).map(m => `
+        <div style="background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;">${m.total}</div>
+          <div style="font-size:12px;color:var(--muted);">${esc(m.modulo)}</div>
+        </div>
+      `).join('')}
+    `;
+  } catch (e) {}
+}
+
+async function loadCentralAudit(page) {
+  _centralAuditPage = page || 1;
+  try {
+    const search = document.getElementById('aud-central-search')?.value || '';
+    const modulo = document.getElementById('aud-central-modulo')?.value || '';
+    const categoria = document.getElementById('aud-central-categoria')?.value || '';
+    const resultado = document.getElementById('aud-central-resultado')?.value || '';
+    const desde = document.getElementById('aud-central-desde')?.value || '';
+    const hasta = document.getElementById('aud-central-hasta')?.value || '';
+    let url = `/api/admin/audit/central?page=${_centralAuditPage}&limit=50&sort=${_centralAuditSort}&dir=${_centralAuditSortDir}`;
+    if (search) url += '&search=' + encodeURIComponent(search);
+    if (modulo) url += '&modulo=' + modulo;
+    if (categoria) url += '&categoria=' + categoria;
+    if (resultado) url += '&resultado=' + resultado;
+    if (desde) url += '&desde=' + desde;
+    if (hasta) url += '&hasta=' + hasta;
+    const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) return;
+    const data = await res.json();
+    const tbody = document.querySelector('#audit-central-table tbody');
+    const resultBadge = (r) => {
+      const cls = r === 'exito' ? 'badge-admin' : r === 'fallido' ? 'badge-inactivo' : 'badge-activo';
+      return `<span class="badge ${cls}">${esc(r)}</span>`;
+    };
+    const moduloColor = (m) => {
+      const colors = { launcher: '#6366f1', proyectos: '#f7944f', logistica: '#00A86B', proveedores: '#8b5cf6' };
+      return colors[m] || 'var(--muted)';
+    };
+    tbody.innerHTML = (data.events || []).map(e => {
+      const fecha = e.ocurrido_en ? new Date(e.ocurrido_en).toLocaleString('es-CO', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '—';
+      return `<tr style="cursor:pointer;" onclick="showAuditDetail(${e.id})">
+        <td style="white-space:nowrap;font-size:12px;">${fecha}</td>
+        <td><span style="background:${moduloColor(e.modulo)};color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">${esc(e.modulo)}</span></td>
+        <td style="font-size:12px;">${esc(e.categoria)}</td>
+        <td style="font-size:12px;font-family:monospace;">${esc(e.accion)}</td>
+        <td>${resultBadge(e.resultado)}</td>
+        <td style="font-size:12px;max-width:120px;overflow:hidden;text-overflow:ellipsis;" title="${esc(e.actor_email || '')}">${esc(e.actor_email || '—')}</td>
+        <td style="font-size:12px;max-width:200px;overflow:hidden;text-overflow:ellipsis;" title="${esc(e.resumen || '')}">${esc(e.resumen || '—')}</td>
+        <td style="font-size:11px;color:var(--muted);">🔍</td>
+      </tr>`;
+    }).join('') || '<tr><td colspan="8" style="color:var(--muted);text-align:center;padding:20px;">No hay eventos</td></tr>';
+    const pagination = document.getElementById('audit-central-pagination');
+    if (pagination) {
+      pagination.innerHTML = `
+        <span>${data.total} eventos · Página ${data.page} de ${data.pages || 1}</span>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm" onclick="loadCentralAudit(${data.page - 1})" ${data.page <= 1 ? 'disabled style="opacity:0.4"' : ''}>◀ Anterior</button>
+          <button class="btn btn-sm" onclick="loadCentralAudit(${data.page + 1})" ${data.page >= data.pages ? 'disabled style="opacity:0.4"' : ''}>Siguiente ▶</button>
+        </div>
+      `;
+    }
+  } catch (e) { console.error('[audit] load error:', e); }
+}
+
+function sortCentralAudit(field) {
+  if (_centralAuditSort === field) { _centralAuditSortDir = _centralAuditSortDir === 'DESC' ? 'ASC' : 'DESC'; }
+  else { _centralAuditSort = field; _centralAuditSortDir = 'DESC'; }
+  loadCentralAudit(_centralAuditPage);
+}
+
+function clearCentralAuditFilters() {
+  ['aud-central-search', 'aud-central-modulo', 'aud-central-categoria', 'aud-central-resultado', 'aud-central-desde', 'aud-central-hasta'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.value = '';
+  });
+  loadCentralAudit(1);
+}
+
+async function showAuditDetail(id) {
+  try {
+    const res = await fetch(`/api/admin/audit/central/${id}`, { headers: { 'Authorization': 'Bearer ' + jwtToken } });
+    if (!res.ok) return;
+    const ev = res.json ? (await res.json()).event : null;
+    if (!ev) return;
+    const fecha = ev.ocurrido_en ? new Date(ev.ocurrido_en).toLocaleString('es-CO') : '—';
+    const meta = ev.metadata && typeof ev.metadata === 'object' ? JSON.stringify(ev.metadata, null, 2) : (ev.metadata || '—');
+    const content = document.getElementById('audit-detail-content');
+    content.innerHTML = `
+      <div style="display:grid;grid-template-columns:120px 1fr;gap:8px;font-size:13px;">
+        <div style="font-weight:600;color:var(--muted);">ID</div><div>${ev.id}</div>
+        <div style="font-weight:600;color:var(--muted);">Fecha</div><div>${fecha}</div>
+        <div style="font-weight:600;color:var(--muted);">Módulo</div><div>${esc(ev.modulo)}</div>
+        <div style="font-weight:600;color:var(--muted);">Categoría</div><div>${esc(ev.categoria)}</div>
+        <div style="font-weight:600;color:var(--muted);">Acción</div><div style="font-family:monospace;">${esc(ev.accion)}</div>
+        <div style="font-weight:600;color:var(--muted);">Resultado</div><div>${esc(ev.resultado)}</div>
+        <div style="font-weight:600;color:var(--muted);">Actor ID</div><div>${ev.actor_id || '—'}</div>
+        <div style="font-weight:600;color:var(--muted);">Actor Email</div><div>${esc(ev.actor_email || '—')}</div>
+        <div style="font-weight:600;color:var(--muted);">IP</div><div style="font-family:monospace;">${esc(ev.ip || '—')}</div>
+        <div style="font-weight:600;color:var(--muted);">User Agent</div><div style="font-size:11px;word-break:break-all;">${esc(ev.user_agent || '—')}</div>
+        <div style="font-weight:600;color:var(--muted);">Entidad</div><div>${esc(ev.entidad_tipo || '—')} ${esc(ev.entidad_id || '')}</div>
+        <div style="font-weight:600;color:var(--muted);">Resumen</div><div>${esc(ev.resumen || '—')}</div>
+        <div style="font-weight:600;color:var(--muted);">Sesión ID</div><div style="font-family:monospace;font-size:11px;">${esc(ev.sesion_id || '—')}</div>
+      </div>
+      <div style="margin-top:12px;">
+        <div style="font-weight:600;font-size:13px;margin-bottom:6px;">Metadata</div>
+        <pre style="background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:10px;font-size:12px;overflow-x:auto;max-height:250px;white-space:pre-wrap;">${esc(meta)}</pre>
+      </div>
+    `;
+    document.getElementById('modal-audit-detail').classList.add('show');
+  } catch (e) { toast('Error cargando detalle: ' + e.message, 'error'); }
 }
 
 // ── Session check + refresh ──

@@ -1054,8 +1054,8 @@ app.get('/auth/google/callback', async (req, res) => {
   const { code, error, state } = req.query;
   const cookies = parseCookies(req);
   console.log('[OAuth Google] Callback received:', { hasCode: !!code, hasError: !!error, hasState: !!state, cookieState: !!cookies.oauth_state, stateMatch: state === cookies.oauth_state });
-  if (error || !code) return res.redirect('/?error=oauth_denied');
-  if (!state || state !== cookies.oauth_state) { console.error('[OAuth Google] State mismatch:', { state, cookieState: cookies.oauth_state }); return res.redirect('/?error=invalid_state'); }
+  if (error || !code) { void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'oauth_login_fallido', resultado: 'fallido', actor_email: null, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth Google: usuario denegó acceso', metadata: { provider: 'google', motivo: 'oauth_denied' } }); return res.redirect('/?error=oauth_denied'); }
+  if (!state || state !== cookies.oauth_state) { console.error('[OAuth Google] State mismatch:', { state, cookieState: cookies.oauth_state }); void auditarEvento({ modulo: 'launcher', categoria: 'security', accion: 'oauth_login_fallido', resultado: 'fallido', actor_email: null, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth Google: state mismatch posible CSRF', metadata: { provider: 'google', motivo: 'state_mismatch' } }); return res.redirect('/?error=invalid_state'); }
   res.clearCookie('oauth_state', { path: '/' });
   const cfg = getOAuthConfig('google');
   try {
@@ -1065,18 +1065,19 @@ app.get('/auth/google/callback', async (req, res) => {
     });
     const tokenData = await tokenRes.json();
     console.log('[OAuth Google] Token response:', { ok: tokenRes.ok, hasAccessToken: !!tokenData.access_token, error: tokenData.error });
-    if (!tokenData.access_token) return res.redirect('/?error=token_exchange_failed');
+    if (!tokenData.access_token) { void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'oauth_login_fallido', resultado: 'fallido', actor_email: null, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth Google: fallo intercambio de token', metadata: { provider: 'google', motivo: 'token_exchange_failed' } }); return res.redirect('/?error=token_exchange_failed'); }
     const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', { headers: { Authorization: 'Bearer ' + tokenData.access_token } });
     const profile = await userInfoRes.json();
     console.log('[OAuth Google] Profile:', { email: profile.email, name: profile.name, id: profile.id });
-    if (!profile.email) return res.redirect('/?error=no_email');
+    if (!profile.email) { void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'oauth_login_fallido', resultado: 'fallido', actor_email: null, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth Google: perfil sin email', metadata: { provider: 'google', motivo: 'no_email' } }); return res.redirect('/?error=no_email'); }
     const user = oauthFindOrCreateUser({ provider: 'google', id: profile.id, email: profile.email, name: profile.name, accessToken: tokenData.access_token, expiresIn: tokenData.expires_in });
-    if (isUserBlacklisted(user.user.id)) return res.redirect('/?error=blacklisted');
+    if (isUserBlacklisted(user.user.id)) { void auditarEvento({ modulo: 'launcher', categoria: 'security', accion: 'oauth_login_fallido', resultado: 'fallido', actor_id: user.user.id, actor_email: profile.email, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth Google: usuario en lista negra', metadata: { provider: 'google', motivo: 'blacklisted' } }); return res.redirect('/?error=blacklisted'); }
     const token = oauthIssueJwt(user.user, req, res);
     console.log('[OAuth Google] JWT issued:', !!token, 'hasModules:', user.hasModules, 'isNew:', user.isNew);
-    if (!token) return res.redirect('/?error=auth_failed');
+    if (!token) { void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'oauth_login_fallido', resultado: 'fallido', actor_id: user.user.id, actor_email: profile.email, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth Google: fallo emisión JWT', metadata: { provider: 'google', motivo: 'auth_failed' } }); return res.redirect('/?error=auth_failed'); }
+    void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'oauth_login_exitoso', resultado: 'exito', actor_id: user.user.id, actor_email: profile.email, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'Inicio de sesión exitoso vía Google', metadata: { provider: 'google', isNew: user.isNew, hasModules: user.hasModules } });
     res.redirect((user.isNew || !user.hasModules) ? '/?new_user=1' : '/');
-  } catch (e) { console.error('[OAuth Google] Error:', e.message, e.stack); res.redirect('/?error=oauth_error'); }
+  } catch (e) { console.error('[OAuth Google] Error:', e.message, e.stack); void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'oauth_login_fallido', resultado: 'fallido', actor_email: null, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth Google: error interno', metadata: { provider: 'google', motivo: 'oauth_error', error: e.message } }); res.redirect('/?error=oauth_error'); }
 });
 
 // ── GitHub OAuth ──
@@ -1094,8 +1095,8 @@ app.get('/auth/github', (req, res) => {
 app.get('/auth/github/callback', async (req, res) => {
   const { code, error, state } = req.query;
   const cookies = parseCookies(req);
-  if (error || !code) return res.redirect('/?error=oauth_denied');
-  if (!state || state !== cookies.oauth_state) { console.warn('[OAuth GitHub] State mismatch — session:', cookies.oauth_state ? 'present' : 'missing', 'query:', state ? 'present' : 'missing'); return res.redirect('/?error=invalid_state'); }
+  if (error || !code) { void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'oauth_login_fallido', resultado: 'fallido', actor_email: null, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth GitHub: usuario denegó acceso', metadata: { provider: 'github', motivo: 'oauth_denied' } }); return res.redirect('/?error=oauth_denied'); }
+  if (!state || state !== cookies.oauth_state) { console.warn('[OAuth GitHub] State mismatch — session:', cookies.oauth_state ? 'present' : 'missing', 'query:', state ? 'present' : 'missing'); void auditarEvento({ modulo: 'launcher', categoria: 'security', accion: 'oauth_login_fallido', resultado: 'fallido', actor_email: null, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth GitHub: state mismatch posible CSRF', metadata: { provider: 'github', motivo: 'state_mismatch' } }); return res.redirect('/?error=invalid_state'); }
   res.clearCookie('oauth_state', { path: '/' });
   const cfg = getOAuthConfig('github');
   try {
@@ -1104,7 +1105,7 @@ app.get('/auth/github/callback', async (req, res) => {
       body: JSON.stringify({ client_id: cfg.clientId, client_secret: cfg.clientSecret, code })
     });
     const tokenData = await tokenRes.json();
-    if (!tokenData.access_token) { console.error('[OAuth GitHub] Token exchange failed:', tokenData); return res.redirect('/?error=token_exchange_failed'); }
+    if (!tokenData.access_token) { console.error('[OAuth GitHub] Token exchange failed:', tokenData); void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'oauth_login_fallido', resultado: 'fallido', actor_email: null, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth GitHub: fallo intercambio de token', metadata: { provider: 'github', motivo: 'token_exchange_failed' } }); return res.redirect('/?error=token_exchange_failed'); }
     const userRes = await fetch('https://api.github.com/user', { headers: { Authorization: 'Bearer ' + tokenData.access_token, Accept: 'application/json' } });
     const ghUser = await userRes.json();
     // Get primary email
@@ -1115,13 +1116,14 @@ app.get('/auth/github/callback', async (req, res) => {
       const primary = emails.find(e => e.primary) || emails[0];
       email = primary?.email;
     }
-    if (!email) return res.redirect('/?error=no_email');
+    if (!email) { void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'oauth_login_fallido', resultado: 'fallido', actor_email: null, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth GitHub: perfil sin email', metadata: { provider: 'github', motivo: 'no_email' } }); return res.redirect('/?error=no_email'); }
     const user = oauthFindOrCreateUser({ provider: 'github', id: String(ghUser.id), email, name: ghUser.name || ghUser.login, accessToken: tokenData.access_token, expiresIn: tokenData.expires_in });
-    if (isUserBlacklisted(user.user.id)) return res.redirect('/?error=blacklisted');
+    if (isUserBlacklisted(user.user.id)) { void auditarEvento({ modulo: 'launcher', categoria: 'security', accion: 'oauth_login_fallido', resultado: 'fallido', actor_id: user.user.id, actor_email: email, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth GitHub: usuario en lista negra', metadata: { provider: 'github', motivo: 'blacklisted' } }); return res.redirect('/?error=blacklisted'); }
     const token = oauthIssueJwt(user.user, req, res);
-    if (!token) return res.redirect('/?error=auth_failed');
+    if (!token) { void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'oauth_login_fallido', resultado: 'fallido', actor_id: user.user.id, actor_email: email, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth GitHub: fallo emisión JWT', metadata: { provider: 'github', motivo: 'auth_failed' } }); return res.redirect('/?error=auth_failed'); }
+    void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'oauth_login_exitoso', resultado: 'exito', actor_id: user.user.id, actor_email: email, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'Inicio de sesión exitoso vía GitHub', metadata: { provider: 'github', isNew: user.isNew, hasModules: user.hasModules } });
     res.redirect((user.isNew || !user.hasModules) ? '/?new_user=1' : '/');
-  } catch (e) { console.error('[OAuth GitHub]', e.stack || e.message); res.redirect('/?error=oauth_error'); }
+  } catch (e) { console.error('[OAuth GitHub]', e.stack || e.message); void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'oauth_login_fallido', resultado: 'fallido', actor_email: null, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth GitHub: error interno', metadata: { provider: 'github', motivo: 'oauth_error', error: e.message } }); res.redirect('/?error=oauth_error'); }
 });
 
 // ── Microsoft OAuth ──
@@ -1139,8 +1141,8 @@ app.get('/auth/microsoft', (req, res) => {
 app.get('/auth/microsoft/callback', async (req, res) => {
   const { code, error, state } = req.query;
   const cookies = parseCookies(req);
-  if (error || !code) return res.redirect('/?error=oauth_denied');
-  if (!state || state !== cookies.oauth_state) { console.warn('[OAuth Microsoft] State mismatch — session:', cookies.oauth_state ? 'present' : 'missing', 'query:', state ? 'present' : 'missing'); return res.redirect('/?error=invalid_state'); }
+  if (error || !code) { void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'oauth_login_fallido', resultado: 'fallido', actor_email: null, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth Microsoft: usuario denegó acceso', metadata: { provider: 'microsoft', motivo: 'oauth_denied' } }); return res.redirect('/?error=oauth_denied'); }
+  if (!state || state !== cookies.oauth_state) { console.warn('[OAuth Microsoft] State mismatch — session:', cookies.oauth_state ? 'present' : 'missing', 'query:', state ? 'present' : 'missing'); void auditarEvento({ modulo: 'launcher', categoria: 'security', accion: 'oauth_login_fallido', resultado: 'fallido', actor_email: null, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth Microsoft: state mismatch posible CSRF', metadata: { provider: 'microsoft', motivo: 'state_mismatch' } }); return res.redirect('/?error=invalid_state'); }
   res.clearCookie('oauth_state', { path: '/' });
   const cfg = getOAuthConfig('microsoft');
   try {
@@ -1149,17 +1151,18 @@ app.get('/auth/microsoft/callback', async (req, res) => {
       body: new URLSearchParams({ code, client_id: cfg.clientId, client_secret: cfg.clientSecret, redirect_uri: getOAuthBaseUrl() + '/auth/microsoft/callback', grant_type: 'authorization_code' }).toString()
     });
     const tokenData = await tokenRes.json();
-    if (!tokenData.access_token) { console.error('[OAuth Microsoft] Token exchange failed:', tokenData); return res.redirect('/?error=token_exchange_failed'); }
+    if (!tokenData.access_token) { console.error('[OAuth Microsoft] Token exchange failed:', tokenData); void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'oauth_login_fallido', resultado: 'fallido', actor_email: null, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth Microsoft: fallo intercambio de token', metadata: { provider: 'microsoft', motivo: 'token_exchange_failed' } }); return res.redirect('/?error=token_exchange_failed'); }
     const userRes = await fetch('https://graph.microsoft.com/v1.0/me', { headers: { Authorization: 'Bearer ' + tokenData.access_token } });
     const msUser = await userRes.json();
     const email = msUser.mail || msUser.userPrincipalName;
-    if (!email) return res.redirect('/?error=no_email');
+    if (!email) { void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'oauth_login_fallido', resultado: 'fallido', actor_email: null, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth Microsoft: perfil sin email', metadata: { provider: 'microsoft', motivo: 'no_email' } }); return res.redirect('/?error=no_email'); }
     const user = oauthFindOrCreateUser({ provider: 'microsoft', id: msUser.id, email, name: msUser.displayName, accessToken: tokenData.access_token, expiresIn: tokenData.expires_in });
-    if (isUserBlacklisted(user.user.id)) return res.redirect('/?error=blacklisted');
+    if (isUserBlacklisted(user.user.id)) { void auditarEvento({ modulo: 'launcher', categoria: 'security', accion: 'oauth_login_fallido', resultado: 'fallido', actor_id: user.user.id, actor_email: email, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth Microsoft: usuario en lista negra', metadata: { provider: 'microsoft', motivo: 'blacklisted' } }); return res.redirect('/?error=blacklisted'); }
     const token = oauthIssueJwt(user.user, req, res);
-    if (!token) return res.redirect('/?error=auth_failed');
+    if (!token) { void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'oauth_login_fallido', resultado: 'fallido', actor_id: user.user.id, actor_email: email, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth Microsoft: fallo emisión JWT', metadata: { provider: 'microsoft', motivo: 'auth_failed' } }); return res.redirect('/?error=auth_failed'); }
+    void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'oauth_login_exitoso', resultado: 'exito', actor_id: user.user.id, actor_email: email, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'Inicio de sesión exitoso vía Microsoft', metadata: { provider: 'microsoft', isNew: user.isNew, hasModules: user.hasModules } });
     res.redirect((user.isNew || !user.hasModules) ? '/?new_user=1' : '/');
-  } catch (e) { console.error('[OAuth Microsoft]', e.stack || e.message); res.redirect('/?error=oauth_error'); }
+  } catch (e) { console.error('[OAuth Microsoft]', e.stack || e.message); void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'oauth_login_fallido', resultado: 'fallido', actor_email: null, ip: req.ip, user_agent: req.headers['user-agent'], resumen: 'OAuth Microsoft: error interno', metadata: { provider: 'microsoft', motivo: 'oauth_error', error: e.message } }); res.redirect('/?error=oauth_error'); }
 });
 
 // ── Public: list enabled OAuth providers (for login screen) ──
@@ -1308,6 +1311,7 @@ app.get('/api/admin/login-logs', verificarToken, soloAdmin, (req, res) => {
   if (req.query.exitoso !== undefined && req.query.exitoso !== '') { where += ' AND exitoso = ?'; params.push(parseInt(req.query.exitoso)); }
   if (req.query.desde) { where += ' AND fecha >= ?'; params.push(req.query.desde); }
   if (req.query.hasta) { where += ' AND fecha <= ?'; params.push(req.query.hasta + ' 23:59:59'); }
+  if (req.query.search) { where += ' AND (email LIKE ? OR ip LIKE ?)'; params.push('%' + req.query.search + '%', '%' + req.query.search + '%'); }
   const rows = db.prepare(`SELECT id, fecha, ip, email, exitoso FROM login_logs WHERE ${where} ORDER BY id DESC LIMIT ?`).all(...params, limit);
   for (const row of rows) {
     if (row.email && row.email.includes(':')) {
@@ -1315,6 +1319,103 @@ app.get('/api/admin/login-logs', verificarToken, soloAdmin, (req, res) => {
     }
   }
   res.json({ logs: rows });
+});
+
+// ── Session stats ──
+app.get('/api/admin/session-stats', verificarToken, soloAdmin, (req, res) => {
+  try {
+    db.prepare("DELETE FROM sesiones_activas WHERE datetime(ultimo_heartbeat, '+2 minutes') < datetime('now')").run();
+    const totalActivas = db.prepare("SELECT COUNT(*) as c FROM sesiones_activas").get().c;
+    const hoy = new Date().toISOString().split('T')[0];
+    const loginsHoy = db.prepare("SELECT COUNT(*) as c FROM login_logs WHERE fecha >= ?").get(hoy).c;
+    const fallidosHoy = db.prepare("SELECT COUNT(*) as c FROM login_logs WHERE fecha >= ? AND exitoso = 0").get(hoy).c;
+    const ipsHoy = db.prepare("SELECT COUNT(DISTINCT ip) as c FROM login_logs WHERE fecha >= ?").get(hoy).c;
+    res.json({ totalActivas, loginsHoy, fallidosHoy, ipsHoy });
+  } catch (e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Central audit: query auditoria_central (PostgreSQL) ──
+app.get('/api/admin/audit/central', verificarToken, soloAdmin, async (req, res) => {
+  try {
+    const { modulo, categoria, accion, resultado, actor_id, entidad_tipo, search, desde, hasta, page = 1, limit = 50 } = req.query;
+    const lim = Math.min(200, Math.max(1, parseInt(limit) || 50));
+    const offset = (Math.max(1, parseInt(page) || 1) - 1) * lim;
+    const conditions = [];
+    const params = [];
+    let idx = 1;
+    if (modulo) { conditions.push(`modulo = $${idx++}`); params.push(modulo); }
+    if (categoria) { conditions.push(`categoria = $${idx++}`); params.push(categoria); }
+    if (accion) { conditions.push(`accion = $${idx++}`); params.push(accion); }
+    if (resultado) { conditions.push(`resultado = $${idx++}`); params.push(resultado); }
+    if (actor_id) { conditions.push(`actor_id = $${idx++}`); params.push(parseInt(actor_id)); }
+    if (entidad_tipo) { conditions.push(`entidad_tipo = $${idx++}`); params.push(entidad_tipo); }
+    if (desde) { conditions.push(`ocurrido_en >= $${idx++}`); params.push(desde); }
+    if (hasta) { conditions.push(`ocurrido_en <= $${idx++}`); params.push(hasta + ' 23:59:59'); }
+    if (search) { conditions.push(`(resumen ILIKE $${idx} OR actor_email ILIKE $${idx} OR accion ILIKE $${idx})`); params.push('%' + search + '%'); idx++; }
+    const where = conditions.length ? 'WHERE ' + conditions.join(' AND ') : '';
+    const countResult = await auditPool.query(`SELECT COUNT(*) FROM public.auditoria_central ${where}`, params);
+    const total = parseInt(countResult.rows[0].count) || 0;
+    const result = await auditPool.query(
+      `SELECT id, ocurrido_en, modulo, categoria, accion, resultado, actor_id, actor_email, ip, entidad_tipo, entidad_id, resumen, metadata
+       FROM public.auditoria_central ${where}
+       ORDER BY ocurrido_en DESC LIMIT $${idx++} OFFSET $${idx++}`,
+      [...params, lim, offset]
+    );
+    res.json({ events: result.rows, total, page: parseInt(page) || 1, limit: lim, pages: Math.ceil(total / lim) });
+  } catch (e) { console.error('[audit] central query error:', e.message); res.status(500).json({ error: e.message }); }
+});
+
+// ── Central audit: single event detail ──
+app.get('/api/admin/audit/central/:id', verificarToken, soloAdmin, async (req, res) => {
+  try {
+    const result = await auditPool.query(
+      `SELECT * FROM public.auditoria_central WHERE id = $1`,
+      [parseInt(req.params.id)]
+    );
+    if (result.rows.length === 0) return res.status(404).json({ error: 'Evento no encontrado' });
+    res.json({ event: result.rows[0] });
+  } catch (e) { console.error('[audit] central detail error:', e.message); res.status(500).json({ error: e.message }); }
+});
+
+// ── Central audit: stats ──
+app.get('/api/admin/audit/stats', verificarToken, soloAdmin, async (req, res) => {
+  try {
+    const [total, fallidos, porModulo, topAcciones] = await Promise.all([
+      auditPool.query(`SELECT COUNT(*) FROM public.auditoria_central`),
+      auditPool.query(`SELECT COUNT(*) FROM public.auditoria_central WHERE resultado = 'fallido' AND ocurrido_en > NOW() - INTERVAL '24 hours'`),
+      auditPool.query(`SELECT modulo, COUNT(*) as total FROM public.auditoria_central WHERE ocurrido_en > NOW() - INTERVAL '7 days' GROUP BY modulo ORDER BY total DESC`),
+      auditPool.query(`SELECT accion, COUNT(*) as total FROM public.auditoria_central WHERE ocurrido_en > NOW() - INTERVAL '24 hours' GROUP BY accion ORDER BY total DESC LIMIT 10`)
+    ]);
+    res.json({
+      total: parseInt(total.rows[0].count) || 0,
+      fallidos_24h: parseInt(fallidos.rows[0].count) || 0,
+      por_modulo: porModulo.rows,
+      top_acciones: topAcciones.rows
+    });
+  } catch (e) { console.error('[audit] stats error:', e.message); res.status(500).json({ error: e.message }); }
+});
+
+// ── Session widgets: hourly activity, top IPs, top users ──
+app.get('/api/admin/session-widgets', verificarToken, soloAdmin, (req, res) => {
+  try {
+    const hoy = new Date().toISOString().split('T')[0];
+    const porHora = db.prepare(`
+      SELECT CAST(strftime('%H', fecha) AS INTEGER) as hora, COUNT(*) as total
+      FROM login_logs WHERE fecha >= ? GROUP BY hora ORDER BY hora
+    `).all(hoy);
+    const topIps = db.prepare(`
+      SELECT ip, COUNT(*) as total, SUM(CASE WHEN exitoso = 0 THEN 1 ELSE 0 END) as fallos
+      FROM login_logs WHERE fecha >= ? GROUP BY ip ORDER BY total DESC LIMIT 5
+    `).all(hoy);
+    const topUsuarios = db.prepare(`
+      SELECT email, COUNT(*) as total, SUM(CASE WHEN exitoso = 1 THEN 1 ELSE 0 END) as exitosos
+      FROM login_logs WHERE fecha >= ? AND email != '' GROUP BY email ORDER BY total DESC LIMIT 5
+    `).all(hoy);
+    for (const u of topUsuarios) {
+      if (u.email && u.email.includes(':')) { try { u.email = decryptEmail(u.email); } catch { u.email = '—'; } }
+    }
+    res.json({ porHora, topIps, topUsuarios });
+  } catch (e) { res.status(500).json({ error: e.message }); }
 });
 
 // ── Telemetry: public write endpoints ──
@@ -1339,6 +1440,7 @@ app.post('/api/admin/sesiones/:id/kill', verificarToken, soloAdmin, (req, res) =
       db.prepare("INSERT OR REPLACE INTO sesiones_revocadas (session_id, usuario_id, motivo) VALUES (?, ?, 'revocacion_remota')").run(sesion.session_id, sesion.usuario_id);
     }
     db.prepare("DELETE FROM sesiones_activas WHERE id = ?").run(id);
+    void auditarEvento({ modulo: 'launcher', categoria: 'security', accion: 'sesion_revocada', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'sesion', entidad_id: sesion.session_id, resumen: `Sesión de ${sesion.usuario_nombre} revocada por admin`, metadata: { target_user_id: sesion.usuario_id, target_user_name: sesion.usuario_nombre, session_id: sesion.session_id } });
     res.json({ ok: true, message: `Sesión de ${sesion.usuario_nombre} cerrada` });
   } catch (e) {
     res.status(500).json({ error: e.message });
@@ -1593,7 +1695,15 @@ app.put('/api/admin/usuarios/:id', verificarToken, soloAdmin, (req, res) => {
     db.prepare(`UPDATE usuarios SET ${updates.join(', ')} WHERE id = ?`).run(...params);
     const changedNombre = nombre !== undefined && nombre !== user.nombre;
     const changedEmail = email !== undefined && email.toLowerCase().trim() !== user.email;
-    if (changedRol || changedPerfil || changedNombre || changedEmail) invalidarSesionUsuario(id);
+    if (changedRol || changedPerfil || changedNombre || changedEmail) {
+      invalidarSesionUsuario(id);
+      const cambios = [];
+      if (changedRol) cambios.push('rol');
+      if (changedPerfil) cambios.push('perfil');
+      if (changedNombre) cambios.push('nombre');
+      if (changedEmail) cambios.push('email');
+      void auditarEvento({ modulo: 'launcher', categoria: 'security', accion: 'sesion_invalidada_admin', resultado: 'exito', actor_id: req.usuario?.id, actor_email: req.usuario?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'usuario', entidad_id: id, resumen: `Sesión invalidada: cambio de ${cambios.join(', ')}`, metadata: { target_user_id: id, target_user_email: user.email, cambios } });
+    }
     res.json({ ok: true });
   } catch (e) { res.status(500).json({ error: 'Error interno' }); }
 });
@@ -1614,9 +1724,11 @@ app.post('/api/admin/usuarios/:id/reset-password', verificarToken, soloAdmin, as
       if (await debeEnviarEmail('launcher', 'password_reset')) {
         mail.sendResetEmail(user.email, resetUrl, user.nombre).catch(e => console.error('[MAIL] sendResetEmail error:', e.message));
       }
+      void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'password_reset_admin', resultado: 'exito', actor_id: req.usuario?.id, actor_email: req.usuario?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'usuario', entidad_id: id, resumen: `Reset de contraseña solicitado por admin para ${user.email}`, metadata: { target_user_id: id, target_user_email: user.email } });
       res.json({ ok: true, message: 'Email de recuperación enviado a ' + user.email });
     } else {
       console.log('[RESET] SMTP no configurado — token para', user.email, ':', resetUrl);
+      void auditarEvento({ modulo: 'launcher', categoria: 'auth', accion: 'password_reset_admin', resultado: 'exito', actor_id: req.usuario?.id, actor_email: req.usuario?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'usuario', entidad_id: id, resumen: `Reset de contraseña solicitado por admin para ${user.email} (sin SMTP)`, metadata: { target_user_id: id, target_user_email: user.email, smtp: false } });
       res.json({ ok: true, message: 'SMTP no configurado. Token generado: ' + resetUrl });
     }
   } catch (e) { console.error('[RESET]', e.message); res.status(500).json({ error: 'Error interno' }); }
@@ -1629,6 +1741,7 @@ app.delete('/api/admin/usuarios/:id', verificarToken, soloAdmin, (req, res) => {
   if (!user) return res.status(404).json({ error: 'No encontrado' });
   db.prepare("UPDATE usuarios SET activo = 0, actualizado = datetime('now') WHERE id = ?").run(id);
   invalidarSesionUsuario(id);
+  void auditarEvento({ modulo: 'launcher', categoria: 'security', accion: 'sesion_invalidada_admin', resultado: 'exito', actor_id: req.usuario?.id, actor_email: req.usuario?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'usuario', entidad_id: id, resumen: `Sesión invalidada: usuario desactivado`, metadata: { target_user_id: id, target_user_email: user.email, motivo: 'usuario_desactivado' } });
   res.json({ ok: true });
 });
 
@@ -1728,6 +1841,7 @@ app.put('/api/admin/usuarios/:id/modulos', verificarToken, soloAdmin, (req, res)
   });
   transaction();
   invalidarSesionUsuario(userId);
+  void auditarEvento({ modulo: 'launcher', categoria: 'security', accion: 'sesion_invalidada_admin', resultado: 'exito', actor_id: req.usuario?.id, actor_email: req.usuario?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'usuario', entidad_id: userId, resumen: 'Sesión invalidada: cambio de módulos asignados', metadata: { target_user_id: userId, modulos: modulos.length } });
   res.json({ ok: true, modulos, sesionInvalidada: true });
 });
 
@@ -2019,6 +2133,7 @@ app.put('/api/admin/usuarios/:id/permisos-funcionales', verificarToken, soloAdmi
   });
   transaction();
   invalidarSesionUsuario(userId);
+  void auditarEvento({ modulo: 'launcher', categoria: 'security', accion: 'sesion_invalidada_admin', resultado: 'exito', actor_id: req.usuario?.id, actor_email: req.usuario?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'usuario', entidad_id: userId, resumen: 'Sesión invalidada: cambio de permisos', metadata: { target_user_id: userId, permisos: permisos.length } });
   res.json({ ok: true });
 });
 

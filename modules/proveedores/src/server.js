@@ -27,6 +27,11 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const { authMiddleware, verificarSesionValida, requireModule } = require('./middleware/auth');
+const { configureAudit, startAuditRetentionJob } = require('../../../framework/audit');
+const db = require('./db');
+
+configureAudit(db.pool, { maskIp: process.env.AUDIT_MASK_IP === 'true', integritySecret: process.env.AUDIT_INTEGRITY_SECRET });
+startAuditRetentionJob(db.pool);
 
 // ─── Rutas API ────────────────────────────────────────────────────────────────
 app.use('/api/auth', authLimiter);

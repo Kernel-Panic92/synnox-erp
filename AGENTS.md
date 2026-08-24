@@ -510,15 +510,15 @@ Nueva branch `feat/tareas-archivo-fase1` (commit `0948c2e`) con el submódulo **
 
 ## Estado actual (21 Ago 2026)
 ### Últimos cambios
+- **Sesión 48**: Instrumentación completa de auditoría OAuth (Google, GitHub, Microsoft), session kill, invalidación de sesiones admin y reset de password por admin. Issue #113 completado. Instrumentación de módulos: Proyectos (10 eventos), Logística (14 eventos), Proveedores (14 eventos). Nómina pendiente (SQLite). Visor de auditoría central: endpoint con filtros, stats cards, tabla paginada, detalle con metadata.
 - **Sesión 48**: nombres de módulos cargados desde el Launcher mediante `GET /api/modulos` en Proyectos, Logística, Nómina y Proveedores, con fallback seguro y actualización del título del navegador.
 - **Release v2.3.0**: commit `1cdb847`, tag anotado y release de GitHub publicados; deploy de producción verificado correctamente.
 - **Copyright**: referencias legales actualizadas a `Kernel-Panic92` en licencias, documentación, footer y metadata de Nómina.
-- **Base de datos**: la sesión 48 no requirió migraciones.
 - **Sesión 47**: Workflow persistente de sprints, auditoría central, retención diaria, revocación selectiva de sesiones e instrumentación local de autenticación. PR #118 fusionado a `dev`.
 - **Sprint actual**: Seguridad y observabilidad — branch `chore/open-issues-triage`; workflow persistente en `docs/WORKFLOW.md` y estado en `docs/SPRINT.md`.
 - **Issues #65, #70, #71, #93 y #94**: cerrados o marcados obsoletos tras verificación.
 - **Issues #111 y #112**: base de auditoría central, retención y helper implementados.
-- **Issue #113**: revocación selectiva de sesiones e instrumentación local de autenticación en progreso.
+- **Issue #113**: completado — OAuth audit events, session kill audit, invalidación admin audit, password reset admin audit.
 - **Sesión 46**: Archivo de proyectos completados Fase 2 — merge PR #117 a dev, branch feature eliminada
 - **Sesión 45**: Archivo de tareas completadas Fase 1 — branch `feat/tareas-archivo-fase1`, commit `0948c2e`
 - **Sesión 44**: Backup fixes + Members & Code Review + v2.1.1
@@ -539,9 +539,9 @@ Nueva branch `feat/tareas-archivo-fase1` (commit `0948c2e`) con el submódulo **
 - [ ] **#116** — Observabilidad y alertas de seguridad
 - [ ] **#115** — Instrumentar operaciones de negocio en módulos existentes
 - [ ] **#114** — Menú central Logs en el Launcher
-- [ ] **#113** — Mejorar auditoría de sesiones y autenticación
-- [ ] **#112** — Helper/SDK compartido para emisión de eventos de auditoría
-- [ ] **#111** — Auditoría central: modelo de datos y contrato de eventos
+- [x] **#113** — Mejorar auditoría de sesiones y autenticación (COMPLETADO)
+- [x] **#112** — Helper/SDK compartido para emisión de eventos de auditoría (COMPLETADO)
+- [x] **#111** — Auditoría central: modelo de datos y contrato de eventos (COMPLETADO)
 - [ ] **#109–#99** — Bloque UX/UI y accesibilidad
 - [ ] **#68** — Migrar Launcher a GCM + separar secretos; pendiente rotación de claves
 
