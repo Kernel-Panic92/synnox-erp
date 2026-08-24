@@ -1,6 +1,7 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
+import { auditarEvento } from '../../../../framework/audit.js';
 import { enviarCorreo } from '../utils/email.js';
 import { createRequire } from 'module';
 const require = createRequire(import.meta.url);
@@ -72,6 +73,7 @@ router.post('/', requirePermiso('crear', MODULE), async (req, res) => {
        VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING *`,
       [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, estado || 'pendiente', sede || null, latitud || null, longitud || null, vehiculo_id || null]
     );
+    void auditarEvento({ modulo: 'logistica', categoria: 'negocio', accion: 'pedido_creado', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'pedido', entidad_id: result.rows[0]?.id, resumen: 'Pedido creado', metadata: {} });
     res.status(201).json({ exitosa: true, pedido: result.rows[0] });
     // Notificación in-app + email
     try {
@@ -121,6 +123,7 @@ router.put('/asignar-masivo', requirePermiso('asignar', MODULE), async (req, res
       params
     );
 
+    void auditarEvento({ modulo: 'logistica', categoria: 'negocio', accion: 'pedido_asignacion_masiva', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'pedido', entidad_id: null, resumen: 'Asignación masiva de pedidos', metadata: { count: Array.isArray(ids) ? ids.length : null } });
     const ignorados = ids.length - result.rows.length;
     res.json({
       exitosa: true,
@@ -158,6 +161,7 @@ router.put('/:id', requirePermiso('editar', MODULE), async (req, res) => {
       [numero_factura, cliente_id, cliente_nombre, direccion, ciudad, telefono, valor_credito, valor_contado, estado, ruta_id, secuencia_en_ruta, sede, latitud, longitud, vehiculo_id, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Pedido no encontrado' });
+    void auditarEvento({ modulo: 'logistica', categoria: 'negocio', accion: 'pedido_editado', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'pedido', entidad_id: parseInt(req.params.id), resumen: 'Pedido editado', metadata: {} });
     res.json({ exitosa: true, pedido: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -200,6 +204,7 @@ router.delete('/:id', requirePermiso('eliminar', MODULE), async (req, res) => {
     }
     const result = await pool.query('DELETE FROM logistics.pedidos_logistica WHERE id=$1 RETURNING id', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Pedido no encontrado' });
+    void auditarEvento({ modulo: 'logistica', categoria: 'negocio', accion: 'pedido_eliminado', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'pedido', entidad_id: parseInt(req.params.id), resumen: 'Pedido eliminado', metadata: {} });
     res.json({ exitosa: true, mensaje: 'Pedido eliminado' });
   } catch (err) {
     if (err.code === '23503') return res.status(409).json({ error: 'Este pedido está asignado a una ruta. Elimine la ruta primero.' });

@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const db = require('../db');
 const { authMiddleware, requirePermiso } = require('../middleware/auth');
+const { auditarEvento } = require('../../../../framework/audit');
 
 router.use(authMiddleware);
 
@@ -54,8 +55,9 @@ router.post('/', requirePermiso('crear'), async (req, res) => {
     const { rows } = await db.query(
       `INSERT INTO areas (nombre, jefe_id, email)
        VALUES ($1, $2, $3) RETURNING *`,
-      [nombre.trim(), jefe_id || null, email?.trim() || null]
+       [nombre.trim(), jefe_id || null, email?.trim() || null]
     );
+    void auditarEvento({ modulo: 'proveedores', categoria: 'negocio', accion: 'area_creada', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'area', entidad_id: rows[0].id, resumen: 'Area creada', metadata: {} });
     res.status(201).json(rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Ya existe un área con ese nombre' });
@@ -72,9 +74,10 @@ router.put('/:id', requirePermiso('editar'), async (req, res) => {
     const { rows } = await db.query(
       `UPDATE areas SET nombre=$1, jefe_id=$2, email=$3, activo=$4
        WHERE id=$5 RETURNING *`,
-      [nombre.trim(), jefe_id || null, email?.trim() || null, activo !== false, req.params.id]
+       [nombre.trim(), jefe_id || null, email?.trim() || null, activo !== false, req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Área no encontrada' });
+    void auditarEvento({ modulo: 'proveedores', categoria: 'negocio', accion: 'area_editada', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'area', entidad_id: req.params.id, resumen: 'Area editada', metadata: {} });
     res.json(rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Ya existe un área con ese nombre' });

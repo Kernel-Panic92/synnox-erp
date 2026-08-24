@@ -266,6 +266,9 @@
   .badge-comprador{background:rgba(47,133,90,0.2);color:var(--success);}
   .badge-operador{background:rgba(47,133,90,0.2);color:var(--success);}
   .badge-inactivo{background:rgba(197,48,48,0.2);color:var(--danger);}
+  .audit-subtab{background:none;border:none;padding:8px 16px;font-size:13px;font-weight:500;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-2px;transition:all .15s;}
+  .audit-subtab:hover{color:var(--text);}
+  .audit-subtab.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600;}
   .actions{display:flex;gap:8px;}
   .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.6);display:none;z-index:100;overflow-y:auto;-webkit-overflow-scrolling:touch;align-items:center;justify-content:center;}
   .modal-overlay.show{display:flex;}
@@ -831,33 +834,105 @@
       <div style="font-size:var(--fs);font-weight:600;">Auditoría</div>
       <button class="btn btn-sm" onclick="loadAuditoria()">🔄 Recargar</button>
     </div>
-    <div class="perm-rol-section">
-      <div class="perm-rol-titulo">Sesiones activas</div>
-      <div style="overflow-x:auto;">
-        <table id="sesiones-table">
-          <thead><tr><th>Usuario</th><th>IP</th><th>Navegador</th><th>Última actividad</th><th>Acciones</th></tr></thead>
-          <tbody></tbody>
-        </table>
+    <div style="display:flex;gap:0;border-bottom:2px solid var(--border);margin-bottom:16px;">
+      <button class="audit-subtab active" onclick="switchAuditSubtab('sesiones')">🖥️ Sesiones</button>
+      <button class="audit-subtab" onclick="switchAuditSubtab('operaciones')">📋 Operaciones</button>
+    </div>
+    <div id="audit-sub-sesiones">
+      <div id="session-stats-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px;"></div>
+      <div id="session-widgets" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:16px;"></div>
+      <div class="perm-rol-section">
+        <div class="perm-rol-titulo">Sesiones activas</div>
+        <div style="overflow-x:auto;">
+          <table id="sesiones-table">
+            <thead><tr><th>Estado</th><th>Usuario</th><th>IP</th><th>Navegador</th><th>Última actividad</th><th>Acciones</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+      <div class="perm-rol-section" style="margin-top:20px;">
+        <div class="perm-rol-titulo">Historial de accesos</div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+          <input type="text" id="aud-session-search" placeholder="Buscar email, IP..." style="flex:1;min-width:160px;">
+          <select id="aud-estado" style="width:120px;">
+            <option value="">Todos</option>
+            <option value="1">Exitosos</option>
+            <option value="0">Fallidos</option>
+          </select>
+          <input type="date" id="aud-desde" style="width:140px;">
+          <input type="date" id="aud-hasta" style="width:140px;">
+          <button class="btn btn-sm" onclick="loadAuditoriaLogs(1)">🔍 Filtrar</button>
+          <button class="btn btn-sm btn-secondary" onclick="clearSessionFilters()">✕ Limpiar</button>
+        </div>
+        <div style="overflow-x:auto;">
+          <table id="aud-logs-table">
+            <thead><tr>
+              <th>Fecha</th>
+              <th>Tipo</th>
+              <th>Email</th>
+              <th>IP</th>
+              <th>Estado</th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div id="session-logs-pagination" style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:13px;color:var(--muted);"></div>
       </div>
     </div>
-    <div class="perm-rol-section" style="margin-top:20px;">
-      <div class="perm-rol-titulo">Historial de accesos</div>
-      <div style="display:flex;gap:8px;margin-bottom:12px;">
-        <input type="date" id="aud-desde" style="width:150px;">
-        <input type="date" id="aud-hasta" style="width:150px;">
-        <select id="aud-estado" style="width:120px;">
-          <option value="">Todos</option>
-          <option value="1">Exitosos</option>
-          <option value="0">Fallidos</option>
+    <div id="audit-sub-operaciones" style="display:none;">
+      <div id="audit-stats-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:16px;"></div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap;">
+        <input type="text" id="aud-central-search" placeholder="Buscar resumen, email, acción..." style="flex:1;min-width:180px;">
+        <select id="aud-central-modulo" style="width:130px;">
+          <option value="">Todos los módulos</option>
+          <option value="launcher">Launcher</option>
+          <option value="proyectos">Proyectos</option>
+          <option value="logistica">Logística</option>
+          <option value="proveedores">Proveedores</option>
         </select>
-        <button class="btn btn-sm" onclick="loadAuditoriaLogs()">🔍 Filtrar</button>
+        <select id="aud-central-categoria" style="width:130px;">
+          <option value="">Todas las categorías</option>
+          <option value="auth">Auth</option>
+          <option value="security">Security</option>
+          <option value="negocio">Negocio</option>
+          <option value="system">System</option>
+        </select>
+        <select id="aud-central-resultado" style="width:120px;">
+          <option value="">Todos</option>
+          <option value="exito">Éxito</option>
+          <option value="fallido">Fallido</option>
+          <option value="advertencia">Advertencia</option>
+        </select>
+        <input type="date" id="aud-central-desde" style="width:140px;">
+        <input type="date" id="aud-central-hasta" style="width:140px;">
+        <button class="btn btn-sm" onclick="loadCentralAudit(1)">🔍 Filtrar</button>
+        <button class="btn btn-sm btn-secondary" onclick="clearCentralAuditFilters()">✕ Limpiar</button>
       </div>
       <div style="overflow-x:auto;">
-        <table id="aud-logs-table">
-          <thead><tr><th>Fecha</th><th>IP</th><th>Email</th><th>Estado</th></tr></thead>
+        <table id="audit-central-table">
+          <thead><tr>
+            <th style="cursor:pointer;" onclick="sortCentralAudit('ocurrido_en')">Fecha ↕</th>
+            <th>Módulo</th>
+            <th>Categoría</th>
+            <th style="cursor:pointer;" onclick="sortCentralAudit('accion')">Acción ↕</th>
+            <th>Resultado</th>
+            <th>Actor</th>
+            <th>Resumen</th>
+            <th></th>
+          </tr></thead>
           <tbody></tbody>
         </table>
       </div>
+      <div id="audit-central-pagination" style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;font-size:13px;color:var(--muted);"></div>
+    </div>
+  </div>
+  <div id="modal-audit-detail" class="modal-overlay" style="z-index:200;" onclick="if(event.target===this)this.classList.remove('show')">
+    <div class="modal" style="max-width:700px;max-height:80vh;overflow-y:auto;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <div style="font-weight:600;font-size:15px;">Detalle de evento</div>
+        <button class="btn btn-sm" onclick="document.getElementById('modal-audit-detail').classList.remove('show')">✕</button>
+      </div>
+      <div id="audit-detail-content"></div>
     </div>
   </div>
   <div class="tab-content" id="tab-actualizar">

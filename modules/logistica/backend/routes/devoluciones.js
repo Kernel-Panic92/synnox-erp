@@ -5,6 +5,7 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
+import { auditarEvento } from '../../../../framework/audit.js';
 import { parsearSmart2GoDevoluciones } from '../utils/smart2goDevolucionesParser.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -232,6 +233,7 @@ router.post('/', requirePermiso('crear', MODULE), async (req, res) => {
         foto_url || null, numero_factura || null, estado || 'registrada', req.user?.id || null
       ]
     );
+    void auditarEvento({ modulo: 'logistica', categoria: 'negocio', accion: 'devolucion_creada', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'devolucion', entidad_id: result.rows[0]?.id, resumen: 'Devolución creada', metadata: { causa } });
     res.json({ exitosa: true, row: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -294,6 +296,7 @@ router.put('/:id', requirePermiso('editar', MODULE), async (req, res) => {
       ]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Devolución no encontrada' });
+    void auditarEvento({ modulo: 'logistica', categoria: 'negocio', accion: 'devolucion_editada', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'devolucion', entidad_id: parseInt(req.params.id), resumen: 'Devolución editada', metadata: {} });
     res.json({ exitosa: true, row: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -313,6 +316,7 @@ router.put('/:id/estado', requirePermiso('editar', MODULE), async (req, res) => 
       [estado, req.params.id]
     );
     if (result.rows.length === 0) return res.status(404).json({ error: 'Devolución no encontrada' });
+    void auditarEvento({ modulo: 'logistica', categoria: 'negocio', accion: 'devolucion_estado_cambiado', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'devolucion', entidad_id: parseInt(req.params.id), resumen: 'Estado de devolución cambiado', metadata: { estado } });
     res.json({ exitosa: true, row: result.rows[0] });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -453,6 +457,7 @@ router.delete('/:id', requirePermiso('eliminar', MODULE), async (req, res) => {
   try {
     const result = await pool.query('DELETE FROM logistics.devoluciones WHERE id = $1 RETURNING id', [req.params.id]);
     if (result.rows.length === 0) return res.status(404).json({ error: 'Devolución no encontrada' });
+    void auditarEvento({ modulo: 'logistica', categoria: 'negocio', accion: 'devolucion_eliminada', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'devolucion', entidad_id: parseInt(req.params.id), resumen: 'Devolución eliminada', metadata: {} });
     res.json({ exitosa: true });
   } catch (err) {
     res.status(500).json({ error: err.message });

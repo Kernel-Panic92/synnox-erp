@@ -7,8 +7,12 @@ import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import pool from './config/db.js';
 import { verifyToken, verifySession, requireModule, requirePermiso, createProtect } from '../../../framework/auth.mjs';
+import { configureAudit, startAuditRetentionJob } from '../../../framework/audit.js';
 
 dotenv.config();
+
+configureAudit(pool, { maskIp: process.env.AUDIT_MASK_IP === 'true', integritySecret: process.env.AUDIT_INTEGRITY_SECRET });
+startAuditRetentionJob(pool);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();

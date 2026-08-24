@@ -1,6 +1,7 @@
 const router = require('express').Router();
 const db = require('../db');
 const { authMiddleware, requirePermiso } = require('../middleware/auth');
+const { auditarEvento } = require('../../../../framework/audit');
 
 router.use(authMiddleware);
 
@@ -58,6 +59,7 @@ router.post('/', requirePermiso('crear'), async (req, res) => {
       [nit.trim(), nombre.trim(), email_facturacion?.trim() || null,
        telefono?.trim() || null, direccion?.trim() || null, categoria_default_id || null]
     );
+    void auditarEvento({ modulo: 'proveedores', categoria: 'negocio', accion: 'proveedor_creado', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'proveedor', entidad_id: rows[0].id, resumen: 'Proveedor creado', metadata: {} });
     res.status(201).json(rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Ya existe un proveedor con ese NIT' });
@@ -81,6 +83,7 @@ router.put('/:id', requirePermiso('editar'), async (req, res) => {
        activo !== false, categoria_default_id || null, req.params.id]
     );
     if (!rows[0]) return res.status(404).json({ error: 'Proveedor no encontrado' });
+    void auditarEvento({ modulo: 'proveedores', categoria: 'negocio', accion: 'proveedor_editado', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'proveedor', entidad_id: req.params.id, resumen: 'Proveedor editado', metadata: {} });
     res.json(rows[0]);
   } catch (err) {
     if (err.code === '23505') return res.status(409).json({ error: 'Ya existe un proveedor con ese NIT' });
@@ -92,6 +95,7 @@ router.put('/:id', requirePermiso('editar'), async (req, res) => {
 router.delete('/:id', requirePermiso('eliminar'), async (req, res) => {
   try {
     await db.query('UPDATE proveedores SET activo=FALSE WHERE id=$1', [req.params.id]);
+    void auditarEvento({ modulo: 'proveedores', categoria: 'negocio', accion: 'proveedor_eliminado', resultado: 'exito', actor_id: req.user?.id, actor_email: req.user?.email, ip: req.ip, user_agent: req.headers['user-agent'], entidad_tipo: 'proveedor', entidad_id: req.params.id, resumen: 'Proveedor eliminado', metadata: {} });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ error: err.message });
