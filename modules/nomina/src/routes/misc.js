@@ -15,7 +15,7 @@ module.exports = function({ db, fs, path, __dirname, permisosPorRol, middlewares
 
   router.get('/version', todosRoles, (req, res) => {
     try {
-      const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, 'package.json'), 'utf8'));
+      const pkg = JSON.parse(fs.readFileSync(path.join(__dirname, '..', '..', 'package.json'), 'utf8'));
       const rama = (() => { try { return require('child_process').execFileSync('git', ['branch', '--show-current']).toString().trim(); } catch { return ''; } })();
       res.json({ version: pkg.version, rama: rama || 'main' });
     } catch { res.json({ version: '—', rama: '' }); }
