@@ -468,6 +468,26 @@ Reutiliza patrones existentes de logistica:
 | `crm_aprobar_descuento` | Aprobar/rechazar descuento |
 | `crm_metricas_conversion` | Tasa lead->real, por vendedor/periodo |
 
+## Decision: No usar Scaffold del Launcher
+
+El launcher tiene un scaffold (`Admin → Modulos → ⚡ Crear`) que genera un modulo
+externo con Express propio, JWT independiente y puerto separado. **No es suitable**
+para CRM porque:
+
+| Aspecto | Scaffold | Built-in (lo que necesitamos) |
+|---------|----------|------------------------------|
+| Puerto | Puerto separado (ej: 3008) | Comparte 3002 via nginx proxy |
+| Auth | JWT propio o copia estatica | Comparte JWT del launcher |
+| Framework | Copia estatica de archivos | Importa del `framework/` compartido |
+| DB | Sin configuracion PostgreSQL | Schema propio con migraciones |
+| Auditoria | No integrada | `auditarEvento()` compartido |
+| Notificaciones | No integradas | `notificar()` compartido |
+| Permisos | No granulares | `requirePermiso()` con catalogo |
+
+**Decision:** Crear el modulo manualmente siguiendo el patron de built-in
+(proyectos, logistica, proveedores). El modulo se monta como sub-app del launcher
+en el mismo puerto 3002.
+
 ## Fases de Implementacion
 
 | Fase | Alcance | Dependencia |
@@ -480,6 +500,94 @@ Reutiliza patrones existentes de logistica:
 | **3** | Campanas email (SendGrid/Mailchimp) | 1A |
 | **4** | SIESA ERP sync (catalogo, pedidos, facturas via API) | Negociacion SIESA |
 | **5** | Reporteria avanzada + analytics | 1A-1D |
+
+### Fase 1A — Detalle de Implementacion
+
+**Objetivo:** CRUD completo de empresas y contactos + migrador CSV desde SIESA CRM.
+
+**Archivos a crear:**
+
+```
+modules/crm/
+├── package.json
+├── backend/
+│   ├── server.js                    (Express sub-app, auth compartida)
+│   ├── migrations/
+│   │   └── 001_crm_empresas_contactos.sql
+│   └── routes/
+│       ├── empresas.js              (CRUD + busqueda + filtros)
+│       └── contactos.js             (CRUD + busqueda por empresa)
+├── public/
+│   ├── index.html                   (SPA con sidebar)
+│   ├── base.css                     (copiar de framework/)
+│   └── js/
+│       └── modules/
+│           ├── empresas.js          (UI tabla + modales)
+│           └── contactos.js         (UI tabla + modales)
+```
+
+**Archivos a modificar en launcher:**
+
+```
+launcher/server.js
+├── Array modules[]: agregar entrada crm
+├── Array builtin[]: agregar 'crm'
+├── defaultPermisosConfig: agregar permisos crm
+└── Seed modulos_plataforma: INSERT OR IGNORE crm
+```
+
+**Pasos de implementacion:**
+
+1. Crear estructura de directorios `modules/crm/`
+2. Crear `package.json` con dependencias (express, cors, pg, uuid)
+3. Crear `backend/server.js`:
+   - Express sub-app con ESM
+   - `createProtect(MODULE_ID)` para auth
+   - `requirePermiso()` en cada ruta
+   - Montar routes en `/api/empresas`, `/api/contactos`
+   - Ejecutar migraciones al iniciar
+4. Crear migracion `001_crm_empresas_contactos.sql`:
+   - `CREATE SCHEMA IF NOT EXISTS crm`
+   - Tablas `crm.empresas` y `crm.contactos` con indices
+   - Extension `pg_trgm` para busqueda fuzzy
+5. Crear `routes/empresas.js`:
+   - GET `/api/empresas` (lista con filtros, busqueda, paginacion)
+   - GET `/api/empresas/:id` (detalle con contactos)
+   - POST `/api/empresas` (crear)
+   - PUT `/api/empresas/:id` (editar)
+   - DELETE `/api/empresas/:id` (soft delete)
+   - DELETE `/api/empresas/seleccionados` (bulk delete)
+6. Crear `routes/contactos.js`:
+   - GET `/api/contactos` (lista con filtro por empresa)
+   - GET `/api/contactos/:id` (detalle)
+   - POST `/api/contactos` (crear)
+   - PUT `/api/contactos/:id` (editar)
+   - DELETE `/api/contactos/:id` (soft delete)
+7. Registrar en `launcher/server.js`:
+   - Agregar `crm` al array `modules[]`
+   - Agregar `'crm'` al array `builtin[]`
+   - Agregar permisos `crm` a `defaultPermisosConfig`
+8. Crear frontend basico:
+   - `index.html` con sidebar, nav items, paginas
+   - `app.js` con navigate, api, carga de modulos
+   - `js/modules/empresas.js` con tabla, filtros, modales
+   - `js/modules/contactos.js` con tabla, filtros, modales
+9. Ejecutar migracion en PostgreSQL
+10. Verificar: listar, crear, editar, eliminar empresas y contactos
+
+**Criterios de aceptacion:**
+
+- [ ] Tabla `crm.empresas` creada con indices
+- [ ] Tabla `crm.contactos` creada con FK a empresas
+- [ ] CRUD empresas funciona (GET, POST, PUT, DELETE)
+- [ ] CRUD contactos funciona (GET, POST, PUT, DELETE)
+- [ ] Busqueda fuzzy por nombre funciona (pg_trgm)
+- [ ] Paginacion funciona
+- [ ] Filtros por tipo, vendedor, ciudad funcionan
+- [ ] Soft delete funciona (activo = FALSE)
+- [ ] Permisos CRM registrados en launcher
+- [ ] Modulo visible en sidebar del launcher
+- [ ] Auth compartida funciona (mismo JWT)
 
 ## Archivos a Modificar
 
@@ -512,6 +620,8 @@ Reutiliza patrones existentes de logistica:
 - [x] Plan aprobado por el usuario
 - [x] Branch `feat/crm-module` creada
 - [x] Documentacion formal creada
+- [x] Decision: No usar scaffold (usar patron built-in)
+- [x] Fase 1A: Detalle de implementacion documentado
 - [ ] Fase 1A: Schema + CRUD contactos/empresas + migrador CSV
 - [ ] Fase 1B: Pipeline kanban + oportunidades
 - [ ] Fase 1C: Visitas GPS
