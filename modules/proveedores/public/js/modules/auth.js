@@ -38,10 +38,12 @@ function showApp(){
   }).catch(()=>{});
   if(S.empresaLogo){
     $('header-logo').innerHTML='<img src="'+S.empresaLogo+'" style="height:32px;border-radius:6px"/>';
-  }else if(S.appNombre){
-    $('header-logo').innerHTML=S.appNombre.toUpperCase();
+  }else if(S.appNombre && !window._launcherModuleName){
+    const moduleName = $('header-logo').querySelector('[data-module-name]');
+    if (moduleName) moduleName.textContent = S.appNombre.toUpperCase();
   }
   buildNav();
+  cargarNombreModulo();
   initNotifications(15000);
   
   // Auto-sync centros from launcher (background, non-blocking)

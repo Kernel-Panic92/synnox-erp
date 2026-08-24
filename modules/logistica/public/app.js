@@ -10,6 +10,24 @@ const debouncedCargarGeocercas = debounce(cargarGeocercas, 300);
 const debouncedCargarDevoluciones = debounce(cargarDevoluciones, 300);
 const debouncedCargarAuditoria = debounce(cargarAuditoria, 300);
 
+async function cargarNombreModulo() {
+  const logo = document.querySelector('.logo[data-module-id]');
+  const nombreEl = logo?.querySelector('[data-module-name]');
+  if (!logo || !nombreEl) return;
+  try {
+    const token = localStorage.getItem('platform_jwt') || localStorage.getItem('launcher_jwt');
+    const headers = token ? { Authorization: 'Bearer ' + token } : {};
+    const res = await fetch('/api/modulos', { credentials: 'include', headers });
+    if (!res.ok) return;
+    const modulos = await res.json();
+    const modulo = modulos.find(m => m.id === logo.dataset.moduleId);
+    if (!modulo?.nombre) return;
+    window._launcherModuleName = modulo.nombre;
+    nombreEl.textContent = modulo.nombre;
+    document.title = modulo.nombre + ' — SynnoxERP';
+  } catch {}
+}
+
 function logout() {
   window.location.href = '/logout';
 }
@@ -207,6 +225,7 @@ async function init() {
     const footerRole = document.getElementById('sidebar-user-role');
     if (footerRole) footerRole.textContent = data.perfil_nombre || data.rol || '';
     renderSidebar(data);
+    cargarNombreModulo();
     cargarVersion();
     const hash = location.hash.slice(1);
     const saved = localStorage.getItem('lg_last_page');

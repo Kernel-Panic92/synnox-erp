@@ -3698,7 +3698,7 @@ app.get('/api/admin/system-info', verificarToken, soloAdmin, async (req, res) =>
     company: { name: process.env.COMPANY_NAME || '', domain: process.env.COMPANY_DOMAIN || '' },
     git: gitInfo,
     modules: modulos,
-    copyright: '© 2026 Edgar Velasquez — Todos los derechos reservados',
+    copyright: '© 2026 Kernel-Panic92 — Todos los derechos reservados',
     license: 'Propietaria (LICENSE.md)'
   });
 });

@@ -166,7 +166,7 @@ Los bugs conocidos de esta rama están documentados en [CHANGELOG.md](CHANGELOG.
 
 ## Licencia
 
-Copyright (c) 2026 Edgar Velasquez. Todos los derechos reservados.  
+Copyright (c) 2026 Kernel-Panic92. Todos los derechos reservados.
 Consulta el archivo [LICENSE](LICENSE) para más información.
 
 ## Notas de clonación y SSH

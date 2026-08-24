@@ -7,6 +7,24 @@ let _todosUsuariosTs = 0;
 const USUARIOS_CACHE_TTL = 30000; // 30 segundos
 let _usuariosPromise = null;
 
+async function cargarNombreModulo() {
+  const logo = document.querySelector('.logo[data-module-id]');
+  const nombreEl = logo?.querySelector('[data-module-name]');
+  if (!logo || !nombreEl) return;
+  try {
+    const token = localStorage.getItem('platform_jwt') || localStorage.getItem('launcher_jwt');
+    const headers = token ? { Authorization: 'Bearer ' + token } : {};
+    const res = await fetch('/api/modulos', { credentials: 'include', headers });
+    if (!res.ok) return;
+    const modulos = await res.json();
+    const modulo = modulos.find(m => m.id === logo.dataset.moduleId);
+    if (!modulo?.nombre) return;
+    window._launcherModuleName = modulo.nombre;
+    nombreEl.textContent = modulo.nombre;
+    document.title = modulo.nombre + ' — SynnoxERP';
+  } catch {}
+}
+
 initFramework({
   basePath: BASE,
   apiPrefix: '/api',
@@ -228,6 +246,7 @@ async function init() {
       });
     }
     mostrarAppInterno();
+    cargarNombreModulo();
     // Refresh periódico de sesión (cada 15 min)
     setInterval(async () => {
       try {

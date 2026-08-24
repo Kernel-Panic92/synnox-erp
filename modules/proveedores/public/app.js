@@ -6,6 +6,25 @@ const S={
   cats:[],
   theme:localStorage.getItem('synnox_theme')||'light'
 };
+
+async function cargarNombreModulo() {
+  const logo = document.querySelector('.logo[data-module-id]');
+  const nombreEl = logo?.querySelector('[data-module-name]');
+  if (!logo || !nombreEl) return;
+  try {
+    const token = localStorage.getItem('platform_jwt') || localStorage.getItem('launcher_jwt');
+    const headers = token ? { Authorization: 'Bearer ' + token } : {};
+    const res = await fetch('/api/modulos', { credentials: 'include', headers });
+    if (!res.ok) return;
+    const modulos = await res.json();
+    const modulo = modulos.find(m => m.id === logo.dataset.moduleId);
+    if (!modulo?.nombre) return;
+    window._launcherModuleName = modulo.nombre;
+    nombreEl.textContent = modulo.nombre;
+    document.title = modulo.nombre + ' — SynnoxERP';
+  } catch {}
+}
+
 const NAV=[
   {id:'dashboard',l:'Dashboard',i:'📊',s:'p'},
   {id:'facturas',l:'Facturas',i:'📄',s:'p',perm:'ver'},
@@ -158,7 +177,7 @@ setInterval(_pollVersion,60000);
 async function cargarConfigGlobal(){
   try{
     const cfg=await api('GET','/configuracion');
-    if(cfg.app_nombre?.valor){
+    if(cfg.app_nombre?.valor && !window._launcherModuleName){
       document.title=cfg.app_nombre.valor;
       S.appNombre=cfg.app_nombre.valor;
     }
