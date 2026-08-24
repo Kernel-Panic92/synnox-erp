@@ -17,11 +17,15 @@ https://horixvitamar.fortiddns.com/mcp-gateway/mcp
 | Módulo | Herramientas | Descripción |
 |--------|--------------|-------------|
 | **Nómina** | 16 | Consultar registros, empleados, nóminas, estadísticas |
-| **Logística** | 9 | Dashboard, vehículos, sedes, pedidos, rutas |
+| **Logística** | 16 | Dashboard, vehículos, sedes, pedidos, rutas, devoluciones, geocercas |
 | **Proveedores** | 15 | Facturas, proveedores, categorías, aprobaciones |
-| **Proyectos** | 15 | Proyectos, tareas, comentarios, aprobaciones |
+| **Proyectos** | 14 | Proyectos, tareas, comentarios, aprobaciones |
 
-**Total: 55 herramientas**
+**Total: 61 herramientas**
+
+Las herramientas se descubren automáticamente desde cada módulo habilitado en
+el gateway. Los nombres publicados usan el prefijo del módulo, por ejemplo
+`logistica_listar_devoluciones`.
 
 ---
 
@@ -104,7 +108,7 @@ curl -X POST https://horixvitamar.fortiddns.com/mcp-gateway/mcp \
 curl -X POST https://horixvitamar.fortiddns.com/mcp-gateway/mcp \
   -H "Content-Type: application/json" \
   -H "mcp-session-id: TU_SESSION_ID" \
-  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"nomina_dashboard","arguments":{}}}'
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"nomina_estadisticas","arguments":{}}}'
 ```
 
 ---
@@ -149,14 +153,22 @@ Si OAuth está deshabilitado, cualquier persona con la URL puede ejecutar herram
 ## Herramientas por módulo
 
 ### Nómina (`nomina_*`)
-- `nomina_dashboard` — Resumen de nómina
+- `nomina_consultar` — Consulta datos de una tabla
+- `nomina_describir` — Describe una tabla
+- `nomina_tablas` — Lista tablas y cantidad de filas
+- `nomina_registros` — Lista registros de horas extra
+- `nomina_resumen_por_sede` — Agrupa registros por sede
+- `nomina_resumen_por_estado` — Agrupa registros por estado
 - `nomina_empleados` — Lista de empleados
 - `nomina_nominas` — Lista de nóminas
-- `nomina_registros` — Registros de horas
+- `nomina_tipos` — Lista tipos de horas extra activos
 - `nomina_estadisticas` — Estadísticas generales
 - `nomina_empleado_detalle` — Detalle de empleado
 - `nomina_crear_registro` — Crear registro de horas
 - `nomina_aprobar_rechazar` — Aprobar/rechazar registro
+- `nomina_crear_empleado` — Crear empleado
+- `nomina_reporte_mensual` — Reporte mensual por sede
+- `nomina_exportar_csv` — Exportar registros como CSV
 
 ### Logística (`logistica_*`)
 - `logistica_dashboard` — Resumen de logística
@@ -168,6 +180,13 @@ Si OAuth está deshabilitado, cualquier persona con la URL puede ejecutar herram
 - `logistica_generar_rutas` — Generar rutas optimizadas
 - `logistica_listar_rutas` — Lista de rutas
 - `logistica_obtener_ruta` — Detalle de ruta
+- `logistica_listar_devoluciones` — Lista devoluciones con filtros y paginación
+- `logistica_obtener_devolucion` — Detalle de una devolución
+- `logistica_resumen_devoluciones` — Estadísticas de devoluciones
+- `logistica_listar_causales_devolucion` — Lista causales de devolución
+- `logistica_listar_geocercas` — Lista geocercas
+- `logistica_obtener_geocerca` — Detalle de una geocerca
+- `logistica_listar_alertas_geocerca` — Historial de entradas y salidas
 
 ### Proveedores (`proveedores_*`)
 - `proveedores_listar_facturas` — Lista de facturas
@@ -175,9 +194,16 @@ Si OAuth está deshabilitado, cualquier persona con la URL puede ejecutar herram
 - `proveedores_listar_proveedores` — Lista de proveedores
 - `proveedores_facturas_por_vencer` — Facturas próximas a vencer
 - `proveedores_buscar_factura` — Buscar factura
+- `proveedores_listar_categorias` — Lista categorías activas
+- `proveedores_listar_areas` — Lista áreas activas
 - `proveedores_estadisticas` — Estadísticas
 - `proveedores_aprobar_factura` — Aprobar factura
 - `proveedores_rechazar_factura` — Rechazar factura
+- `proveedores_causar_factura` — Causar factura
+- `proveedores_pagar_factura` — Marcar factura como pagada
+- `proveedores_historial_eventos` — Historial de una factura
+- `proveedores_vencimientos_dian` — Facturas próximas al vencimiento DIAN
+- `proveedores_resumen_proveedor` — Resumen agrupado por proveedor
 
 ### Proyectos (`proyectos_*`)
 - `proyectos_dashboard` — Resumen de proyectos
