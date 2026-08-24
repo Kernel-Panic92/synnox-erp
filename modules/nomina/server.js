@@ -214,14 +214,8 @@ app.use('/mcp', mcp.createMiddleware());
 app.get('/mcp-test', testLimiter, (req, res) => res.send('MCP OK ' + Date.now()));
 
 // ─────────────────────────────────────────────
-// VERSION
+// VERSION (handled by misc.js route)
 // ─────────────────────────────────────────────
-app.get('/api/version', (req, res) => {
-  try {
-    const rootPkg = JSON.parse(require('fs').readFileSync(require('path').join(__dirname, '..', '..', 'package.json'), 'utf8'));
-    res.json({ version: rootPkg.version || '1.0.0', name: APP_NAME });
-  } catch { res.json({ version: '1.0.0', name: APP_NAME }); }
-});
 
 const logErrorTelemetry = db.prepare('INSERT INTO telemetria (evento, pagina, usuarioId, datos, creado) VALUES (?,?,?,?,?)');
 // Error handler global — siempre responde JSON y registra en telemetría
