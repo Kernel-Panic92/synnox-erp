@@ -1,4 +1,5 @@
-const HF = { API: '/crm/api' };
+if (!window.HF) HF = {};
+HF.API = HF.API || '/crm/api';
 let usuario = null;
 let _empresasPage = 1;
 let _contactosPage = 1;
