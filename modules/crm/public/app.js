@@ -201,7 +201,7 @@ async function abrirModalOportunidad(oportunidad = null) {
   await cargarClientesSelect('oportunidad-cliente', oportunidad?.cliente_id);
   await cargarContactosOportunidad(oportunidad?.contacto_id);
   await cargarVendedoresSelect('oportunidad-vendedor', oportunidad?.vendedor_id);
-  abrirModal('modal-oportunidad');
+  showModal('modal-oportunidad');
 }
 
 async function editarOportunidad(id) {
@@ -239,7 +239,7 @@ async function guardarOportunidad() {
     : await apiFetch('/oportunidades', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) return toast(r.data?.error || 'Error al guardar', 'error');
   toast(id ? 'Oportunidad actualizada' : 'Oportunidad creada', 'success');
-  cerrarModal('modal-oportunidad');
+  hideModal('modal-oportunidad');
   cargarPipeline();
 }
 
@@ -340,7 +340,7 @@ async function verCliente(id) {
       ${contactos.map(c => `<tr><td>${esc(c.nombre)}</td><td>${esc(c.cargo || '—')}</td><td>${esc(c.email || '—')}</td><td>${esc(c.telefono || '—')}</td></tr>`).join('')}
     </tbody></table></div>` : '<p style="color:var(--muted)">Sin contactos registrados</p>'}
   `;
-  abrirModal('modal-detalle-cliente');
+  showModal('modal-detalle-cliente');
 }
 
 function abrirModalCliente(cliente = null) {
@@ -356,7 +356,7 @@ function abrirModalCliente(cliente = null) {
   document.getElementById('cliente-email').value = cliente?.email || '';
   document.getElementById('cliente-website').value = cliente?.website || '';
   document.getElementById('cliente-notas').value = cliente?.notas || '';
-  abrirModal('modal-cliente');
+  showModal('modal-cliente');
 }
 
 async function editarCliente(id) {
@@ -385,7 +385,7 @@ async function guardarCliente() {
     : await apiFetch('/clientes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) return toast(r.data?.error || 'Error al guardar', 'error');
   toast(id ? 'Cliente actualizada' : 'Cliente creada', 'success');
-  cerrarModal('modal-cliente');
+  hideModal('modal-cliente');
   cargarClientes();
 }
 
@@ -456,7 +456,7 @@ async function abrirModalContacto(contacto = null) {
   document.getElementById('contacto-decision').value = contacto?.es_decision_maker ? 'true' : 'false';
   document.getElementById('contacto-notas').value = contacto?.notas || '';
   await cargarClientesSelect('contacto-cliente', contacto?.cliente_id);
-  abrirModal('modal-contacto');
+  showModal('modal-contacto');
 }
 
 async function editarContacto(id) {
@@ -484,7 +484,7 @@ async function guardarContacto() {
     : await apiFetch('/contactos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) return toast(r.data?.error || 'Error al guardar', 'error');
   toast(id ? 'Contacto actualizado' : 'Contacto creado', 'success');
-  cerrarModal('modal-contacto');
+  hideModal('modal-contacto');
   cargarContactos();
 }
 
@@ -653,7 +653,7 @@ function verDetalleVisita(v) {
     ` : ''}
     ${v.notas ? `<div style="margin-bottom:12px"><strong>Notas:</strong><br>${esc(v.notas)}</div>` : ''}
   `;
-  abrirModal('modal-detalle-visita');
+  showModal('modal-detalle-visita');
 
   if (hasCoords) {
     setTimeout(() => {
@@ -693,7 +693,7 @@ async function abrirModalVisita(tipo) {
   };
   await cargarContactosVisita();
   await cargarOportunidadesVisita();
-  abrirModal('modal-visita');
+  showModal('modal-visita');
   obtenerGPSVisita();
 }
 
@@ -780,7 +780,7 @@ async function guardarVisita() {
   const data = await r.json();
   if (!r.ok) return toast(data.error || 'Error al guardar', 'error');
   toast(tipo === 'checkin' ? 'Check-in registrado' : 'Check-out registrado', 'success');
-  cerrarModal('modal-visita');
+  hideModal('modal-visita');
   cargarVisitas();
 }
 
@@ -878,7 +878,7 @@ async function abrirModalCotizacion(cotizacion = null) {
   }
   renderItemsCotizacion();
   cambiarTabCotizacion('datos', document.querySelector('#modal-cotizacion .tab-btn'));
-  abrirModal('modal-cotizacion');
+  showModal('modal-cotizacion');
 }
 
 function cambiarTabCotizacion(tab, btn) {
@@ -1027,7 +1027,7 @@ async function guardarCotizacion() {
 
   if (!r.ok) return toast(r.data?.error || 'Error al guardar', 'error');
   toast(id ? 'Cotizacion actualizada' : 'Cotizacion creada', 'success');
-  cerrarModal('modal-cotizacion');
+  hideModal('modal-cotizacion');
   cargarCotizaciones();
 }
 
@@ -1107,7 +1107,7 @@ async function verCotizacion(id) {
     ${itemsHtml}
     ${descHtml}
   `;
-  abrirModal('modal-detalle-cotizacion');
+  showModal('modal-detalle-cotizacion');
 }
 
 async function eliminarCotizacion(id) {
@@ -1258,7 +1258,7 @@ async function abrirModalProducto(producto = null) {
   document.getElementById('producto-tasa').value = producto?.tasa_impuesto || 0;
   document.getElementById('producto-categoria').value = producto?.categoria || '';
   document.getElementById('producto-bodega').value = producto?.bodega || '';
-  abrirModal('modal-producto');
+  showModal('modal-producto');
 }
 
 async function editarProducto(id) {
@@ -1287,7 +1287,7 @@ async function guardarProducto() {
   const r = await apiFetch('/productos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) return toast(r.data?.error || 'Error al guardar', 'error');
   toast('Producto guardado', 'success');
-  cerrarModal('modal-producto');
+  hideModal('modal-producto');
   cargarProductos();
 }
 
@@ -1303,8 +1303,8 @@ async function eliminarProducto(id) {
 // ── Utils ──
 function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 function formatDate(iso) { if (!iso) return '—'; return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }); }
-function abrirModal(id) { document.getElementById(id).classList.add('active'); }
-function cerrarModal(id) { document.getElementById(id).classList.remove('active'); }
+function showModal(id) { document.getElementById(id).classList.add('active'); }
+function hideModal(id) { document.getElementById(id).classList.remove('active'); }
 
 function renderPagination(containerId, total, page, limit, onPage) {
   const container = document.getElementById(containerId);
