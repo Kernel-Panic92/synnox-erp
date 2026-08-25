@@ -568,7 +568,10 @@ function toggleGrupoVisitas(idx) {
 }
 
 function verDetalleVisita(v) {
-  const mapsUrl = v.latitud && v.longitud ? `https://www.google.com/maps?q=${v.latitud},${v.longitud}` : null;
+  const lat = v.latitud ? parseFloat(v.latitud) : null;
+  const lng = v.longitud ? parseFloat(v.longitud) : null;
+  const hasCoords = lat && lng;
+
   document.getElementById('detalle-visita-title').textContent = `Visita — ${esc(v.tipo)}`;
   document.getElementById('detalle-visita-content').innerHTML = `
     <div class="form-row" style="margin-bottom:12px">
@@ -583,10 +586,14 @@ function verDetalleVisita(v) {
       <div><strong>Vendedor ID:</strong> #${v.vendedor_id}</div>
       <div><strong>Precision GPS:</strong> ${v.precision_gps ? v.precision_gps + 'm' : '—'}</div>
     </div>
-    ${mapsUrl ? `
-      <div style="margin-bottom:12px"><strong>Ubicacion:</strong>
-        <a href="${mapsUrl}" target="_blank" rel="noopener" style="color:var(--accent)">📍 Abrir en Google Maps</a>
-        <div style="font-size:11px;color:var(--muted);margin-top:4px">${parseFloat(v.latitud).toFixed(6)}, ${parseFloat(v.longitud).toFixed(6)}</div>
+    ${hasCoords ? `
+      <div style="margin-bottom:12px">
+        <strong>Ubicacion:</strong>
+        <div id="visita-map" style="height:250px;border-radius:8px;border:1px solid var(--border);margin-top:6px"></div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">
+          ${lat.toFixed(6)}, ${lng.toFixed(6)} ·
+          <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" rel="noopener" style="color:var(--accent)">Abrir en Google Maps</a>
+        </div>
       </div>
     ` : ''}
     ${v.evidencia_foto ? `
@@ -597,6 +604,21 @@ function verDetalleVisita(v) {
     ${v.notas ? `<div style="margin-bottom:12px"><strong>Notas:</strong><br>${esc(v.notas)}</div>` : ''}
   `;
   abrirModal('modal-detalle-visita');
+
+  if (hasCoords) {
+    setTimeout(() => {
+      const mapEl = document.getElementById('visita-map');
+      if (!mapEl || mapEl._leaflet_id) return;
+      const map = L.map(mapEl, { zoomControl: true }).setView([lat, lng], 16);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap',
+        maxZoom: 19
+      }).addTo(map);
+      const marker = L.marker([lat, lng]).addTo(map);
+      marker.bindPopup(`<strong>${esc(v.cliente_nombre || 'Visita')}</strong><br>${formatDateTime(v.fecha)}`).openPopup();
+      setTimeout(() => map.invalidateSize(), 200);
+    }, 150);
+  }
 }
 
 function limpiarFiltrosVisitas() {
