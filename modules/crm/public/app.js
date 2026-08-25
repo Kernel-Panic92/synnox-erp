@@ -624,7 +624,7 @@ function verDetalleVisita(v) {
     </div>
     <div class="form-row" style="margin-bottom:12px">
       <div><strong>Duracion:</strong> <span style="font-size:16px;font-weight:700;color:var(--accent)">${v.duracion || '—'}</span></div>
-      <div><strong>Vendedor:</strong> #${v.vendedor_id}</div>
+      <div><strong>Vendedor:</strong> ${esc(v.vendedor_nombre || '#' + v.vendedor_id)}</div>
     </div>
     ${hasCoords ? `
       <div style="margin-bottom:12px">

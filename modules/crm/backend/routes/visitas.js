@@ -6,8 +6,27 @@ import { fileURLToPath } from 'url';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
 import { auditarEvento } from '../../../../framework/audit.js';
+import Database from 'better-sqlite3';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function getUsuarioNombre(id) {
+  try {
+    const dbPath = path.join(__dirname, '..', '..', '..', '..', 'launcher', 'launcher.db');
+    const ldb = new Database(dbPath, { readonly: true });
+    const row = ldb.prepare('SELECT nombre FROM usuarios WHERE id = ?').get(id);
+    ldb.close();
+    return row?.nombre || null;
+  } catch { return null; }
+}
+
+const _usuarioCache = {};
+function resolveUsuario(id) {
+  if (!id) return null;
+  if (_usuarioCache[id] !== undefined) return _usuarioCache[id];
+  _usuarioCache[id] = getUsuarioNombre(id);
+  return _usuarioCache[id];
+}
 const uploadDir = path.join(__dirname, '..', '..', 'uploads', 'visitas');
 
 const storage = multer.diskStorage({
@@ -150,7 +169,12 @@ router.get('/', requirePermiso('ver_visitas', 'crm'), async (req, res) => {
       LIMIT $${paramIdx++} OFFSET $${paramIdx++}
     `, [...params, parseInt(limit), offset]);
 
-    res.json({ ok: true, data: result.rows, total });
+    const data = result.rows.map(r => ({
+      ...r,
+      vendedor_nombre: resolveUsuario(r.vendedor_id)
+    }));
+
+    res.json({ ok: true, data, total });
   } catch (err) {
     console.error('[CRM] Error listar visitas:', err);
     res.status(500).json({ error: 'Error al listar visitas' });
