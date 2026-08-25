@@ -488,34 +488,74 @@ async function eliminarContacto(id) {
 }
 
 // ── Visitas ──
+function agruparVisitas(data) {
+  const sorted = [...data].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+  const pares = [];
+  const sinPar = [];
+
+  const checkinsPendientes = {};
+  for (const v of sorted) {
+    const key = `${v.cliente_id || ''}_${v.vendedor_id}`;
+    if (v.tipo === 'checkin') {
+      checkinsPendientes[key] = v;
+    } else if (v.tipo === 'checkout') {
+      const checkin = checkinsPendientes[key];
+      if (checkin) {
+        delete checkinsPendientes[key];
+        const inicio = new Date(checkin.fecha);
+        const fin = new Date(v.fecha);
+        const diffMs = fin - inicio;
+        const horas = Math.floor(diffMs / 3600000);
+        const mins = Math.floor((diffMs % 3600000) / 60000);
+        const duracion = horas > 0 ? `${horas}h ${mins}m` : `${mins}m`;
+        pares.push({ ...checkin, checkout: v, duracion, duracionMs: diffMs });
+      } else {
+        sinPar.push({ ...v, checkout: null, duracion: '—', duracionMs: 0 });
+      }
+    }
+  }
+  for (const [key, checkin] of Object.entries(checkinsPendientes)) {
+    sinPar.push({ ...checkin, checkout: null, duracion: 'En curso', duracionMs: 0 });
+  }
+  return { pares, sinPar };
+}
+
 async function cargarVisitas() {
   const vendedor = document.getElementById('filtro-visitas-vendedor')?.value || '';
   const desde = document.getElementById('filtro-visitas-desde')?.value || '';
   const hasta = document.getElementById('filtro-visitas-hasta')?.value || '';
-  const params = new URLSearchParams({ limit: 100 });
+  const params = new URLSearchParams({ limit: 200 });
   if (vendedor) params.set('vendedor', vendedor);
   if (desde) params.set('desde', desde);
   if (hasta) params.set('hasta', hasta);
   const r = await apiFetch('/visitas?' + params);
   if (!r.ok) return;
   const data = r.data.data || [];
+  const { pares, sinPar } = agruparVisitas(data);
 
-  // Resumen
-  const checkins = data.filter(v => v.tipo === 'checkin').length;
-  const checkouts = data.filter(v => v.tipo === 'checkout').length;
-  const clientesUnicos = new Set(data.map(v => v.cliente_id).filter(Boolean)).size;
+  // Stats
+  const duracionTotal = pares.reduce((s, p) => s + p.duracionMs, 0);
+  const horasTotal = Math.floor(duracionTotal / 3600000);
+  const minsTotal = Math.floor((duracionTotal % 3600000) / 60000);
+  const duracionProm = pares.length ? duracionTotal / pares.length : 0;
+  const promH = Math.floor(duracionProm / 3600000);
+  const promM = Math.floor((duracionProm % 3600000) / 60000);
+  const clientesUnicos = new Set(pares.map(p => p.cliente_id).filter(Boolean)).size;
+
   document.getElementById('visitas-resumen').innerHTML = `
     <div class="stats-row" style="margin-bottom:0">
-      <div class="stat-card"><div class="stat-value">${checkins}</div><div class="stat-label">Check-ins</div></div>
-      <div class="stat-card"><div class="stat-value">${checkouts}</div><div class="stat-label">Check-outs</div></div>
+      <div class="stat-card"><div class="stat-value">${pares.length}</div><div class="stat-label">Visitas</div></div>
+      <div class="stat-card"><div class="stat-value">${sinPar.length ? sinPar.filter(v => v.tipo === 'checkin').length : 0}</div><div class="stat-label">En curso</div></div>
       <div class="stat-card"><div class="stat-value">${clientesUnicos}</div><div class="stat-label">Clientes visitados</div></div>
-      <div class="stat-card"><div class="stat-value">${data.length}</div><div class="stat-label">Total registros</div></div>
+      <div class="stat-card"><div class="stat-value">${horasTotal}h ${minsTotal}m</div><div class="stat-label">Tiempo total</div></div>
+      <div class="stat-card"><div class="stat-value">${promH}h ${promM}m</div><div class="stat-label">Promedio por visita</div></div>
     </div>
   `;
 
-  // Agrupar por cliente
+  // Agrupar pares por cliente
+  const todos = [...pares, ...sinPar];
   const grupos = {};
-  for (const v of data) {
+  for (const v of todos) {
     const key = v.cliente_nombre || 'Sin cliente';
     if (!grupos[key]) grupos[key] = { cliente_id: v.cliente_id, cliente_nombre: v.cliente_nombre, visitas: [] };
     grupos[key].visitas.push(v);
@@ -531,22 +571,22 @@ async function cargarVisitas() {
 
   container.innerHTML = sorted.map((g, gi) => {
     const totalVisitas = g.visitas.length;
-    const checkinCount = g.visitas.filter(v => v.tipo === 'checkin').length;
     return `
       <div class="visita-grupo">
         <div class="visita-grupo-header" onclick="toggleGrupoVisitas(${gi})">
           <span class="visita-grupo-icon" id="visita-icon-${gi}">▶</span>
           <strong>${esc(g.cliente_nombre)}</strong>
-          <span style="color:var(--muted);margin-left:8px;font-size:12px">${totalVisitas} visita(s) · ${checkinCount} check-in(s)</span>
+          <span style="color:var(--muted);margin-left:8px;font-size:12px">${totalVisitas} visita(s)</span>
         </div>
         <div class="visita-grupo-body" id="visita-body-${gi}" style="display:none">
           <table class="tbl"><thead><tr>
-            <th>Tipo</th><th>Fecha / Hora</th><th>Ubicacion</th><th>Foto</th><th>Notas</th>
+            <th>Llegada</th><th>Salida</th><th>Duracion</th><th>Ubicacion</th><th>Foto</th><th>Notas</th>
           </tr></thead><tbody>
             ${g.visitas.map(v => `
-              <tr style="cursor:pointer" onclick="verDetalleVisita(${JSON.stringify(v).replace(/"/g, '&quot;')})">
-                <td><span class="badge badge-${v.tipo}">${v.tipo}</span></td>
+              <tr style="cursor:pointer" onclick="verDetalleVisita(${JSON.stringify({ ...v, checkout: v.checkout || null }).replace(/"/g, '&quot;')})">
                 <td>${formatDateTime(v.fecha)}</td>
+                <td>${v.checkout ? formatDateTime(v.checkout.fecha) : '<span style="color:var(--warning)">En curso</span>'}</td>
+                <td><strong>${v.duracion}</strong></td>
                 <td>${v.latitud ? `<a href="https://www.google.com/maps?q=${v.latitud},${v.longitud}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📍 Maps</a>` : '—'}</td>
                 <td>${v.evidencia_foto ? `<a href="${v.evidencia_foto}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📷</a>` : '—'}</td>
                 <td>${esc(v.notas || '—')}</td>
@@ -572,19 +612,19 @@ function verDetalleVisita(v) {
   const lng = v.longitud ? parseFloat(v.longitud) : null;
   const hasCoords = lat && lng;
 
-  document.getElementById('detalle-visita-title').textContent = `Visita — ${esc(v.tipo)}`;
+  document.getElementById('detalle-visita-title').textContent = `Visita — ${esc(v.cliente_nombre || '')}`;
   document.getElementById('detalle-visita-content').innerHTML = `
     <div class="form-row" style="margin-bottom:12px">
       <div><strong>Cliente:</strong> ${esc(v.cliente_nombre || '—')}</div>
       <div><strong>Contacto:</strong> ${esc(v.contacto_nombre || '—')}</div>
     </div>
     <div class="form-row" style="margin-bottom:12px">
-      <div><strong>Tipo:</strong> <span class="badge badge-${v.tipo}">${v.tipo}</span></div>
-      <div><strong>Fecha:</strong> ${formatDateTime(v.fecha)}</div>
+      <div><strong>Llegada:</strong> ${formatDateTime(v.fecha)}</div>
+      <div><strong>Salida:</strong> ${v.checkout ? formatDateTime(v.checkout.fecha) : '<span style="color:var(--warning)">En curso</span>'}</div>
     </div>
     <div class="form-row" style="margin-bottom:12px">
-      <div><strong>Vendedor ID:</strong> #${v.vendedor_id}</div>
-      <div><strong>Precision GPS:</strong> ${v.precision_gps ? v.precision_gps + 'm' : '—'}</div>
+      <div><strong>Duracion:</strong> <span style="font-size:16px;font-weight:700;color:var(--accent)">${v.duracion || '—'}</span></div>
+      <div><strong>Vendedor:</strong> #${v.vendedor_id}</div>
     </div>
     ${hasCoords ? `
       <div style="margin-bottom:12px">
