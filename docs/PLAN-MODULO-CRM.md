@@ -486,7 +486,7 @@ para CRM porque:
 
 **Decision:** Crear el modulo manualmente siguiendo el patron de built-in
 (proyectos, logistica, proveedores). El modulo se monta como sub-app del launcher
-en el mismo puerto 3002.
+en el mismo puerto 3002 via `server.js` root.
 
 ## Fases de Implementacion
 
@@ -511,19 +511,27 @@ en el mismo puerto 3002.
 modules/crm/
 ├── package.json
 ├── backend/
-│   ├── server.js                    (Express sub-app, auth compartida)
+│   ├── server.js                    (Express sub-app, ESM, montada en server.js root)
+│   ├── config/
+│   │   └── db.js                    (Pool PostgreSQL)
 │   ├── migrations/
-│   │   └── 001_crm_empresas_contactos.sql
-│   └── routes/
-│       ├── empresas.js              (CRUD + busqueda + filtros)
-│       └── contactos.js             (CRUD + busqueda por empresa)
+│   │   ├── 001_crm_empresas_contactos.sql
+│   │   └── run.js
+│   ├── routes/
+│   │   ├── empresas.js              (CRUD + busqueda + filtros)
+│   │   └── contactos.js             (CRUD + busqueda por empresa)
+│   └── mcp/
+│       └── index.js                 (Stub MCP)
 ├── public/
-│   ├── index.html                   (SPA con sidebar)
-│   ├── base.css                     (copiar de framework/)
+│   ├── index.html
+│   ├── base.css
+│   ├── components.css
+│   ├── framework.js
+│   ├── theme.js
 │   └── js/
 │       └── modules/
-│           ├── empresas.js          (UI tabla + modales)
-│           └── contactos.js         (UI tabla + modales)
+│           ├── empresas.js
+│           └── contactos.js
 ```
 
 **Archivos a modificar en launcher:**
@@ -593,6 +601,7 @@ launcher/server.js
 
 | Archivo | Cambio |
 |---------|--------|
+| `server.js` (root) | Montar CRM como sub-app ESM en `/crm/` + SPA catch-all |
 | `launcher/server.js` | Agregar modulo `crm` al array `modules[]` y `builtin[]` |
 | `launcher/server.js` | Seed de permisos `crm` en `defaultPermisosConfig` |
 | `launcher/shell/index.html` | Nav item "CRM" en sidebar |
