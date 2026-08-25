@@ -506,7 +506,7 @@ async function cargarVisitas() {
       <td>${esc(v.cliente_nombre || '—')}</td>
       <td>#${v.vendedor_id}</td>
       <td>${formatDateTime(v.fecha)}</td>
-      <td><a href="https://www.google.com/maps?q=${v.latitud},${v.longitud}" target="_blank" rel="noopener">${v.latitud?.toFixed(4)}, ${v.longitud?.toFixed(4)}</a></td>
+      <td><a href="https://www.google.com/maps?q=${v.latitud},${v.longitud}" target="_blank" rel="noopener">${parseFloat(v.latitud)?.toFixed(4)}, ${parseFloat(v.longitud)?.toFixed(4)}</a></td>
       <td>${v.evidencia_foto ? `<a href="${v.evidencia_foto}" target="_blank" rel="noopener">📷</a>` : '—'}</td>
       <td>${esc(v.notas || '—')}</td>
     </tr>
