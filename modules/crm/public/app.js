@@ -68,7 +68,7 @@ function mostrarLogoutConfirm() {
 }
 
 // ── Navigation ──
-const pages = ['dashboard', 'empresas', 'contactos'];
+const pages = ['dashboard', 'pipeline', 'empresas', 'contactos'];
 function navigate(page) {
   if (!pages.includes(page)) page = 'dashboard';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -77,9 +77,10 @@ function navigate(page) {
   const nav = document.querySelector(`[data-page="${page}"]`);
   if (el) el.classList.add('active');
   if (nav) nav.classList.add('active');
-  const titles = { dashboard: 'Dashboard', empresas: 'Empresas', contactos: 'Contactos' };
+  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', empresas: 'Empresas', contactos: 'Contactos' };
   document.getElementById('page-title').textContent = titles[page] || 'CRM';
   if (page === 'dashboard') cargarDashboard();
+  if (page === 'pipeline') cargarPipeline();
   if (page === 'empresas') cargarEmpresas();
   if (page === 'contactos') cargarContactos();
 }
@@ -93,8 +94,8 @@ async function cargarDashboard() {
     document.getElementById('stats-row').innerHTML = `
       <div class="stat-card"><div class="stat-value">${d.empresas_total || 0}</div><div class="stat-label">Empresas</div></div>
       <div class="stat-card"><div class="stat-value">${d.contactos_total || 0}</div><div class="stat-label">Contactos</div></div>
-      <div class="stat-card"><div class="stat-value">${(d.empresas_por_tipo || []).find(t => t.tipo === 'potencial')?.total || 0}</div><div class="stat-label">Potenciales</div></div>
-      <div class="stat-card"><div class="stat-value">${(d.empresas_por_tipo || []).find(t => t.tipo === 'real')?.total || 0}</div><div class="stat-label">Clientes Reales</div></div>
+      <div class="stat-card"><div class="stat-value">${d.oportunidades_abiertas || 0}</div><div class="stat-label">Oportunidades abiertas</div></div>
+      <div class="stat-card"><div class="stat-value">$${formatMoney(d.monto_pipeline || 0)}</div><div class="stat-label">Pipeline value</div></div>
     `;
     const recientes = d.empresas_recientes || [];
     if (recientes.length) {
@@ -108,7 +109,158 @@ async function cargarDashboard() {
   } catch (err) { console.error('Dashboard error:', err); }
 }
 
-// ── Empresas ──
+// ── Pipeline Kanban ──
+const ETAPAS = [
+  { id: 'lead', label: 'Lead', color: '#6c757d' },
+  { id: 'calificado', label: 'Calificado', color: '#17a2b8' },
+  { id: 'propuesta', label: 'Propuesta', color: '#ffc107' },
+  { id: 'negociacion', label: 'Negociacion', color: '#fd7e14' },
+  { id: 'ganada', label: 'Ganada', color: '#00A86B' },
+  { id: 'perdida', label: 'Perdida', color: '#dc3545' }
+];
+
+async function cargarPipeline() {
+  try {
+    const vendedor = document.getElementById('filtro-pipeline-vendedor')?.value || '';
+    const params = new URLSearchParams();
+    if (vendedor) params.set('vendedor', vendedor);
+    const r = await apiFetch('/oportunidades/pipeline?' + params);
+    if (!r.ok) return;
+    const { pipeline, stats } = r.data;
+    const kanban = document.getElementById('pipeline-kanban');
+    kanban.innerHTML = ETAPAS.map(etapa => `
+      <div class="kanban-col" data-etapa="${etapa.id}" ondragover="allowDrop(event)" ondrop="dropOportunidad(event, '${etapa.id}')" ondragleave="dragLeave(event)">
+        <h4>
+          <span>${etapa.label}</span>
+          <span>
+            <span class="total">$${formatMoney(stats[etapa.id]?.total || 0)}</span>
+            <span class="count">${stats[etapa.id]?.count || 0}</span>
+          </span>
+        </h4>
+        ${(pipeline[etapa.id] || []).map(o => `
+          <div class="kanban-card" draggable="true" ondragstart="dragOportunidad(event, '${o.id}')" onclick="editarOportunidad('${o.id}')">
+            <div class="card-title">${esc(o.nombre)}</div>
+            <div class="card-empresa">${esc(o.empresa_nombre || '—')}</div>
+            <div class="card-monto">$${formatMoney(o.monto_esperado || 0)}</div>
+            <div class="card-meta">
+              <span>${o.probabilidad || 0}%</span>
+              <span>${formatDate(o.fecha_cierre_estimada)}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+  } catch (err) { console.error('Pipeline error:', err); }
+}
+
+function limpiarFiltrosPipeline() {
+  document.getElementById('filtro-pipeline-vendedor').value = '';
+  cargarPipeline();
+}
+
+function allowDrop(ev) { ev.preventDefault(); ev.currentTarget.classList.add('drag-over'); }
+function dragLeave(ev) { ev.currentTarget.classList.remove('drag-over'); }
+function dragOportunidad(ev, id) {
+  ev.dataTransfer.setData('text/plain', id);
+  ev.target.classList.add('dragging');
+}
+async function dropOportunidad(ev, etapa) {
+  ev.preventDefault();
+  ev.currentTarget.classList.remove('drag-over');
+  const id = ev.dataTransfer.getData('text/plain');
+  if (!id) return;
+  const r = await apiFetch('/oportunidades/' + id + '/mover', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ etapa })
+  });
+  if (!r.ok) return toast('Error al mover oportunidad', 'error');
+  toast('Oportunidad movida a ' + ETAPAS.find(e => e.id === etapa)?.label, 'success');
+  cargarPipeline();
+}
+
+async function abrirModalOportunidad(oportunidad = null) {
+  document.getElementById('modal-oportunidad-title').textContent = oportunidad ? 'Editar Oportunidad' : 'Nueva Oportunidad';
+  document.getElementById('oportunidad-id').value = oportunidad?.id || '';
+  document.getElementById('oportunidad-nombre').value = oportunidad?.nombre || '';
+  document.getElementById('oportunidad-monto').value = oportunidad?.monto_esperado || '';
+  document.getElementById('oportunidad-probabilidad').value = oportunidad?.probabilidad || 10;
+  document.getElementById('oportunidad-etapa').value = oportunidad?.etapa || 'lead';
+  document.getElementById('oportunidad-fecha').value = oportunidad?.fecha_cierre_estimada || '';
+  document.getElementById('oportunidad-motivo-perdida').value = oportunidad?.motivo_perdida || '';
+  document.getElementById('oportunidad-etapa').onchange = function() {
+    document.getElementById('grupo-motivo-perdida').style.display = this.value === 'perdida' ? 'block' : 'none';
+  };
+  document.getElementById('grupo-motivo-perdida').style.display = (oportunidad?.etapa === 'perdida') ? 'block' : 'none';
+  await cargarEmpresasSelect('oportunidad-empresa', oportunidad?.empresa_id);
+  await cargarContactosOportunidad(oportunidad?.contacto_id);
+  await cargarVendedoresSelect('oportunidad-vendedor', oportunidad?.vendedor_id);
+  abrirModal('modal-oportunidad');
+}
+
+async function editarOportunidad(id) {
+  const r = await apiFetch('/oportunidades/' + id);
+  if (!r.ok) return;
+  abrirModalOportunidad(r.data.data);
+}
+
+async function guardarOportunidad() {
+  const id = document.getElementById('oportunidad-id').value;
+  const body = {
+    nombre: document.getElementById('oportunidad-nombre').value,
+    empresa_id: document.getElementById('oportunidad-empresa').value,
+    contacto_id: document.getElementById('oportunidad-contacto').value || null,
+    monto_esperado: parseFloat(document.getElementById('oportunidad-monto').value) || 0,
+    probabilidad: parseInt(document.getElementById('oportunidad-probabilidad').value) || 0,
+    etapa: document.getElementById('oportunidad-etapa').value,
+    fecha_cierre_estimada: document.getElementById('oportunidad-fecha').value || null,
+    vendedor_id: document.getElementById('oportunidad-vendedor').value || usuario?.id,
+    motivo_perdida: document.getElementById('oportunidad-etapa').value === 'perdida' ? (document.getElementById('oportunidad-motivo-perdida').value || null) : null
+  };
+  if (!body.nombre) return toast('El nombre es obligatorio', 'error');
+  if (!body.empresa_id) return toast('Seleccione una empresa', 'error');
+  const r = id
+    ? await apiFetch('/oportunidades/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    : await apiFetch('/oportunidades', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) return toast(r.data?.error || 'Error al guardar', 'error');
+  toast(id ? 'Oportunidad actualizada' : 'Oportunidad creada', 'success');
+  cerrarModal('modal-oportunidad');
+  cargarPipeline();
+}
+
+async function cargarContactosOportunidad(selectedId) {
+  const empresaId = document.getElementById('oportunidad-empresa')?.value;
+  const sel = document.getElementById('oportunidad-contacto');
+  sel.innerHTML = '<option value="">Sin contacto</option>';
+  if (!empresaId) return;
+  const r = await apiFetch('/contactos?empresa_id=' + empresaId + '&limit=100');
+  if (!r.ok) return;
+  for (const c of r.data.data || []) {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.nombre;
+    if (selectedId && c.id === selectedId) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+async function cargarVendedoresSelect(selectId, selectedId) {
+  const r = await apiFetch('/auth/me');
+  const sel = document.getElementById(selectId);
+  sel.innerHTML = '<option value="">Sin asignar</option>';
+  // TODO: endpoint para listar usuarios del launcher
+  if (usuario) {
+    const opt = document.createElement('option');
+    opt.value = usuario.id;
+    opt.textContent = usuario.nombre + ' (' + (usuario.email || '') + ')';
+    if (selectedId == usuario.id || !selectedId) opt.selected = true;
+    sel.appendChild(opt);
+  }
+}
+
+function formatMoney(n) {
+  return Number(n).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
 async function cargarEmpresas() {
   const search = document.getElementById('filtro-empresa-search').value;
   const tipo = document.getElementById('filtro-empresa-tipo').value;

@@ -36,6 +36,22 @@
 @media(max-width:768px){
   .stats-row{grid-template-columns:repeat(2,1fr)}
   .form-row{grid-template-columns:1fr}
+  .kanban{flex-direction:column;min-height:auto}
+  .kanban-col{min-width:100%}
+}
+.kanban{display:flex;gap:16px;overflow-x:auto;padding-bottom:16px;min-height:400px}
+.kanban-col{min-width:260px;flex:1;background:var(--surface2);border-radius:12px;padding:14px;border:1px solid var(--border)}
+.kanban-col.drag-over{background:rgba(0,168,107,.06);border-color:var(--accent)}
+.kanban-col h4{padding:6px 0;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center;color:var(--muted);margin:0 0 10px}
+.kanban-col h4 .count{font-size:11px;background:var(--surface);padding:2px 8px;border-radius:10px;border:1px solid var(--border)}
+.kanban-col h4 .total{font-size:11px;color:var(--accent);font-weight:600}
+.kanban-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px;margin-bottom:10px;cursor:grab;transition:all .15s;user-select:none}
+.kanban-card:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.kanban-card.dragging{opacity:.4;border-style:dashed}
+.kanban-card .card-title{font-weight:600;font-size:13px;margin-bottom:6px}
+.kanban-card .card-empresa{font-size:11px;color:var(--muted);margin-bottom:4px}
+.kanban-card .card-monto{font-size:14px;font-weight:700;color:var(--accent)}
+.kanban-card .card-meta{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;margin-top:6px}
 }
 </style>
 </head>
@@ -52,6 +68,7 @@
   </div>
   <nav id="sidebar-nav">
     <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span> Dashboard</button>
+    <button class="nav-item" data-page="pipeline" onclick="navigate('pipeline')"><span class="icon">📈</span> Pipeline</button>
     <button class="nav-item" data-page="empresas" onclick="navigate('empresas')"><span class="icon">🏢</span> Empresas</button>
     <button class="nav-item" data-page="contactos" onclick="navigate('contactos')"><span class="icon">👤</span> Contactos</button>
   </nav>
@@ -81,6 +98,23 @@
       <div class="page active" id="page-dashboard">
         <div class="stats-row" id="stats-row"></div>
         <div id="empresas-recientes"></div>
+      </div>
+
+      <!-- Pipeline -->
+      <div class="page" id="page-pipeline">
+        <div class="page-header">
+          <h3>Pipeline de Ventas</h3>
+          <div class="page-actions">
+            <button class="btn btn-sm btn-primary" onclick="abrirModalOportunidad()">+ Nueva Oportunidad</button>
+          </div>
+        </div>
+        <div class="filters">
+          <select id="filtro-pipeline-vendedor" onchange="cargarPipeline()">
+            <option value="">Todos los vendedores</option>
+          </select>
+          <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosPipeline()">✕ Limpiar</button>
+        </div>
+        <div class="kanban" id="pipeline-kanban"></div>
       </div>
 
       <!-- Empresas -->
@@ -276,6 +310,69 @@
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="cerrarModal('modal-contacto')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarContacto()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Oportunidad -->
+<div class="modal-overlay" id="modal-oportunidad">
+  <div class="modal">
+    <h3 id="modal-oportunidad-title">Nueva Oportunidad</h3>
+    <input type="hidden" id="oportunidad-id">
+    <div class="form-group">
+      <label>Nombre de la oportunidad *</label>
+      <input type="text" id="oportunidad-nombre" required>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Empresa *</label>
+        <select id="oportunidad-empresa" onchange="cargarContactosOportunidad()" required></select>
+      </div>
+      <div class="form-group">
+        <label>Contacto</label>
+        <select id="oportunidad-contacto"></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Monto esperado</label>
+        <input type="number" id="oportunidad-monto" step="0.01" min="0">
+      </div>
+      <div class="form-group">
+        <label>Probabilidad (%)</label>
+        <input type="number" id="oportunidad-probabilidad" step="1" min="0" max="100" value="10">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Etapa</label>
+        <select id="oportunidad-etapa">
+          <option value="lead">Lead</option>
+          <option value="calificado">Calificado</option>
+          <option value="propuesta">Propuesta</option>
+          <option value="negociacion">Negociacion</option>
+          <option value="ganada">Ganada</option>
+          <option value="perdida">Perdida</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Fecha cierre estimada</label>
+        <input type="date" id="oportunidad-fecha">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Vendedor asignado</label>
+        <select id="oportunidad-vendedor"></select>
+      </div>
+      <div class="form-group" id="grupo-motivo-perdida" style="display:none">
+        <label>Motivo de perdida</label>
+        <input type="text" id="oportunidad-motivo-perdida">
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-oportunidad')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarOportunidad()">Guardar</button>
     </div>
   </div>
 </div>
