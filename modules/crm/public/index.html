@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>CRM — SynnoxERP</title>
+<link rel="stylesheet" href="base.css">
+<link rel="stylesheet" href="components.css">
+<style>
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center}
+.stat-card .stat-value{font-size:28px;font-weight:700;color:var(--accent)}
+.stat-card .stat-label{font-size:12px;color:var(--muted);margin-top:4px}
+.filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
+.filters input,.filters select{padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px}
+.tbl-wrap{overflow-x:auto}
+.tbl{width:100%;border-collapse:collapse;font-size:13px}
+.tbl th,.tbl td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border)}
+.tbl th{background:var(--surface2);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);position:sticky;top:0}
+.tbl tr:hover td{background:var(--surface2)}
+.tbl .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.badge-potencial{background:#fff3cd;color:#856404}
+.badge-real{background:#d4edda;color:#155724}
+.badge-siesa{background:#cce5ff;color:#004085}
+.badge-contacto{background:#e2e3e5;color:#383d41}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;justify-content:center;align-items:center}
+.modal-overlay.active{display:flex}
+.modal{background:var(--surface);border-radius:12px;padding:24px;width:90%;max-width:600px;max-height:85vh;overflow-y:auto;border:1px solid var(--border)}
+.modal h3{margin:0 0 16px;font-size:18px}
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:var(--muted)}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px;box-sizing:border-box}
+.form-group textarea{resize:vertical;min-height:60px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.btn-row{display:flex;gap:10px;justify-content:flex-end;margin-top:16px}
+@media(max-width:768px){
+  .stats-row{grid-template-columns:repeat(2,1fr)}
+  .form-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div class="sidebar-overlay" onclick="closeSidebar()"></div>
+
+<aside class="sidebar" id="sidebar">
+  <button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Menu" aria-expanded="true">◀</button>
+  <div class="logo" data-module-id="crm">💼 <span data-module-name>SynnoxERP</span></div>
+  <div class="user-info">
+    <div class="name" id="user-name"></div>
+    <div class="role" id="user-role"></div>
+  </div>
+  <nav id="sidebar-nav">
+    <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span> Dashboard</button>
+    <button class="nav-item" data-page="empresas" onclick="navigate('empresas')"><span class="icon">🏢</span> Empresas</button>
+    <button class="nav-item" data-page="contactos" onclick="navigate('contactos')"><span class="icon">👤</span> Contactos</button>
+  </nav>
+  <div class="sidebar-footer">
+    <a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a>
+    <div class="user-name" id="sidebar-user-name"></div>
+    <div class="user-role" id="sidebar-user-role"></div>
+    <div class="version"><div id="app-version">v—</div></div>
+    <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesion">
+      <span style="font-size:18px">⏻</span> Cerrar sesion
+    </button>
+  </div>
+</aside>
+
+<div id="app-screen">
+  <div class="main">
+    <div class="main-header">
+      <button class="hamburger" onclick="toggleSidebar()">&#9776;</button>
+      <h2 id="page-title">Dashboard</h2>
+      <div class="header-actions">
+        <button class="btn btn-sm btn-secondary" onclick="toggleTheme()" id="theme-btn" title="Cambiar tema">☀️</button>
+      </div>
+    </div>
+    <div class="main-body">
+
+      <!-- Dashboard -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-row" id="stats-row"></div>
+        <div id="empresas-recientes"></div>
+      </div>
+
+      <!-- Empresas -->
+      <div class="page" id="page-empresas">
+        <div class="page-header">
+          <h3>Empresas</h3>
+          <div class="page-actions">
+            <button class="btn btn-sm btn-primary" onclick="abrirModalEmpresa()">+ Nueva Empresa</button>
+          </div>
+        </div>
+        <div class="filters">
+          <input type="text" id="filtro-empresa-search" placeholder="Buscar empresa..." oninput="cargarEmpresas()">
+          <select id="filtro-empresa-tipo" onchange="cargarEmpresas()">
+            <option value="">Todos los tipos</option>
+            <option value="potencial">Potencial</option>
+            <option value="real">Real</option>
+            <option value="siesa">SIESA</option>
+          </select>
+          <select id="filtro-empresa-ciudad" onchange="cargarEmpresas()">
+            <option value="">Todas las ciudades</option>
+          </select>
+          <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosEmpresas()">✕ Limpiar</button>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="tbl-empresas">
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="selectAllEmpresas" onchange="toggleSelectAll(this, 'empresa')"></th>
+                <th>Nombre</th>
+                <th>NIT</th>
+                <th>Tipo</th>
+                <th>Ciudad</th>
+                <th>Contactos</th>
+                <th>Creado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-empresas"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="pag-empresas"></div>
+      </div>
+
+      <!-- Contactos -->
+      <div class="page" id="page-contactos">
+        <div class="page-header">
+          <h3>Contactos</h3>
+          <div class="page-actions">
+            <button class="btn btn-sm btn-primary" onclick="abrirModalContacto()">+ Nuevo Contacto</button>
+          </div>
+        </div>
+        <div class="filters">
+          <input type="text" id="filtro-contacto-search" placeholder="Buscar contacto..." oninput="cargarContactos()">
+          <select id="filtro-contacto-empresa" onchange="cargarContactos()">
+            <option value="">Todas las empresas</option>
+          </select>
+          <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosContactos()">✕ Limpiar</button>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="tbl-contactos">
+            <thead>
+              <tr>
+                <th><input type="checkbox" id="selectAllContactos" onchange="toggleSelectAll(this, 'contacto')"></th>
+                <th>Nombre</th>
+                <th>Empresa</th>
+                <th>Cargo</th>
+                <th>Email</th>
+                <th>Telefono</th>
+                <th>Decision Maker</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-contactos"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="pag-contactos"></div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Modal Empresa -->
+<div class="modal-overlay" id="modal-empresa">
+  <div class="modal">
+    <h3 id="modal-empresa-title">Nueva Empresa</h3>
+    <input type="hidden" id="empresa-id">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Nombre *</label>
+        <input type="text" id="empresa-nombre" required>
+      </div>
+      <div class="form-group">
+        <label>NIT</label>
+        <input type="text" id="empresa-nit">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Tipo</label>
+        <select id="empresa-tipo">
+          <option value="potencial">Potencial</option>
+          <option value="real">Real</option>
+          <option value="siesa">SIESA</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Sector</label>
+        <input type="text" id="empresa-sector">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Direccion</label>
+      <input type="text" id="empresa-direccion">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Ciudad</label>
+        <input type="text" id="empresa-ciudad">
+      </div>
+      <div class="form-group">
+        <label>Telefono</label>
+        <input type="text" id="empresa-telefono">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="empresa-email">
+      </div>
+      <div class="form-group">
+        <label>Website</label>
+        <input type="url" id="empresa-website">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Notas</label>
+      <textarea id="empresa-notas"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-empresa')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarEmpresa()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Contacto -->
+<div class="modal-overlay" id="modal-contacto">
+  <div class="modal">
+    <h3 id="modal-contacto-title">Nuevo Contacto</h3>
+    <input type="hidden" id="contacto-id">
+    <div class="form-group">
+      <label>Empresa *</label>
+      <select id="contacto-empresa" required></select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Nombre *</label>
+        <input type="text" id="contacto-nombre" required>
+      </div>
+      <div class="form-group">
+        <label>Cargo</label>
+        <input type="text" id="contacto-cargo">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="contacto-email">
+      </div>
+      <div class="form-group">
+        <label>Telefono</label>
+        <input type="text" id="contacto-telefono">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>WhatsApp</label>
+        <input type="text" id="contacto-whatsapp">
+      </div>
+      <div class="form-group">
+        <label>Decision Maker</label>
+        <select id="contacto-decision">
+          <option value="false">No</option>
+          <option value="true">Si</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Notas</label>
+      <textarea id="contacto-notas"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-contacto')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarContacto()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Detalle Empresa -->
+<div class="modal-overlay" id="modal-detalle-empresa">
+  <div class="modal" style="max-width:700px">
+    <h3 id="detalle-empresa-title">Detalle Empresa</h3>
+    <div id="detalle-empresa-content"></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-detalle-empresa')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<script src="framework.js"></script>
+<script src="theme.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

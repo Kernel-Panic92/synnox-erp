@@ -1,0 +1,138 @@
+import express from 'express';
+import cors from 'cors';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+import dotenv from 'dotenv';
+import rateLimit from 'express-rate-limit';
+import { createProtect } from '../../../framework/auth.mjs';
+
+dotenv.config();
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const app = express();
+const PORT = process.env.PORT || 3008;
+const MODULE_ID = process.env.MODULE_ID || 'crm';
+
+const apiLimiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 500, standardHeaders: true, legacyHeaders: false, message: { error: 'Demasiadas solicitudes' } });
+
+app.set('trust proxy', 1);
+app.use(cors({ origin: process.env.CORS_ORIGIN || false, credentials: true }));
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
+app.use('/api', apiLimiter);
+
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/')) console.log(`[crm] ${req.method} ${req.path} — auth: ${!!req.headers.authorization}`);
+  next();
+});
+
+import empresasRoutes from './routes/empresas.js';
+import contactosRoutes from './routes/contactos.js';
+
+const protect = createProtect(MODULE_ID);
+
+app.use('/api/empresas', protect, empresasRoutes);
+app.use('/api/contactos', protect, contactosRoutes);
+
+// Public endpoint for centros
+app.get('/api/centros', (req, res) => {
+  res.json(globalThis.__centrosCache || []);
+});
+
+app.get('/api/auth/me', protect, async (req, res) => {
+  try {
+    const Database = (await import('better-sqlite3')).default;
+    const pathMod = (await import('path')).default;
+    const { fileURLToPath } = await import('url');
+    const __dirname = pathMod.dirname(fileURLToPath(import.meta.url));
+    const dbPath = pathMod.join(__dirname, '..', '..', '..', 'launcher', 'launcher.db');
+    const ldb = new Database(dbPath, { readonly: true });
+    const row = ldb.prepare(`
+      SELECT u.id, u.nombre, u.email, u.rol, u.perfil_id, u.sede,
+             p.nombre as perfil_nombre
+      FROM usuarios u
+      LEFT JOIN perfiles p ON u.perfil_id = p.id
+      WHERE u.id = ?
+    `).get(req.user.id);
+    ldb.close();
+    if (!row) return res.status(404).json({ error: 'Usuario no encontrado' });
+    const modulos_permisos = req.user.modulos_permisos || {};
+    res.json({ ...row, modulos_permisos });
+  } catch {
+    const { modulos_permisos, ...rest } = req.user;
+    res.json({ ...rest, modulos_permisos: modulos_permisos || {} });
+  }
+});
+
+app.get('/api/dashboard', protect, async (req, res) => {
+  try {
+    const pool = (await import('./config/db.js')).default;
+
+    const [totalEmpresas, porTipo, contactosRecientes, empresasRecientes] = await Promise.all([
+      pool.query(`SELECT COUNT(*) FROM crm.empresas WHERE activo = TRUE`),
+      pool.query(`SELECT tipo, COUNT(*) AS total FROM crm.empresas WHERE activo = TRUE GROUP BY tipo ORDER BY total DESC`),
+      pool.query(`SELECT COUNT(*) FROM crm.contactos WHERE activo = TRUE`),
+      pool.query(`SELECT id, nombre, tipo, ciudad, creado_en FROM crm.empresas WHERE activo = TRUE ORDER BY creado_en DESC LIMIT 10`)
+    ]);
+
+    res.json({
+      ok: true,
+      empresas_total: parseInt(totalEmpresas.rows[0].count),
+      empresas_por_tipo: porTipo.rows,
+      contactos_total: parseInt(contactosRecientes.rows[0].count),
+      empresas_recientes: empresasRecientes.rows
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/health', (req, res) => res.json({ ok: true }));
+app.get('/health', (req, res) => res.json({ status: 'ok', module: MODULE_ID }));
+
+app.get('/api/version', (req, res) => {
+  try {
+    const rootPkg = JSON.parse(fs.readFileSync(new URL('../../../package.json', import.meta.url), 'utf8'));
+    res.json({ version: rootPkg.version || '1.0.0', nombre: 'SynnoxERP CRM' });
+  } catch {
+    res.json({ version: '1.0.0', nombre: 'SynnoxERP CRM' });
+  }
+});
+
+import { createMiddleware } from './mcp/index.js';
+app.use('/mcp', createMiddleware());
+
+import { configureAudit, startAuditRetentionJob } from '../../../framework/audit.js';
+import pool from './config/db.js';
+configureAudit(pool, {
+  maskIp: process.env.AUDIT_MASK_IP === 'true',
+  integritySecret: process.env.AUDIT_INTEGRITY_SECRET
+});
+startAuditRetentionJob(pool);
+
+// Run migrations on startup
+async function runMigrations() {
+  try {
+    const migrationsDir = path.join(__dirname, 'migrations');
+    const files = fs.readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort();
+    for (const file of files) {
+      const sql = fs.readFileSync(path.join(migrationsDir, file), 'utf8');
+      await pool.query(sql);
+    }
+    console.log('[crm] Migraciones ejecutadas');
+  } catch (err) {
+    console.error('[crm] Error en migraciones:', err.message);
+  }
+}
+runMigrations();
+
+app.use(express.static(path.join(__dirname, '..', 'public')));
+
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  const isProd = process.env.NODE_ENV === 'production';
+  res.status(500).json({ error: isProd ? 'Error interno del servidor' : (err.message || 'Error interno del servidor') });
+});
+
+export default app;
