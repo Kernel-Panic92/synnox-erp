@@ -68,7 +68,7 @@ function mostrarLogoutConfirm() {
 }
 
 // ── Navigation ──
-const pages = ['dashboard', 'pipeline', 'clientes', 'contactos', 'visitas', 'cotizaciones', 'descuentos'];
+const pages = ['dashboard', 'pipeline', 'clientes', 'contactos', 'visitas', 'cotizaciones', 'productos', 'descuentos'];
 function navigate(page) {
   if (!pages.includes(page)) page = 'dashboard';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -77,7 +77,7 @@ function navigate(page) {
   const nav = document.querySelector(`[data-page="${page}"]`);
   if (el) el.classList.add('active');
   if (nav) nav.classList.add('active');
-  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Visitas', cotizaciones: 'Cotizaciones', descuentos: 'Descuentos' };
+  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Visitas', cotizaciones: 'Cotizaciones', productos: 'Productos', descuentos: 'Descuentos' };
   document.getElementById('page-title').textContent = titles[page] || 'CRM';
   if (page === 'dashboard') cargarDashboard();
   if (page === 'pipeline') cargarPipeline();
@@ -85,6 +85,7 @@ function navigate(page) {
   if (page === 'contactos') cargarContactos();
   if (page === 'visitas') cargarVisitas();
   if (page === 'cotizaciones') cargarCotizaciones();
+  if (page === 'productos') cargarProductos();
   if (page === 'descuentos') cargarDescuentos();
 }
 
@@ -1047,10 +1048,109 @@ async function cargarOportunidadesSelect(selectId, selectedId) {
   try {
     const r = await apiFetch('/oportunidades?limit=500');
     if (!r.ok) return;
+    const data = r.data.data || [];
     const select = document.getElementById(selectId);
     select.innerHTML = '<option value="">Sin oportunidad</option>' +
-      r.data.map(o => `<option value="${o.id}" ${o.id === selectedId ? 'selected' : ''}>${esc(o.nombre)}</option>`).join('');
+      data.map(o => `<option value="${o.id}" ${o.id === selectedId ? 'selected' : ''}>${esc(o.nombre)}</option>`).join('');
   } catch {}
+}
+
+// ── Productos ──
+let _productosPage = 1;
+
+async function cargarProductos() {
+  try {
+    const params = new URLSearchParams();
+    const search = document.getElementById('filtro-producto-search')?.value;
+    const categoria = document.getElementById('filtro-producto-categoria')?.value;
+    if (search) params.set('search', search);
+    if (categoria) params.set('categoria', categoria);
+    params.set('page', _productosPage);
+    params.set('limit', 50);
+
+    const r = await apiFetch('/productos?' + params);
+    if (!r.ok) return;
+
+    const tbody = document.getElementById('tbody-productos');
+    const data = r.data.data || [];
+    tbody.innerHTML = data.map(p => `
+      <tr>
+        <td><strong>${esc(p.codigo)}</strong></td>
+        <td>${esc(p.nombre)}</td>
+        <td>${esc(p.unidad_medida || 'UND')}</td>
+        <td>$${formatMoney(p.precio_unitario || 0)}</td>
+        <td>${p.tasa_impuesto || 0}%</td>
+        <td>${esc(p.categoria || '—')}</td>
+        <td>${esc(p.bodega || '—')}</td>
+        <td>
+          <button class="btn btn-sm btn-secondary" onclick="editarProducto('${p.id}')">Editar</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarProducto('${p.id}')">Eliminar</button>
+        </td>
+      </tr>
+    `).join('');
+
+    renderPagination('pag-productos', r.data.total, _productosPage, 50, (p) => { _productosPage = p; cargarProductos(); });
+  } catch (err) { console.error('Error cargar productos:', err); }
+}
+
+function limpiarFiltrosProductos() {
+  document.getElementById('filtro-producto-search').value = '';
+  document.getElementById('filtro-producto-categoria').value = '';
+  _productosPage = 1;
+  cargarProductos();
+}
+
+async function abrirModalProducto(producto = null) {
+  document.getElementById('modal-producto-title').textContent = producto ? 'Editar Producto' : 'Nuevo Producto';
+  document.getElementById('producto-id').value = producto?.id || '';
+  document.getElementById('producto-codigo').value = producto?.codigo || '';
+  document.getElementById('producto-nombre').value = producto?.nombre || '';
+  document.getElementById('producto-descripcion').value = producto?.descripcion || '';
+  document.getElementById('producto-unidad').value = producto?.unidad_medida || 'UND';
+  document.getElementById('producto-precio').value = producto?.precio_unitario || 0;
+  document.getElementById('producto-tasa').value = producto?.tasa_impuesto || 0;
+  document.getElementById('producto-categoria').value = producto?.categoria || '';
+  document.getElementById('producto-bodega').value = producto?.bodega || '';
+  abrirModal('modal-producto');
+}
+
+async function editarProducto(id) {
+  const r = await apiFetch('/productos?limit=500');
+  if (!r.ok) return;
+  const data = r.data.data || [];
+  const p = data.find(x => x.id === id);
+  if (p) abrirModalProducto(p);
+}
+
+async function guardarProducto() {
+  const id = document.getElementById('producto-id').value;
+  const body = {
+    codigo: document.getElementById('producto-codigo').value,
+    nombre: document.getElementById('producto-nombre').value,
+    descripcion: document.getElementById('producto-descripcion').value,
+    unidad_medida: document.getElementById('producto-unidad').value,
+    precio_unitario: parseFloat(document.getElementById('producto-precio').value) || 0,
+    tasa_impuesto: parseFloat(document.getElementById('producto-tasa').value) || 0,
+    categoria: document.getElementById('producto-categoria').value,
+    bodega: document.getElementById('producto-bodega').value
+  };
+
+  if (!body.codigo || !body.nombre) return toast('Codigo y nombre son obligatorios', 'error');
+
+  const r = await apiFetch('/productos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) return toast(r.data?.error || 'Error al guardar', 'error');
+  toast('Producto guardado', 'success');
+  cerrarModal('modal-producto');
+  cargarProductos();
+}
+
+async function eliminarProducto(id) {
+  confirmModal('Eliminar este producto?', 'Eliminar producto', 'delete', async () => {
+    const r = await apiFetch('/productos/' + id, { method: 'DELETE' });
+    if (!r.ok) return toast('Error al eliminar', 'error');
+    toast('Producto eliminado', 'success');
+    cargarProductos();
+  });
 }
 
 // ── Utils ──
