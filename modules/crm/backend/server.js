@@ -30,12 +30,14 @@ app.use((req, res, next) => {
 import empresasRoutes from './routes/empresas.js';
 import contactosRoutes from './routes/contactos.js';
 import oportunidadesRoutes from './routes/oportunidades.js';
+import visitasRoutes from './routes/visitas.js';
 
 const protect = createProtect(MODULE_ID);
 
 app.use('/api/empresas', protect, empresasRoutes);
 app.use('/api/contactos', protect, contactosRoutes);
 app.use('/api/oportunidades', protect, oportunidadesRoutes);
+app.use('/api/visitas', protect, visitasRoutes);
 
 // Public endpoint for centros
 app.get('/api/centros', (req, res) => {
@@ -136,6 +138,7 @@ async function runMigrations() {
 runMigrations();
 
 app.use(express.static(path.join(__dirname, '..', 'public')));
+app.use('/uploads', express.static(path.join(__dirname, '..', 'uploads')));
 
 app.use((err, req, res, next) => {
   console.error('Error:', err);

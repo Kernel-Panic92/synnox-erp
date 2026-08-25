@@ -68,7 +68,7 @@ function mostrarLogoutConfirm() {
 }
 
 // ── Navigation ──
-const pages = ['dashboard', 'pipeline', 'empresas', 'contactos'];
+const pages = ['dashboard', 'pipeline', 'empresas', 'contactos', 'visitas'];
 function navigate(page) {
   if (!pages.includes(page)) page = 'dashboard';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -77,12 +77,13 @@ function navigate(page) {
   const nav = document.querySelector(`[data-page="${page}"]`);
   if (el) el.classList.add('active');
   if (nav) nav.classList.add('active');
-  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', empresas: 'Empresas', contactos: 'Contactos' };
+  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', empresas: 'Empresas', contactos: 'Contactos', visitas: 'Visitas GPS' };
   document.getElementById('page-title').textContent = titles[page] || 'CRM';
   if (page === 'dashboard') cargarDashboard();
   if (page === 'pipeline') cargarPipeline();
   if (page === 'empresas') cargarEmpresas();
   if (page === 'contactos') cargarContactos();
+  if (page === 'visitas') cargarVisitas();
 }
 
 // ── Dashboard ──
@@ -480,6 +481,161 @@ async function eliminarContacto(id) {
     toast('Contacto eliminado', 'success');
     cargarContactos();
   });
+}
+
+// ── Visitas GPS ──
+async function cargarVisitas() {
+  const vendedor = document.getElementById('filtro-visitas-vendedor')?.value || '';
+  const desde = document.getElementById('filtro-visitas-desde')?.value || '';
+  const hasta = document.getElementById('filtro-visitas-hasta')?.value || '';
+  const params = new URLSearchParams({ limit: 100 });
+  if (vendedor) params.set('vendedor', vendedor);
+  if (desde) params.set('desde', desde);
+  if (hasta) params.set('hasta', hasta);
+  const r = await apiFetch('/visitas?' + params);
+  if (!r.ok) return;
+  const tbody = document.getElementById('tbody-visitas');
+  const data = r.data.data || [];
+  tbody.innerHTML = data.map(v => `
+    <tr>
+      <td><span class="badge badge-${v.tipo}">${v.tipo}</span></td>
+      <td>${esc(v.empresa_nombre || '—')}</td>
+      <td>#${v.vendedor_id}</td>
+      <td>${formatDateTime(v.fecha)}</td>
+      <td><a href="https://www.google.com/maps?q=${v.latitud},${v.longitud}" target="_blank" rel="noopener">${v.latitud?.toFixed(4)}, ${v.longitud?.toFixed(4)}</a></td>
+      <td>${v.evidencia_foto ? `<a href="${v.evidencia_foto}" target="_blank" rel="noopener">📷</a>` : '—'}</td>
+      <td>${esc(v.notas || '—')}</td>
+    </tr>
+  `).join('');
+
+  // Resumen simple
+  const checkins = data.filter(v => v.tipo === 'checkin').length;
+  const checkouts = data.filter(v => v.tipo === 'checkout').length;
+  document.getElementById('visitas-resumen').innerHTML = `
+    <div class="stats-row" style="margin-bottom:0">
+      <div class="stat-card"><div class="stat-value">${checkins}</div><div class="stat-label">Check-ins</div></div>
+      <div class="stat-card"><div class="stat-value">${checkouts}</div><div class="stat-label">Check-outs</div></div>
+      <div class="stat-card"><div class="stat-value">${data.length}</div><div class="stat-label">Total</div></div>
+    </div>
+  `;
+}
+
+function limpiarFiltrosVisitas() {
+  document.getElementById('filtro-visitas-vendedor').value = '';
+  document.getElementById('filtro-visitas-desde').value = '';
+  document.getElementById('filtro-visitas-hasta').value = '';
+  cargarVisitas();
+}
+
+async function abrirModalVisita(tipo) {
+  document.getElementById('modal-visita-title').textContent = tipo === 'checkin' ? 'Check-in' : 'Check-out';
+  document.getElementById('visita-tipo').value = tipo;
+  document.getElementById('visita-coords').value = 'Obteniendo GPS...';
+  document.getElementById('visita-notas').value = '';
+  document.getElementById('visita-foto').value = '';
+  document.getElementById('btn-guardar-visita').disabled = true;
+  document.getElementById('btn-guardar-visita').textContent = 'Obteniendo GPS...';
+  await cargarEmpresasSelect('visita-empresa', '');
+  document.getElementById('visita-empresa').onchange = () => {
+    cargarContactosVisita();
+    cargarOportunidadesVisita();
+  };
+  await cargarContactosVisita();
+  await cargarOportunidadesVisita();
+  abrirModal('modal-visita');
+  obtenerGPSVisita();
+}
+
+async function cargarContactosVisita() {
+  const empresaId = document.getElementById('visita-empresa')?.value;
+  const sel = document.getElementById('visita-contacto');
+  sel.innerHTML = '<option value="">Sin contacto</option>';
+  if (!empresaId) return;
+  const r = await apiFetch('/contactos?empresa_id=' + empresaId + '&limit=100');
+  if (!r.ok) return;
+  for (const c of r.data.data || []) {
+    const opt = document.createElement('option');
+    opt.value = c.id;
+    opt.textContent = c.nombre;
+    sel.appendChild(opt);
+  }
+}
+
+async function cargarOportunidadesVisita() {
+  const empresaId = document.getElementById('visita-empresa')?.value;
+  const sel = document.getElementById('visita-oportunidad');
+  sel.innerHTML = '<option value="">Sin oportunidad</option>';
+  if (!empresaId) return;
+  const r = await apiFetch('/oportunidades?empresa_id=' + empresaId + '&limit=100');
+  if (!r.ok) return;
+  for (const o of r.data.data || []) {
+    const opt = document.createElement('option');
+    opt.value = o.id;
+    opt.textContent = o.nombre;
+    sel.appendChild(opt);
+  }
+}
+
+function obtenerGPSVisita() {
+  if (!navigator.geolocation) {
+    document.getElementById('visita-coords').value = 'GPS no disponible';
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const coords = `${pos.coords.latitude},${pos.coords.longitude}`;
+      document.getElementById('visita-coords').value = coords;
+      document.getElementById('visita-coords').dataset.precision = pos.coords.accuracy;
+      document.getElementById('btn-guardar-visita').disabled = false;
+      document.getElementById('btn-guardar-visita').textContent = 'Guardar';
+    },
+    (err) => {
+      document.getElementById('visita-coords').value = 'Error GPS: ' + err.message;
+      document.getElementById('btn-guardar-visita').disabled = false;
+      document.getElementById('btn-guardar-visita').textContent = 'Reintentar GPS';
+      document.getElementById('btn-guardar-visita').onclick = () => { obtenerGPSVisita(); };
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+  );
+}
+
+async function guardarVisita() {
+  const tipo = document.getElementById('visita-tipo').value;
+  const coords = document.getElementById('visita-coords').value;
+  if (!coords || coords.includes('Obteniendo') || coords.includes('Error')) {
+    return toast('Espera a obtener el GPS', 'warning');
+  }
+  const [lat, lng] = coords.split(',');
+  const empresaId = document.getElementById('visita-empresa').value;
+  if (!empresaId) return toast('Selecciona una empresa', 'error');
+
+  const formData = new FormData();
+  formData.append('tipo', tipo);
+  formData.append('empresa_id', empresaId);
+  formData.append('contacto_id', document.getElementById('visita-contacto').value);
+  formData.append('oportunidad_id', document.getElementById('visita-oportunidad').value);
+  formData.append('latitud', lat.trim());
+  formData.append('longitud', lng.trim());
+  formData.append('precision_gps', document.getElementById('visita-coords').dataset.precision || '');
+  formData.append('notas', document.getElementById('visita-notas').value);
+  const foto = document.getElementById('visita-foto').files[0];
+  if (foto) formData.append('foto', foto);
+
+  const r = await fetch(HF.API + '/visitas/' + tipo, {
+    method: 'POST',
+    credentials: 'include',
+    body: formData
+  });
+  const data = await r.json();
+  if (!r.ok) return toast(data.error || 'Error al guardar', 'error');
+  toast(tipo === 'checkin' ? 'Check-in registrado' : 'Check-out registrado', 'success');
+  cerrarModal('modal-visita');
+  cargarVisitas();
+}
+
+function formatDateTime(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
 // ── Utils ──

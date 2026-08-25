@@ -23,6 +23,8 @@
 .badge-real{background:#d4edda;color:#155724}
 .badge-siesa{background:#cce5ff;color:#004085}
 .badge-contacto{background:#e2e3e5;color:#383d41}
+.badge-checkin{background:#d4edda;color:#155724}
+.badge-checkout{background:#cce5ff;color:#004085}
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;justify-content:center;align-items:center}
 .modal-overlay.active{display:flex}
 .modal{background:var(--surface);border-radius:12px;padding:24px;width:90%;max-width:600px;max-height:85vh;overflow-y:auto;border:1px solid var(--border)}
@@ -71,6 +73,7 @@
     <button class="nav-item" data-page="pipeline" onclick="navigate('pipeline')"><span class="icon">📈</span> Pipeline</button>
     <button class="nav-item" data-page="empresas" onclick="navigate('empresas')"><span class="icon">🏢</span> Empresas</button>
     <button class="nav-item" data-page="contactos" onclick="navigate('contactos')"><span class="icon">👤</span> Contactos</button>
+    <button class="nav-item" data-page="visitas" onclick="navigate('visitas')"><span class="icon">📍</span> Visitas</button>
   </nav>
   <div class="sidebar-footer">
     <a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a>
@@ -191,6 +194,39 @@
           </table>
         </div>
         <div class="pagination" id="pag-contactos"></div>
+      <div class="page" id="page-visitas">
+        <div class="page-header">
+          <h3>Visitas GPS</h3>
+          <div class="page-actions">
+            <button class="btn btn-sm btn-primary" onclick="abrirModalVisita('checkin')">📍 Check-in</button>
+            <button class="btn btn-sm btn-secondary" onclick="abrirModalVisita('checkout')">🏁 Check-out</button>
+          </div>
+        </div>
+        <div class="filters">
+          <select id="filtro-visitas-vendedor" onchange="cargarVisitas()">
+            <option value="">Todos los vendedores</option>
+          </select>
+          <input type="date" id="filtro-visitas-desde" onchange="cargarVisitas()">
+          <input type="date" id="filtro-visitas-hasta" onchange="cargarVisitas()">
+          <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosVisitas()">✕ Limpiar</button>
+        </div>
+        <div id="visitas-resumen" style="margin-bottom:16px"></div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="tbl-visitas">
+            <thead>
+              <tr>
+                <th>Tipo</th>
+                <th>Empresa</th>
+                <th>Vendedor</th>
+                <th>Fecha</th>
+                <th>Coordenadas</th>
+                <th>Foto</th>
+                <th>Notas</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-visitas"></tbody>
+          </table>
+        </div>
       </div>
 
     </div>
@@ -373,6 +409,44 @@
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="cerrarModal('modal-oportunidad')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarOportunidad()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Visita -->
+<div class="modal-overlay" id="modal-visita">
+  <div class="modal">
+    <h3 id="modal-visita-title">Check-in</h3>
+    <input type="hidden" id="visita-tipo" value="checkin">
+    <div class="form-group">
+      <label>Empresa *</label>
+      <select id="visita-empresa" required></select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Contacto</label>
+        <select id="visita-contacto"></select>
+      </div>
+      <div class="form-group">
+        <label>Oportunidad</label>
+        <select id="visita-oportunidad"></select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Coordenadas GPS</label>
+      <input type="text" id="visita-coords" readonly style="background:var(--surface2)">
+    </div>
+    <div class="form-group">
+      <label>Foto (opcional)</label>
+      <input type="file" id="visita-foto" accept="image/*" capture="environment">
+    </div>
+    <div class="form-group">
+      <label>Notas</label>
+      <textarea id="visita-notas"></textarea>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-visita')">Cancelar</button>
+      <button class="btn btn-primary" id="btn-guardar-visita" onclick="guardarVisita()">Obtener GPS...</button>
     </div>
   </div>
 </div>
