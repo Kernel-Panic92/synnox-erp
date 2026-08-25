@@ -72,6 +72,11 @@
 .catalogo-item .prod-codigo{font-weight:600;color:var(--accent)}
 .catalogo-item .prod-nombre{flex:1;margin:0 12px}
 .catalogo-item .prod-precio{font-weight:600}
+.visita-grupo{margin-bottom:8px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.visita-grupo-header{display:flex;align-items:center;padding:10px 14px;background:var(--surface);cursor:pointer;gap:4px;user-select:none}
+.visita-grupo-header:hover{background:var(--surface2)}
+.visita-grupo-icon{font-size:10px;color:var(--muted);width:16px;transition:transform .15s}
+.visita-grupo-body{border-top:1px solid var(--border)}
 }
 </style>
 </head>
@@ -235,22 +240,7 @@
           <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosVisitas()">✕ Limpiar</button>
         </div>
         <div id="visitas-resumen" style="margin-bottom:16px"></div>
-        <div class="tbl-wrap">
-          <table class="tbl" id="tbl-visitas">
-            <thead>
-              <tr>
-                <th>Tipo</th>
-                <th>Cliente</th>
-                <th>Vendedor</th>
-                <th>Fecha</th>
-                <th>Coordenadas</th>
-                <th>Foto</th>
-                <th>Notas</th>
-              </tr>
-            </thead>
-            <tbody id="tbody-visitas"></tbody>
-          </table>
-        </div>
+        <div id="visitas-agrupadas"></div>
       </div>
 
       <!-- Cotizaciones -->
@@ -369,6 +359,17 @@
         <div class="pagination" id="pag-productos"></div>
       </div>
 
+    </div>
+  </div>
+</div>
+
+<!-- Modal Detalle Visita -->
+<div class="modal-overlay" id="modal-detalle-visita">
+  <div class="modal" style="max-width:600px">
+    <h3 id="detalle-visita-title">Detalle de Visita</h3>
+    <div id="detalle-visita-content"></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-detalle-visita')">Cerrar</button>
     </div>
   </div>
 </div>

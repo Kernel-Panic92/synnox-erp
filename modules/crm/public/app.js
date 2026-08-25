@@ -498,30 +498,105 @@ async function cargarVisitas() {
   if (hasta) params.set('hasta', hasta);
   const r = await apiFetch('/visitas?' + params);
   if (!r.ok) return;
-  const tbody = document.getElementById('tbody-visitas');
   const data = r.data.data || [];
-  tbody.innerHTML = data.map(v => `
-    <tr>
-      <td><span class="badge badge-${v.tipo}">${v.tipo}</span></td>
-      <td>${esc(v.cliente_nombre || '—')}</td>
-      <td>#${v.vendedor_id}</td>
-      <td>${formatDateTime(v.fecha)}</td>
-      <td><a href="https://www.google.com/maps?q=${v.latitud},${v.longitud}" target="_blank" rel="noopener">${parseFloat(v.latitud)?.toFixed(4)}, ${parseFloat(v.longitud)?.toFixed(4)}</a></td>
-      <td>${v.evidencia_foto ? `<a href="${v.evidencia_foto}" target="_blank" rel="noopener">📷</a>` : '—'}</td>
-      <td>${esc(v.notas || '—')}</td>
-    </tr>
-  `).join('');
 
-  // Resumen simple
+  // Resumen
   const checkins = data.filter(v => v.tipo === 'checkin').length;
   const checkouts = data.filter(v => v.tipo === 'checkout').length;
+  const clientesUnicos = new Set(data.map(v => v.cliente_id).filter(Boolean)).size;
   document.getElementById('visitas-resumen').innerHTML = `
     <div class="stats-row" style="margin-bottom:0">
       <div class="stat-card"><div class="stat-value">${checkins}</div><div class="stat-label">Check-ins</div></div>
       <div class="stat-card"><div class="stat-value">${checkouts}</div><div class="stat-label">Check-outs</div></div>
-      <div class="stat-card"><div class="stat-value">${data.length}</div><div class="stat-label">Total</div></div>
+      <div class="stat-card"><div class="stat-value">${clientesUnicos}</div><div class="stat-label">Clientes visitados</div></div>
+      <div class="stat-card"><div class="stat-value">${data.length}</div><div class="stat-label">Total registros</div></div>
     </div>
   `;
+
+  // Agrupar por cliente
+  const grupos = {};
+  for (const v of data) {
+    const key = v.cliente_nombre || 'Sin cliente';
+    if (!grupos[key]) grupos[key] = { cliente_id: v.cliente_id, cliente_nombre: v.cliente_nombre, visitas: [] };
+    grupos[key].visitas.push(v);
+  }
+
+  const container = document.getElementById('visitas-agrupadas');
+  const sorted = Object.values(grupos).sort((a, b) => a.cliente_nombre.localeCompare(b.cliente_nombre));
+
+  if (!sorted.length) {
+    container.innerHTML = '<p style="color:var(--muted);text-align:center;padding:24px">No hay visitas para los filtros seleccionados.</p>';
+    return;
+  }
+
+  container.innerHTML = sorted.map((g, gi) => {
+    const totalVisitas = g.visitas.length;
+    const checkinCount = g.visitas.filter(v => v.tipo === 'checkin').length;
+    return `
+      <div class="visita-grupo">
+        <div class="visita-grupo-header" onclick="toggleGrupoVisitas(${gi})">
+          <span class="visita-grupo-icon" id="visita-icon-${gi}">▶</span>
+          <strong>${esc(g.cliente_nombre)}</strong>
+          <span style="color:var(--muted);margin-left:8px;font-size:12px">${totalVisitas} visita(s) · ${checkinCount} check-in(s)</span>
+        </div>
+        <div class="visita-grupo-body" id="visita-body-${gi}" style="display:none">
+          <table class="tbl"><thead><tr>
+            <th>Tipo</th><th>Fecha / Hora</th><th>Ubicacion</th><th>Foto</th><th>Notas</th>
+          </tr></thead><tbody>
+            ${g.visitas.map(v => `
+              <tr style="cursor:pointer" onclick="verDetalleVisita(${JSON.stringify(v).replace(/"/g, '&quot;')})">
+                <td><span class="badge badge-${v.tipo}">${v.tipo}</span></td>
+                <td>${formatDateTime(v.fecha)}</td>
+                <td>${v.latitud ? `<a href="https://www.google.com/maps?q=${v.latitud},${v.longitud}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📍 Maps</a>` : '—'}</td>
+                <td>${v.evidencia_foto ? `<a href="${v.evidencia_foto}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📷</a>` : '—'}</td>
+                <td>${esc(v.notas || '—')}</td>
+              </tr>
+            `).join('')}
+          </tbody></table>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function toggleGrupoVisitas(idx) {
+  const body = document.getElementById('visita-body-' + idx);
+  const icon = document.getElementById('visita-icon-' + idx);
+  const visible = body.style.display !== 'none';
+  body.style.display = visible ? 'none' : '';
+  icon.textContent = visible ? '▶' : '▼';
+}
+
+function verDetalleVisita(v) {
+  const mapsUrl = v.latitud && v.longitud ? `https://www.google.com/maps?q=${v.latitud},${v.longitud}` : null;
+  document.getElementById('detalle-visita-title').textContent = `Visita — ${esc(v.tipo)}`;
+  document.getElementById('detalle-visita-content').innerHTML = `
+    <div class="form-row" style="margin-bottom:12px">
+      <div><strong>Cliente:</strong> ${esc(v.cliente_nombre || '—')}</div>
+      <div><strong>Contacto:</strong> ${esc(v.contacto_nombre || '—')}</div>
+    </div>
+    <div class="form-row" style="margin-bottom:12px">
+      <div><strong>Tipo:</strong> <span class="badge badge-${v.tipo}">${v.tipo}</span></div>
+      <div><strong>Fecha:</strong> ${formatDateTime(v.fecha)}</div>
+    </div>
+    <div class="form-row" style="margin-bottom:12px">
+      <div><strong>Vendedor ID:</strong> #${v.vendedor_id}</div>
+      <div><strong>Precision GPS:</strong> ${v.precision_gps ? v.precision_gps + 'm' : '—'}</div>
+    </div>
+    ${mapsUrl ? `
+      <div style="margin-bottom:12px"><strong>Ubicacion:</strong>
+        <a href="${mapsUrl}" target="_blank" rel="noopener" style="color:var(--accent)">📍 Abrir en Google Maps</a>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">${parseFloat(v.latitud).toFixed(6)}, ${parseFloat(v.longitud).toFixed(6)}</div>
+      </div>
+    ` : ''}
+    ${v.evidencia_foto ? `
+      <div style="margin-bottom:12px"><strong>Evidencia:</strong><br>
+        <a href="${v.evidencia_foto}" target="_blank" rel="noopener"><img src="${v.evidencia_foto}" style="max-width:100%;max-height:300px;border-radius:8px;margin-top:8px;border:1px solid var(--border)"></a>
+      </div>
+    ` : ''}
+    ${v.notas ? `<div style="margin-bottom:12px"><strong>Notas:</strong><br>${esc(v.notas)}</div>` : ''}
+  `;
+  abrirModal('modal-detalle-visita');
 }
 
 function limpiarFiltrosVisitas() {
