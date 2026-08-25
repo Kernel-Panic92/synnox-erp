@@ -60,7 +60,7 @@ function mostrarLogin() {
 }
 
 function mostrarLogoutConfirm() {
-  confirmModal('¿Cerrar sesion?', 'Cerrar sesion', 'info', () => {
+  confirmar({ titulo: 'Cerrar sesion', mensaje: '¿Cerrar sesion?', icono: '⏻', onConfirm: () => {
     document.cookie.split(';').forEach(c => { document.cookie = c.replace(/^ +/, '').replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/'); });
     localStorage.removeItem('launcher_jwt');
     window.location.href = '/';
@@ -211,7 +211,7 @@ async function editarOportunidad(id) {
 }
 
 async function eliminarOportunidad(id, nombre) {
-  confirmModal(`Eliminar la oportunidad "${nombre}"?`, 'Eliminar oportunidad', 'delete', async () => {
+  confirmar({ titulo: 'Eliminar oportunidad', mensaje: `Eliminar la oportunidad "${nombre}"?`, icono: '🗑️', onConfirm: async () => {
     const r = await apiFetch('/oportunidades/' + id, { method: 'DELETE' });
     if (!r.ok) return toast(r.data?.error || 'Error al eliminar', 'error');
     toast('Oportunidad eliminada', 'success');
@@ -390,7 +390,7 @@ async function guardarCliente() {
 }
 
 async function eliminarCliente(id) {
-  confirmModal('¿Eliminar esta cliente?', 'Eliminar', 'delete', async () => {
+  confirmar({ titulo: 'Eliminar', mensaje: '¿Eliminar esta cliente?', icono: '🗑️', onConfirm: async () => {
     const r = await apiFetch('/clientes/' + id, { method: 'DELETE' });
     if (!r.ok) return toast('Error al eliminar', 'error');
     toast('Cliente eliminada', 'success');
@@ -489,7 +489,7 @@ async function guardarContacto() {
 }
 
 async function eliminarContacto(id) {
-  confirmModal('¿Eliminar este contacto?', 'Eliminar', 'delete', async () => {
+  confirmar({ titulo: 'Eliminar', mensaje: '¿Eliminar este contacto?', icono: '🗑️', onConfirm: async () => {
     const r = await apiFetch('/contactos/' + id, { method: 'DELETE' });
     if (!r.ok) return toast('Error al eliminar', 'error');
     toast('Contacto eliminado', 'success');
@@ -1111,7 +1111,7 @@ async function verCotizacion(id) {
 }
 
 async function eliminarCotizacion(id) {
-  confirmModal('Eliminar esta cotizacion?', 'Eliminar cotizacion', 'delete', async () => {
+  confirmar({ titulo: 'Eliminar cotizacion', mensaje: 'Eliminar esta cotizacion?', icono: '🗑️', onConfirm: async () => {
     const r = await apiFetch('/cotizaciones/' + id, { method: 'DELETE' });
     if (!r.ok) return toast(r.data?.error || 'Error al eliminar', 'error');
     toast('Cotizacion eliminada', 'success');
@@ -1170,7 +1170,7 @@ function limpiarFiltrosDescuentos() {
 }
 
 async function aprobarDescuento(id) {
-  confirmModal('Aprobar esta solicitud de descuento?', 'Aprobar descuento', 'update', async () => {
+  confirmar({ titulo: 'Aprobar descuento', mensaje: 'Aprobar esta solicitud de descuento?', icono: '✅', onConfirm: async () => {
     const r = await apiFetch('/descuentos/' + id + '/aprobar', { method: 'PUT' });
     if (!r.ok) return toast(r.data?.error || 'Error al aprobar', 'error');
     toast('Descuento aprobado', 'success');
@@ -1292,7 +1292,7 @@ async function guardarProducto() {
 }
 
 async function eliminarProducto(id) {
-  confirmModal('Eliminar este producto?', 'Eliminar producto', 'delete', async () => {
+  confirmar({ titulo: 'Eliminar producto', mensaje: 'Eliminar este producto?', icono: '🗑️', onConfirm: async () => {
     const r = await apiFetch('/productos/' + id, { method: 'DELETE' });
     if (!r.ok) return toast('Error al eliminar', 'error');
     toast('Producto eliminado', 'success');
