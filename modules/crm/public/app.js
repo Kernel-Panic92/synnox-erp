@@ -77,7 +77,7 @@ function navigate(page) {
   const nav = document.querySelector(`[data-page="${page}"]`);
   if (el) el.classList.add('active');
   if (nav) nav.classList.add('active');
-  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Visitas GPS' };
+  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Visitas' };
   document.getElementById('page-title').textContent = titles[page] || 'CRM';
   if (page === 'dashboard') cargarDashboard();
   if (page === 'pipeline') cargarPipeline();
@@ -483,7 +483,7 @@ async function eliminarContacto(id) {
   });
 }
 
-// ── Visitas GPS ──
+// ── Visitas ──
 async function cargarVisitas() {
   const vendedor = document.getElementById('filtro-visitas-vendedor')?.value || '';
   const desde = document.getElementById('filtro-visitas-desde')?.value || '';
