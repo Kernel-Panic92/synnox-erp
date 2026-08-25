@@ -144,10 +144,7 @@ async function cargarPipeline() {
         </h4>
         ${(pipeline[etapa.id] || []).map(o => `
           <div class="kanban-card" draggable="true" ondragstart="dragOportunidad(event, '${o.id}')" onclick="editarOportunidad('${o.id}')">
-            <div style="display:flex;justify-content:space-between;align-items:start">
-              <div class="card-title">${esc(o.nombre)}</div>
-              <button class="btn-icon" style="font-size:12px;color:var(--muted);flex-shrink:0" onclick="event.stopPropagation();eliminarOportunidad('${o.id}','${esc(o.nombre)}')" title="Eliminar">✕</button>
-            </div>
+            <div class="card-title">${esc(o.nombre)}</div>
             <div class="card-cliente">${esc(o.cliente_nombre || '—')}</div>
             <div class="card-monto">$${formatMoney(o.monto_esperado || 0)}</div>
             <div class="card-meta">
@@ -190,6 +187,7 @@ async function dropOportunidad(ev, etapa) {
 async function abrirModalOportunidad(oportunidad = null) {
   document.getElementById('modal-oportunidad-title').textContent = oportunidad ? 'Editar Oportunidad' : 'Nueva Oportunidad';
   document.getElementById('oportunidad-id').value = oportunidad?.id || '';
+  document.getElementById('btn-eliminar-oportunidad').style.display = oportunidad?.id ? '' : 'none';
   document.getElementById('oportunidad-nombre').value = oportunidad?.nombre || '';
   document.getElementById('oportunidad-monto').value = oportunidad?.monto_esperado || '';
   document.getElementById('oportunidad-probabilidad').value = oportunidad?.probabilidad || 10;
