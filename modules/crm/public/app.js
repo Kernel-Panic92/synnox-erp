@@ -64,7 +64,7 @@ function mostrarLogoutConfirm() {
     document.cookie.split(';').forEach(c => { document.cookie = c.replace(/^ +/, '').replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/'); });
     localStorage.removeItem('launcher_jwt');
     window.location.href = '/';
-  });
+  }});
 }
 
 // ── Navigation ──
@@ -216,7 +216,7 @@ async function eliminarOportunidad(id, nombre) {
     if (!r.ok) return toast(r.data?.error || 'Error al eliminar', 'error');
     toast('Oportunidad eliminada', 'success');
     cargarPipeline();
-  });
+  }});
 }
 
 async function guardarOportunidad() {
@@ -395,7 +395,7 @@ async function eliminarCliente(id) {
     if (!r.ok) return toast('Error al eliminar', 'error');
     toast('Cliente eliminada', 'success');
     cargarClientes();
-  });
+  }});
 }
 
 // ── Contactos ──
@@ -494,7 +494,7 @@ async function eliminarContacto(id) {
     if (!r.ok) return toast('Error al eliminar', 'error');
     toast('Contacto eliminado', 'success');
     cargarContactos();
-  });
+  }});
 }
 
 // ── Visitas ──
@@ -1116,7 +1116,7 @@ async function eliminarCotizacion(id) {
     if (!r.ok) return toast(r.data?.error || 'Error al eliminar', 'error');
     toast('Cotizacion eliminada', 'success');
     cargarCotizaciones();
-  });
+  }});
 }
 
 async function cambiarEstadoCotizacion(id, estado) {
@@ -1176,7 +1176,7 @@ async function aprobarDescuento(id) {
     toast('Descuento aprobado', 'success');
     cargarDescuentos();
     cargarCotizaciones();
-  });
+  }});
 }
 
 async function rechazarDescuento(id) {
@@ -1297,7 +1297,7 @@ async function eliminarProducto(id) {
     if (!r.ok) return toast('Error al eliminar', 'error');
     toast('Producto eliminado', 'success');
     cargarProductos();
-  });
+  }});
 }
 
 // ── Utils ──
