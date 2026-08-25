@@ -31,6 +31,8 @@ import clientesRoutes from './routes/clientes.js';
 import contactosRoutes from './routes/contactos.js';
 import oportunidadesRoutes from './routes/oportunidades.js';
 import visitasRoutes from './routes/visitas.js';
+import cotizacionesRoutes from './routes/cotizaciones.js';
+import descuentosRoutes from './routes/descuentos.js';
 
 const protect = createProtect(MODULE_ID);
 
@@ -38,6 +40,8 @@ app.use('/api/clientes', protect, clientesRoutes);
 app.use('/api/contactos', protect, contactosRoutes);
 app.use('/api/oportunidades', protect, oportunidadesRoutes);
 app.use('/api/visitas', protect, visitasRoutes);
+app.use('/api/cotizaciones', protect, cotizacionesRoutes);
+app.use('/api/descuentos', protect, descuentosRoutes);
 
 // Public endpoint for centros
 app.get('/api/centros', (req, res) => {
@@ -73,14 +77,16 @@ app.get('/api/dashboard', protect, async (req, res) => {
   try {
     const pool = (await import('./config/db.js')).default;
 
-    const [totalClientes, porTipo, contactosRecientes, clientesRecientes, totalOportunidades, oportunidadesAbiertas, montoPipeline] = await Promise.all([
+    const [totalClientes, porTipo, contactosRecientes, clientesRecientes, totalOportunidades, oportunidadesAbiertas, montoPipeline, cotizacionesPendientes, descuentosPendientes] = await Promise.all([
       pool.query(`SELECT COUNT(*) FROM crm.clientes WHERE activo = TRUE`),
       pool.query(`SELECT tipo, COUNT(*) AS total FROM crm.clientes WHERE activo = TRUE GROUP BY tipo ORDER BY total DESC`),
       pool.query(`SELECT COUNT(*) FROM crm.contactos WHERE activo = TRUE`),
       pool.query(`SELECT id, nombre, tipo, ciudad, creado_en FROM crm.clientes WHERE activo = TRUE ORDER BY creado_en DESC LIMIT 10`),
       pool.query(`SELECT COUNT(*) FROM crm.oportunidades`),
       pool.query(`SELECT COUNT(*) FROM crm.oportunidades WHERE etapa NOT IN ('ganada', 'perdida')`),
-      pool.query(`SELECT COALESCE(SUM(monto_esperado), 0) AS total FROM crm.oportunidades WHERE etapa NOT IN ('ganada', 'perdida')`)
+      pool.query(`SELECT COALESCE(SUM(monto_esperado), 0) AS total FROM crm.oportunidades WHERE etapa NOT IN ('ganada', 'perdida')`),
+      pool.query(`SELECT COUNT(*) FROM crm.cotizaciones WHERE estado IN ('borrador','enviada')`),
+      pool.query(`SELECT COUNT(*) FROM crm.descuentos_solicitud WHERE estado = 'pendiente'`)
     ]);
 
     res.json({
@@ -91,7 +97,9 @@ app.get('/api/dashboard', protect, async (req, res) => {
       clientes_recientes: clientesRecientes.rows,
       oportunidades_total: parseInt(totalOportunidades.rows[0].count),
       oportunidades_abiertas: parseInt(oportunidadesAbiertas.rows[0].count),
-      monto_pipeline: parseFloat(montoPipeline.rows[0].total)
+      monto_pipeline: parseFloat(montoPipeline.rows[0].total),
+      cotizaciones_pendientes: parseInt(cotizacionesPendientes.rows[0].count),
+      descuentos_pendientes: parseInt(descuentosPendientes.rows[0].count)
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

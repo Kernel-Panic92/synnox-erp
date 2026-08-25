@@ -54,6 +54,17 @@
 .kanban-card .card-cliente{font-size:11px;color:var(--muted);margin-bottom:4px}
 .kanban-card .card-monto{font-size:14px;font-weight:700;color:var(--accent)}
 .kanban-card .card-meta{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;margin-top:6px}
+.item-row{display:grid;grid-template-columns:1fr 80px 100px 80px 100px 30px;gap:8px;align-items:center;margin-bottom:8px;font-size:13px}
+.item-row input{padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:12px}
+.item-row .btn-icon{background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;padding:4px}
+.badge-borrador{background:#e2e3e5;color:#383d41}
+.badge-enviada{background:#cce5ff;color:#004085}
+.badge-aprobada{background:#d4edda;color:#155724}
+.badge-rechazada{background:#f8d7da;color:#721c24}
+.badge-vencida{background:#fff3cd;color:#856404}
+.badge-convertida{background:#d1ecf1;color:#0c5460}
+.badge-pendiente{background:#fff3cd;color:#856404}
+.badge-auto_aprobado{background:#d4edda;color:#155724}
 }
 </style>
 </head>
@@ -74,6 +85,8 @@
     <button class="nav-item" data-page="clientes" onclick="navigate('clientes')"><span class="icon">🏢</span> Clientes</button>
     <button class="nav-item" data-page="contactos" onclick="navigate('contactos')"><span class="icon">👤</span> Contactos</button>
     <button class="nav-item" data-page="visitas" onclick="navigate('visitas')"><span class="icon">📍</span> Visitas</button>
+    <button class="nav-item" data-page="cotizaciones" onclick="navigate('cotizaciones')"><span class="icon">📄</span> Cotizaciones</button>
+    <button class="nav-item" data-page="descuentos" onclick="navigate('descuentos')"><span class="icon">💰</span> Descuentos</button>
   </nav>
   <div class="sidebar-footer">
     <a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a>
@@ -194,6 +207,9 @@
           </table>
         </div>
         <div class="pagination" id="pag-contactos"></div>
+      </div>
+
+      <!-- Visitas -->
       <div class="page" id="page-visitas">
         <div class="page-header">
           <h3>Visitas</h3>
@@ -225,6 +241,86 @@
               </tr>
             </thead>
             <tbody id="tbody-visitas"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Cotizaciones -->
+      <div class="page" id="page-cotizaciones">
+        <div class="page-header">
+          <h3>Cotizaciones</h3>
+          <div class="page-actions">
+            <button class="btn btn-sm btn-primary" onclick="abrirModalCotizacion()">+ Nueva Cotizacion</button>
+          </div>
+        </div>
+        <div class="stats-row" id="stats-cotizaciones"></div>
+        <div class="filters">
+          <input type="text" id="filtro-cotizacion-search" placeholder="Buscar por numero o cliente..." oninput="cargarCotizaciones()">
+          <select id="filtro-cotizacion-estado" onchange="cargarCotizaciones()">
+            <option value="">Todos los estados</option>
+            <option value="borrador">Borrador</option>
+            <option value="enviada">Enviada</option>
+            <option value="aprobada">Aprobada</option>
+            <option value="rechazada">Rechazada</option>
+            <option value="vencida">Vencida</option>
+            <option value="convertida">Convertida</option>
+          </select>
+          <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosCotizaciones()">✕ Limpiar</button>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="tbl-cotizaciones">
+            <thead>
+              <tr>
+                <th>Numero</th>
+                <th>Cliente</th>
+                <th>Estado</th>
+                <th>Items</th>
+                <th>Subtotal</th>
+                <th>Descuento</th>
+                <th>IVA</th>
+                <th>Total</th>
+                <th>Vencimiento</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-cotizaciones"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="pag-cotizaciones"></div>
+      </div>
+
+      <!-- Descuentos -->
+      <div class="page" id="page-descuentos">
+        <div class="page-header">
+          <h3>Solicitudes de Descuento</h3>
+        </div>
+        <div class="filters">
+          <select id="filtro-descuento-estado" onchange="cargarDescuentos()">
+            <option value="">Todos los estados</option>
+            <option value="pendiente">Pendientes</option>
+            <option value="aprobado">Aprobados</option>
+            <option value="rechazado">Rechazados</option>
+            <option value="auto_aprobado">Auto-aprobados</option>
+          </select>
+          <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosDescuentos()">✕ Limpiar</button>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="tbl-descuentos">
+            <thead>
+              <tr>
+                <th>Cotizacion</th>
+                <th>Cliente</th>
+                <th>Solicitado por</th>
+                <th>Tipo</th>
+                <th>Valor</th>
+                <th>Monto Original</th>
+                <th>Monto Final</th>
+                <th>Estado</th>
+                <th>Fecha</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-descuentos"></tbody>
           </table>
         </div>
       </div>
@@ -458,6 +554,60 @@
     <div id="detalle-cliente-content"></div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="cerrarModal('modal-detalle-cliente')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Cotizacion -->
+<div class="modal-overlay" id="modal-cotizacion">
+  <div class="modal" style="max-width:800px">
+    <h3 id="modal-cotizacion-title">Nueva Cotizacion</h3>
+    <input type="hidden" id="cotizacion-id">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Cliente *</label>
+        <select id="cotizacion-cliente" required></select>
+      </div>
+      <div class="form-group">
+        <label>Oportunidad</label>
+        <select id="cotizacion-oportunidad"></select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Validez (dias)</label>
+        <input type="number" id="cotizacion-validez" value="30" min="1">
+      </div>
+      <div class="form-group">
+        <label>Descuento (%)</label>
+        <input type="number" id="cotizacion-descuento" step="0.01" min="0" max="100" value="0">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Notas</label>
+      <textarea id="cotizacion-notas"></textarea>
+    </div>
+
+    <h4 style="margin:16px 0 8px">Items</h4>
+    <div id="cotizacion-items-list"></div>
+    <button class="btn btn-sm btn-secondary" onclick="agregarItemCotizacion()" style="margin:8px 0">+ Agregar Item</button>
+
+    <div id="cotizacion-totales" style="margin-top:16px;padding:12px;background:var(--surface2);border-radius:8px;font-size:13px"></div>
+
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-cotizacion')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCotizacion()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Detalle Cotizacion -->
+<div class="modal-overlay" id="modal-detalle-cotizacion">
+  <div class="modal" style="max-width:800px">
+    <h3 id="detalle-cotizacion-title">Detalle Cotizacion</h3>
+    <div id="detalle-cotizacion-content"></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-detalle-cotizacion')">Cerrar</button>
     </div>
   </div>
 </div>

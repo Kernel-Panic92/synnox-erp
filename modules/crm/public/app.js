@@ -68,7 +68,7 @@ function mostrarLogoutConfirm() {
 }
 
 // ── Navigation ──
-const pages = ['dashboard', 'pipeline', 'clientes', 'contactos', 'visitas'];
+const pages = ['dashboard', 'pipeline', 'clientes', 'contactos', 'visitas', 'cotizaciones', 'descuentos'];
 function navigate(page) {
   if (!pages.includes(page)) page = 'dashboard';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -77,13 +77,15 @@ function navigate(page) {
   const nav = document.querySelector(`[data-page="${page}"]`);
   if (el) el.classList.add('active');
   if (nav) nav.classList.add('active');
-  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Visitas' };
+  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Visitas', cotizaciones: 'Cotizaciones', descuentos: 'Descuentos' };
   document.getElementById('page-title').textContent = titles[page] || 'CRM';
   if (page === 'dashboard') cargarDashboard();
   if (page === 'pipeline') cargarPipeline();
   if (page === 'clientes') cargarClientes();
   if (page === 'contactos') cargarContactos();
   if (page === 'visitas') cargarVisitas();
+  if (page === 'cotizaciones') cargarCotizaciones();
+  if (page === 'descuentos') cargarDescuentos();
 }
 
 // ── Dashboard ──
@@ -94,9 +96,10 @@ async function cargarDashboard() {
     const d = r.data;
     document.getElementById('stats-row').innerHTML = `
       <div class="stat-card"><div class="stat-value">${d.clientes_total || 0}</div><div class="stat-label">Clientes</div></div>
-      <div class="stat-card"><div class="stat-value">${d.contactos_total || 0}</div><div class="stat-label">Contactos</div></div>
-      <div class="stat-card"><div class="stat-value">${d.oportunidades_abiertas || 0}</div><div class="stat-label">Oportunidades abiertas</div></div>
-      <div class="stat-card"><div class="stat-value">$${formatMoney(d.monto_pipeline || 0)}</div><div class="stat-label">Pipeline value</div></div>
+      <div class="stat-card"><div class="stat-value">${d.oportunidades_abiertas || 0}</div><div class="stat-label">Oportunidades</div></div>
+      <div class="stat-card"><div class="stat-value">$${formatMoney(d.monto_pipeline || 0)}</div><div class="stat-label">Pipeline</div></div>
+      <div class="stat-card"><div class="stat-value">${d.cotizaciones_pendientes || 0}</div><div class="stat-label">Cotiz. pendientes</div></div>
+      <div class="stat-card"><div class="stat-value">${d.descuentos_pendientes || 0}</div><div class="stat-label">Desc. pendientes</div></div>
     `;
     const recientes = d.clientes_recientes || [];
     if (recientes.length) {
@@ -636,6 +639,332 @@ async function guardarVisita() {
 function formatDateTime(iso) {
   if (!iso) return '—';
   return new Date(iso).toLocaleString('es-CO', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+
+// ── Cotizaciones ──
+let _cotizacionesPage = 1;
+let _cotizacionItems = [];
+
+async function cargarCotizaciones() {
+  try {
+    const params = new URLSearchParams();
+    const search = document.getElementById('filtro-cotizacion-search')?.value;
+    const estado = document.getElementById('filtro-cotizacion-estado')?.value;
+    if (search) params.set('search', search);
+    if (estado) params.set('estado', estado);
+    params.set('page', _cotizacionesPage);
+    params.set('limit', _limit);
+
+    const r = await apiFetch('/cotizaciones?' + params);
+    if (!r.ok) return;
+
+    const tbody = document.getElementById('tbody-cotizaciones');
+    tbody.innerHTML = r.data.map(c => `
+      <tr>
+        <td><a href="#" onclick="verCotizacion('${c.id}');return false" style="color:var(--accent);text-decoration:underline">${esc(c.numero)}</a></td>
+        <td>${esc(c.cliente_nombre || '—')}</td>
+        <td><span class="badge badge-${c.estado}">${esc(c.estado)}</span></td>
+        <td>${c.total_items || 0}</td>
+        <td>$${formatMoney(c.valor_subtotal || 0)}</td>
+        <td>$${formatMoney(c.valor_descuento || 0)}</td>
+        <td>$${formatMoney(c.valor_iva || 0)}</td>
+        <td><strong>$${formatMoney(c.valor_total || 0)}</strong></td>
+        <td>${formatDate(c.vencimiento)}</td>
+        <td>
+          <button class="btn btn-sm btn-secondary" onclick="editarCotizacion('${c.id}')">Editar</button>
+          ${c.estado === 'borrador' ? `<button class="btn btn-sm btn-danger" onclick="eliminarCotizacion('${c.id}')">Eliminar</button>` : ''}
+          ${c.estado === 'borrador' ? `<button class="btn btn-sm btn-primary" onclick="cambiarEstadoCotizacion('${c.id}','enviada')">Enviar</button>` : ''}
+          ${c.estado === 'enviada' ? `<button class="btn btn-sm btn-primary" onclick="cambiarEstadoCotizacion('${c.id}','aprobada')">Aprobar</button>` : ''}
+        </td>
+      </tr>
+    `).join('');
+
+    renderPagination('pag-cotizaciones', r.total, _cotizacionesPage, _limit, (p) => { _cotizacionesPage = p; cargarCotizaciones(); });
+    cargarStatsCotizaciones();
+  } catch (err) { console.error('Error cargar cotizaciones:', err); }
+}
+
+async function cargarStatsCotizaciones() {
+  try {
+    const r = await apiFetch('/cotizaciones/stats');
+    if (!r.ok) return;
+    const d = r.data;
+    document.getElementById('stats-cotizaciones').innerHTML = `
+      <div class="stat-card"><div class="stat-value">${d.total || 0}</div><div class="stat-label">Total</div></div>
+      <div class="stat-card"><div class="stat-value">$${formatMoney(d.monto_total || 0)}</div><div class="stat-label">Monto total</div></div>
+      <div class="stat-card"><div class="stat-value">${d.descuentos_pendientes || 0}</div><div class="stat-label">Desc. pendientes</div></div>
+    `;
+  } catch {}
+}
+
+function limpiarFiltrosCotizaciones() {
+  document.getElementById('filtro-cotizacion-search').value = '';
+  document.getElementById('filtro-cotizacion-estado').value = '';
+  _cotizacionesPage = 1;
+  cargarCotizaciones();
+}
+
+async function abrirModalCotizacion(cotizacion = null) {
+  document.getElementById('modal-cotizacion-title').textContent = cotizacion ? 'Editar Cotizacion' : 'Nueva Cotizacion';
+  document.getElementById('cotizacion-id').value = cotizacion?.id || '';
+  document.getElementById('cotizacion-validez').value = cotizacion?.validez_dias || 30;
+  document.getElementById('cotizacion-descuento').value = 0;
+  document.getElementById('cotizacion-notas').value = cotizacion?.notas || '';
+
+  await cargarClientesSelect('cotizacion-cliente', cotizacion?.cliente_id);
+  await cargarOportunidadesSelect('cotizacion-oportunidad', cotizacion?.oportunidad_id);
+
+  _cotizacionItems = [];
+  if (cotizacion?.id) {
+    const r = await apiFetch('/cotizaciones/' + cotizacion.id);
+    if (r.ok) {
+      _cotizacionItems = r.data.items || [];
+      document.getElementById('cotizacion-descuento').value = r.data.valor_descuento > 0 ? ((r.data.valor_descuento / r.data.valor_subtotal) * 100).toFixed(2) : 0;
+    }
+  }
+  renderItemsCotizacion();
+  abrirModal('modal-cotizacion');
+}
+
+function renderItemsCotizacion() {
+  const container = document.getElementById('cotizacion-items-list');
+  if (!_cotizacionItems.length) {
+    container.innerHTML = '<p style="color:var(--muted);font-size:12px">Sin items. Haz clic en "+ Agregar Item" para comenzar.</p>';
+  } else {
+    container.innerHTML = `
+      <div class="item-row" style="font-weight:600;font-size:11px;text-transform:uppercase;color:var(--muted)">
+        <div>Descripcion</div><div>Cant.</div><div>Precio</div><div>Desc.%</div><div>Subtotal</div><div></div>
+      </div>
+    ` + _cotizacionItems.map((it, i) => {
+      const sub = (it.cantidad || 1) * (it.precio_unitario || 0) * (1 - (it.descuento_pct || 0) / 100);
+      return `
+        <div class="item-row">
+          <input value="${esc(it.descripcion)}" onchange="updateItemCotizacion(${i},'descripcion',this.value)" placeholder="Descripcion">
+          <input type="number" value="${it.cantidad || 1}" min="0.01" step="0.01" onchange="updateItemCotizacion(${i},'cantidad',parseFloat(this.value))">
+          <input type="number" value="${it.precio_unitario || 0}" min="0" step="0.01" onchange="updateItemCotizacion(${i},'precio_unitario',parseFloat(this.value))">
+          <input type="number" value="${it.descuento_pct || 0}" min="0" max="100" step="0.01" onchange="updateItemCotizacion(${i},'descuento_pct',parseFloat(this.value))">
+          <div style="font-weight:600">$${formatMoney(sub)}</div>
+          <button class="btn-icon" onclick="eliminarItemCotizacion(${i})">✕</button>
+        </div>
+      `;
+    }).join('');
+  }
+  actualizarTotalesCotizacion();
+}
+
+function agregarItemCotizacion() {
+  _cotizacionItems.push({ descripcion: '', cantidad: 1, precio_unitario: 0, descuento_pct: 0 });
+  renderItemsCotizacion();
+}
+
+function updateItemCotizacion(idx, field, value) {
+  _cotizacionItems[idx][field] = value;
+  renderItemsCotizacion();
+}
+
+function eliminarItemCotizacion(idx) {
+  _cotizacionItems.splice(idx, 1);
+  renderItemsCotizacion();
+}
+
+function actualizarTotalesCotizacion() {
+  let subtotal = 0;
+  for (const it of _cotizacionItems) {
+    const base = (it.cantidad || 1) * (it.precio_unitario || 0);
+    subtotal += base * (1 - (it.descuento_pct || 0) / 100);
+  }
+  const descPct = parseFloat(document.getElementById('cotizacion-descuento')?.value || 0);
+  const descuento = subtotal * (descPct / 100);
+  const baseDesc = subtotal - descuento;
+  const iva = baseDesc * 0.19;
+  const total = baseDesc + iva;
+
+  document.getElementById('cotizacion-totales').innerHTML = `
+    <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Subtotal:</span><span>$${formatMoney(subtotal)}</span></div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Descuento (${descPct}%):</span><span>-$${formatMoney(descuento)}</span></div>
+    <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>IVA (19%):</span><span>$${formatMoney(iva)}</span></div>
+    <div style="display:flex;justify-content:space-between;font-weight:700;font-size:15px;border-top:1px solid var(--border);padding-top:8px;margin-top:8px"><span>Total:</span><span>$${formatMoney(total)}</span></div>
+  `;
+}
+
+async function guardarCotizacion() {
+  const id = document.getElementById('cotizacion-id').value;
+  const body = {
+    cliente_id: document.getElementById('cotizacion-cliente').value,
+    oportunidad_id: document.getElementById('cotizacion-oportunidad').value || null,
+    validez_dias: parseInt(document.getElementById('cotizacion-validez').value) || 30,
+    notas: document.getElementById('cotizacion-notas').value,
+    descuento_pct: parseFloat(document.getElementById('cotizacion-descuento').value) || 0,
+    items: _cotizacionItems.filter(it => it.descripcion.trim())
+  };
+
+  if (!body.cliente_id) return toast('Seleccione un cliente', 'error');
+  if (!body.items.length) return toast('Agregue al menos un item', 'error');
+
+  const r = id
+    ? await apiFetch('/cotizaciones/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    : await apiFetch('/cotizaciones', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+  if (!r.ok) return toast(r.data?.error || 'Error al guardar', 'error');
+  toast(id ? 'Cotizacion actualizada' : 'Cotizacion creada', 'success');
+  cerrarModal('modal-cotizacion');
+  cargarCotizaciones();
+}
+
+async function editarCotizacion(id) {
+  const r = await apiFetch('/cotizaciones/' + id);
+  if (!r.ok) return toast('Error al cargar', 'error');
+  abrirModalCotizacion(r.data);
+}
+
+async function verCotizacion(id) {
+  const r = await apiFetch('/cotizaciones/' + id);
+  if (!r.ok) return toast('Error al cargar', 'error');
+  const c = r.data;
+
+  let itemsHtml = '';
+  if (c.items?.length) {
+    itemsHtml = `
+      <h4 style="margin:16px 0 8px">Items</h4>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr>
+        <th>#</th><th>Descripcion</th><th>Cant.</th><th>Precio</th><th>Desc.%</th><th>Subtotal</th>
+      </tr></thead><tbody>
+        ${c.items.map((it, i) => `<tr>
+          <td>${i + 1}</td><td>${esc(it.descripcion)}</td><td>${it.cantidad}</td>
+          <td>$${formatMoney(it.precio_unitario)}</td><td>${it.descuento_pct}%</td>
+          <td>$${formatMoney(it.subtotal)}</td>
+        </tr>`).join('')}
+      </tbody></table></div>
+    `;
+  }
+
+  let descHtml = '';
+  if (c.descuentos?.length) {
+    descHtml = `
+      <h4 style="margin:16px 0 8px">Solicitudes de Descuento</h4>
+      <div class="tbl-wrap"><table class="tbl"><thead><tr>
+        <th>Tipo</th><th>Valor</th><th>Estado</th><th>Justificacion</th><th>Fecha</th>
+      </tr></thead><tbody>
+        ${c.descuentos.map(d => `<tr>
+          <td>${d.tipo}</td><td>${d.valor_descuento}${d.tipo === 'porcentaje' ? '%' : ''}</td>
+          <td><span class="badge badge-${d.estado}">${d.estado}</span></td>
+          <td>${esc(d.justificacion || '—')}</td><td>${formatDate(d.creado_en)}</td>
+        </tr>`).join('')}
+      </tbody></table></div>
+    `;
+  }
+
+  document.getElementById('detalle-cotizacion-title').textContent = `Cotizacion ${c.numero}`;
+  document.getElementById('detalle-cotizacion-content').innerHTML = `
+    <div class="form-row" style="margin-bottom:12px">
+      <div><strong>Cliente:</strong> ${esc(c.cliente_nombre || '—')}</div>
+      <div><strong>Estado:</strong> <span class="badge badge-${c.estado}">${c.estado}</span></div>
+    </div>
+    <div class="form-row" style="margin-bottom:12px">
+      <div><strong>Oportunidad:</strong> ${esc(c.oportunidad_nombre || '—')}</div>
+      <div><strong>Vencimiento:</strong> ${formatDate(c.vencimiento)}</div>
+    </div>
+    ${c.notas ? `<div style="margin-bottom:12px"><strong>Notas:</strong> ${esc(c.notas)}</div>` : ''}
+    <div style="padding:12px;background:var(--surface2);border-radius:8px;font-size:13px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Subtotal:</span><span>$${formatMoney(c.valor_subtotal)}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>Descuento:</span><span>-$${formatMoney(c.valor_descuento)}</span></div>
+      <div style="display:flex;justify-content:space-between;margin-bottom:4px"><span>IVA:</span><span>$${formatMoney(c.valor_iva)}</span></div>
+      <div style="display:flex;justify-content:space-between;font-weight:700;font-size:15px;border-top:1px solid var(--border);padding-top:8px;margin-top:8px"><span>Total:</span><span>$${formatMoney(c.valor_total)}</span></div>
+    </div>
+    ${itemsHtml}
+    ${descHtml}
+  `;
+  abrirModal('modal-detalle-cotizacion');
+}
+
+async function eliminarCotizacion(id) {
+  confirmModal('Eliminar esta cotizacion?', 'Eliminar cotizacion', 'delete', async () => {
+    const r = await apiFetch('/cotizaciones/' + id, { method: 'DELETE' });
+    if (!r.ok) return toast(r.data?.error || 'Error al eliminar', 'error');
+    toast('Cotizacion eliminada', 'success');
+    cargarCotizaciones();
+  });
+}
+
+async function cambiarEstadoCotizacion(id, estado) {
+  const r = await apiFetch('/cotizaciones/' + id + '/estado', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ estado })
+  });
+  if (!r.ok) return toast(r.data?.error || 'Error al cambiar estado', 'error');
+  toast('Estado actualizado a ' + estado, 'success');
+  cargarCotizaciones();
+}
+
+// ── Descuentos ──
+async function cargarDescuentos() {
+  try {
+    const params = new URLSearchParams();
+    const estado = document.getElementById('filtro-descuento-estado')?.value;
+    if (estado) params.set('estado', estado);
+
+    const r = await apiFetch('/descuentos?' + params);
+    if (!r.ok) return;
+
+    const tbody = document.getElementById('tbody-descuentos');
+    tbody.innerHTML = r.data.map(d => `
+      <tr>
+        <td>${esc(d.cotizacion_numero || '—')}</td>
+        <td>${esc(d.cliente_nombre || '—')}</td>
+        <td>${esc(d.solicitado_por_nombre || '—')}</td>
+        <td>${d.tipo}</td>
+        <td>${d.tipo === 'porcentaje' ? d.valor_descuento + '%' : '$' + formatMoney(d.valor_descuento)}</td>
+        <td>$${formatMoney(d.monto_original)}</td>
+        <td>$${formatMoney(d.monto_final)}</td>
+        <td><span class="badge badge-${d.estado}">${d.estado}</span></td>
+        <td>${formatDate(d.creado_en)}</td>
+        <td>
+          ${d.estado === 'pendiente' ? `
+            <button class="btn btn-sm btn-primary" onclick="aprobarDescuento('${d.id}')">Aprobar</button>
+            <button class="btn btn-sm btn-danger" onclick="rechazarDescuento('${d.id}')">Rechazar</button>
+          ` : ''}
+        </td>
+      </tr>
+    `).join('');
+  } catch (err) { console.error('Error cargar descuentos:', err); }
+}
+
+function limpiarFiltrosDescuentos() {
+  document.getElementById('filtro-descuento-estado').value = '';
+  cargarDescuentos();
+}
+
+async function aprobarDescuento(id) {
+  confirmModal('Aprobar esta solicitud de descuento?', 'Aprobar descuento', 'update', async () => {
+    const r = await apiFetch('/descuentos/' + id + '/aprobar', { method: 'PUT' });
+    if (!r.ok) return toast(r.data?.error || 'Error al aprobar', 'error');
+    toast('Descuento aprobado', 'success');
+    cargarDescuentos();
+    cargarCotizaciones();
+  });
+}
+
+async function rechazarDescuento(id) {
+  const motivo = prompt('Motivo del rechazo (opcional):');
+  const r = await apiFetch('/descuentos/' + id + '/rechazar', {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ motivo })
+  });
+  if (!r.ok) return toast(r.data?.error || 'Error al rechazar', 'error');
+  toast('Descuento rechazado', 'success');
+  cargarDescuentos();
+}
+
+async function cargarOportunidadesSelect(selectId, selectedId) {
+  try {
+    const r = await apiFetch('/oportunidades?limit=500');
+    if (!r.ok) return;
+    const select = document.getElementById(selectId);
+    select.innerHTML = '<option value="">Sin oportunidad</option>' +
+      r.data.map(o => `<option value="${o.id}" ${o.id === selectedId ? 'selected' : ''}>${esc(o.nombre)}</option>`).join('');
+  } catch {}
 }
 
 // ── Utils ──
