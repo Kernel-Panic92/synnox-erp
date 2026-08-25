@@ -1,16 +1,19 @@
-if (!window.HF) HF = {};
-HF.API = HF.API || '/crm/api';
+const HF = {};
 let usuario = null;
 let _empresasPage = 1;
 let _contactosPage = 1;
 const _limit = 20;
 
 // ── Init ──
-document.addEventListener('DOMContentLoaded', initFramework({ themeKey: 'synnox_theme' }));
+const BASE = location.pathname.match(/^\/(\w+)\//) ? '/' + RegExp.$1 : '';
+document.addEventListener('DOMContentLoaded', () => {
+  initFramework({ basePath: BASE, apiPrefix: '/api', themeKey: 'synnox_theme', tokenKey: 'launcher_jwt' });
+  init();
+});
 
 async function init() {
   try {
-    const r = await apiFetch('/api/auth/me');
+    const r = await apiFetch('/auth/me');
     if (!r.ok) return mostrarLogin();
     usuario = r.data || r;
     document.getElementById('user-name').textContent = usuario.nombre || usuario.email;
@@ -18,7 +21,7 @@ async function init() {
     document.getElementById('sidebar-user-name').textContent = usuario.nombre || '';
     document.getElementById('sidebar-user-role').textContent = usuario.rol || '';
     try {
-      const v = await fetch('/api/version');
+      const v = await fetch(HF.API.replace('/api', '') + '/api/version');
       const vd = await v.json();
       document.getElementById('app-version').textContent = 'v' + (vd.version || '?');
     } catch {}
@@ -67,7 +70,7 @@ function navigate(page) {
 // ── Dashboard ──
 async function cargarDashboard() {
   try {
-    const r = await apiFetch('/api/dashboard');
+    const r = await apiFetch('/dashboard');
     if (!r.ok) return;
     const d = r.data;
     document.getElementById('stats-row').innerHTML = `
@@ -95,7 +98,7 @@ async function cargarEmpresas() {
   const params = new URLSearchParams({ page: _empresasPage, limit: _limit });
   if (search) params.set('search', search);
   if (tipo) params.set('tipo', tipo);
-  const r = await apiFetch('/api/empresas?' + params);
+  const r = await apiFetch('/empresas?' + params);
   if (!r.ok) return;
   const tbody = document.getElementById('tbody-empresas');
   const data = r.data.data || [];
@@ -131,7 +134,7 @@ function limpiarFiltrosEmpresas() {
 }
 
 async function verEmpresa(id) {
-  const r = await apiFetch('/api/empresas/' + id);
+  const r = await apiFetch('/empresas/' + id);
   if (!r.ok) return;
   const e = r.data.data;
   const contactos = e.contactos || [];
@@ -173,7 +176,7 @@ function abrirModalEmpresa(empresa = null) {
 }
 
 async function editarEmpresa(id) {
-  const r = await apiFetch('/api/empresas/' + id);
+  const r = await apiFetch('/empresas/' + id);
   if (!r.ok) return;
   abrirModalEmpresa(r.data.data);
 }
@@ -194,8 +197,8 @@ async function guardarEmpresa() {
   };
   if (!body.nombre) return toast('El nombre es obligatorio', 'error');
   const r = id
-    ? await apiFetch('/api/empresas/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-    : await apiFetch('/api/empresas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    ? await apiFetch('/empresas/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    : await apiFetch('/empresas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) return toast(r.data?.error || 'Error al guardar', 'error');
   toast(id ? 'Empresa actualizada' : 'Empresa creada', 'success');
   cerrarModal('modal-empresa');
@@ -204,7 +207,7 @@ async function guardarEmpresa() {
 
 async function eliminarEmpresa(id) {
   confirmModal('¿Eliminar esta empresa?', 'Eliminar', 'delete', async () => {
-    const r = await apiFetch('/api/empresas/' + id, { method: 'DELETE' });
+    const r = await apiFetch('/empresas/' + id, { method: 'DELETE' });
     if (!r.ok) return toast('Error al eliminar', 'error');
     toast('Empresa eliminada', 'success');
     cargarEmpresas();
@@ -218,7 +221,7 @@ async function cargarContactos() {
   const params = new URLSearchParams({ page: _contactosPage, limit: _limit });
   if (search) params.set('search', search);
   if (empresaId) params.set('empresa_id', empresaId);
-  const r = await apiFetch('/api/contactos?' + params);
+  const r = await apiFetch('/contactos?' + params);
   if (!r.ok) return;
   const tbody = document.getElementById('tbody-contactos');
   const data = r.data.data || [];
@@ -250,7 +253,7 @@ function limpiarFiltrosContactos() {
 }
 
 async function cargarEmpresasSelect(selectId, selectedId) {
-  const r = await apiFetch('/api/empresas?limit=500');
+  const r = await apiFetch('/empresas?limit=500');
   if (!r.ok) return;
   const sel = document.getElementById(selectId);
   const actual = selectedId || sel.value;
@@ -273,7 +276,7 @@ async function abrirModalContacto(contacto = null) {
 }
 
 async function editarContacto(id) {
-  const r = await apiFetch('/api/contactos/' + id);
+  const r = await apiFetch('/contactos/' + id);
   if (!r.ok) return;
   abrirModalContacto(r.data.data);
 }
@@ -293,8 +296,8 @@ async function guardarContacto() {
   if (!body.nombre) return toast('El nombre es obligatorio', 'error');
   if (!body.empresa_id) return toast('Seleccione una empresa', 'error');
   const r = id
-    ? await apiFetch('/api/contactos/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-    : await apiFetch('/api/contactos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    ? await apiFetch('/contactos/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    : await apiFetch('/contactos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) return toast(r.data?.error || 'Error al guardar', 'error');
   toast(id ? 'Contacto actualizado' : 'Contacto creado', 'success');
   cerrarModal('modal-contacto');
@@ -303,7 +306,7 @@ async function guardarContacto() {
 
 async function eliminarContacto(id) {
   confirmModal('¿Eliminar este contacto?', 'Eliminar', 'delete', async () => {
-    const r = await apiFetch('/api/contactos/' + id, { method: 'DELETE' });
+    const r = await apiFetch('/contactos/' + id, { method: 'DELETE' });
     if (!r.ok) return toast('Error al eliminar', 'error');
     toast('Contacto eliminado', 'success');
     cargarContactos();
