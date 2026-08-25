@@ -1,13 +1,30 @@
-const HF = {};
 let usuario = null;
 let _empresasPage = 1;
 let _contactosPage = 1;
 const _limit = 20;
 
-// ── Init ──
 const BASE = location.pathname.match(/^\/(\w+)\//) ? '/' + RegExp.$1 : '';
+
+async function cargarNombreModulo() {
+  const logo = document.querySelector('.logo[data-module-id]');
+  const nombreEl = logo?.querySelector('[data-module-name]');
+  if (!logo || !nombreEl) return;
+  try {
+    const token = localStorage.getItem('launcher_jwt');
+    const headers = token ? { Authorization: 'Bearer ' + token } : {};
+    const res = await fetch('/api/modulos', { credentials: 'include', headers });
+    if (!res.ok) return;
+    const modulos = await res.json();
+    const modulo = modulos.find(m => m.id === logo.dataset.moduleId);
+    if (!modulo?.nombre) return;
+    nombreEl.textContent = modulo.nombre;
+    document.title = modulo.nombre + ' — SynnoxERP';
+  } catch {}
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   initFramework({ basePath: BASE, apiPrefix: '/api', themeKey: 'synnox_theme', tokenKey: 'launcher_jwt' });
+  cargarNombreModulo();
   init();
 });
 
