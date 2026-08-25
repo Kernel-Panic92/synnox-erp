@@ -2,6 +2,29 @@ import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
 import { auditarEvento } from '../../../../framework/audit.js';
+import Database from 'better-sqlite3';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+function getUsuarioName(id) {
+  try {
+    const dbPath = path.join(__dirname, '..', '..', '..', '..', 'launcher', 'launcher.db');
+    const ldb = new Database(dbPath, { readonly: true });
+    const row = ldb.prepare('SELECT nombre FROM usuarios WHERE id = ?').get(id);
+    ldb.close();
+    return row?.nombre || null;
+  } catch { return null; }
+}
+
+function enrichWithUserNames(rows) {
+  return rows.map(r => ({
+    ...r,
+    solicitado_por_nombre: r.solicitado_por_nombre || getUsuarioName(r.solicitado_por),
+    aprobado_por_nombre: r.aprobado_por_nombre || getUsuarioName(r.aprobado_por)
+  }));
+}
 
 const router = express.Router();
 
@@ -26,20 +49,17 @@ router.get('/', requirePermiso('aprobar_descuento', 'crm'), async (req, res) => 
     const result = await pool.query(`
       SELECT d.*,
         cl.nombre AS cliente_nombre,
-        c.numero AS cotizacion_numero,
-        u1.nombre AS solicitado_por_nombre,
-        u2.nombre AS aprobado_por_nombre
+        c.numero AS cotizacion_numero
       FROM crm.descuentos_solicitud d
       LEFT JOIN crm.clientes cl ON cl.id = d.cliente_id
       LEFT JOIN crm.cotizaciones c ON c.id = d.cotizacion_id
-      LEFT JOIN launcher.usuarios u1 ON u1.id = d.solicitado_por
-      LEFT JOIN launcher.usuarios u2 ON u2.id = d.aprobado_por
       ${where}
       ORDER BY d.creado_en DESC
       LIMIT $${paramIdx++} OFFSET $${paramIdx++}
     `, [...params, parseInt(limit), offset]);
 
-    res.json({ ok: true, data: result.rows, total, page: parseInt(page), limit: parseInt(limit) });
+    const data = enrichWithUserNames(result.rows);
+    res.json({ ok: true, data, total, page: parseInt(page), limit: parseInt(limit) });
   } catch (err) {
     console.error('[CRM] Error listar descuentos:', err);
     res.status(500).json({ error: 'Error al listar solicitudes de descuento' });
@@ -52,17 +72,16 @@ router.get('/pendientes', requirePermiso('aprobar_descuento', 'crm'), async (req
     const result = await pool.query(`
       SELECT d.*,
         cl.nombre AS cliente_nombre,
-        c.numero AS cotizacion_numero,
-        u1.nombre AS solicitado_por_nombre
+        c.numero AS cotizacion_numero
       FROM crm.descuentos_solicitud d
       LEFT JOIN crm.clientes cl ON cl.id = d.cliente_id
       LEFT JOIN crm.cotizaciones c ON c.id = d.cotizacion_id
-      LEFT JOIN launcher.usuarios u1 ON u1.id = d.solicitado_por
       WHERE d.estado = 'pendiente'
       ORDER BY d.creado_en ASC
     `);
 
-    res.json({ ok: true, data: result.rows });
+    const data = enrichWithUserNames(result.rows);
+    res.json({ ok: true, data });
   } catch (err) {
     console.error('[CRM] Error listar pendientes:', err);
     res.status(500).json({ error: 'Error al listar pendientes' });

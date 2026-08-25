@@ -65,6 +65,13 @@
 .badge-convertida{background:#d1ecf1;color:#0c5460}
 .badge-pendiente{background:#fff3cd;color:#856404}
 .badge-auto_aprobado{background:#d4edda;color:#155724}
+.tab-btn{background:none;border:none;padding:8px 16px;font-size:13px;color:var(--muted);cursor:pointer;border-bottom:2px solid transparent}
+.tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);font-weight:600}
+.catalogo-item{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;border-bottom:1px solid var(--border);font-size:13px;cursor:pointer}
+.catalogo-item:hover{background:var(--surface2)}
+.catalogo-item .prod-codigo{font-weight:600;color:var(--accent)}
+.catalogo-item .prod-nombre{flex:1;margin:0 12px}
+.catalogo-item .prod-precio{font-weight:600}
 }
 </style>
 </head>
@@ -560,39 +567,92 @@
 
 <!-- Modal Cotizacion -->
 <div class="modal-overlay" id="modal-cotizacion">
-  <div class="modal" style="max-width:800px">
+  <div class="modal" style="max-width:900px">
     <h3 id="modal-cotizacion-title">Nueva Cotizacion</h3>
     <input type="hidden" id="cotizacion-id">
-    <div class="form-row">
-      <div class="form-group">
-        <label>Cliente *</label>
-        <select id="cotizacion-cliente" required></select>
-      </div>
-      <div class="form-group">
-        <label>Oportunidad</label>
-        <select id="cotizacion-oportunidad"></select>
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Validez (dias)</label>
-        <input type="number" id="cotizacion-validez" value="30" min="1">
-      </div>
-      <div class="form-group">
-        <label>Descuento (%)</label>
-        <input type="number" id="cotizacion-descuento" step="0.01" min="0" max="100" value="0">
-      </div>
-    </div>
-    <div class="form-group">
-      <label>Notas</label>
-      <textarea id="cotizacion-notas"></textarea>
+
+    <!-- Tabs -->
+    <div style="display:flex;gap:16px;border-bottom:1px solid var(--border);margin-bottom:16px">
+      <button class="tab-btn active" onclick="cambiarTabCotizacion('datos',this)">Datos basicos</button>
+      <button class="tab-btn" onclick="cambiarTabCotizacion('catalogo',this)">Catalogo</button>
+      <button class="tab-btn" onclick="cambiarTabCotizacion('carrito',this)">Carrito</button>
     </div>
 
-    <h4 style="margin:16px 0 8px">Items</h4>
-    <div id="cotizacion-items-list"></div>
-    <button class="btn btn-sm btn-secondary" onclick="agregarItemCotizacion()" style="margin:8px 0">+ Agregar Item</button>
+    <!-- Tab Datos basicos -->
+    <div id="tab-cotizacion-datos">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Cliente *</label>
+          <select id="cotizacion-cliente" required></select>
+        </div>
+        <div class="form-group">
+          <label>Contacto</label>
+          <select id="cotizacion-contacto"></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Oportunidad</label>
+          <select id="cotizacion-oportunidad"></select>
+        </div>
+        <div class="form-group">
+          <label>Orden de Compra</label>
+          <input type="text" id="cotizacion-orden-compra">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Centro de Operacion</label>
+          <input type="text" id="cotizacion-centro-op">
+        </div>
+        <div class="form-group">
+          <label>Bodega</label>
+          <input type="text" id="cotizacion-bodega">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Condicion de Pago</label>
+          <input type="text" id="cotizacion-condicion-pago">
+        </div>
+        <div class="form-group">
+          <label>Fecha de Entrega</label>
+          <input type="date" id="cotizacion-fecha-entrega">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Validez (dias)</label>
+          <input type="number" id="cotizacion-validez" value="30" min="1">
+        </div>
+        <div class="form-group">
+          <label>Descuento (%)</label>
+          <input type="number" id="cotizacion-descuento" step="0.01" min="0" max="100" value="0">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Notas</label>
+        <textarea id="cotizacion-notas"></textarea>
+      </div>
+    </div>
 
-    <div id="cotizacion-totales" style="margin-top:16px;padding:12px;background:var(--surface2);border-radius:8px;font-size:13px"></div>
+    <!-- Tab Catalogo (buscar productos) -->
+    <div id="tab-cotizacion-catalogo" style="display:none">
+      <div style="display:flex;gap:8px;margin-bottom:12px">
+        <input type="text" id="buscar-producto-input" placeholder="Buscar por referencia o nombre..." style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px" oninput="buscarProductosCatalogo()">
+        <button class="btn btn-sm btn-secondary" onclick="buscarProductosCatalogo()">Buscar</button>
+        <button class="btn btn-sm btn-secondary" onclick="abrirModal('modal-importar-productos')">Importar CSV</button>
+      </div>
+      <div id="catalogo-resultados" style="max-height:300px;overflow-y:auto"></div>
+    </div>
+
+    <!-- Tab Carrito (items) -->
+    <div id="tab-cotizacion-carrito" style="display:none">
+      <div id="cotizacion-items-list"></div>
+      <button class="btn btn-sm btn-secondary" onclick="agregarItemCotizacion()" style="margin:8px 0">+ Agregar Item</button>
+
+      <div id="cotizacion-totales" style="margin-top:16px;padding:12px;background:var(--surface2);border-radius:8px;font-size:13px"></div>
+    </div>
 
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="cerrarModal('modal-cotizacion')">Cancelar</button>
@@ -608,6 +668,25 @@
     <div id="detalle-cotizacion-content"></div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="cerrarModal('modal-detalle-cotizacion')">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Importar Productos -->
+<div class="modal-overlay" id="modal-importar-productos">
+  <div class="modal">
+    <h3>Importar Productos desde CSV</h3>
+    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
+      Formato esperado: <code>Referencia,Descripcion,Unidad,Precio,Tasa Impositiva,Categoria,Bodega</code>
+    </p>
+    <div class="form-group">
+      <label>Archivo CSV</label>
+      <input type="file" id="importar-productos-archivo" accept=".csv,.txt">
+    </div>
+    <div id="importar-productos-resultado" style="margin-top:12px"></div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-importar-productos')">Cerrar</button>
+      <button class="btn btn-primary" onclick="ejecutarImportacionProductos()">Importar</button>
     </div>
   </div>
 </div>

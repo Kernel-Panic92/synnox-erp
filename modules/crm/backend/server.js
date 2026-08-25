@@ -33,6 +33,7 @@ import oportunidadesRoutes from './routes/oportunidades.js';
 import visitasRoutes from './routes/visitas.js';
 import cotizacionesRoutes from './routes/cotizaciones.js';
 import descuentosRoutes from './routes/descuentos.js';
+import productosRoutes from './routes/productos.js';
 
 const protect = createProtect(MODULE_ID);
 
@@ -42,6 +43,7 @@ app.use('/api/oportunidades', protect, oportunidadesRoutes);
 app.use('/api/visitas', protect, visitasRoutes);
 app.use('/api/cotizaciones', protect, cotizacionesRoutes);
 app.use('/api/descuentos', protect, descuentosRoutes);
+app.use('/api/productos', protect, productosRoutes);
 
 // Public endpoint for centros
 app.get('/api/centros', (req, res) => {

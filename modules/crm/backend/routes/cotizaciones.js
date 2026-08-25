@@ -151,7 +151,9 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => 
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { cliente_id, oportunidad_id, validez_dias, notas, items, descuento_pct } = req.body;
+    const { cliente_id, oportunidad_id, validez_dias, notas, items, descuento_pct,
+            orden_compra, centro_operacion, bodega, condicion_pago, fecha_entrega,
+            unidad_negocio, punto_envio, motivo, vendedor_nombre } = req.body;
     if (!cliente_id) return res.status(400).json({ error: 'El cliente es obligatorio' });
 
     const numero = await generarNumero(client);
@@ -159,10 +161,16 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => 
     vencimiento.setDate(vencimiento.getDate() + (validez_dias || 30));
 
     const cot = await client.query(`
-      INSERT INTO crm.cotizaciones (numero, cliente_id, oportunidad_id, validez_dias, vencimiento, notas, creado_por)
-      VALUES ($1, $2, $3, $4, $5, $6, $7)
+      INSERT INTO crm.cotizaciones (numero, cliente_id, oportunidad_id, validez_dias, vencimiento, notas, creado_por,
+        orden_compra, centro_operacion, bodega, condicion_pago, fecha_entrega,
+        unidad_negocio, punto_envio, motivo, vendedor_nombre, propietario)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
       RETURNING *
-    `, [numero, cliente_id, oportunidad_id || null, validez_dias || 30, vencimiento.toISOString().split('T')[0], notas || null, req.user.id]);
+    `, [numero, cliente_id, oportunidad_id || null, validez_dias || 30, vencimiento.toISOString().split('T')[0],
+        notas || null, req.user.id,
+        orden_compra || null, centro_operacion || null, bodega || null, condicion_pago || null,
+        fecha_entrega || null, unidad_negocio || null, punto_envio || null, motivo || 'VENTAS',
+        vendedor_nombre || null, req.user.nombre || null]);
 
     const cotizacionId = cot.rows[0].id;
 
@@ -170,9 +178,9 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => 
       for (let i = 0; i < items.length; i++) {
         const it = items[i];
         await client.query(`
-          INSERT INTO crm.cotizacion_items (cotizacion_id, descripcion, cantidad, precio_unitario, descuento_pct, orden)
-          VALUES ($1, $2, $3, $4, $5, $6)
-        `, [cotizacionId, it.descripcion, it.cantidad || 1, it.precio_unitario || 0, it.descuento_pct || 0, i]);
+          INSERT INTO crm.cotizacion_items (cotizacion_id, descripcion, referencia, unidad_medida, cantidad, precio_unitario, descuento_pct, orden)
+          VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+        `, [cotizacionId, it.descripcion, it.referencia || null, it.unidad_medida || 'UND', it.cantidad || 1, it.precio_unitario || 0, it.descuento_pct || 0, i]);
       }
     }
 
@@ -211,7 +219,9 @@ router.put('/:id', requirePermiso('crear_cotizacion', 'crm'), async (req, res) =
       return res.status(400).json({ error: 'No se puede editar una cotizacion aprobada o convertida' });
     }
 
-    const fields = ['cliente_id', 'oportunidad_id', 'validez_dias', 'notas', 'moneda'];
+    const fields = ['cliente_id', 'oportunidad_id', 'validez_dias', 'notas', 'moneda',
+                    'orden_compra', 'centro_operacion', 'bodega', 'condicion_pago', 'fecha_entrega',
+                    'unidad_negocio', 'punto_envio', 'motivo', 'vendedor_nombre'];
     const updates = [];
     const params = [];
     let paramIdx = 1;
@@ -267,7 +277,7 @@ router.post('/:id/items', requirePermiso('crear_cotizacion', 'crm'), async (req,
   try {
     await client.query('BEGIN');
     const { id } = req.params;
-    const { descripcion, cantidad, precio_unitario, descuento_pct } = req.body;
+    const { descripcion, referencia, unidad_medida, cantidad, precio_unitario, descuento_pct } = req.body;
     if (!descripcion) return res.status(400).json({ error: 'La descripcion es obligatoria' });
 
     const estado = await client.query(`SELECT estado FROM crm.cotizaciones WHERE id = $1`, [id]);
@@ -279,10 +289,10 @@ router.post('/:id/items', requirePermiso('crear_cotizacion', 'crm'), async (req,
     const maxOrden = await client.query(`SELECT COALESCE(MAX(orden), 0) + 1 AS next FROM crm.cotizacion_items WHERE cotizacion_id = $1`, [id]);
 
     const result = await client.query(`
-      INSERT INTO crm.cotizacion_items (cotizacion_id, descripcion, cantidad, precio_unitario, descuento_pct, orden)
-      VALUES ($1, $2, $3, $4, $5, $6)
+      INSERT INTO crm.cotizacion_items (cotizacion_id, descripcion, referencia, unidad_medida, cantidad, precio_unitario, descuento_pct, orden)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
-    `, [id, descripcion, cantidad || 1, precio_unitario || 0, descuento_pct || 0, maxOrden.rows[0].next]);
+    `, [id, descripcion, referencia || null, unidad_medida || 'UND', cantidad || 1, precio_unitario || 0, descuento_pct || 0, maxOrden.rows[0].next]);
 
     const totales = await recalcularTotales(client, id);
 
@@ -310,7 +320,7 @@ router.put('/:id/items/:itemId', requirePermiso('crear_cotizacion', 'crm'), asyn
       return res.status(400).json({ error: 'No se pueden editar items de una cotizacion aprobada' });
     }
 
-    const fields = ['descripcion', 'cantidad', 'precio_unitario', 'descuento_pct', 'orden'];
+    const fields = ['descripcion', 'referencia', 'unidad_medida', 'cantidad', 'precio_unitario', 'descuento_pct', 'orden'];
     const updates = [];
     const params = [];
     let paramIdx = 1;

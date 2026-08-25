@@ -659,7 +659,8 @@ async function cargarCotizaciones() {
     if (!r.ok) return;
 
     const tbody = document.getElementById('tbody-cotizaciones');
-    tbody.innerHTML = r.data.map(c => `
+    const data = r.data.data || [];
+    tbody.innerHTML = data.map(c => `
       <tr>
         <td><a href="#" onclick="verCotizacion('${c.id}');return false" style="color:var(--accent);text-decoration:underline">${esc(c.numero)}</a></td>
         <td>${esc(c.cliente_nombre || '—')}</td>
@@ -679,7 +680,7 @@ async function cargarCotizaciones() {
       </tr>
     `).join('');
 
-    renderPagination('pag-cotizaciones', r.total, _cotizacionesPage, _limit, (p) => { _cotizacionesPage = p; cargarCotizaciones(); });
+    renderPagination('pag-cotizaciones', r.data.total, _cotizacionesPage, _limit, (p) => { _cotizacionesPage = p; cargarCotizaciones(); });
     cargarStatsCotizaciones();
   } catch (err) { console.error('Error cargar cotizaciones:', err); }
 }
@@ -710,6 +711,11 @@ async function abrirModalCotizacion(cotizacion = null) {
   document.getElementById('cotizacion-validez').value = cotizacion?.validez_dias || 30;
   document.getElementById('cotizacion-descuento').value = 0;
   document.getElementById('cotizacion-notas').value = cotizacion?.notas || '';
+  document.getElementById('cotizacion-orden-compra').value = cotizacion?.orden_compra || '';
+  document.getElementById('cotizacion-centro-op').value = cotizacion?.centro_operacion || '';
+  document.getElementById('cotizacion-bodega').value = cotizacion?.bodega || '';
+  document.getElementById('cotizacion-condicion-pago').value = cotizacion?.condicion_pago || '';
+  document.getElementById('cotizacion-fecha-entrega').value = cotizacion?.fecha_entrega ? cotizacion.fecha_entrega.split('T')[0] : '';
 
   await cargarClientesSelect('cotizacion-cliente', cotizacion?.cliente_id);
   await cargarOportunidadesSelect('cotizacion-oportunidad', cotizacion?.oportunidad_id);
@@ -718,32 +724,93 @@ async function abrirModalCotizacion(cotizacion = null) {
   if (cotizacion?.id) {
     const r = await apiFetch('/cotizaciones/' + cotizacion.id);
     if (r.ok) {
-      _cotizacionItems = r.data.items || [];
-      document.getElementById('cotizacion-descuento').value = r.data.valor_descuento > 0 ? ((r.data.valor_descuento / r.data.valor_subtotal) * 100).toFixed(2) : 0;
+      _cotizacionItems = r.data.data.items || [];
+      document.getElementById('cotizacion-descuento').value = r.data.data.valor_descuento > 0 ? ((r.data.data.valor_descuento / r.data.data.valor_subtotal) * 100).toFixed(2) : 0;
     }
   }
   renderItemsCotizacion();
+  cambiarTabCotizacion('datos', document.querySelector('#modal-cotizacion .tab-btn'));
   abrirModal('modal-cotizacion');
+}
+
+function cambiarTabCotizacion(tab, btn) {
+  document.querySelectorAll('#modal-cotizacion [id^="tab-cotizacion-"]').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('#modal-cotizacion .tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-cotizacion-' + tab).style.display = '';
+  if (btn) btn.classList.add('active');
+}
+
+let _buscarProductoTimer = null;
+async function buscarProductosCatalogo() {
+  clearTimeout(_buscarProductoTimer);
+  _buscarProductoTimer = setTimeout(async () => {
+    const q = document.getElementById('buscar-producto-input')?.value;
+    if (!q || q.length < 2) { document.getElementById('catalogo-resultados').innerHTML = '<p style="color:var(--muted);font-size:12px">Escribe al menos 2 caracteres para buscar.</p>'; return; }
+    const r = await apiFetch('/productos/buscar?q=' + encodeURIComponent(q));
+    if (!r.ok) return;
+    const data = r.data.data || [];
+    if (!data.length) { document.getElementById('catalogo-resultados').innerHTML = '<p style="color:var(--muted);font-size:12px">No se encontraron productos.</p>'; return; }
+    document.getElementById('catalogo-resultados').innerHTML = data.map(p => `
+      <div class="catalogo-item" onclick="agregarProductoAlCarrito(${JSON.stringify(p).replace(/"/g, '&quot;')})">
+        <span class="prod-codigo">${esc(p.codigo)}</span>
+        <span class="prod-nombre">${esc(p.nombre)}</span>
+        <span style="color:var(--muted);font-size:11px">${esc(p.unidad_medida || 'UND')}</span>
+        <span class="prod-precio">$${formatMoney(p.precio_unitario || 0)}</span>
+      </div>
+    `).join('');
+  }, 300);
+}
+
+function agregarProductoAlCarrito(producto) {
+  _cotizacionItems.push({
+    descripcion: producto.nombre,
+    referencia: producto.codigo,
+    unidad_medida: producto.unidad_medida || 'UND',
+    cantidad: 1,
+    precio_unitario: producto.precio_unitario || 0,
+    descuento_pct: 0
+  });
+  renderItemsCotizacion();
+  toast('Producto agregado al carrito', 'success');
+  cambiarTabCotizacion('carrito', document.querySelectorAll('#modal-cotizacion .tab-btn')[2]);
+}
+
+async function ejecutarImportacionProductos() {
+  const fileInput = document.getElementById('importar-productos-archivo');
+  if (!fileInput.files.length) return toast('Selecciona un archivo CSV', 'error');
+  const formData = new FormData();
+  formData.append('archivo', fileInput.files[0]);
+  const r = await fetch(HF.API + '/productos/importar', { method: 'POST', credentials: 'include', body: formData });
+  const data = await r.json();
+  const div = document.getElementById('importar-productos-resultado');
+  if (!r.ok) return div.innerHTML = `<p style="color:var(--danger)">${data.error || 'Error'}</p>`;
+  div.innerHTML = `
+    <p style="color:var(--success)">Importacion completada</p>
+    <p>Insertados: <strong>${data.insertados}</strong> | Actualizados: <strong>${data.actualizados}</strong> | Fallidos: <strong>${data.fallidos}</strong></p>
+    ${data.errores.length ? '<p style="font-size:11px;color:var(--muted)">' + data.errores.join('<br>') + '</p>' : ''}
+  `;
+  toast(`${data.insertados} insertados, ${data.actualizados} actualizados`, 'success');
 }
 
 function renderItemsCotizacion() {
   const container = document.getElementById('cotizacion-items-list');
   if (!_cotizacionItems.length) {
-    container.innerHTML = '<p style="color:var(--muted);font-size:12px">Sin items. Haz clic en "+ Agregar Item" para comenzar.</p>';
+    container.innerHTML = '<p style="color:var(--muted);font-size:12px">Sin items. Busca en el catalogo o agrega manualmente.</p>';
   } else {
     container.innerHTML = `
-      <div class="item-row" style="font-weight:600;font-size:11px;text-transform:uppercase;color:var(--muted)">
-        <div>Descripcion</div><div>Cant.</div><div>Precio</div><div>Desc.%</div><div>Subtotal</div><div></div>
+      <div class="item-row" style="grid-template-columns:60px 1fr 50px 80px 60px 80px 30px;font-weight:600;font-size:11px;text-transform:uppercase;color:var(--muted)">
+        <div>Ref</div><div>Descripcion</div><div>U.M</div><div>Cant.</div><div>Desc%</div><div>Subtotal</div><div></div>
       </div>
     ` + _cotizacionItems.map((it, i) => {
       const sub = (it.cantidad || 1) * (it.precio_unitario || 0) * (1 - (it.descuento_pct || 0) / 100);
       return `
-        <div class="item-row">
+        <div class="item-row" style="grid-template-columns:60px 1fr 50px 80px 60px 80px 30px">
+          <input value="${esc(it.referencia || '')}" onchange="updateItemCotizacion(${i},'referencia',this.value)" placeholder="Ref" style="font-size:11px">
           <input value="${esc(it.descripcion)}" onchange="updateItemCotizacion(${i},'descripcion',this.value)" placeholder="Descripcion">
+          <input value="${esc(it.unidad_medida || 'UND')}" onchange="updateItemCotizacion(${i},'unidad_medida',this.value)" style="font-size:11px">
           <input type="number" value="${it.cantidad || 1}" min="0.01" step="0.01" onchange="updateItemCotizacion(${i},'cantidad',parseFloat(this.value))">
-          <input type="number" value="${it.precio_unitario || 0}" min="0" step="0.01" onchange="updateItemCotizacion(${i},'precio_unitario',parseFloat(this.value))">
           <input type="number" value="${it.descuento_pct || 0}" min="0" max="100" step="0.01" onchange="updateItemCotizacion(${i},'descuento_pct',parseFloat(this.value))">
-          <div style="font-weight:600">$${formatMoney(sub)}</div>
+          <div style="font-weight:600;font-size:12px">$${formatMoney(sub)}</div>
           <button class="btn-icon" onclick="eliminarItemCotizacion(${i})">✕</button>
         </div>
       `;
@@ -795,7 +862,12 @@ async function guardarCotizacion() {
     validez_dias: parseInt(document.getElementById('cotizacion-validez').value) || 30,
     notas: document.getElementById('cotizacion-notas').value,
     descuento_pct: parseFloat(document.getElementById('cotizacion-descuento').value) || 0,
-    items: _cotizacionItems.filter(it => it.descripcion.trim())
+    orden_compra: document.getElementById('cotizacion-orden-compra').value || null,
+    centro_operacion: document.getElementById('cotizacion-centro-op').value || null,
+    bodega: document.getElementById('cotizacion-bodega').value || null,
+    condicion_pago: document.getElementById('cotizacion-condicion-pago').value || null,
+    fecha_entrega: document.getElementById('cotizacion-fecha-entrega').value || null,
+    items: _cotizacionItems.filter(it => it.descripcion?.trim())
   };
 
   if (!body.cliente_id) return toast('Seleccione un cliente', 'error');
@@ -827,10 +899,11 @@ async function verCotizacion(id) {
     itemsHtml = `
       <h4 style="margin:16px 0 8px">Items</h4>
       <div class="tbl-wrap"><table class="tbl"><thead><tr>
-        <th>#</th><th>Descripcion</th><th>Cant.</th><th>Precio</th><th>Desc.%</th><th>Subtotal</th>
+        <th>#</th><th>Ref</th><th>Descripcion</th><th>U.M</th><th>Cant.</th><th>Precio</th><th>Desc%</th><th>Subtotal</th>
       </tr></thead><tbody>
         ${c.items.map((it, i) => `<tr>
-          <td>${i + 1}</td><td>${esc(it.descripcion)}</td><td>${it.cantidad}</td>
+          <td>${i + 1}</td><td>${esc(it.referencia || '—')}</td><td>${esc(it.descripcion)}</td>
+          <td>${esc(it.unidad_medida || 'UND')}</td><td>${it.cantidad}</td>
           <td>$${formatMoney(it.precio_unitario)}</td><td>${it.descuento_pct}%</td>
           <td>$${formatMoney(it.subtotal)}</td>
         </tr>`).join('')}
@@ -863,6 +936,18 @@ async function verCotizacion(id) {
     <div class="form-row" style="margin-bottom:12px">
       <div><strong>Oportunidad:</strong> ${esc(c.oportunidad_nombre || '—')}</div>
       <div><strong>Vencimiento:</strong> ${formatDate(c.vencimiento)}</div>
+    </div>
+    <div class="form-row" style="margin-bottom:12px">
+      <div><strong>Orden de Compra:</strong> ${esc(c.orden_compra || '—')}</div>
+      <div><strong>Centro Operacion:</strong> ${esc(c.centro_operacion || '—')}</div>
+    </div>
+    <div class="form-row" style="margin-bottom:12px">
+      <div><strong>Condicion Pago:</strong> ${esc(c.condicion_pago || '—')}</div>
+      <div><strong>Fecha Entrega:</strong> ${formatDate(c.fecha_entrega)}</div>
+    </div>
+    <div class="form-row" style="margin-bottom:12px">
+      <div><strong>Bodega:</strong> ${esc(c.bodega || '—')}</div>
+      <div><strong>Documento ERP:</strong> ${esc(c.documento_erp || '—')}</div>
     </div>
     ${c.notas ? `<div style="margin-bottom:12px"><strong>Notas:</strong> ${esc(c.notas)}</div>` : ''}
     <div style="padding:12px;background:var(--surface2);border-radius:8px;font-size:13px">
@@ -908,7 +993,8 @@ async function cargarDescuentos() {
     if (!r.ok) return;
 
     const tbody = document.getElementById('tbody-descuentos');
-    tbody.innerHTML = r.data.map(d => `
+    const data = r.data.data || [];
+    tbody.innerHTML = data.map(d => `
       <tr>
         <td>${esc(d.cotizacion_numero || '—')}</td>
         <td>${esc(d.cliente_nombre || '—')}</td>
