@@ -1,7 +1,7 @@
 -- Pipeline de oportunidades
 CREATE TABLE IF NOT EXISTS crm.oportunidades (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  empresa_id UUID REFERENCES crm.empresas(id),
+  cliente_id UUID REFERENCES crm.clientes(id),
   contacto_id UUID REFERENCES crm.contactos(id),
   nombre VARCHAR(255) NOT NULL,
   monto_esperado DECIMAL(15,2),
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS crm.oportunidades (
   actualizado_en TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX IF NOT EXISTS idx_oportunidades_empresa ON crm.oportunidades(empresa_id);
+CREATE INDEX IF NOT EXISTS idx_oportunidades_cliente ON crm.oportunidades(cliente_id);
 CREATE INDEX IF NOT EXISTS idx_oportunidades_contacto ON crm.oportunidades(contacto_id);
 CREATE INDEX IF NOT EXISTS idx_oportunidades_vendedor ON crm.oportunidades(vendedor_id);
 CREATE INDEX IF NOT EXISTS idx_oportunidades_etapa ON crm.oportunidades(etapa);

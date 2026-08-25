@@ -17,7 +17,7 @@ Cotizaciones/Pedidos, Campanas, Items, Comercial
 modules/crm/
 ├── backend/
 │   ├── migrations/          (schema crm)
-│   │   ├── 001_crm_empresas_contactos.sql
+│   │   ├── 001_crm_clientes_contactos.sql
 │   │   ├── 002_crm_pipeline.sql
 │   │   ├── 003_crm_visitas_gps.sql
 │   │   ├── 004_crm_cotizaciones.sql
@@ -27,7 +27,7 @@ modules/crm/
 │   │   └── 008_crm_configuracion.sql
 │   ├── routes/
 │   │   ├── contactos.js
-│   │   ├── empresas.js
+│   │   ├── clientes.js
 │   │   ├── oportunidades.js
 │   │   ├── visitas.js
 │   │   ├── cotizaciones.js
@@ -48,7 +48,7 @@ modules/crm/
 │   ├── base.css
 │   └── js/modules/
 │       ├── contactos.js
-│       ├── empresas.js
+│       ├── clientes.js
 │       ├── pipeline.js
 │       ├── visitas.js
 │       ├── cotizaciones.js
@@ -61,12 +61,12 @@ modules/crm/
 
 ## Modelo de Datos (Schema `crm`)
 
-### 1. Empresas
+### 1. Clientes
 
 Reemplaza "Clientes" y "Clientes potenciales" de SIESA CRM.
 
 ```sql
-CREATE TABLE crm.empresas (
+CREATE TABLE crm.clientes (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   nombre VARCHAR(255) NOT NULL,
   nit VARCHAR(30),
@@ -88,11 +88,11 @@ CREATE TABLE crm.empresas (
   actualizado_en TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_empresas_nombre ON crm.empresas USING gin(nombre gin_trgm_ops);
-CREATE INDEX idx_empresas_nit ON crm.empresas(nit);
-CREATE INDEX idx_empresas_tipo ON crm.empresas(tipo);
-CREATE INDEX idx_empresas_vendedor ON crm.empresas(vendedor_asignado);
-CREATE INDEX idx_empresas_codigo_siesa ON crm.empresas(codigo_siesa);
+CREATE INDEX idx_clientes_nombre ON crm.clientes USING gin(nombre gin_trgm_ops);
+CREATE INDEX idx_clientes_nit ON crm.clientes(nit);
+CREATE INDEX idx_clientes_tipo ON crm.clientes(tipo);
+CREATE INDEX idx_clientes_vendedor ON crm.clientes(vendedor_asignado);
+CREATE INDEX idx_clientes_codigo_siesa ON crm.clientes(codigo_siesa);
 ```
 
 ### 2. Contactos
@@ -100,7 +100,7 @@ CREATE INDEX idx_empresas_codigo_siesa ON crm.empresas(codigo_siesa);
 ```sql
 CREATE TABLE crm.contactos (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  empresa_id UUID REFERENCES crm.empresas(id) ON DELETE CASCADE,
+  cliente_id UUID REFERENCES crm.clientes(id) ON DELETE CASCADE,
   nombre VARCHAR(255) NOT NULL,
   cargo VARCHAR(100),
   email VARCHAR(200),
@@ -112,7 +112,7 @@ CREATE TABLE crm.contactos (
   creado_en TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_contactos_empresa ON crm.contactos(empresa_id);
+CREATE INDEX idx_contactos_cliente ON crm.contactos(cliente_id);
 CREATE INDEX idx_contactos_nombre ON crm.contactos USING gin(nombre gin_trgm_ops);
 CREATE INDEX idx_contactos_email ON crm.contactos(email);
 ```
@@ -124,7 +124,7 @@ Reemplaza "Comercial" de SIESA CRM.
 ```sql
 CREATE TABLE crm.oportunidades (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  empresa_id UUID REFERENCES crm.empresas(id),
+  cliente_id UUID REFERENCES crm.clientes(id),
   contacto_id UUID REFERENCES crm.contactos(id),
   nombre VARCHAR(255) NOT NULL,
   monto_esperado DECIMAL(15,2),
@@ -140,7 +140,7 @@ CREATE TABLE crm.oportunidades (
   actualizado_en TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_oportunidades_empresa ON crm.oportunidades(empresa_id);
+CREATE INDEX idx_oportunidades_cliente ON crm.oportunidades(cliente_id);
 CREATE INDEX idx_oportunidades_vendedor ON crm.oportunidades(vendedor_id);
 CREATE INDEX idx_oportunidades_etapa ON crm.oportunidades(etapa);
 CREATE INDEX idx_oportunidades_fecha ON crm.oportunidades(fecha_cierre_estimada);
@@ -167,7 +167,7 @@ CREATE INDEX idx_historial_oportunidad ON crm.oportunidad_historial(oportunidad_
 ```sql
 CREATE TABLE crm.visitas (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  empresa_id UUID REFERENCES crm.empresas(id),
+  cliente_id UUID REFERENCES crm.clientes(id),
   contacto_id UUID REFERENCES crm.contactos(id),
   oportunidad_id UUID REFERENCES crm.oportunidades(id),
   vendedor_id UUID NOT NULL,
@@ -180,7 +180,7 @@ CREATE TABLE crm.visitas (
 );
 
 CREATE INDEX idx_visitas_vendedor ON crm.visitas(vendedor_id);
-CREATE INDEX idx_visitas_empresa ON crm.visitas(empresa_id);
+CREATE INDEX idx_visitas_cliente ON crm.visitas(cliente_id);
 CREATE INDEX idx_visitas_fecha ON crm.visitas(fecha);
 CREATE INDEX idx_visitas_tipo ON crm.visitas(tipo);
 ```
@@ -193,7 +193,7 @@ Reemplaza "Cotizaciones/Pedidos" de SIESA CRM.
 CREATE TABLE crm.cotizaciones (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   oportunidad_id UUID REFERENCES crm.oportunidades(id),
-  empresa_id UUID REFERENCES crm.empresas(id),
+  cliente_id UUID REFERENCES crm.clientes(id),
   numero VARCHAR(50) UNIQUE,
   estado VARCHAR(20) CHECK (estado IN (
     'borrador','enviada','aprobada','rechazada',
@@ -213,7 +213,7 @@ CREATE TABLE crm.cotizaciones (
   creado_en TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_cotizaciones_empresa ON crm.cotizaciones(empresa_id);
+CREATE INDEX idx_cotizaciones_cliente ON crm.cotizaciones(cliente_id);
 CREATE INDEX idx_cotizaciones_estado ON crm.cotizaciones(estado);
 CREATE INDEX idx_cotizaciones_numero ON crm.cotizaciones(numero);
 
@@ -238,7 +238,7 @@ CREATE TABLE crm.descuentos_solicitud (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   cotizacion_id UUID REFERENCES crm.cotizaciones(id),
   oportunidad_id UUID REFERENCES crm.oportunidades(id),
-  empresa_id UUID REFERENCES crm.empresas(id),
+  cliente_id UUID REFERENCES crm.clientes(id),
   solicitado_por UUID NOT NULL,
   tipo VARCHAR(20) CHECK (tipo IN ('porcentaje','monto_fijo')),
   valor_descuento DECIMAL(15,2) NOT NULL,
@@ -256,7 +256,7 @@ CREATE TABLE crm.descuentos_solicitud (
 );
 
 CREATE INDEX idx_descuentos_estado ON crm.descuentos_solicitud(estado);
-CREATE INDEX idx_descuentos_empresa ON crm.descuentos_solicitud(empresa_id);
+CREATE INDEX idx_descuentos_cliente ON crm.descuentos_solicitud(cliente_id);
 ```
 
 ### 8. Campanas Email
@@ -336,9 +336,9 @@ INSERT INTO crm.configuracion (clave, valor, descripcion) VALUES
 ```javascript
 crm: [
   ['ver',                    'Ver dashboard y listados'],
-  ['crear_contacto',         'Crear contactos y empresas'],
-  ['editar_contacto',        'Editar contactos y empresas'],
-  ['eliminar_contacto',      'Eliminar contactos y empresas'],
+  ['crear_contacto',         'Crear contactos y clientes'],
+  ['editar_contacto',        'Editar contactos y clientes'],
+  ['eliminar_contacto',      'Eliminar contactos y clientes'],
   ['ver_pipeline',           'Ver pipeline de oportunidades'],
   ['editar_pipeline',        'Mover oportunidades entre etapas'],
   ['crear_oportunidad',      'Crear oportunidades'],
@@ -396,7 +396,7 @@ Cotizacion lista para enviar a SIESA
 ```
 Vendedor abre visita -> "Check-in"
   -> navigator.geolocation.getCurrentPosition()
-  -> POST /api/crm/visitas { lat, lng, contacto_id, empresa_id }
+  -> POST /api/crm/visitas { lat, lng, contacto_id, cliente_id }
   -> Backend guarda: vendedor_id + GPS + timestamp
   -> Gerencia ve mapa con pins de visitas + filtro por vendedor/fecha
 ```
@@ -414,10 +414,10 @@ Reutiliza patrones existentes de logistica:
 
 | CSV | Tabla destino | Mapeo clave |
 |-----|--------------|-------------|
-| `clientes.csv` | `crm.empresas` | tipo='real' o 'siesa' |
-| `clientes_potenciales.csv` | `crm.empresas` | tipo='potencial' |
-| `contactos.csv` | `crm.contactos` | FK a empresa por NIT o nombre |
-| `cotizaciones.csv` | `crm.cotizaciones` | FK a empresa |
+| `clientes.csv` | `crm.clientes` | tipo='real' o 'siesa' |
+| `clientes_potenciales.csv` | `crm.clientes` | tipo='potencial' |
+| `contactos.csv` | `crm.contactos` | FK a cliente por NIT o nombre |
+| `cotizaciones.csv` | `crm.cotizaciones` | FK a cliente |
 | `items.csv` | `crm.productos` | codigo_siesa como unique key |
 
 ### Script de migracion
@@ -455,8 +455,8 @@ Reutiliza patrones existentes de logistica:
 
 | Tool | Descripcion |
 |------|-------------|
-| `crm_buscar_empresa` | Buscar por nombre, NIT, sector |
-| `crm_buscar_contacto` | Buscar por nombre, email, empresa |
+| `crm_buscar_cliente` | Buscar por nombre, NIT, sector |
+| `crm_buscar_contacto` | Buscar por nombre, email, cliente |
 | `crm_listar_oportunidades` | Pipeline filtrado por etapa/vendedor |
 | `crm_crear_oportunidad` | Crear deal en pipeline |
 | `crm_mover_oportunidad` | Cambiar etapa del deal |
@@ -492,7 +492,7 @@ en el mismo puerto 3002 via `server.js` root.
 
 | Fase | Alcance | Dependencia |
 |------|---------|-------------|
-| **1A** | Schema + CRUD contactos/empresas + migrador CSV SIESA | Ninguna |
+| **1A** | Schema + CRUD contactos/clientes + migrador CSV SIESA | Ninguna |
 | **1B** | Pipeline kanban + oportunidades + historial etapas | 1A |
 | **1C** | Visitas GPS (check-in/out + mapa Leaflet + reporte vendedor) | 1A |
 | **1D** | Cotizaciones + flujo aprobacion descuentos | 1A |
@@ -503,7 +503,7 @@ en el mismo puerto 3002 via `server.js` root.
 
 ### Fase 1A — Detalle de Implementacion
 
-**Objetivo:** CRUD completo de empresas y contactos + migrador CSV desde SIESA CRM.
+**Objetivo:** CRUD completo de clientes y contactos + migrador CSV desde SIESA CRM.
 
 **Archivos a crear:**
 
@@ -515,11 +515,11 @@ modules/crm/
 │   ├── config/
 │   │   └── db.js                    (Pool PostgreSQL)
 │   ├── migrations/
-│   │   ├── 001_crm_empresas_contactos.sql
+│   │   ├── 001_crm_clientes_contactos.sql
 │   │   └── run.js
 │   ├── routes/
-│   │   ├── empresas.js              (CRUD + busqueda + filtros)
-│   │   └── contactos.js             (CRUD + busqueda por empresa)
+│   │   ├── clientes.js              (CRUD + busqueda + filtros)
+│   │   └── contactos.js             (CRUD + busqueda por cliente)
 │   └── mcp/
 │       └── index.js                 (Stub MCP)
 ├── public/
@@ -530,7 +530,7 @@ modules/crm/
 │   ├── theme.js
 │   └── js/
 │       └── modules/
-│           ├── empresas.js
+│           ├── clientes.js
 │           └── contactos.js
 ```
 
@@ -552,21 +552,21 @@ launcher/server.js
    - Express sub-app con ESM
    - `createProtect(MODULE_ID)` para auth
    - `requirePermiso()` en cada ruta
-   - Montar routes en `/api/empresas`, `/api/contactos`
+   - Montar routes en `/api/clientes`, `/api/contactos`
    - Ejecutar migraciones al iniciar
-4. Crear migracion `001_crm_empresas_contactos.sql`:
+4. Crear migracion `001_crm_clientes_contactos.sql`:
    - `CREATE SCHEMA IF NOT EXISTS crm`
-   - Tablas `crm.empresas` y `crm.contactos` con indices
+   - Tablas `crm.clientes` y `crm.contactos` con indices
    - Extension `pg_trgm` para busqueda fuzzy
-5. Crear `routes/empresas.js`:
-   - GET `/api/empresas` (lista con filtros, busqueda, paginacion)
-   - GET `/api/empresas/:id` (detalle con contactos)
-   - POST `/api/empresas` (crear)
-   - PUT `/api/empresas/:id` (editar)
-   - DELETE `/api/empresas/:id` (soft delete)
-   - DELETE `/api/empresas/seleccionados` (bulk delete)
+5. Crear `routes/clientes.js`:
+   - GET `/api/clientes` (lista con filtros, busqueda, paginacion)
+   - GET `/api/clientes/:id` (detalle con contactos)
+   - POST `/api/clientes` (crear)
+   - PUT `/api/clientes/:id` (editar)
+   - DELETE `/api/clientes/:id` (soft delete)
+   - DELETE `/api/clientes/seleccionados` (bulk delete)
 6. Crear `routes/contactos.js`:
-   - GET `/api/contactos` (lista con filtro por empresa)
+   - GET `/api/contactos` (lista con filtro por cliente)
    - GET `/api/contactos/:id` (detalle)
    - POST `/api/contactos` (crear)
    - PUT `/api/contactos/:id` (editar)
@@ -578,16 +578,16 @@ launcher/server.js
 8. Crear frontend basico:
    - `index.html` con sidebar, nav items, paginas
    - `app.js` con navigate, api, carga de modulos
-   - `js/modules/empresas.js` con tabla, filtros, modales
+   - `js/modules/clientes.js` con tabla, filtros, modales
    - `js/modules/contactos.js` con tabla, filtros, modales
 9. Ejecutar migracion en PostgreSQL
-10. Verificar: listar, crear, editar, eliminar empresas y contactos
+10. Verificar: listar, crear, editar, eliminar clientes y contactos
 
 **Criterios de aceptacion:**
 
-- [ ] Tabla `crm.empresas` creada con indices
-- [ ] Tabla `crm.contactos` creada con FK a empresas
-- [ ] CRUD empresas funciona (GET, POST, PUT, DELETE)
+- [ ] Tabla `crm.clientes` creada con indices
+- [ ] Tabla `crm.contactos` creada con FK a clientes
+- [ ] CRUD clientes funciona (GET, POST, PUT, DELETE)
 - [ ] CRUD contactos funciona (GET, POST, PUT, DELETE)
 - [ ] Busqueda fuzzy por nombre funciona (pg_trgm)
 - [ ] Paginacion funciona
@@ -631,7 +631,7 @@ launcher/server.js
 - [x] Documentacion formal creada
 - [x] Decision: No usar scaffold (usar patron built-in)
 - [x] Fase 1A: Detalle de implementacion documentado
-- [ ] Fase 1A: Schema + CRUD contactos/empresas + migrador CSV
+- [ ] Fase 1A: Schema + CRUD contactos/clientes + migrador CSV
 - [ ] Fase 1B: Pipeline kanban + oportunidades
 - [ ] Fase 1C: Visitas GPS
 - [ ] Fase 1D: Cotizaciones + aprobacion descuentos

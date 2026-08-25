@@ -10,7 +10,7 @@ const ETAPAS = ['lead', 'calificado', 'propuesta', 'negociacion', 'ganada', 'per
 // GET /api/oportunidades — Listar oportunidades con filtros
 router.get('/', requirePermiso('ver_pipeline', 'crm'), async (req, res) => {
   try {
-    const { etapa, vendedor, empresa_id, search, page = 1, limit = 50 } = req.query;
+    const { etapa, vendedor, cliente_id, search, page = 1, limit = 50 } = req.query;
     const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
     const conditions = [];
     const params = [];
@@ -24,9 +24,9 @@ router.get('/', requirePermiso('ver_pipeline', 'crm'), async (req, res) => {
       conditions.push(`o.vendedor_id = $${paramIdx++}`);
       params.push(parseInt(vendedor));
     }
-    if (empresa_id) {
-      conditions.push(`o.empresa_id = $${paramIdx++}`);
-      params.push(empresa_id);
+    if (cliente_id) {
+      conditions.push(`o.cliente_id = $${paramIdx++}`);
+      params.push(cliente_id);
     }
     if (search) {
       conditions.push(`(o.nombre ILIKE $${paramIdx} OR e.nombre ILIKE $${paramIdx})`);
@@ -36,13 +36,13 @@ router.get('/', requirePermiso('ver_pipeline', 'crm'), async (req, res) => {
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const countResult = await pool.query(`SELECT COUNT(*) FROM crm.oportunidades o LEFT JOIN crm.empresas e ON e.id = o.empresa_id ${where}`, params);
+    const countResult = await pool.query(`SELECT COUNT(*) FROM crm.oportunidades o LEFT JOIN crm.clientes e ON e.id = o.cliente_id ${where}`, params);
     const total = parseInt(countResult.rows[0].count);
 
     const result = await pool.query(`
-      SELECT o.*, e.nombre AS empresa_nombre, c.nombre AS contacto_nombre
+      SELECT o.*, e.nombre AS cliente_nombre, c.nombre AS contacto_nombre
       FROM crm.oportunidades o
-      LEFT JOIN crm.empresas e ON e.id = o.empresa_id
+      LEFT JOIN crm.clientes e ON e.id = o.cliente_id
       LEFT JOIN crm.contactos c ON c.id = o.contacto_id
       ${where}
       ORDER BY o.creado_en DESC
@@ -72,9 +72,9 @@ router.get('/pipeline', requirePermiso('ver_pipeline', 'crm'), async (req, res) 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const result = await pool.query(`
-      SELECT o.*, e.nombre AS empresa_nombre, c.nombre AS contacto_nombre
+      SELECT o.*, e.nombre AS cliente_nombre, c.nombre AS contacto_nombre
       FROM crm.oportunidades o
-      LEFT JOIN crm.empresas e ON e.id = o.empresa_id
+      LEFT JOIN crm.clientes e ON e.id = o.cliente_id
       LEFT JOIN crm.contactos c ON c.id = o.contacto_id
       ${where}
       ORDER BY o.creado_en DESC
@@ -113,7 +113,7 @@ router.get('/stats', requirePermiso('ver_pipeline', 'crm'), async (req, res) => 
       pool.query(`SELECT COUNT(*) FROM crm.oportunidades`),
       pool.query(`SELECT etapa, COUNT(*) AS total, COALESCE(SUM(monto_esperado), 0) AS monto FROM crm.oportunidades GROUP BY etapa ORDER BY CASE etapa WHEN 'lead' THEN 1 WHEN 'calificado' THEN 2 WHEN 'propuesta' THEN 3 WHEN 'negociacion' THEN 4 WHEN 'ganada' THEN 5 WHEN 'perdida' THEN 6 END`),
       pool.query(`SELECT COALESCE(SUM(monto_esperado), 0) AS total FROM crm.oportunidades WHERE etapa NOT IN ('ganada', 'perdida')`),
-      pool.query(`SELECT o.*, e.nombre AS empresa_nombre FROM crm.oportunidades o LEFT JOIN crm.empresas e ON e.id = o.empresa_id ORDER BY o.creado_en DESC LIMIT 5`)
+      pool.query(`SELECT o.*, e.nombre AS cliente_nombre FROM crm.oportunidades o LEFT JOIN crm.clientes e ON e.id = o.cliente_id ORDER BY o.creado_en DESC LIMIT 5`)
     ]);
 
     res.json({
@@ -134,9 +134,9 @@ router.get('/:id', requirePermiso('ver_pipeline', 'crm'), async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(`
-      SELECT o.*, e.nombre AS empresa_nombre, c.nombre AS contacto_nombre, c.email AS contacto_email
+      SELECT o.*, e.nombre AS cliente_nombre, c.nombre AS contacto_nombre, c.email AS contacto_email
       FROM crm.oportunidades o
-      LEFT JOIN crm.empresas e ON e.id = o.empresa_id
+      LEFT JOIN crm.clientes e ON e.id = o.cliente_id
       LEFT JOIN crm.contactos c ON c.id = o.contacto_id
       WHERE o.id = $1
     `, [id]);
@@ -157,14 +157,14 @@ router.get('/:id', requirePermiso('ver_pipeline', 'crm'), async (req, res) => {
 // POST /api/oportunidades — Crear oportunidad
 router.post('/', requirePermiso('crear_oportunidad', 'crm'), async (req, res) => {
   try {
-    const { empresa_id, contacto_id, nombre, monto_esperado, probabilidad, etapa, vendedor_id, fecha_cierre_estimada } = req.body;
+    const { cliente_id, contacto_id, nombre, monto_esperado, probabilidad, etapa, vendedor_id, fecha_cierre_estimada } = req.body;
     if (!nombre) return res.status(400).json({ error: 'El nombre es obligatorio' });
 
     const result = await pool.query(`
-      INSERT INTO crm.oportunidades (empresa_id, contacto_id, nombre, monto_esperado, probabilidad, etapa, vendedor_id, fecha_cierre_estimada)
+      INSERT INTO crm.oportunidades (cliente_id, contacto_id, nombre, monto_esperado, probabilidad, etapa, vendedor_id, fecha_cierre_estimada)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
-    `, [empresa_id || null, contacto_id || null, nombre, monto_esperado || 0, probabilidad || 10, etapa || 'lead', vendedor_id || req.user.id, fecha_cierre_estimada || null]);
+    `, [cliente_id || null, contacto_id || null, nombre, monto_esperado || 0, probabilidad || 10, etapa || 'lead', vendedor_id || req.user.id, fecha_cierre_estimada || null]);
 
     // Registrar en historial
     await pool.query(
@@ -189,7 +189,7 @@ router.put('/:id', requirePermiso('editar_pipeline', 'crm'), async (req, res) =>
     const existing = await pool.query(`SELECT * FROM crm.oportunidades WHERE id = $1`, [id]);
     if (!existing.rows.length) return res.status(404).json({ error: 'Oportunidad no encontrada' });
 
-    const fields = ['empresa_id', 'contacto_id', 'nombre', 'monto_esperado', 'probabilidad', 'motivo_perdida', 'vendedor_id', 'fecha_cierre_estimada'];
+    const fields = ['cliente_id', 'contacto_id', 'nombre', 'monto_esperado', 'probabilidad', 'motivo_perdida', 'vendedor_id', 'fecha_cierre_estimada'];
     const updates = [];
     const params = [];
     let paramIdx = 1;

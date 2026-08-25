@@ -8,15 +8,15 @@ const router = express.Router();
 // GET /api/contactos — Listar contactos con filtros y paginacion
 router.get('/', requirePermiso('ver', 'crm'), async (req, res) => {
   try {
-    const { empresa_id, search, page = 1, limit = 20, sort = 'creado_en', order = 'desc' } = req.query;
+    const { cliente_id, search, page = 1, limit = 20, sort = 'creado_en', order = 'desc' } = req.query;
     const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
     const conditions = ['c.activo = TRUE'];
     const params = [];
     let paramIdx = 1;
 
-    if (empresa_id) {
-      conditions.push(`c.empresa_id = $${paramIdx++}`);
-      params.push(empresa_id);
+    if (cliente_id) {
+      conditions.push(`c.cliente_id = $${paramIdx++}`);
+      params.push(cliente_id);
     }
     if (search) {
       conditions.push(`(c.nombre ILIKE $${paramIdx} OR c.email ILIKE $${paramIdx} OR c.cargo ILIKE $${paramIdx})`);
@@ -33,9 +33,9 @@ router.get('/', requirePermiso('ver', 'crm'), async (req, res) => {
     const total = parseInt(countResult.rows[0].count);
 
     const result = await pool.query(`
-      SELECT c.*, e.nombre AS empresa_nombre
+      SELECT c.*, e.nombre AS cliente_nombre
       FROM crm.contactos c
-      LEFT JOIN crm.empresas e ON e.id = c.empresa_id
+      LEFT JOIN crm.clientes e ON e.id = c.cliente_id
       ${where}
       ORDER BY c.${sortCol} ${sortOrder}
       LIMIT $${paramIdx++} OFFSET $${paramIdx++}
@@ -53,9 +53,9 @@ router.get('/:id', requirePermiso('ver', 'crm'), async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(`
-      SELECT c.*, e.nombre AS empresa_nombre, e.nit AS empresa_nit, e.ciudad AS empresa_ciudad
+      SELECT c.*, e.nombre AS cliente_nombre, e.nit AS cliente_nit, e.ciudad AS cliente_ciudad
       FROM crm.contactos c
-      LEFT JOIN crm.empresas e ON e.id = c.empresa_id
+      LEFT JOIN crm.clientes e ON e.id = c.cliente_id
       WHERE c.id = $1
     `, [id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Contacto no encontrado' });
@@ -70,21 +70,21 @@ router.get('/:id', requirePermiso('ver', 'crm'), async (req, res) => {
 // POST /api/contactos — Crear contacto
 router.post('/', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
   try {
-    const { empresa_id, nombre, cargo, email, telefono, whatsapp, es_decision_maker, notas } = req.body;
+    const { cliente_id, nombre, cargo, email, telefono, whatsapp, es_decision_maker, notas } = req.body;
     if (!nombre) return res.status(400).json({ error: 'El nombre es obligatorio' });
-    if (!empresa_id) return res.status(400).json({ error: 'La empresa es obligatoria' });
+    if (!cliente_id) return res.status(400).json({ error: 'El cliente es obligatorio' });
 
-    // Verificar que la empresa existe
-    const empresa = await pool.query(`SELECT id FROM crm.empresas WHERE id = $1 AND activo = TRUE`, [empresa_id]);
-    if (!empresa.rows.length) return res.status(404).json({ error: 'Empresa no encontrada' });
+    // Verificar que el cliente existe
+    const cliente = await pool.query(`SELECT id FROM crm.clientes WHERE id = $1 AND activo = TRUE`, [cliente_id]);
+    if (!cliente.rows.length) return res.status(404).json({ error: 'Cliente no encontrado' });
 
     const result = await pool.query(`
-      INSERT INTO crm.contactos (empresa_id, nombre, cargo, email, telefono, whatsapp, es_decision_maker, notas)
+      INSERT INTO crm.contactos (cliente_id, nombre, cargo, email, telefono, whatsapp, es_decision_maker, notas)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
       RETURNING *
-    `, [empresa_id, nombre, cargo || null, email || null, telefono || null, whatsapp || null, es_decision_maker || false, notas || null]);
+    `, [cliente_id, nombre, cargo || null, email || null, telefono || null, whatsapp || null, es_decision_maker || false, notas || null]);
 
-    await auditarEvento({ accion: 'crear', entidad: 'contacto', entidad_id: result.rows[0].id, usuario_id: req.user.id, metadata: { nombre, empresa_id } });
+    await auditarEvento({ accion: 'crear', entidad: 'contacto', entidad_id: result.rows[0].id, usuario_id: req.user.id, metadata: { nombre, cliente_id } });
 
     res.status(201).json({ ok: true, data: result.rows[0] });
   } catch (err) {
@@ -100,7 +100,7 @@ router.put('/:id', requirePermiso('editar_contacto', 'crm'), async (req, res) =>
     const existing = await pool.query(`SELECT id FROM crm.contactos WHERE id = $1`, [id]);
     if (!existing.rows.length) return res.status(404).json({ error: 'Contacto no encontrado' });
 
-    const fields = ['empresa_id', 'nombre', 'cargo', 'email', 'telefono', 'whatsapp', 'es_decision_maker', 'notas', 'activo'];
+    const fields = ['cliente_id', 'nombre', 'cargo', 'email', 'telefono', 'whatsapp', 'es_decision_maker', 'notas', 'activo'];
     const updates = [];
     const params = [];
     let paramIdx = 1;

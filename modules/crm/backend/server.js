@@ -27,14 +27,14 @@ app.use((req, res, next) => {
   next();
 });
 
-import empresasRoutes from './routes/empresas.js';
+import clientesRoutes from './routes/clientes.js';
 import contactosRoutes from './routes/contactos.js';
 import oportunidadesRoutes from './routes/oportunidades.js';
 import visitasRoutes from './routes/visitas.js';
 
 const protect = createProtect(MODULE_ID);
 
-app.use('/api/empresas', protect, empresasRoutes);
+app.use('/api/clientes', protect, clientesRoutes);
 app.use('/api/contactos', protect, contactosRoutes);
 app.use('/api/oportunidades', protect, oportunidadesRoutes);
 app.use('/api/visitas', protect, visitasRoutes);
@@ -73,11 +73,11 @@ app.get('/api/dashboard', protect, async (req, res) => {
   try {
     const pool = (await import('./config/db.js')).default;
 
-    const [totalEmpresas, porTipo, contactosRecientes, empresasRecientes, totalOportunidades, oportunidadesAbiertas, montoPipeline] = await Promise.all([
-      pool.query(`SELECT COUNT(*) FROM crm.empresas WHERE activo = TRUE`),
-      pool.query(`SELECT tipo, COUNT(*) AS total FROM crm.empresas WHERE activo = TRUE GROUP BY tipo ORDER BY total DESC`),
+    const [totalClientes, porTipo, contactosRecientes, clientesRecientes, totalOportunidades, oportunidadesAbiertas, montoPipeline] = await Promise.all([
+      pool.query(`SELECT COUNT(*) FROM crm.clientes WHERE activo = TRUE`),
+      pool.query(`SELECT tipo, COUNT(*) AS total FROM crm.clientes WHERE activo = TRUE GROUP BY tipo ORDER BY total DESC`),
       pool.query(`SELECT COUNT(*) FROM crm.contactos WHERE activo = TRUE`),
-      pool.query(`SELECT id, nombre, tipo, ciudad, creado_en FROM crm.empresas WHERE activo = TRUE ORDER BY creado_en DESC LIMIT 10`),
+      pool.query(`SELECT id, nombre, tipo, ciudad, creado_en FROM crm.clientes WHERE activo = TRUE ORDER BY creado_en DESC LIMIT 10`),
       pool.query(`SELECT COUNT(*) FROM crm.oportunidades`),
       pool.query(`SELECT COUNT(*) FROM crm.oportunidades WHERE etapa NOT IN ('ganada', 'perdida')`),
       pool.query(`SELECT COALESCE(SUM(monto_esperado), 0) AS total FROM crm.oportunidades WHERE etapa NOT IN ('ganada', 'perdida')`)
@@ -85,10 +85,10 @@ app.get('/api/dashboard', protect, async (req, res) => {
 
     res.json({
       ok: true,
-      empresas_total: parseInt(totalEmpresas.rows[0].count),
-      empresas_por_tipo: porTipo.rows,
+      clientes_total: parseInt(totalClientes.rows[0].count),
+      clientes_por_tipo: porTipo.rows,
       contactos_total: parseInt(contactosRecientes.rows[0].count),
-      empresas_recientes: empresasRecientes.rows,
+      clientes_recientes: clientesRecientes.rows,
       oportunidades_total: parseInt(totalOportunidades.rows[0].count),
       oportunidades_abiertas: parseInt(oportunidadesAbiertas.rows[0].count),
       monto_pipeline: parseFloat(montoPipeline.rows[0].total)

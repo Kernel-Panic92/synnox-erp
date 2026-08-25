@@ -51,7 +51,7 @@
 .kanban-card:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.1)}
 .kanban-card.dragging{opacity:.4;border-style:dashed}
 .kanban-card .card-title{font-weight:600;font-size:13px;margin-bottom:6px}
-.kanban-card .card-empresa{font-size:11px;color:var(--muted);margin-bottom:4px}
+.kanban-card .card-cliente{font-size:11px;color:var(--muted);margin-bottom:4px}
 .kanban-card .card-monto{font-size:14px;font-weight:700;color:var(--accent)}
 .kanban-card .card-meta{font-size:11px;color:var(--muted);display:flex;justify-content:space-between;margin-top:6px}
 }
@@ -71,7 +71,7 @@
   <nav id="sidebar-nav">
     <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span> Dashboard</button>
     <button class="nav-item" data-page="pipeline" onclick="navigate('pipeline')"><span class="icon">📈</span> Pipeline</button>
-    <button class="nav-item" data-page="empresas" onclick="navigate('empresas')"><span class="icon">🏢</span> Empresas</button>
+    <button class="nav-item" data-page="clientes" onclick="navigate('clientes')"><span class="icon">🏢</span> Clientes</button>
     <button class="nav-item" data-page="contactos" onclick="navigate('contactos')"><span class="icon">👤</span> Contactos</button>
     <button class="nav-item" data-page="visitas" onclick="navigate('visitas')"><span class="icon">📍</span> Visitas</button>
   </nav>
@@ -100,7 +100,7 @@
       <!-- Dashboard -->
       <div class="page active" id="page-dashboard">
         <div class="stats-row" id="stats-row"></div>
-        <div id="empresas-recientes"></div>
+        <div id="clientes-recientes"></div>
       </div>
 
       <!-- Pipeline -->
@@ -120,32 +120,32 @@
         <div class="kanban" id="pipeline-kanban"></div>
       </div>
 
-      <!-- Empresas -->
-      <div class="page" id="page-empresas">
+      <!-- Clientes -->
+      <div class="page" id="page-clientes">
         <div class="page-header">
-          <h3>Empresas</h3>
+          <h3>Clientes</h3>
           <div class="page-actions">
-            <button class="btn btn-sm btn-primary" onclick="abrirModalEmpresa()">+ Nueva Empresa</button>
+            <button class="btn btn-sm btn-primary" onclick="abrirModalCliente()">+ Nueva Cliente</button>
           </div>
         </div>
         <div class="filters">
-          <input type="text" id="filtro-empresa-search" placeholder="Buscar empresa..." oninput="cargarEmpresas()">
-          <select id="filtro-empresa-tipo" onchange="cargarEmpresas()">
+          <input type="text" id="filtro-cliente-search" placeholder="Buscar cliente..." oninput="cargarClientes()">
+          <select id="filtro-cliente-tipo" onchange="cargarClientes()">
             <option value="">Todos los tipos</option>
             <option value="potencial">Potencial</option>
             <option value="real">Real</option>
             <option value="siesa">SIESA</option>
           </select>
-          <select id="filtro-empresa-ciudad" onchange="cargarEmpresas()">
+          <select id="filtro-cliente-ciudad" onchange="cargarClientes()">
             <option value="">Todas las ciudades</option>
           </select>
-          <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosEmpresas()">✕ Limpiar</button>
+          <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosClientes()">✕ Limpiar</button>
         </div>
         <div class="tbl-wrap">
-          <table class="tbl" id="tbl-empresas">
+          <table class="tbl" id="tbl-clientes">
             <thead>
               <tr>
-                <th><input type="checkbox" id="selectAllEmpresas" onchange="toggleSelectAll(this, 'empresa')"></th>
+                <th><input type="checkbox" id="selectAllClientes" onchange="toggleSelectAll(this, 'cliente')"></th>
                 <th>Nombre</th>
                 <th>NIT</th>
                 <th>Tipo</th>
@@ -155,10 +155,10 @@
                 <th>Acciones</th>
               </tr>
             </thead>
-            <tbody id="tbody-empresas"></tbody>
+            <tbody id="tbody-clientes"></tbody>
           </table>
         </div>
-        <div class="pagination" id="pag-empresas"></div>
+        <div class="pagination" id="pag-clientes"></div>
       </div>
 
       <!-- Contactos -->
@@ -171,8 +171,8 @@
         </div>
         <div class="filters">
           <input type="text" id="filtro-contacto-search" placeholder="Buscar contacto..." oninput="cargarContactos()">
-          <select id="filtro-contacto-empresa" onchange="cargarContactos()">
-            <option value="">Todas las empresas</option>
+          <select id="filtro-contacto-cliente" onchange="cargarContactos()">
+            <option value="">Todas las clientes</option>
           </select>
           <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosContactos()">✕ Limpiar</button>
         </div>
@@ -182,7 +182,7 @@
               <tr>
                 <th><input type="checkbox" id="selectAllContactos" onchange="toggleSelectAll(this, 'contacto')"></th>
                 <th>Nombre</th>
-                <th>Empresa</th>
+                <th>Cliente</th>
                 <th>Cargo</th>
                 <th>Email</th>
                 <th>Telefono</th>
@@ -216,7 +216,7 @@
             <thead>
               <tr>
                 <th>Tipo</th>
-                <th>Empresa</th>
+                <th>Cliente</th>
                 <th>Vendedor</th>
                 <th>Fecha</th>
                 <th>Coordenadas</th>
@@ -233,25 +233,25 @@
   </div>
 </div>
 
-<!-- Modal Empresa -->
-<div class="modal-overlay" id="modal-empresa">
+<!-- Modal Cliente -->
+<div class="modal-overlay" id="modal-cliente">
   <div class="modal">
-    <h3 id="modal-empresa-title">Nueva Empresa</h3>
-    <input type="hidden" id="empresa-id">
+    <h3 id="modal-cliente-title">Nueva Cliente</h3>
+    <input type="hidden" id="cliente-id">
     <div class="form-row">
       <div class="form-group">
         <label>Nombre *</label>
-        <input type="text" id="empresa-nombre" required>
+        <input type="text" id="cliente-nombre" required>
       </div>
       <div class="form-group">
         <label>NIT</label>
-        <input type="text" id="empresa-nit">
+        <input type="text" id="cliente-nit">
       </div>
     </div>
     <div class="form-row">
       <div class="form-group">
         <label>Tipo</label>
-        <select id="empresa-tipo">
+        <select id="cliente-tipo">
           <option value="potencial">Potencial</option>
           <option value="real">Real</option>
           <option value="siesa">SIESA</option>
@@ -259,40 +259,40 @@
       </div>
       <div class="form-group">
         <label>Sector</label>
-        <input type="text" id="empresa-sector">
+        <input type="text" id="cliente-sector">
       </div>
     </div>
     <div class="form-group">
       <label>Direccion</label>
-      <input type="text" id="empresa-direccion">
+      <input type="text" id="cliente-direccion">
     </div>
     <div class="form-row">
       <div class="form-group">
         <label>Ciudad</label>
-        <input type="text" id="empresa-ciudad">
+        <input type="text" id="cliente-ciudad">
       </div>
       <div class="form-group">
         <label>Telefono</label>
-        <input type="text" id="empresa-telefono">
+        <input type="text" id="cliente-telefono">
       </div>
     </div>
     <div class="form-row">
       <div class="form-group">
         <label>Email</label>
-        <input type="email" id="empresa-email">
+        <input type="email" id="cliente-email">
       </div>
       <div class="form-group">
         <label>Website</label>
-        <input type="url" id="empresa-website">
+        <input type="url" id="cliente-website">
       </div>
     </div>
     <div class="form-group">
       <label>Notas</label>
-      <textarea id="empresa-notas"></textarea>
+      <textarea id="cliente-notas"></textarea>
     </div>
     <div class="btn-row">
-      <button class="btn btn-secondary" onclick="cerrarModal('modal-empresa')">Cancelar</button>
-      <button class="btn btn-primary" onclick="guardarEmpresa()">Guardar</button>
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-cliente')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarCliente()">Guardar</button>
     </div>
   </div>
 </div>
@@ -303,8 +303,8 @@
     <h3 id="modal-contacto-title">Nuevo Contacto</h3>
     <input type="hidden" id="contacto-id">
     <div class="form-group">
-      <label>Empresa *</label>
-      <select id="contacto-empresa" required></select>
+      <label>Cliente *</label>
+      <select id="contacto-cliente" required></select>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -361,8 +361,8 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Empresa *</label>
-        <select id="oportunidad-empresa" onchange="cargarContactosOportunidad()" required></select>
+        <label>Cliente *</label>
+        <select id="oportunidad-cliente" onchange="cargarContactosOportunidad()" required></select>
       </div>
       <div class="form-group">
         <label>Contacto</label>
@@ -419,8 +419,8 @@
     <h3 id="modal-visita-title">Check-in</h3>
     <input type="hidden" id="visita-tipo" value="checkin">
     <div class="form-group">
-      <label>Empresa *</label>
-      <select id="visita-empresa" required></select>
+      <label>Cliente *</label>
+      <select id="visita-cliente" required></select>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -451,13 +451,13 @@
   </div>
 </div>
 
-<!-- Modal Detalle Empresa -->
-<div class="modal-overlay" id="modal-detalle-empresa">
+<!-- Modal Detalle Cliente -->
+<div class="modal-overlay" id="modal-detalle-cliente">
   <div class="modal" style="max-width:700px">
-    <h3 id="detalle-empresa-title">Detalle Empresa</h3>
-    <div id="detalle-empresa-content"></div>
+    <h3 id="detalle-cliente-title">Detalle Cliente</h3>
+    <div id="detalle-cliente-content"></div>
     <div class="btn-row">
-      <button class="btn btn-secondary" onclick="cerrarModal('modal-detalle-empresa')">Cerrar</button>
+      <button class="btn btn-secondary" onclick="cerrarModal('modal-detalle-cliente')">Cerrar</button>
     </div>
   </div>
 </div>

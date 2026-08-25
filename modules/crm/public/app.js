@@ -1,5 +1,5 @@
 let usuario = null;
-let _empresasPage = 1;
+let _clientesPage = 1;
 let _contactosPage = 1;
 const _limit = 20;
 
@@ -68,7 +68,7 @@ function mostrarLogoutConfirm() {
 }
 
 // ── Navigation ──
-const pages = ['dashboard', 'pipeline', 'empresas', 'contactos', 'visitas'];
+const pages = ['dashboard', 'pipeline', 'clientes', 'contactos', 'visitas'];
 function navigate(page) {
   if (!pages.includes(page)) page = 'dashboard';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -77,11 +77,11 @@ function navigate(page) {
   const nav = document.querySelector(`[data-page="${page}"]`);
   if (el) el.classList.add('active');
   if (nav) nav.classList.add('active');
-  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', empresas: 'Empresas', contactos: 'Contactos', visitas: 'Visitas GPS' };
+  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Visitas GPS' };
   document.getElementById('page-title').textContent = titles[page] || 'CRM';
   if (page === 'dashboard') cargarDashboard();
   if (page === 'pipeline') cargarPipeline();
-  if (page === 'empresas') cargarEmpresas();
+  if (page === 'clientes') cargarClientes();
   if (page === 'contactos') cargarContactos();
   if (page === 'visitas') cargarVisitas();
 }
@@ -93,15 +93,15 @@ async function cargarDashboard() {
     if (!r.ok) return;
     const d = r.data;
     document.getElementById('stats-row').innerHTML = `
-      <div class="stat-card"><div class="stat-value">${d.empresas_total || 0}</div><div class="stat-label">Empresas</div></div>
+      <div class="stat-card"><div class="stat-value">${d.clientes_total || 0}</div><div class="stat-label">Clientes</div></div>
       <div class="stat-card"><div class="stat-value">${d.contactos_total || 0}</div><div class="stat-label">Contactos</div></div>
       <div class="stat-card"><div class="stat-value">${d.oportunidades_abiertas || 0}</div><div class="stat-label">Oportunidades abiertas</div></div>
       <div class="stat-card"><div class="stat-value">$${formatMoney(d.monto_pipeline || 0)}</div><div class="stat-label">Pipeline value</div></div>
     `;
-    const recientes = d.empresas_recientes || [];
+    const recientes = d.clientes_recientes || [];
     if (recientes.length) {
-      document.getElementById('empresas-recientes').innerHTML = `
-        <h4 style="margin-bottom:12px">Empresas Recientes</h4>
+      document.getElementById('clientes-recientes').innerHTML = `
+        <h4 style="margin-bottom:12px">Clientes Recientes</h4>
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nombre</th><th>Tipo</th><th>Ciudad</th><th>Creado</th></tr></thead><tbody>
           ${recientes.map(e => `<tr><td>${esc(e.nombre)}</td><td><span class="badge badge-${esc(e.tipo)}">${esc(e.tipo)}</span></td><td>${esc(e.ciudad || '—')}</td><td>${formatDate(e.creado_en)}</td></tr>`).join('')}
         </tbody></table></div>
@@ -141,7 +141,7 @@ async function cargarPipeline() {
         ${(pipeline[etapa.id] || []).map(o => `
           <div class="kanban-card" draggable="true" ondragstart="dragOportunidad(event, '${o.id}')" onclick="editarOportunidad('${o.id}')">
             <div class="card-title">${esc(o.nombre)}</div>
-            <div class="card-empresa">${esc(o.empresa_nombre || '—')}</div>
+            <div class="card-cliente">${esc(o.cliente_nombre || '—')}</div>
             <div class="card-monto">$${formatMoney(o.monto_esperado || 0)}</div>
             <div class="card-meta">
               <span>${o.probabilidad || 0}%</span>
@@ -193,7 +193,7 @@ async function abrirModalOportunidad(oportunidad = null) {
     document.getElementById('grupo-motivo-perdida').style.display = this.value === 'perdida' ? 'block' : 'none';
   };
   document.getElementById('grupo-motivo-perdida').style.display = (oportunidad?.etapa === 'perdida') ? 'block' : 'none';
-  await cargarEmpresasSelect('oportunidad-empresa', oportunidad?.empresa_id);
+  await cargarClientesSelect('oportunidad-cliente', oportunidad?.cliente_id);
   await cargarContactosOportunidad(oportunidad?.contacto_id);
   await cargarVendedoresSelect('oportunidad-vendedor', oportunidad?.vendedor_id);
   abrirModal('modal-oportunidad');
@@ -209,7 +209,7 @@ async function guardarOportunidad() {
   const id = document.getElementById('oportunidad-id').value;
   const body = {
     nombre: document.getElementById('oportunidad-nombre').value,
-    empresa_id: document.getElementById('oportunidad-empresa').value,
+    cliente_id: document.getElementById('oportunidad-cliente').value,
     contacto_id: document.getElementById('oportunidad-contacto').value || null,
     monto_esperado: parseFloat(document.getElementById('oportunidad-monto').value) || 0,
     probabilidad: parseInt(document.getElementById('oportunidad-probabilidad').value) || 0,
@@ -219,7 +219,7 @@ async function guardarOportunidad() {
     motivo_perdida: document.getElementById('oportunidad-etapa').value === 'perdida' ? (document.getElementById('oportunidad-motivo-perdida').value || null) : null
   };
   if (!body.nombre) return toast('El nombre es obligatorio', 'error');
-  if (!body.empresa_id) return toast('Seleccione una empresa', 'error');
+  if (!body.cliente_id) return toast('Seleccione un cliente', 'error');
   const r = id
     ? await apiFetch('/oportunidades/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     : await apiFetch('/oportunidades', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -230,11 +230,11 @@ async function guardarOportunidad() {
 }
 
 async function cargarContactosOportunidad(selectedId) {
-  const empresaId = document.getElementById('oportunidad-empresa')?.value;
+  const clienteId = document.getElementById('oportunidad-cliente')?.value;
   const sel = document.getElementById('oportunidad-contacto');
   sel.innerHTML = '<option value="">Sin contacto</option>';
-  if (!empresaId) return;
-  const r = await apiFetch('/contactos?empresa_id=' + empresaId + '&limit=100');
+  if (!clienteId) return;
+  const r = await apiFetch('/contactos?cliente_id=' + clienteId + '&limit=100');
   if (!r.ok) return;
   for (const c of r.data.data || []) {
     const opt = document.createElement('option');
@@ -262,54 +262,54 @@ async function cargarVendedoresSelect(selectId, selectedId) {
 function formatMoney(n) {
   return Number(n).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
-async function cargarEmpresas() {
-  const search = document.getElementById('filtro-empresa-search').value;
-  const tipo = document.getElementById('filtro-empresa-tipo').value;
-  const params = new URLSearchParams({ page: _empresasPage, limit: _limit });
+async function cargarClientes() {
+  const search = document.getElementById('filtro-cliente-search').value;
+  const tipo = document.getElementById('filtro-cliente-tipo').value;
+  const params = new URLSearchParams({ page: _clientesPage, limit: _limit });
   if (search) params.set('search', search);
   if (tipo) params.set('tipo', tipo);
-  const r = await apiFetch('/empresas?' + params);
+  const r = await apiFetch('/clientes?' + params);
   if (!r.ok) return;
-  const tbody = document.getElementById('tbody-empresas');
+  const tbody = document.getElementById('tbody-clientes');
   const data = r.data.data || [];
   tbody.innerHTML = data.map(e => `
     <tr>
-      <td><input type="checkbox" class="select-empresa" value="${e.id}"></td>
-      <td><a href="#" onclick="verEmpresa('${e.id}');return false" style="color:var(--accent)">${esc(e.nombre)}</a></td>
+      <td><input type="checkbox" class="select-cliente" value="${e.id}"></td>
+      <td><a href="#" onclick="verCliente('${e.id}');return false" style="color:var(--accent)">${esc(e.nombre)}</a></td>
       <td>${esc(e.nit || '—')}</td>
       <td><span class="badge badge-${esc(e.tipo)}">${esc(e.tipo)}</span></td>
       <td>${esc(e.ciudad || '—')}</td>
       <td>${e.total_contactos || 0}</td>
       <td>${formatDate(e.creado_en)}</td>
       <td>
-        <button class="btn btn-sm btn-secondary" onclick="editarEmpresa('${e.id}')" title="Editar">✏️</button>
-        <button class="btn btn-sm btn-danger" onclick="eliminarEmpresa('${e.id}')" title="Eliminar">🗑️</button>
+        <button class="btn btn-sm btn-secondary" onclick="editarCliente('${e.id}')" title="Editar">✏️</button>
+        <button class="btn btn-sm btn-danger" onclick="eliminarCliente('${e.id}')" title="Eliminar">🗑️</button>
       </td>
     </tr>
   `).join('');
-  renderPagination('pag-empresas', r.data.total, _empresasPage, _limit, (p) => { _empresasPage = p; cargarEmpresas(); });
+  renderPagination('pag-clientes', r.data.total, _clientesPage, _limit, (p) => { _clientesPage = p; cargarClientes(); });
   // Cargar ciudades para filtro
   const ciudades = [...new Set(data.map(e => e.ciudad).filter(Boolean))];
-  const sel = document.getElementById('filtro-empresa-ciudad');
+  const sel = document.getElementById('filtro-cliente-ciudad');
   const actual = sel.value;
   sel.innerHTML = '<option value="">Todas las ciudades</option>' + ciudades.map(c => `<option value="${esc(c)}" ${c === actual ? 'selected' : ''}>${esc(c)}</option>`).join('');
 }
 
-function limpiarFiltrosEmpresas() {
-  document.getElementById('filtro-empresa-search').value = '';
-  document.getElementById('filtro-empresa-tipo').value = '';
-  document.getElementById('filtro-empresa-ciudad').value = '';
-  _empresasPage = 1;
-  cargarEmpresas();
+function limpiarFiltrosClientes() {
+  document.getElementById('filtro-cliente-search').value = '';
+  document.getElementById('filtro-cliente-tipo').value = '';
+  document.getElementById('filtro-cliente-ciudad').value = '';
+  _clientesPage = 1;
+  cargarClientes();
 }
 
-async function verEmpresa(id) {
-  const r = await apiFetch('/empresas/' + id);
+async function verCliente(id) {
+  const r = await apiFetch('/clientes/' + id);
   if (!r.ok) return;
   const e = r.data.data;
   const contactos = e.contactos || [];
-  document.getElementById('detalle-empresa-title').textContent = e.nombre;
-  document.getElementById('detalle-empresa-content').innerHTML = `
+  document.getElementById('detalle-cliente-title').textContent = e.nombre;
+  document.getElementById('detalle-cliente-content').innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
       <div><strong>NIT:</strong> ${esc(e.nit || '—')}</div>
       <div><strong>Tipo:</strong> <span class="badge badge-${esc(e.tipo)}">${esc(e.tipo)}</span></div>
@@ -326,71 +326,71 @@ async function verEmpresa(id) {
       ${contactos.map(c => `<tr><td>${esc(c.nombre)}</td><td>${esc(c.cargo || '—')}</td><td>${esc(c.email || '—')}</td><td>${esc(c.telefono || '—')}</td></tr>`).join('')}
     </tbody></table></div>` : '<p style="color:var(--muted)">Sin contactos registrados</p>'}
   `;
-  abrirModal('modal-detalle-empresa');
+  abrirModal('modal-detalle-cliente');
 }
 
-function abrirModalEmpresa(empresa = null) {
-  document.getElementById('modal-empresa-title').textContent = empresa ? 'Editar Empresa' : 'Nueva Empresa';
-  document.getElementById('empresa-id').value = empresa?.id || '';
-  document.getElementById('empresa-nombre').value = empresa?.nombre || '';
-  document.getElementById('empresa-nit').value = empresa?.nit || '';
-  document.getElementById('empresa-tipo').value = empresa?.tipo || 'potencial';
-  document.getElementById('empresa-sector').value = empresa?.sector || '';
-  document.getElementById('empresa-direccion').value = empresa?.direccion || '';
-  document.getElementById('empresa-ciudad').value = empresa?.ciudad || '';
-  document.getElementById('empresa-telefono').value = empresa?.telefono || '';
-  document.getElementById('empresa-email').value = empresa?.email || '';
-  document.getElementById('empresa-website').value = empresa?.website || '';
-  document.getElementById('empresa-notas').value = empresa?.notas || '';
-  abrirModal('modal-empresa');
+function abrirModalCliente(cliente = null) {
+  document.getElementById('modal-cliente-title').textContent = cliente ? 'Editar Cliente' : 'Nueva Cliente';
+  document.getElementById('cliente-id').value = cliente?.id || '';
+  document.getElementById('cliente-nombre').value = cliente?.nombre || '';
+  document.getElementById('cliente-nit').value = cliente?.nit || '';
+  document.getElementById('cliente-tipo').value = cliente?.tipo || 'potencial';
+  document.getElementById('cliente-sector').value = cliente?.sector || '';
+  document.getElementById('cliente-direccion').value = cliente?.direccion || '';
+  document.getElementById('cliente-ciudad').value = cliente?.ciudad || '';
+  document.getElementById('cliente-telefono').value = cliente?.telefono || '';
+  document.getElementById('cliente-email').value = cliente?.email || '';
+  document.getElementById('cliente-website').value = cliente?.website || '';
+  document.getElementById('cliente-notas').value = cliente?.notas || '';
+  abrirModal('modal-cliente');
 }
 
-async function editarEmpresa(id) {
-  const r = await apiFetch('/empresas/' + id);
+async function editarCliente(id) {
+  const r = await apiFetch('/clientes/' + id);
   if (!r.ok) return;
-  abrirModalEmpresa(r.data.data);
+  abrirModalCliente(r.data.data);
 }
 
-async function guardarEmpresa() {
-  const id = document.getElementById('empresa-id').value;
+async function guardarCliente() {
+  const id = document.getElementById('cliente-id').value;
   const body = {
-    nombre: document.getElementById('empresa-nombre').value,
-    nit: document.getElementById('empresa-nit').value || null,
-    tipo: document.getElementById('empresa-tipo').value,
-    sector: document.getElementById('empresa-sector').value || null,
-    direccion: document.getElementById('empresa-direccion').value || null,
-    ciudad: document.getElementById('empresa-ciudad').value || null,
-    telefono: document.getElementById('empresa-telefono').value || null,
-    email: document.getElementById('empresa-email').value || null,
-    website: document.getElementById('empresa-website').value || null,
-    notas: document.getElementById('empresa-notas').value || null
+    nombre: document.getElementById('cliente-nombre').value,
+    nit: document.getElementById('cliente-nit').value || null,
+    tipo: document.getElementById('cliente-tipo').value,
+    sector: document.getElementById('cliente-sector').value || null,
+    direccion: document.getElementById('cliente-direccion').value || null,
+    ciudad: document.getElementById('cliente-ciudad').value || null,
+    telefono: document.getElementById('cliente-telefono').value || null,
+    email: document.getElementById('cliente-email').value || null,
+    website: document.getElementById('cliente-website').value || null,
+    notas: document.getElementById('cliente-notas').value || null
   };
   if (!body.nombre) return toast('El nombre es obligatorio', 'error');
   const r = id
-    ? await apiFetch('/empresas/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
-    : await apiFetch('/empresas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    ? await apiFetch('/clientes/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    : await apiFetch('/clientes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) return toast(r.data?.error || 'Error al guardar', 'error');
-  toast(id ? 'Empresa actualizada' : 'Empresa creada', 'success');
-  cerrarModal('modal-empresa');
-  cargarEmpresas();
+  toast(id ? 'Cliente actualizada' : 'Cliente creada', 'success');
+  cerrarModal('modal-cliente');
+  cargarClientes();
 }
 
-async function eliminarEmpresa(id) {
-  confirmModal('¿Eliminar esta empresa?', 'Eliminar', 'delete', async () => {
-    const r = await apiFetch('/empresas/' + id, { method: 'DELETE' });
+async function eliminarCliente(id) {
+  confirmModal('¿Eliminar esta cliente?', 'Eliminar', 'delete', async () => {
+    const r = await apiFetch('/clientes/' + id, { method: 'DELETE' });
     if (!r.ok) return toast('Error al eliminar', 'error');
-    toast('Empresa eliminada', 'success');
-    cargarEmpresas();
+    toast('Cliente eliminada', 'success');
+    cargarClientes();
   });
 }
 
 // ── Contactos ──
 async function cargarContactos() {
   const search = document.getElementById('filtro-contacto-search').value;
-  const empresaId = document.getElementById('filtro-contacto-empresa').value;
+  const clienteId = document.getElementById('filtro-contacto-cliente').value;
   const params = new URLSearchParams({ page: _contactosPage, limit: _limit });
   if (search) params.set('search', search);
-  if (empresaId) params.set('empresa_id', empresaId);
+  if (clienteId) params.set('cliente_id', clienteId);
   const r = await apiFetch('/contactos?' + params);
   if (!r.ok) return;
   const tbody = document.getElementById('tbody-contactos');
@@ -399,7 +399,7 @@ async function cargarContactos() {
     <tr>
       <td><input type="checkbox" class="select-contacto" value="${c.id}"></td>
       <td>${esc(c.nombre)}</td>
-      <td>${esc(c.empresa_nombre || '—')}</td>
+      <td>${esc(c.cliente_nombre || '—')}</td>
       <td>${esc(c.cargo || '—')}</td>
       <td>${esc(c.email || '—')}</td>
       <td>${esc(c.telefono || '—')}</td>
@@ -411,23 +411,23 @@ async function cargarContactos() {
     </tr>
   `).join('');
   renderPagination('pag-contactos', r.data.total, _contactosPage, _limit, (p) => { _contactosPage = p; cargarContactos(); });
-  // Cargar empresas en select de filtro
-  await cargarEmpresasSelect('filtro-contacto-empresa', empresaId);
+  // Cargar clientes en select de filtro
+  await cargarClientesSelect('filtro-contacto-cliente', clienteId);
 }
 
 function limpiarFiltrosContactos() {
   document.getElementById('filtro-contacto-search').value = '';
-  document.getElementById('filtro-contacto-empresa').value = '';
+  document.getElementById('filtro-contacto-cliente').value = '';
   _contactosPage = 1;
   cargarContactos();
 }
 
-async function cargarEmpresasSelect(selectId, selectedId) {
-  const r = await apiFetch('/empresas?limit=500');
+async function cargarClientesSelect(selectId, selectedId) {
+  const r = await apiFetch('/clientes?limit=500');
   if (!r.ok) return;
   const sel = document.getElementById(selectId);
   const actual = selectedId || sel.value;
-  sel.innerHTML = '<option value="">Todas las empresas</option>' +
+  sel.innerHTML = '<option value="">Todas las clientes</option>' +
     (r.data.data || []).map(e => `<option value="${e.id}" ${e.id === actual ? 'selected' : ''}>${esc(e.nombre)}</option>`).join('');
 }
 
@@ -441,7 +441,7 @@ async function abrirModalContacto(contacto = null) {
   document.getElementById('contacto-whatsapp').value = contacto?.whatsapp || '';
   document.getElementById('contacto-decision').value = contacto?.es_decision_maker ? 'true' : 'false';
   document.getElementById('contacto-notas').value = contacto?.notas || '';
-  await cargarEmpresasSelect('contacto-empresa', contacto?.empresa_id);
+  await cargarClientesSelect('contacto-cliente', contacto?.cliente_id);
   abrirModal('modal-contacto');
 }
 
@@ -454,7 +454,7 @@ async function editarContacto(id) {
 async function guardarContacto() {
   const id = document.getElementById('contacto-id').value;
   const body = {
-    empresa_id: document.getElementById('contacto-empresa').value,
+    cliente_id: document.getElementById('contacto-cliente').value,
     nombre: document.getElementById('contacto-nombre').value,
     cargo: document.getElementById('contacto-cargo').value || null,
     email: document.getElementById('contacto-email').value || null,
@@ -464,7 +464,7 @@ async function guardarContacto() {
     notas: document.getElementById('contacto-notas').value || null
   };
   if (!body.nombre) return toast('El nombre es obligatorio', 'error');
-  if (!body.empresa_id) return toast('Seleccione una empresa', 'error');
+  if (!body.cliente_id) return toast('Seleccione un cliente', 'error');
   const r = id
     ? await apiFetch('/contactos/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     : await apiFetch('/contactos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
@@ -499,7 +499,7 @@ async function cargarVisitas() {
   tbody.innerHTML = data.map(v => `
     <tr>
       <td><span class="badge badge-${v.tipo}">${v.tipo}</span></td>
-      <td>${esc(v.empresa_nombre || '—')}</td>
+      <td>${esc(v.cliente_nombre || '—')}</td>
       <td>#${v.vendedor_id}</td>
       <td>${formatDateTime(v.fecha)}</td>
       <td><a href="https://www.google.com/maps?q=${v.latitud},${v.longitud}" target="_blank" rel="noopener">${v.latitud?.toFixed(4)}, ${v.longitud?.toFixed(4)}</a></td>
@@ -535,8 +535,8 @@ async function abrirModalVisita(tipo) {
   document.getElementById('visita-foto').value = '';
   document.getElementById('btn-guardar-visita').disabled = true;
   document.getElementById('btn-guardar-visita').textContent = 'Obteniendo GPS...';
-  await cargarEmpresasSelect('visita-empresa', '');
-  document.getElementById('visita-empresa').onchange = () => {
+  await cargarClientesSelect('visita-cliente', '');
+  document.getElementById('visita-cliente').onchange = () => {
     cargarContactosVisita();
     cargarOportunidadesVisita();
   };
@@ -547,11 +547,11 @@ async function abrirModalVisita(tipo) {
 }
 
 async function cargarContactosVisita() {
-  const empresaId = document.getElementById('visita-empresa')?.value;
+  const clienteId = document.getElementById('visita-cliente')?.value;
   const sel = document.getElementById('visita-contacto');
   sel.innerHTML = '<option value="">Sin contacto</option>';
-  if (!empresaId) return;
-  const r = await apiFetch('/contactos?empresa_id=' + empresaId + '&limit=100');
+  if (!clienteId) return;
+  const r = await apiFetch('/contactos?cliente_id=' + clienteId + '&limit=100');
   if (!r.ok) return;
   for (const c of r.data.data || []) {
     const opt = document.createElement('option');
@@ -562,11 +562,11 @@ async function cargarContactosVisita() {
 }
 
 async function cargarOportunidadesVisita() {
-  const empresaId = document.getElementById('visita-empresa')?.value;
+  const clienteId = document.getElementById('visita-cliente')?.value;
   const sel = document.getElementById('visita-oportunidad');
   sel.innerHTML = '<option value="">Sin oportunidad</option>';
-  if (!empresaId) return;
-  const r = await apiFetch('/oportunidades?empresa_id=' + empresaId + '&limit=100');
+  if (!clienteId) return;
+  const r = await apiFetch('/oportunidades?cliente_id=' + clienteId + '&limit=100');
   if (!r.ok) return;
   for (const o of r.data.data || []) {
     const opt = document.createElement('option');
@@ -606,12 +606,12 @@ async function guardarVisita() {
     return toast('Espera a obtener el GPS', 'warning');
   }
   const [lat, lng] = coords.split(',');
-  const empresaId = document.getElementById('visita-empresa').value;
-  if (!empresaId) return toast('Selecciona una empresa', 'error');
+  const clienteId = document.getElementById('visita-cliente').value;
+  if (!clienteId) return toast('Selecciona un cliente', 'error');
 
   const formData = new FormData();
   formData.append('tipo', tipo);
-  formData.append('empresa_id', empresaId);
+  formData.append('cliente_id', clienteId);
   formData.append('contacto_id', document.getElementById('visita-contacto').value);
   formData.append('oportunidad_id', document.getElementById('visita-oportunidad').value);
   formData.append('latitud', lat.trim());
