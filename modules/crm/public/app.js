@@ -326,25 +326,107 @@ async function verCliente(id) {
   if (!r.ok) return;
   const e = r.data.data;
   const contactos = e.contactos || [];
+
+  // Fetch sucursales
+  const sucR = await apiFetch('/clientes/' + id + '/sucursales');
+  const sucursales = sucR.ok ? (sucR.data.data || []) : [];
+
   document.getElementById('detalle-cliente-title').textContent = e.nombre;
   document.getElementById('detalle-cliente-content').innerHTML = `
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
       <div><strong>NIT:</strong> ${esc(e.nit || '—')}</div>
       <div><strong>Tipo:</strong> <span class="badge badge-${esc(e.tipo)}">${esc(e.tipo)}</span></div>
-      <div><strong>Sector:</strong> ${esc(e.sector || '—')}</div>
+      <div><strong>Canal:</strong> ${esc(e.canal || '—')}</div>
       <div><strong>Ciudad:</strong> ${esc(e.ciudad || '—')}</div>
       <div><strong>Direccion:</strong> ${esc(e.direccion || '—')}</div>
       <div><strong>Telefono:</strong> ${esc(e.telefono || '—')}</div>
       <div><strong>Email:</strong> ${esc(e.email || '—')}</div>
-      <div><strong>Website:</strong> ${esc(e.website || '—')}</div>
+      <div><strong>Codigo SIESA:</strong> ${esc(e.codigo_siesa || '—')}</div>
     </div>
     ${e.notas ? `<div style="margin-bottom:16px"><strong>Notas:</strong><br>${esc(e.notas)}</div>` : ''}
-    <h4>Contactos (${contactos.length})</h4>
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px">
+      <h4 style="margin:0">Sucursales (${sucursales.length})</h4>
+      <button class="btn btn-sm btn-primary" onclick="abrirModalSucursal('${id}')">+ Nueva</button>
+    </div>
+    ${sucursales.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Codigo</th><th>Nombre</th><th>Direccion</th><th>Ciudad</th><th>Telefono</th><th>Principal</th><th></th></tr></thead><tbody>
+      ${sucursales.map(s => `<tr>
+        <td><strong>${esc(s.codigo || '—')}</strong></td>
+        <td>${esc(s.nombre)}</td>
+        <td>${esc(s.direccion || '—')}</td>
+        <td>${esc(s.ciudad || '—')}</td>
+        <td>${esc(s.telefono || '—')}</td>
+        <td>${s.es_principal ? '<span class="badge badge-aprobada">Principal</span>' : ''}</td>
+        <td>
+          <button class="btn btn-sm btn-secondary" onclick="editarSucursal('${s.id}','${id}')">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarSucursal('${s.id}','${id}')">🗑️</button>
+        </td>
+      </tr>`).join('')}
+    </tbody></table></div>` : '<p style="color:var(--muted)">Sin sucursales. Agrega la primera sucursal del cliente.</p>'}
+
+    <h4 style="margin:16px 0 8px">Contactos (${contactos.length})</h4>
     ${contactos.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nombre</th><th>Cargo</th><th>Email</th><th>Telefono</th></tr></thead><tbody>
       ${contactos.map(c => `<tr><td>${esc(c.nombre)}</td><td>${esc(c.cargo || '—')}</td><td>${esc(c.email || '—')}</td><td>${esc(c.telefono || '—')}</td></tr>`).join('')}
     </tbody></table></div>` : '<p style="color:var(--muted)">Sin contactos registrados</p>'}
   `;
   showModal('modal-detalle-cliente');
+}
+
+// ── Sucursales ──
+function abrirModalSucursal(clienteId, sucursal = null) {
+  document.getElementById('modal-sucursal-title').textContent = sucursal ? 'Editar Sucursal' : 'Nueva Sucursal';
+  document.getElementById('sucursal-id').value = sucursal?.id || '';
+  document.getElementById('sucursal-cliente-id').value = clienteId;
+  document.getElementById('sucursal-codigo').value = sucursal?.codigo || '';
+  document.getElementById('sucursal-nombre').value = sucursal?.nombre || '';
+  document.getElementById('sucursal-direccion').value = sucursal?.direccion || '';
+  document.getElementById('sucursal-ciudad').value = sucursal?.ciudad || '';
+  document.getElementById('sucursal-departamento').value = sucursal?.departamento || '';
+  document.getElementById('sucursal-telefono').value = sucursal?.telefono || '';
+  document.getElementById('sucursal-email').value = sucursal?.email || '';
+  document.getElementById('sucursal-contacto').value = sucursal?.contacto_nombre || '';
+  document.getElementById('sucursal-principal').checked = sucursal?.es_principal || false;
+  showModal('modal-sucursal');
+}
+
+async function editarSucursal(sucursalId, clienteId) {
+  const r = await apiFetch('/sucursales/' + sucursalId);
+  if (!r.ok) return toast('Error al cargar', 'error');
+  abrirModalSucursal(clienteId, r.data.data);
+}
+
+async function guardarSucursal() {
+  const id = document.getElementById('sucursal-id').value;
+  const clienteId = document.getElementById('sucursal-cliente-id').value;
+  const body = {
+    codigo: document.getElementById('sucursal-codigo').value,
+    nombre: document.getElementById('sucursal-nombre').value,
+    direccion: document.getElementById('sucursal-direccion').value,
+    ciudad: document.getElementById('sucursal-ciudad').value,
+    departamento: document.getElementById('sucursal-departamento').value,
+    telefono: document.getElementById('sucursal-telefono').value,
+    email: document.getElementById('sucursal-email').value,
+    contacto_nombre: document.getElementById('sucursal-contacto').value,
+    es_principal: document.getElementById('sucursal-principal').checked
+  };
+  if (!body.nombre) return toast('El nombre es obligatorio', 'error');
+
+  const url = id ? '/sucursales/' + id : '/clientes/' + clienteId + '/sucursales';
+  const method = id ? 'PUT' : 'POST';
+  const r = await apiFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) return toast(r.data?.error || 'Error al guardar', 'error');
+  toast(id ? 'Sucursal actualizada' : 'Sucursal creada', 'success');
+  hideModal('modal-sucursal');
+  verCliente(clienteId);
+}
+
+async function eliminarSucursal(sucursalId, clienteId) {
+  confirmar({ titulo: 'Eliminar sucursal', mensaje: 'Eliminar esta sucursal?', icono: '🗑️', onConfirm: async () => {
+    const r = await apiFetch('/sucursales/' + sucursalId, { method: 'DELETE' });
+    if (!r.ok) return toast('Error al eliminar', 'error');
+    toast('Sucursal eliminada', 'success');
+    verCliente(clienteId);
+  }});
 }
 
 function abrirModalCliente(cliente = null) {

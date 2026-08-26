@@ -625,6 +625,60 @@
   </div>
 </div>
 
+<!-- Modal Sucursal -->
+<div class="modal-overlay" id="modal-sucursal">
+  <div class="modal" style="max-width:500px">
+    <h3 id="modal-sucursal-title">Nueva Sucursal</h3>
+    <input type="hidden" id="sucursal-id">
+    <input type="hidden" id="sucursal-cliente-id">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Codigo *</label>
+        <input type="text" id="sucursal-codigo" placeholder="001, 002...">
+      </div>
+      <div class="form-group">
+        <label>Nombre *</label>
+        <input type="text" id="sucursal-nombre">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Direccion</label>
+      <input type="text" id="sucursal-direccion">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Ciudad</label>
+        <input type="text" id="sucursal-ciudad">
+      </div>
+      <div class="form-group">
+        <label>Departamento</label>
+        <input type="text" id="sucursal-departamento">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Telefono</label>
+        <input type="text" id="sucursal-telefono">
+      </div>
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="sucursal-email">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Contacto en sucursal</label>
+      <input type="text" id="sucursal-contacto">
+    </div>
+    <div class="form-group">
+      <label><input type="checkbox" id="sucursal-principal"> Sucursal principal</label>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="hideModal('modal-sucursal')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarSucursal()">Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- Modal Cotizacion -->
 <div class="modal-overlay" id="modal-cotizacion">
   <div class="modal" style="max-width:900px">
