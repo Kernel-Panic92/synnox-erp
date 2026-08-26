@@ -217,7 +217,7 @@
           <table class="tbl" id="tbl-contactos">
             <thead>
               <tr>
-                <th><input type="checkbox" id="selectAllContactos" onchange="toggleSelectAll(this, 'contacto')"></th>
+                <th><input type="checkbox" id="select-all-contacto" onchange="toggleAll('contacto', this.checked)"></th>
                 <th>Nombre</th>
                 <th>Cliente</th>
                 <th>Cargo</th>
@@ -280,6 +280,7 @@
           <table class="tbl" id="tbl-cotizaciones">
             <thead>
               <tr>
+                <th><input type="checkbox" id="select-all-cotizacion" onchange="toggleAll('cotizacion', this.checked)"></th>
                 <th>Numero</th>
                 <th>Cliente</th>
                 <th>Estado</th>
@@ -354,6 +355,7 @@
           <table class="tbl" id="tbl-productos">
             <thead>
               <tr>
+                <th><input type="checkbox" id="select-all-producto" onchange="toggleAll('producto', this.checked)"></th>
                 <th>Codigo</th>
                 <th>Nombre</th>
                 <th>Unidad</th>
@@ -881,7 +883,7 @@
     <option value="page">Solo en esta página</option>
     <option value="all">Todos los registros</option>
   </select>
-  <button class="btn btn-sm btn-danger" onclick="bulkDeleteClientes()">🗑️ Eliminar</button>
+  <button class="btn btn-sm btn-danger" onclick="bulkDeleteCurrent()">🗑️ Eliminar</button>
   <button class="btn btn-sm btn-secondary" onclick="clearSelection()">✕ Cancelar</button>
 </div>
 

@@ -484,6 +484,13 @@ async function eliminarCliente(id) {
   }});
 }
 
+function bulkDeleteCurrent() {
+  const activePage = document.querySelector('.page.active')?.id?.replace('page-', '');
+  const funcs = { clientes: bulkDeleteClientes, contactos: bulkDeleteContactos, cotizaciones: bulkDeleteCotizaciones, productos: bulkDeleteProductos };
+  if (funcs[activePage]) funcs[activePage]();
+  else toast('Bulk delete no disponible para esta página', 'error');
+}
+
 async function bulkDeleteClientes() {
   const mode = document.getElementById('bulk-select-mode').value;
   let ids = [];
@@ -534,7 +541,7 @@ async function cargarContactos() {
   const data = r.data.data || [];
   tbody.innerHTML = data.map(c => `
     <tr>
-      <td><input type="checkbox" class="select-contacto" value="${c.id}"></td>
+      <td><input type="checkbox" class="row-check cb-contacto" value="${c.id}" onchange="updateBulkBar()"></td>
       <td>${esc(c.nombre)}</td>
       <td>${esc(c.cliente_nombre || '—')}</td>
       <td>${esc(c.cargo || '—')}</td>
@@ -616,6 +623,18 @@ async function eliminarContacto(id) {
     const r = await apiFetch('/contactos/' + id, { method: 'DELETE' });
     if (!r.ok) return toast('Error al eliminar', 'error');
     toast('Contacto eliminado', 'success');
+    cargarContactos();
+  }});
+}
+
+async function bulkDeleteContactos() {
+  const ids = [...document.querySelectorAll('.cb-contacto:checked')].map(cb => cb.value);
+  if (!ids.length) return toast('Selecciona al menos un contacto', 'error');
+  confirmar({ titulo: 'Eliminar contactos', mensaje: `¿Eliminar ${ids.length} contacto(s)?`, icono: '🗑️', onConfirm: async () => {
+    const r = await apiFetch('/contactos/seleccionados', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
+    if (!r.ok) return toast(r.data?.error || 'Error al eliminar', 'error');
+    toast(`${r.data.eliminados} contactos eliminados`, 'success');
+    clearSelection();
     cargarContactos();
   }});
 }
@@ -933,6 +952,7 @@ async function cargarCotizaciones() {
     const data = r.data.data || [];
     tbody.innerHTML = data.map(c => `
       <tr>
+        <td><input type="checkbox" class="row-check cb-cotizacion" value="${c.id}" onchange="updateBulkBar()"></td>
         <td><a href="#" onclick="verCotizacion('${c.id}');return false" style="color:var(--accent);text-decoration:underline">${esc(c.numero)}</a></td>
         <td>${esc(c.cliente_nombre || '—')}</td>
         <td><span class="badge badge-${c.estado}">${esc(c.estado)}</span></td>
@@ -1225,6 +1245,18 @@ async function eliminarCotizacion(id) {
   }});
 }
 
+async function bulkDeleteCotizaciones() {
+  const ids = [...document.querySelectorAll('.cb-cotizacion:checked')].map(cb => cb.value);
+  if (!ids.length) return toast('Selecciona al menos una cotizacion', 'error');
+  confirmar({ titulo: 'Eliminar cotizaciones', mensaje: `¿Eliminar ${ids.length} cotizacion(es)? Solo se eliminan las en borrador.`, icono: '🗑️', onConfirm: async () => {
+    const r = await apiFetch('/cotizaciones/seleccionados', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
+    if (!r.ok) return toast(r.data?.error || 'Error al eliminar', 'error');
+    toast(`${r.data.eliminados} cotizaciones eliminadas`, 'success');
+    clearSelection();
+    cargarCotizaciones();
+  }});
+}
+
 async function cambiarEstadoCotizacion(id, estado) {
   const r = await apiFetch('/cotizaciones/' + id + '/estado', {
     method: 'PUT',
@@ -1328,6 +1360,7 @@ async function cargarProductos() {
     const data = r.data.data || [];
     tbody.innerHTML = data.map(p => `
       <tr>
+        <td><input type="checkbox" class="row-check cb-producto" value="${p.id}" onchange="updateBulkBar()"></td>
         <td><strong>${esc(p.codigo)}</strong></td>
         <td>${esc(p.nombre)}</td>
         <td>${esc(p.unidad_medida || 'UND')}</td>
@@ -1402,6 +1435,18 @@ async function eliminarProducto(id) {
     const r = await apiFetch('/productos/' + id, { method: 'DELETE' });
     if (!r.ok) return toast('Error al eliminar', 'error');
     toast('Producto eliminado', 'success');
+    cargarProductos();
+  }});
+}
+
+async function bulkDeleteProductos() {
+  const ids = [...document.querySelectorAll('.cb-producto:checked')].map(cb => cb.value);
+  if (!ids.length) return toast('Selecciona al menos un producto', 'error');
+  confirmar({ titulo: 'Eliminar productos', mensaje: `¿Eliminar ${ids.length} producto(s)?`, icono: '🗑️', onConfirm: async () => {
+    const r = await apiFetch('/productos/seleccionados', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
+    if (!r.ok) return toast(r.data?.error || 'Error al eliminar', 'error');
+    toast(`${r.data.eliminados} productos eliminados`, 'success');
+    clearSelection();
     cargarProductos();
   }});
 }

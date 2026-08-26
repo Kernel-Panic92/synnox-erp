@@ -174,7 +174,21 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => 
   }
 });
 
-// DELETE /api/productos/:id — Eliminar producto
+// DELETE /api/productos/seleccionados — Bulk delete
+router.delete('/seleccionados', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids?.length) return res.status(400).json({ error: 'Sin IDs' });
+
+    const result = await pool.query(`UPDATE crm.productos SET activo = FALSE WHERE id = ANY($1) RETURNING id`, [ids]);
+    res.json({ ok: true, eliminados: result.rowCount });
+  } catch (err) {
+    console.error('[CRM] Error bulk eliminar productos:', err);
+    res.status(500).json({ error: 'Error al eliminar productos' });
+  }
+});
+
+// DELETE /api/productos/:id — Eliminar producto (AFTER /seleccionados)
 router.delete('/:id', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
   try {
     const { id } = req.params;

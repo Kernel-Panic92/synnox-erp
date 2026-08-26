@@ -248,7 +248,24 @@ router.put('/:id', requirePermiso('crear_cotizacion', 'crm'), async (req, res) =
   }
 });
 
-// DELETE /api/cotizaciones/:id — Eliminar (solo borradores)
+// DELETE /api/cotizaciones/seleccionados — Bulk delete (solo borradores)
+router.delete('/seleccionados', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+  try {
+    const { ids } = req.body;
+    if (!ids?.length) return res.status(400).json({ error: 'Sin IDs' });
+
+    const result = await pool.query(`DELETE FROM crm.cotizaciones WHERE id = ANY($1) AND estado = 'borrador' RETURNING id`, [ids]);
+
+    await auditarEvento({ accion: 'eliminar', entidad: 'cotizacion', usuario_id: req.user.id, metadata: { count: result.rowCount } });
+
+    res.json({ ok: true, eliminados: result.rowCount });
+  } catch (err) {
+    console.error('[CRM] Error bulk eliminar cotizaciones:', err);
+    res.status(500).json({ error: 'Error al eliminar cotizaciones' });
+  }
+});
+
+// DELETE /api/cotizaciones/:id — Eliminar (solo borradores, AFTER /seleccionados)
 router.delete('/:id', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
   try {
     const { id } = req.params;

@@ -126,23 +126,7 @@ router.put('/:id', requirePermiso('editar_contacto', 'crm'), async (req, res) =>
   }
 });
 
-// DELETE /api/contactos/:id — Soft delete
-router.delete('/:id', requirePermiso('eliminar_contacto', 'crm'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await pool.query(`UPDATE crm.contactos SET activo = FALSE WHERE id = $1 RETURNING id, nombre`, [id]);
-    if (!result.rows.length) return res.status(404).json({ error: 'Contacto no encontrado' });
-
-    await auditarEvento({ accion: 'eliminar', entidad: 'contacto', entidad_id: id, usuario_id: req.user.id, metadata: { nombre: result.rows[0].nombre } });
-
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('[CRM] Error eliminar contacto:', err);
-    res.status(500).json({ error: 'Error al eliminar contacto' });
-  }
-});
-
-// DELETE /api/contactos/seleccionados — Bulk delete
+// DELETE /api/contactos/seleccionados — Bulk delete (BEFORE /:id)
 router.delete('/seleccionados', requirePermiso('eliminar_contacto', 'crm'), async (req, res) => {
   try {
     const { ids } = req.body;
@@ -156,6 +140,22 @@ router.delete('/seleccionados', requirePermiso('eliminar_contacto', 'crm'), asyn
   } catch (err) {
     console.error('[CRM] Error bulk eliminar contactos:', err);
     res.status(500).json({ error: 'Error al eliminar contactos' });
+  }
+});
+
+// DELETE /api/contactos/:id — Soft delete (AFTER /seleccionados)
+router.delete('/:id', requirePermiso('eliminar_contacto', 'crm'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(`UPDATE crm.contactos SET activo = FALSE WHERE id = $1 RETURNING id, nombre`, [id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Contacto no encontrado' });
+
+    await auditarEvento({ accion: 'eliminar', entidad: 'contacto', entidad_id: id, usuario_id: req.user.id, metadata: { nombre: result.rows[0].nombre } });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[CRM] Error eliminar contacto:', err);
+    res.status(500).json({ error: 'Error al eliminar contacto' });
   }
 });
 
