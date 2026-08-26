@@ -107,6 +107,7 @@ async function importarClientes(rows) {
           ciudad = COALESCE(NULLIF($5,''), ciudad),
           tipo_negocio = COALESCE(NULLIF($6,''), tipo_negocio),
           email = COALESCE(NULLIF($7,''), email),
+          activo = TRUE,
           actualizado_en = NOW()
           WHERE codigo_siesa = $8`,
           [nombre, codigo, r.canal || '', r.direccion_1 || r.direccion || '', r.ciudad || '', r.tipo_negocio || '', r.email || '', codigo]);
