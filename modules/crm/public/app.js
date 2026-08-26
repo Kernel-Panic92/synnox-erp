@@ -68,7 +68,7 @@ function mostrarLogoutConfirm() {
 }
 
 // ── Navigation ──
-const pages = ['dashboard', 'pipeline', 'clientes', 'contactos', 'visitas', 'cotizaciones', 'productos', 'descuentos'];
+const pages = ['dashboard', 'pipeline', 'clientes', 'contactos', 'visitas', 'cotizaciones', 'productos', 'importar', 'descuentos'];
 function navigate(page) {
   if (!pages.includes(page)) page = 'dashboard';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -77,7 +77,7 @@ function navigate(page) {
   const nav = document.querySelector(`[data-page="${page}"]`);
   if (el) el.classList.add('active');
   if (nav) nav.classList.add('active');
-  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Visitas', cotizaciones: 'Cotizaciones', productos: 'Productos', descuentos: 'Descuentos' };
+  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Visitas', cotizaciones: 'Cotizaciones', productos: 'Productos', importar: 'Importar SIESA', descuentos: 'Descuentos' };
   document.getElementById('page-title').textContent = titles[page] || 'CRM';
   if (page === 'dashboard') cargarDashboard();
   if (page === 'pipeline') cargarPipeline();
@@ -86,6 +86,7 @@ function navigate(page) {
   if (page === 'visitas') cargarVisitas();
   if (page === 'cotizaciones') cargarCotizaciones();
   if (page === 'productos') cargarProductos();
+  if (page === 'importar') cargarPaginaImportar();
   if (page === 'descuentos') cargarDescuentos();
 }
 
@@ -923,23 +924,6 @@ function agregarProductoAlCarrito(producto) {
   cambiarTabCotizacion('carrito', document.querySelectorAll('#modal-cotizacion .tab-btn')[2]);
 }
 
-async function ejecutarImportacionProductos() {
-  const fileInput = document.getElementById('importar-productos-archivo');
-  if (!fileInput.files.length) return toast('Selecciona un archivo CSV', 'error');
-  const formData = new FormData();
-  formData.append('archivo', fileInput.files[0]);
-  const r = await fetch(HF.API + '/productos/importar', { method: 'POST', credentials: 'include', body: formData });
-  const data = await r.json();
-  const div = document.getElementById('importar-productos-resultado');
-  if (!r.ok) return div.innerHTML = `<p style="color:var(--danger)">${data.error || 'Error'}</p>`;
-  div.innerHTML = `
-    <p style="color:var(--success)">Importacion completada</p>
-    <p>Insertados: <strong>${data.insertados}</strong> | Actualizados: <strong>${data.actualizados}</strong> | Fallidos: <strong>${data.fallidos}</strong></p>
-    ${data.errores.length ? '<p style="font-size:11px;color:var(--muted)">' + data.errores.join('<br>') + '</p>' : ''}
-  `;
-  toast(`${data.insertados} insertados, ${data.actualizados} actualizados`, 'success');
-}
-
 function renderItemsCotizacion() {
   const container = document.getElementById('cotizacion-items-list');
   if (!_cotizacionItems.length) {
@@ -1298,6 +1282,89 @@ async function eliminarProducto(id) {
     toast('Producto eliminado', 'success');
     cargarProductos();
   }});
+}
+
+// ── Importar SIESA ──
+let _importarTipos = [];
+
+async function cargarPaginaImportar() {
+  const r = await apiFetch('/importar/tipos');
+  if (!r.ok) return;
+  _importarTipos = r.data.data || [];
+  const container = document.getElementById('importar-tipos-container');
+  container.innerHTML = _importarTipos.map(t => `
+    <div style="display:flex;align-items:center;gap:16px;padding:14px 18px;border:1px solid var(--border);border-radius:10px;margin-bottom:10px;background:var(--surface);cursor:pointer" onclick="abrirModalImportar('${t.id}')">
+      <span style="font-size:24px">${t.id === 'clientes' ? '🏢' : t.id === 'contactos' ? '👤' : t.id === 'leads' ? '🎯' : t.id === 'cotizaciones' ? '📄' : t.id === 'items' ? '📦' : '📊'}</span>
+      <div style="flex:1">
+        <div style="font-weight:600;font-size:14px">${esc(t.nombre)}</div>
+        <div style="font-size:12px;color:var(--muted)">${esc(t.descripcion)}</div>
+      </div>
+      <span style="font-size:11px;color:var(--muted);background:var(--surface2);padding:4px 10px;border-radius:6px">${t.extensiones.toUpperCase()}</span>
+      <span style="color:var(--accent);font-size:20px">→</span>
+    </div>
+  `).join('');
+}
+
+function abrirModalImportar(tipo) {
+  document.getElementById('importar-tipo').value = tipo || '';
+  cambiarTipoImportacion();
+  document.getElementById('importar-archivo').value = '';
+  document.getElementById('importar-resultado').innerHTML = '';
+  showModal('modal-importar');
+}
+
+function cambiarTipoImportacion() {
+  const tipo = document.getElementById('importar-tipo').value;
+  const tipoInfo = _importarTipos.find(t => t.id === tipo);
+  document.getElementById('importar-descripcion').textContent = tipoInfo ? tipoInfo.descripcion : '';
+  document.getElementById('btn-ejecutar-importar').disabled = !tipo;
+  document.getElementById('importar-archivo').value = '';
+  document.getElementById('importar-resultado').innerHTML = '';
+  if (tipoInfo) {
+    document.getElementById('importar-archivo').accept = tipoInfo.extensiones.split(',').map(e => '.' + e).join(',');
+  }
+}
+
+async function ejecutarImportacion() {
+  const tipo = document.getElementById('importar-tipo').value;
+  const fileInput = document.getElementById('importar-archivo');
+  if (!tipo) return toast('Selecciona un tipo', 'error');
+  if (!fileInput.files.length) return toast('Selecciona un archivo', 'error');
+
+  const btn = document.getElementById('btn-ejecutar-importar');
+  btn.disabled = true;
+  btn.textContent = 'Importando...';
+
+  const formData = new FormData();
+  formData.append('tipo', tipo);
+  formData.append('archivo', fileInput.files[0]);
+
+  try {
+    const r = await fetch(HF.API + '/importar', { method: 'POST', credentials: 'include', body: formData });
+    const data = await r.json();
+    const div = document.getElementById('importar-resultado');
+    if (!r.ok || !data.ok) {
+      div.innerHTML = `<div style="padding:12px;background:#f8d7da;border-radius:8px;color:#721c24;font-size:13px">❌ ${data.error || 'Error al importar'}</div>`;
+      return;
+    }
+    div.innerHTML = `
+      <div style="padding:12px;background:#d4edda;border-radius:8px;font-size:13px">
+        <div style="font-weight:600;margin-bottom:8px">✅ Importación completada</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+          <div><strong>${data.insertados}</strong><br><span style="font-size:11px;color:var(--muted)">Insertados</span></div>
+          <div><strong>${data.actualizados}</strong><br><span style="font-size:11px;color:var(--muted)">Actualizados</span></div>
+          <div><strong>${data.fallidos}</strong><br><span style="font-size:11px;color:var(--muted)">Fallidos</span></div>
+        </div>
+        ${data.errores?.length ? `<div style="margin-top:8px;font-size:11px;color:var(--muted);max-height:100px;overflow-y:auto">${data.errores.join('<br>')}</div>` : ''}
+      </div>
+    `;
+    toast(`${data.insertados} insertados, ${data.actualizados} actualizados`, 'success');
+  } catch (e) {
+    document.getElementById('importar-resultado').innerHTML = `<div style="padding:12px;background:#f8d7da;border-radius:8px;color:#721c24;font-size:13px">❌ Error de red: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Importar';
+  }
 }
 
 // ── Utils ──

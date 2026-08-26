@@ -100,6 +100,7 @@
     <button class="nav-item" data-page="visitas" onclick="navigate('visitas')"><span class="icon">📍</span> Visitas</button>
     <button class="nav-item" data-page="cotizaciones" onclick="navigate('cotizaciones')"><span class="icon">📄</span> Cotizaciones</button>
     <button class="nav-item" data-page="productos" onclick="navigate('productos')"><span class="icon">📦</span> Productos</button>
+    <button class="nav-item" data-page="importar" onclick="navigate('importar')"><span class="icon">📥</span> Importar SIESA</button>
     <button class="nav-item" data-page="descuentos" onclick="navigate('descuentos')"><span class="icon">💰</span> Descuentos</button>
   </nav>
   <div class="sidebar-footer">
@@ -329,7 +330,7 @@
         <div class="page-header">
           <h3>Productos</h3>
           <div class="page-actions">
-            <button class="btn btn-sm btn-secondary" onclick="showModal('modal-importar-productos')">Importar CSV</button>
+            <button class="btn btn-sm btn-secondary" onclick="abrirModalImportar('items')">Importar</button>
             <button class="btn btn-sm btn-primary" onclick="abrirModalProducto()">+ Nuevo Producto</button>
           </div>
         </div>
@@ -358,6 +359,16 @@
           </table>
         </div>
         <div class="pagination" id="pag-productos"></div>
+      </div>
+
+      <!-- Importar SIESA -->
+      <div class="page" id="page-importar">
+        <div class="page-header">
+          <h3>Importar datos desde SIESA</h3>
+        </div>
+        <p style="color:var(--muted);margin-bottom:16px">Importa datos del ERP de SIESA al CRM. Selecciona el tipo de datos y sube el archivo.</p>
+        <div class="stats-row" id="stats-importar"></div>
+        <div id="importar-tipos-container"></div>
       </div>
 
     </div>
@@ -682,7 +693,7 @@
       <div style="display:flex;gap:8px;margin-bottom:12px">
         <input type="text" id="buscar-producto-input" placeholder="Buscar por referencia o nombre..." style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px" oninput="buscarProductosCatalogo()">
         <button class="btn btn-sm btn-secondary" onclick="buscarProductosCatalogo()">Buscar</button>
-        <button class="btn btn-sm btn-secondary" onclick="showModal('modal-importar-productos')">Importar CSV</button>
+            <button class="btn btn-sm btn-secondary" onclick="abrirModalImportar('items')">Importar</button>
       </div>
       <div id="catalogo-resultados" style="max-height:300px;overflow-y:auto"></div>
     </div>
@@ -713,21 +724,31 @@
   </div>
 </div>
 
-<!-- Modal Importar Productos -->
-<div class="modal-overlay" id="modal-importar-productos">
+<!-- Modal Importar SIESA -->
+<div class="modal-overlay" id="modal-importar">
   <div class="modal">
-    <h3>Importar Productos desde CSV</h3>
-    <p style="font-size:12px;color:var(--muted);margin-bottom:12px">
-      Formato esperado: <code>Referencia,Descripcion,Unidad,Precio,Tasa Impositiva,Categoria,Bodega</code>
-    </p>
+    <h3>Importar datos desde SIESA</h3>
     <div class="form-group">
-      <label>Archivo CSV</label>
-      <input type="file" id="importar-productos-archivo" accept=".csv,.txt">
+      <label>Tipo de datos</label>
+      <select id="importar-tipo" onchange="cambiarTipoImportacion()">
+        <option value="">Seleccionar tipo...</option>
+        <option value="clientes">Clientes Siesa ERP (CSV)</option>
+        <option value="contactos">Contactos CRM (XLSX)</option>
+        <option value="leads">Leads CRM (XLSX)</option>
+        <option value="cotizaciones">Cotizaciones CRM (XLSX)</option>
+        <option value="items">Items / Productos (XLSX/CSV)</option>
+        <option value="inventario">Inventario por Bodega (XLSX)</option>
+      </select>
     </div>
-    <div id="importar-productos-resultado" style="margin-top:12px"></div>
+    <div id="importar-descripcion" style="font-size:12px;color:var(--muted);margin-bottom:12px"></div>
+    <div class="form-group">
+      <label>Archivo</label>
+      <input type="file" id="importar-archivo" accept=".csv,.txt,.xlsx,.xls">
+    </div>
+    <div id="importar-resultado" style="margin-top:12px"></div>
     <div class="btn-row">
-      <button class="btn btn-secondary" onclick="hideModal('modal-importar-productos')">Cerrar</button>
-      <button class="btn btn-primary" onclick="ejecutarImportacionProductos()">Importar</button>
+      <button class="btn btn-secondary" onclick="hideModal('modal-importar')">Cerrar</button>
+      <button class="btn btn-primary" id="btn-ejecutar-importar" onclick="ejecutarImportacion()" disabled>Importar</button>
     </div>
   </div>
 </div>
