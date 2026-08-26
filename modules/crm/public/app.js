@@ -628,8 +628,16 @@ async function eliminarContacto(id) {
 }
 
 async function bulkDeleteContactos() {
-  const ids = [...document.querySelectorAll('.cb-contacto:checked')].map(cb => cb.value);
-  if (!ids.length) return toast('Selecciona al menos un contacto', 'error');
+  const mode = document.getElementById('bulk-select-mode').value;
+  let ids = [];
+  if (mode === 'all') {
+    const r = await apiFetch('/contactos?limit=10000');
+    if (!r.ok) return toast('Error al obtener contactos', 'error');
+    ids = (r.data.data || []).map(c => c.id);
+  } else {
+    ids = [...document.querySelectorAll('.cb-contacto:checked')].map(cb => cb.value);
+  }
+  if (!ids.length) return toast('No hay contactos para eliminar', 'error');
   confirmar({ titulo: 'Eliminar contactos', mensaje: `¿Eliminar ${ids.length} contacto(s)?`, icono: '🗑️', onConfirm: async () => {
     const r = await apiFetch('/contactos/seleccionados', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
     if (!r.ok) return toast(r.data?.error || 'Error al eliminar', 'error');
@@ -1246,8 +1254,16 @@ async function eliminarCotizacion(id) {
 }
 
 async function bulkDeleteCotizaciones() {
-  const ids = [...document.querySelectorAll('.cb-cotizacion:checked')].map(cb => cb.value);
-  if (!ids.length) return toast('Selecciona al menos una cotizacion', 'error');
+  const mode = document.getElementById('bulk-select-mode').value;
+  let ids = [];
+  if (mode === 'all') {
+    const r = await apiFetch('/cotizaciones?limit=10000');
+    if (!r.ok) return toast('Error al obtener cotizaciones', 'error');
+    ids = (r.data.data || []).map(c => c.id);
+  } else {
+    ids = [...document.querySelectorAll('.cb-cotizacion:checked')].map(cb => cb.value);
+  }
+  if (!ids.length) return toast('No hay cotizaciones para eliminar', 'error');
   confirmar({ titulo: 'Eliminar cotizaciones', mensaje: `¿Eliminar ${ids.length} cotizacion(es)? Solo se eliminan las en borrador.`, icono: '🗑️', onConfirm: async () => {
     const r = await apiFetch('/cotizaciones/seleccionados', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
     if (!r.ok) return toast(r.data?.error || 'Error al eliminar', 'error');
@@ -1440,8 +1456,16 @@ async function eliminarProducto(id) {
 }
 
 async function bulkDeleteProductos() {
-  const ids = [...document.querySelectorAll('.cb-producto:checked')].map(cb => cb.value);
-  if (!ids.length) return toast('Selecciona al menos un producto', 'error');
+  const mode = document.getElementById('bulk-select-mode').value;
+  let ids = [];
+  if (mode === 'all') {
+    const r = await apiFetch('/productos?limit=10000');
+    if (!r.ok) return toast('Error al obtener productos', 'error');
+    ids = (r.data.data || []).map(p => p.id);
+  } else {
+    ids = [...document.querySelectorAll('.cb-producto:checked')].map(cb => cb.value);
+  }
+  if (!ids.length) return toast('No hay productos para eliminar', 'error');
   confirmar({ titulo: 'Eliminar productos', mensaje: `¿Eliminar ${ids.length} producto(s)?`, icono: '🗑️', onConfirm: async () => {
     const r = await apiFetch('/productos/seleccionados', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids }) });
     if (!r.ok) return toast(r.data?.error || 'Error al eliminar', 'error');
