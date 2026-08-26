@@ -419,6 +419,15 @@ async function bulkDeleteClientes() {
   }});
 }
 
+async function eliminarTodosClientes() {
+  confirmar({ titulo: '⚠️ ELIMINAR TODOS', mensaje: '¿Estás seguro? Esto desactivará TODOS los clientes. Solo para testing.', icono: '⚠️', onConfirm: async () => {
+    const r = await apiFetch('/clientes/todos', { method: 'DELETE' });
+    if (!r.ok) return toast(r.data?.error || 'Error al eliminar', 'error');
+    toast(`${r.data.eliminados} clientes eliminados`, 'success');
+    cargarClientes();
+  }});
+}
+
 // ── Contactos ──
 async function cargarContactos() {
   const search = document.getElementById('filtro-contacto-search').value;

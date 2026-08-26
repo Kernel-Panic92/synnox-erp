@@ -188,4 +188,16 @@ router.delete('/seleccionados', requirePermiso('eliminar_contacto', 'crm'), asyn
   }
 });
 
+// DELETE /api/clientes/todos — Delete ALL clients (testing only)
+router.delete('/todos', requirePermiso('eliminar_contacto', 'crm'), async (req, res) => {
+  try {
+    const result = await pool.query(`UPDATE crm.clientes SET activo = FALSE WHERE activo = TRUE RETURNING id`);
+    await auditarEvento({ accion: 'eliminar', entidad: 'cliente', usuario_id: req.user.id, metadata: { count: result.rowCount, tipo: 'todos' } });
+    res.json({ ok: true, eliminados: result.rowCount });
+  } catch (err) {
+    console.error('[CRM] Error eliminar todos:', err);
+    res.status(500).json({ error: 'Error al eliminar' });
+  }
+});
+
 export default router;
