@@ -879,10 +879,10 @@
 <!-- Bulk action bar -->
 <div id="bulk-bar" class="bulk-bar" role="toolbar" aria-label="Acciones masivas">
   <span id="bulk-count">0</span> seleccionados
-  <select id="bulk-select-mode" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:12px" aria-label="Modo de seleccion">
-    <option value="page">Solo en esta página</option>
-    <option value="all">Todos los registros</option>
-  </select>
+    <select id="bulk-select-mode" style="padding:4px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:12px" aria-label="Modo de seleccion" onchange="updateBulkBar()">
+      <option value="page">Solo en esta página</option>
+      <option value="all">Todos los registros</option>
+    </select>
   <button class="btn btn-sm btn-danger" onclick="bulkDeleteCurrent()" aria-label="Eliminar seleccionados" title="Eliminar seleccionados">🗑️</button>
   <button class="btn btn-sm btn-secondary" onclick="clearSelection()" aria-label="Cancelar seleccion" title="Cancelar">✕</button>
 </div>

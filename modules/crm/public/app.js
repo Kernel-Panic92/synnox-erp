@@ -486,10 +486,33 @@ async function eliminarCliente(id) {
 
 function bulkDeleteCurrent() {
   const activePage = document.querySelector('.page.active')?.id?.replace('page-', '');
+  const mode = document.getElementById('bulk-select-mode').value;
   const funcs = { clientes: bulkDeleteClientes, contactos: bulkDeleteContactos, cotizaciones: bulkDeleteCotizaciones, productos: bulkDeleteProductos };
+
+  if (mode === 'all') {
+    if (funcs[activePage]) funcs[activePage]();
+    else toast('Bulk delete no disponible para esta página', 'error');
+    return;
+  }
+
+  const checked = document.querySelectorAll('.row-check:checked').length;
+  if (!checked) return toast('Selecciona registros o cambia a "Todos los registros"', 'error');
+
   if (funcs[activePage]) funcs[activePage]();
   else toast('Bulk delete no disponible para esta página', 'error');
 }
+
+// Show bulk bar when "all" mode is selected
+document.getElementById('bulk-select-mode')?.addEventListener('change', function() {
+  const bar = document.getElementById('bulk-bar');
+  const countEl = document.getElementById('bulk-count');
+  if (this.value === 'all') {
+    bar?.classList.add('visible');
+    if (countEl) countEl.textContent = 'Todos';
+  } else {
+    updateBulkBar();
+  }
+});
 
 async function bulkDeleteClientes() {
   const mode = document.getElementById('bulk-select-mode').value;
