@@ -88,8 +88,10 @@ function validateColumns(rows, tipo) {
 }
 
 async function importarClientes(rows, onProgress) {
-  let insertados = 0, actualizados = 0, fallidos = 0, sucursalesCreadas = 0, contactosCreados = 0;
+  let insertados = 0, actualizados = 0, fallidos = 0, sucursalesCreadas = 0, contactosCreados = 0, listasCreadas = 0;
   const errores = [];
+  const listasPrecios = new Map(); // nombre -> Set de clientes
+
   for (let i = 0; i < rows.length; i++) {
     try {
       const r = rows[i];
@@ -115,26 +117,29 @@ async function importarClientes(rows, onProgress) {
           [nombre, codigo, r.canal || '', r.direccion_1 || r.direccion || '', r.ciudad || '', r.tipo_negocio || '', r.email || '', codigo]);
         actualizados++;
       } else {
-        const ins = await pool.query(`INSERT INTO crm.clientes (codigo_siesa, nit, nombre, canal, activo, direccion, ciudad, tipo_negocio, email, tipo, ruta_vehiculos, ruta_motos)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
+        const tipoTercero = (r.tipo_tercero || '').toLowerCase().includes('natural') ? 'potencial' : 'real';
+        const ins = await pool.query(`INSERT INTO crm.clientes (codigo_siesa, nit, nombre, canal, activo, direccion, ciudad, tipo_negocio, email, tipo, ruta_vehiculos, ruta_motos, sector)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
           [codigo, codigo, nombre, r.canal || '', r.estado === 'Activo', r.direccion_1 || r.direccion || '', r.ciudad || '',
-           r.tipo_negocio || '', r.email || '', 'real', r.rutas_vehiculos || '', r.rutas_motos || '']);
+           r.tipo_negocio || '', r.email || '', tipoTercero, r.rutas_vehiculos || '', r.rutas_motos || '', r.region || '']);
         clienteId = ins.rows[0].id;
         insertados++;
       }
 
-      // Crear contacto desde el tercero (si tiene email y no existe contacto para este cliente)
+      // Crear contacto con celular
       const email = (r.email || '').trim();
-      if (email && clienteId) {
-        const contactExist = await pool.query(`SELECT id FROM crm.contactos WHERE email = $1 AND cliente_id = $2`, [email, clienteId]);
+      const celular = (r.celular || '').trim();
+      const nombreContacto = (r.nombre_establecimiento || nombre).split('/')[0].trim();
+      if ((email || celular) && clienteId) {
+        const contactExist = await pool.query(`SELECT id FROM crm.contactos WHERE cliente_id = $1 AND (email = $2 OR whatsapp = $3)`, [clienteId, email, celular]);
         if (!contactExist.rows.length) {
-          await pool.query(`INSERT INTO crm.contactos (cliente_id, nombre, email, es_decision_maker)
-            VALUES ($1,$2,$3,TRUE)`, [clienteId, nombre.split('/')[0].trim(), email]);
+          await pool.query(`INSERT INTO crm.contactos (cliente_id, nombre, email, telefono, whatsapp, es_decision_maker)
+            VALUES ($1,$2,$3,$4,$5,TRUE)`, [clienteId, nombreContacto, email || null, celular || null, celular || null]);
           contactosCreados++;
         }
       }
 
-      // Crear sucursal si hay código de sucursal
+      // Crear sucursal
       const sucursalCodigo = (r.sucursal || '').trim();
       if (sucursalCodigo && clienteId) {
         const sucExist = await pool.query(`SELECT id FROM crm.sucursales WHERE cliente_id = $1 AND codigo = $2 AND activa = TRUE`, [clienteId, sucursalCodigo]);
@@ -153,26 +158,40 @@ async function importarClientes(rows, onProgress) {
         }
       }
 
+      // Recopilar listas de precio
+      const listaPrecio = (r.desc__lista_de_precio || r.desc_lista_de_precio || '').trim();
+      if (listaPrecio && clienteId) {
+        if (!listasPrecios.has(listaPrecio)) listasPrecios.set(listaPrecio, new Set());
+        listasPrecios.get(listaPrecio).add(clienteId);
+      }
+
       if (onProgress && i % 10 === 0) onProgress(i + 1, rows.length);
     } catch (e) { fallidos++; errores.push(`Fila ${i+1}: ${e.message}`); }
   }
   if (onProgress) onProgress(rows.length, rows.length);
 
-  // Fix: marcar sucursal 001 como principal para todos los clientes que la tengan
+  // Crear listas de precio
+  for (const [nombre, clientes] of listasPrecios) {
+    try {
+      const existing = await pool.query(`SELECT id FROM crm.listas_precio WHERE nombre = $1`, [nombre]);
+      let listaId;
+      if (!existing.rows.length) {
+        const ins = await pool.query(`INSERT INTO crm.listas_precio (codigo, nombre) VALUES ($1, $2) RETURNING id`, [nombre.substring(0, 30).replace(/\s+/g, '_'), nombre]);
+        listaId = ins.rows[0].id;
+        listasCreadas++;
+      } else {
+        listaId = existing.rows[0].id;
+      }
+    } catch {}
+  }
+
+  // Fix: sucursal 001 como principal
   try {
-    await pool.query(`
-      UPDATE crm.sucursales s SET es_principal = TRUE
-      WHERE s.codigo = '001' AND s.activa = TRUE
-      AND EXISTS (SELECT 1 FROM crm.sucursales s2 WHERE s2.cliente_id = s.cliente_id AND s2.codigo = '001' AND s2.activa = TRUE)
-    `);
-    await pool.query(`
-      UPDATE crm.sucursales s SET es_principal = FALSE
-      WHERE s.codigo != '001' AND s.activa = TRUE
-      AND EXISTS (SELECT 1 FROM crm.sucursales s2 WHERE s2.cliente_id = s.cliente_id AND s2.codigo = '001' AND s2.activa = TRUE)
-    `);
+    await pool.query(`UPDATE crm.sucursales s SET es_principal = TRUE WHERE s.codigo = '001' AND s.activa = TRUE AND EXISTS (SELECT 1 FROM crm.sucursales s2 WHERE s2.cliente_id = s.cliente_id AND s2.codigo = '001' AND s2.activa = TRUE)`);
+    await pool.query(`UPDATE crm.sucursales s SET es_principal = FALSE WHERE s.codigo != '001' AND s.activa = TRUE AND EXISTS (SELECT 1 FROM crm.sucursales s2 WHERE s2.cliente_id = s.cliente_id AND s2.codigo = '001' AND s2.activa = TRUE)`);
   } catch {}
 
-  return { insertados, actualizados, fallidos, total: rows.length, sucursales: sucursalesCreadas, contactos: contactosCreados, errores: errores.slice(0, 50) };
+  return { insertados, actualizados, fallidos, total: rows.length, sucursales: sucursalesCreadas, contactos: contactosCreados, listas: listasCreadas, errores: errores.slice(0, 50) };
 }
 
 async function importarContactos(rows) {

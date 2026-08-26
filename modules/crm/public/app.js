@@ -1597,12 +1597,13 @@ async function ejecutarImportacion() {
             div.innerHTML = `
               <div style="padding:12px;background:#d4edda;border-radius:8px;font-size:13px">
                 <div style="font-weight:600;margin-bottom:8px">✅ Importación completada — ${tipo}</div>
-                <div style="display:grid;grid-template-columns:repeat(${data.sucursales !== undefined || data.contactos !== undefined ? 4 : 3},1fr);gap:8px">
-                  <div><strong>${data.insertados}</strong><br><span style="font-size:11px;color:var(--muted)">Insertados</span></div>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(80px,1fr));gap:8px">
+                  <div><strong>${data.insertados}</strong><br><span style="font-size:11px;color:var(--muted)">Clientes</span></div>
                   <div><strong>${data.actualizados}</strong><br><span style="font-size:11px;color:var(--muted)">Actualizados</span></div>
+                  <div><strong>${data.sucursales || 0}</strong><br><span style="font-size:11px;color:var(--muted)">Sucursales</span></div>
+                  <div><strong>${data.contactos || 0}</strong><br><span style="font-size:11px;color:var(--muted)">Contactos</span></div>
+                  <div><strong>${data.listas || 0}</strong><br><span style="font-size:11px;color:var(--muted)">Listas precio</span></div>
                   <div><strong>${data.fallidos}</strong><br><span style="font-size:11px;color:var(--muted)">Fallidos</span></div>
-                  ${data.sucursales !== undefined ? `<div><strong>${data.sucursales}</strong><br><span style="font-size:11px;color:var(--muted)">Sucursales</span></div>` : ''}
-                  ${data.contactos !== undefined ? `<div><strong>${data.contactos}</strong><br><span style="font-size:11px;color:var(--muted)">Contactos</span></div>` : ''}
                 </div>
                 ${data.errores?.length ? `<div style="margin-top:8px;font-size:11px;color:var(--muted);max-height:100px;overflow-y:auto">${data.errores.join('<br>')}</div>` : ''}
               </div>
