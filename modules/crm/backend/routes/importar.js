@@ -44,6 +44,26 @@ function parseFile(buffer, filename) {
 
 // ── Parsers por tipo ──
 
+const REQUIRED_COLUMNS = {
+  clientes: ['codigo', 'razon_social_sucursal', 'razon_social'],
+  contactos: ['nombre_completo', 'nombres', 'correo_electronico'],
+  leads: ['razon_social', 'nombre_del_cliente', 'numero_de_identificacion'],
+  cotizaciones: ['nombre', 'consecutivo_interno'],
+  items: ['referencia', 'item', 'descripcion', 'desc_item'],
+  inventario: ['codigo', 'referencia', 'bodega']
+};
+
+function validateColumns(rows, tipo) {
+  const required = REQUIRED_COLUMNS[tipo];
+  if (!required || !rows.length) return null;
+  const fileCols = Object.keys(rows[0]);
+  const hasAny = required.some(r => fileCols.some(c => c.includes(r)));
+  if (!hasAny) {
+    return `El archivo no parece ser del tipo "${tipo}". Columnas encontradas: ${fileCols.slice(0, 8).join(', ')}${fileCols.length > 8 ? '...' : ''}. Se esperaba al menos una de: ${required.join(', ')}`;
+  }
+  return null;
+}
+
 async function importarClientes(rows) {
   let insertados = 0, actualizados = 0, fallidos = 0;
   const errores = [];
@@ -349,6 +369,9 @@ router.post('/', requirePermiso('crear_contacto', 'crm'), upload.single('archivo
 
     const rows = parseFile(req.file.buffer, req.file.originalname);
     if (!rows.length) return res.status(400).json({ error: 'El archivo está vacío' });
+
+    const validationError = validateColumns(rows, tipo);
+    if (validationError) return res.status(400).json({ error: validationError });
 
     console.log(`[CRM] Importando ${tipo}: ${rows.length} filas de ${req.file.originalname}`);
     const resultado = await PARSERS[tipo](rows);
