@@ -153,6 +153,21 @@ async function importarClientes(rows, onProgress) {
     } catch (e) { fallidos++; errores.push(`Fila ${i+1}: ${e.message}`); }
   }
   if (onProgress) onProgress(rows.length, rows.length);
+
+  // Fix: marcar sucursal 001 como principal para todos los clientes que la tengan
+  try {
+    await pool.query(`
+      UPDATE crm.sucursales s SET es_principal = TRUE
+      WHERE s.codigo = '001' AND s.activa = TRUE
+      AND EXISTS (SELECT 1 FROM crm.sucursales s2 WHERE s2.cliente_id = s.cliente_id AND s2.codigo = '001' AND s2.activa = TRUE)
+    `);
+    await pool.query(`
+      UPDATE crm.sucursales s SET es_principal = FALSE
+      WHERE s.codigo != '001' AND s.activa = TRUE
+      AND EXISTS (SELECT 1 FROM crm.sucursales s2 WHERE s2.cliente_id = s.cliente_id AND s2.codigo = '001' AND s2.activa = TRUE)
+    `);
+  } catch {}
+
   return { insertados, actualizados, fallidos, total: rows.length, sucursales: sucursalesCreadas, errores: errores.slice(0, 50) };
 }
 
