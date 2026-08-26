@@ -111,7 +111,7 @@ async function importarClientes(rows) {
           [nombre, r.canal || '', r.direccion_1 || r.direccion || '', r.ciudad || '', r.tipo_negocio || '', r.email || '', codigo]);
         actualizados++;
       } else {
-        await pool.query(`INSERT INTO crm.clientes (codigo_siesa, nombre, canal, estado, direccion, ciudad, tipo_negocio, email, tipo, ruta_vehiculos, ruta_motos)
+        await pool.query(`INSERT INTO crm.clientes (codigo_siesa, nombre, canal, activo, direccion, ciudad, tipo_negocio, email, tipo, ruta_vehiculos, ruta_motos)
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
           [codigo, nombre, r.canal || '', r.estado === 'Activo', r.direccion_1 || r.direccion || '', r.ciudad || '',
            r.tipo_negocio || '', r.email || '', 'real', r.rutas_vehiculos || '', r.rutas_motos || '']);
