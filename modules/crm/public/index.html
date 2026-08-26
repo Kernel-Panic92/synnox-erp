@@ -78,6 +78,8 @@
 .visita-grupo-header:hover{background:var(--surface2)}
 .visita-grupo-icon{font-size:10px;color:var(--muted);width:16px;transition:transform .15s}
 .visita-grupo-body{border-top:1px solid var(--border)}
+.bulk-bar{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 20px;display:flex;align-items:center;gap:12px;z-index:400;box-shadow:0 4px 20px rgba(0,0,0,.2);opacity:0;pointer-events:none;transition:opacity .2s}
+.bulk-bar.visible{opacity:1;pointer-events:auto}
 }
 </style>
 </head>
@@ -153,8 +155,6 @@
         <div class="page-header">
           <h3>Clientes</h3>
           <div class="page-actions">
-            <button class="btn btn-sm btn-danger" id="btn-bulk-delete-clientes" style="display:none" onclick="bulkDeleteClientes()">🗑️ Eliminar seleccionados</button>
-            <button class="btn btn-sm btn-danger" onclick="eliminarTodosClientes()">🗑️ Eliminar todos</button>
             <button class="btn btn-sm btn-primary" onclick="abrirModalCliente()">+ Nueva Cliente</button>
           </div>
         </div>
@@ -175,7 +175,7 @@
           <table class="tbl" id="tbl-clientes">
             <thead>
               <tr>
-                <th><input type="checkbox" id="selectAllClientes" onchange="toggleSelectAll(this, 'cliente')"></th>
+                <th><input type="checkbox" id="select-all-cliente" onchange="toggleAll('cliente', this.checked)"></th>
                 <th>Nombre</th>
                 <th>NIT</th>
                 <th>Tipo</th>
@@ -811,6 +811,13 @@
       <button class="btn btn-primary" onclick="guardarProducto()">Guardar</button>
     </div>
   </div>
+</div>
+
+<!-- Bulk action bar -->
+<div id="bulk-bar" class="bulk-bar">
+  <span id="bulk-count">0</span> seleccionados
+  <button class="btn btn-sm btn-danger" onclick="bulkDeleteClientes()">🗑️ Eliminar</button>
+  <button class="btn btn-sm btn-secondary" onclick="clearSelection()">✕ Cancelar</button>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
