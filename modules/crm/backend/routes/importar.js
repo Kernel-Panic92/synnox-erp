@@ -88,7 +88,7 @@ function validateColumns(rows, tipo) {
 }
 
 async function importarClientes(rows, onProgress) {
-  let insertados = 0, actualizados = 0, fallidos = 0, sucursalesCreadas = 0;
+  let insertados = 0, actualizados = 0, fallidos = 0, sucursalesCreadas = 0, contactosCreados = 0;
   const errores = [];
   for (let i = 0; i < rows.length; i++) {
     try {
@@ -123,29 +123,33 @@ async function importarClientes(rows, onProgress) {
         insertados++;
       }
 
+      // Crear contacto desde el tercero (si tiene email y no existe contacto para este cliente)
+      const email = (r.email || '').trim();
+      if (email && clienteId) {
+        const contactExist = await pool.query(`SELECT id FROM crm.contactos WHERE email = $1 AND cliente_id = $2`, [email, clienteId]);
+        if (!contactExist.rows.length) {
+          await pool.query(`INSERT INTO crm.contactos (cliente_id, nombre, email, es_decision_maker)
+            VALUES ($1,$2,$3,TRUE)`, [clienteId, nombre.split('/')[0].trim(), email]);
+          contactosCreados++;
+        }
+      }
+
       // Crear sucursal si hay código de sucursal
       const sucursalCodigo = (r.sucursal || '').trim();
       if (sucursalCodigo && clienteId) {
-        const sucExist = await pool.query(`SELECT id FROM crm.sucursales WHERE cliente_id = $1 AND codigo = $2`, [clienteId, sucursalCodigo]);
+        const sucExist = await pool.query(`SELECT id FROM crm.sucursales WHERE cliente_id = $1 AND codigo = $2 AND activa = TRUE`, [clienteId, sucursalCodigo]);
         if (!sucExist.rows.length) {
-          // Sucursal 001 es la principal (tercero)
           const esPrincipal = sucursalCodigo === '001';
-
-          // Si es principal, desmarcar las demás
           if (esPrincipal) {
             await pool.query(`UPDATE crm.sucursales SET es_principal = FALSE WHERE cliente_id = $1`, [clienteId]);
           }
-
           await pool.query(`INSERT INTO crm.sucursales (cliente_id, codigo, nombre, direccion, ciudad, departamento, es_principal)
             VALUES ($1,$2,$3,$4,$5,$6,$7)`,
             [clienteId, sucursalCodigo, `${nombre}/${sucursalCodigo}`, r.direccion_1 || r.direccion || '', r.ciudad || '', r.depto_estado || r.deptoestado || '', esPrincipal]);
           sucursalesCreadas++;
-        } else {
-          // Si ya existe, verificar si es la 001 y marcar como principal
-          if (sucursalCodigo === '001') {
-            await pool.query(`UPDATE crm.sucursales SET es_principal = TRUE WHERE id = $1`, [sucExist.rows[0].id]);
-            await pool.query(`UPDATE crm.sucursales SET es_principal = FALSE WHERE cliente_id = $1 AND id != $2`, [clienteId, sucExist.rows[0].id]);
-          }
+        } else if (sucursalCodigo === '001') {
+          await pool.query(`UPDATE crm.sucursales SET es_principal = TRUE WHERE id = $1`, [sucExist.rows[0].id]);
+          await pool.query(`UPDATE crm.sucursales SET es_principal = FALSE WHERE cliente_id = $1 AND id != $2`, [clienteId, sucExist.rows[0].id]);
         }
       }
 
@@ -168,7 +172,7 @@ async function importarClientes(rows, onProgress) {
     `);
   } catch {}
 
-  return { insertados, actualizados, fallidos, total: rows.length, sucursales: sucursalesCreadas, errores: errores.slice(0, 50) };
+  return { insertados, actualizados, fallidos, total: rows.length, sucursales: sucursalesCreadas, contactos: contactosCreados, errores: errores.slice(0, 50) };
 }
 
 async function importarContactos(rows) {
