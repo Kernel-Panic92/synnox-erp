@@ -88,7 +88,7 @@ function validateColumns(rows, tipo) {
 }
 
 async function importarClientes(rows, onProgress) {
-  let insertados = 0, actualizados = 0, fallidos = 0;
+  let insertados = 0, actualizados = 0, fallidos = 0, sucursalesCreadas = 0;
   const errores = [];
   for (let i = 0; i < rows.length; i++) {
     try {
@@ -97,8 +97,10 @@ async function importarClientes(rows, onProgress) {
       const nombre = (r.razon_social_sucursal || r.razon_social || r.nombre || '').trim();
       if (!codigo && !nombre) { fallidos++; errores.push(`Fila ${i+1}: sin código ni nombre`); continue; }
 
+      let clienteId;
       const existing = await pool.query(`SELECT id FROM crm.clientes WHERE codigo_siesa = $1`, [codigo]);
       if (existing.rows.length) {
+        clienteId = existing.rows[0].id;
         await pool.query(`UPDATE crm.clientes SET
           nombre = COALESCE(NULLIF($1,''), nombre),
           nit = COALESCE(NULLIF($2,''), nit),
@@ -113,17 +115,35 @@ async function importarClientes(rows, onProgress) {
           [nombre, codigo, r.canal || '', r.direccion_1 || r.direccion || '', r.ciudad || '', r.tipo_negocio || '', r.email || '', codigo]);
         actualizados++;
       } else {
-        await pool.query(`INSERT INTO crm.clientes (codigo_siesa, nit, nombre, canal, activo, direccion, ciudad, tipo_negocio, email, tipo, ruta_vehiculos, ruta_motos)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+        const ins = await pool.query(`INSERT INTO crm.clientes (codigo_siesa, nit, nombre, canal, activo, direccion, ciudad, tipo_negocio, email, tipo, ruta_vehiculos, ruta_motos)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12) RETURNING id`,
           [codigo, codigo, nombre, r.canal || '', r.estado === 'Activo', r.direccion_1 || r.direccion || '', r.ciudad || '',
            r.tipo_negocio || '', r.email || '', 'real', r.rutas_vehiculos || '', r.rutas_motos || '']);
+        clienteId = ins.rows[0].id;
         insertados++;
       }
+
+      // Crear sucursal si hay código de sucursal
+      const sucursalCodigo = (r.sucursal || '').trim();
+      if (sucursalCodigo && clienteId) {
+        const sucExist = await pool.query(`SELECT id FROM crm.sucursales WHERE cliente_id = $1 AND codigo = $2`, [clienteId, sucursalCodigo]);
+        if (!sucExist.rows.length) {
+          // Determinar si es principal (primera sucursal del cliente)
+          const countSuc = await pool.query(`SELECT COUNT(*) FROM crm.sucursales WHERE cliente_id = $1`, [clienteId]);
+          const esPrincipal = parseInt(countSuc.rows[0].count) === 0;
+
+          await pool.query(`INSERT INTO crm.sucursales (cliente_id, codigo, nombre, direccion, ciudad, departamento, es_principal)
+            VALUES ($1,$2,$3,$4,$5,$6,$7)`,
+            [clienteId, sucursalCodigo, `${nombre}/${sucursalCodigo}`, r.direccion_1 || r.direccion || '', r.ciudad || '', r.depto_estado || r.deptoestado || '', esPrincipal]);
+          sucursalesCreadas++;
+        }
+      }
+
       if (onProgress && i % 10 === 0) onProgress(i + 1, rows.length);
     } catch (e) { fallidos++; errores.push(`Fila ${i+1}: ${e.message}`); }
   }
   if (onProgress) onProgress(rows.length, rows.length);
-  return { insertados, actualizados, fallidos, total: rows.length, errores: errores.slice(0, 50) };
+  return { insertados, actualizados, fallidos, total: rows.length, sucursales: sucursalesCreadas, errores: errores.slice(0, 50) };
 }
 
 async function importarContactos(rows) {
