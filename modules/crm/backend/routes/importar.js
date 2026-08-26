@@ -118,10 +118,12 @@ async function importarClientes(rows, onProgress) {
         actualizados++;
       } else {
         const tipoTercero = (r.tipo_tercero || '').toLowerCase().includes('natural') ? 'potencial' : 'real';
-        const ins = await pool.query(`INSERT INTO crm.clientes (codigo_siesa, nit, nombre, canal, activo, direccion, ciudad, tipo_negocio, email, tipo, ruta_vehiculos, ruta_motos, sector)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13) RETURNING id`,
+        const ins = await pool.query(`INSERT INTO crm.clientes (codigo_siesa, nit, nombre, canal, activo, direccion, ciudad, tipo_negocio, email, tipo, ruta_vehiculos, ruta_motos, sector, departamento, cobrador, correo_fe, asesor_comercial, lista_precios, codigo_ean, sucursal_corporativa, razon_social)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING id`,
           [codigo, codigo, nombre, r.canal || '', r.estado === 'Activo', r.direccion_1 || r.direccion || '', r.ciudad || '',
-           r.tipo_negocio || '', r.email || '', tipoTercero, r.rutas_vehiculos || '', r.rutas_motos || '', r.region || '']);
+           r.tipo_negocio || '', r.email || '', tipoTercero, r.rutas_vehiculos || '', r.rutas_motos || '', r.region || '',
+           r.depto_estado || r.deptoestado || '', r.cobrador || '', r.correo_f_e || r.correo_fe || '', r.asesor_comercial || '',
+           r.desc__lista_de_precio || r.desc_lista_de_precio || '', r.codigo_ean || '', r.sucursal_corporativa || '', r.razon_social || '']);
         clienteId = ins.rows[0].id;
         insertados++;
       }

@@ -338,11 +338,22 @@ async function verCliente(id) {
       <div><strong>Tipo:</strong> <span class="badge badge-${esc(e.tipo)}">${esc(e.tipo)}</span></div>
       <div><strong>Canal:</strong> ${esc(e.canal || '—')}</div>
       <div><strong>Ciudad:</strong> ${esc(e.ciudad || '—')}</div>
+      <div><strong>Departamento:</strong> ${esc(e.departamento || '—')}</div>
+      <div><strong>Region:</strong> ${esc(e.sector || '—')}</div>
       <div><strong>Direccion:</strong> ${esc(e.direccion || '—')}</div>
       <div><strong>Telefono:</strong> ${esc(e.telefono || '—')}</div>
       <div><strong>Email:</strong> ${esc(e.email || '—')}</div>
+      <div><strong>Correo F.E.:</strong> ${esc(e.correo_fe || '—')}</div>
       <div><strong>Codigo SIESA:</strong> ${esc(e.codigo_siesa || '—')}</div>
+      <div><strong>Codigo EAN:</strong> ${esc(e.codigo_ean || '—')}</div>
+      <div><strong>Tipo negocio:</strong> ${esc(e.tipo_negocio || '—')}</div>
+      <div><strong>Lista precios:</strong> ${esc(e.lista_precios || '—')}</div>
+      <div><strong>Asesor:</strong> ${esc(e.asesor_comercial || '—')}</div>
+      <div><strong>Cobrador:</strong> ${esc(e.cobrador || '—')}</div>
+      <div><strong>Sucursal corp:</strong> ${esc(e.sucursal_corporativa || '—')}</div>
+      <div><strong>Rutas vehiculos:</strong> ${esc(e.ruta_vehiculos || '—')}</div>
     </div>
+    ${e.razon_social ? `<div style="margin-bottom:12px"><strong>Razon social:</strong> ${esc(e.razon_social)}</div>` : ''}
     ${e.notas ? `<div style="margin-bottom:16px"><strong>Notas:</strong><br>${esc(e.notas)}</div>` : ''}
 
     <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px">
