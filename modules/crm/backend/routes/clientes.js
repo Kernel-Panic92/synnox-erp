@@ -155,23 +155,7 @@ router.put('/:id', requirePermiso('editar_contacto', 'crm'), async (req, res) =>
   }
 });
 
-// DELETE /api/clientes/:id — Soft delete
-router.delete('/:id', requirePermiso('eliminar_contacto', 'crm'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    const result = await pool.query(`UPDATE crm.clientes SET activo = FALSE WHERE id = $1 RETURNING id, nombre`, [id]);
-    if (!result.rows.length) return res.status(404).json({ error: 'Cliente no encontrado' });
-
-    await auditarEvento({ accion: 'eliminar', entidad: 'cliente', entidad_id: id, usuario_id: req.user.id, metadata: { nombre: result.rows[0].nombre } });
-
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('[CRM] Error eliminar cliente:', err);
-    res.status(500).json({ error: 'Error al eliminar cliente' });
-  }
-});
-
-// DELETE /api/clientes/seleccionados — Bulk delete
+// DELETE /api/clientes/seleccionados — Bulk delete (BEFORE /:id)
 router.delete('/seleccionados', requirePermiso('eliminar_contacto', 'crm'), async (req, res) => {
   try {
     const { ids } = req.body;
@@ -188,7 +172,7 @@ router.delete('/seleccionados', requirePermiso('eliminar_contacto', 'crm'), asyn
   }
 });
 
-// DELETE /api/clientes/todos — Delete ALL clients (testing only)
+// DELETE /api/clientes/todos — Delete ALL clients (testing only, BEFORE /:id)
 router.delete('/todos', requirePermiso('eliminar_contacto', 'crm'), async (req, res) => {
   try {
     const result = await pool.query(`UPDATE crm.clientes SET activo = FALSE WHERE activo = TRUE RETURNING id`);
@@ -197,6 +181,22 @@ router.delete('/todos', requirePermiso('eliminar_contacto', 'crm'), async (req, 
   } catch (err) {
     console.error('[CRM] Error eliminar todos:', err);
     res.status(500).json({ error: 'Error al eliminar' });
+  }
+});
+
+// DELETE /api/clientes/:id — Soft delete (AFTER /seleccionados and /todos)
+router.delete('/:id', requirePermiso('eliminar_contacto', 'crm'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const result = await pool.query(`UPDATE crm.clientes SET activo = FALSE WHERE id = $1 RETURNING id, nombre`, [id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Cliente no encontrado' });
+
+    await auditarEvento({ accion: 'eliminar', entidad: 'cliente', entidad_id: id, usuario_id: req.user.id, metadata: { nombre: result.rows[0].nombre } });
+
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[CRM] Error eliminar cliente:', err);
+    res.status(500).json({ error: 'Error al eliminar cliente' });
   }
 });
 

@@ -49,7 +49,8 @@ app.use('/api/cotizaciones', protect, cotizacionesRoutes);
 app.use('/api/descuentos', protect, descuentosRoutes);
 app.use('/api/productos', protect, productosRoutes);
 app.use('/api/importar', protect, importarRoutes);
-app.use('/api', protect, sucursalesRoutes);
+app.use('/api/clientes', protect, sucursalesRoutes);
+app.use('/api/sucursales', protect, sucursalesRoutes);
 
 // Public endpoint for centros
 app.get('/api/centros', (req, res) => {
