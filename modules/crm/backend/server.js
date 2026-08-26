@@ -5,11 +5,13 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
-import { createProtect } from '../../../framework/auth.mjs';
-
-dotenv.config();
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
+dotenv.config({ path: path.join(__dirname, '..', '..', '..', '..', '.env') });
+dotenv.config();
+
+const { createProtect } = await import('../../../framework/auth.mjs');
 const app = express();
 const PORT = process.env.PORT || 3008;
 const MODULE_ID = process.env.MODULE_ID || 'crm';

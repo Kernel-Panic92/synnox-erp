@@ -1,5 +1,6 @@
 let usuario = null;
 let _clientesPage = 1;
+let clientesLimit = 20;
 let _contactosPage = 1;
 const _limit = 20;
 
@@ -280,7 +281,7 @@ function formatMoney(n) {
 async function cargarClientes() {
   const search = document.getElementById('filtro-cliente-search').value;
   const tipo = document.getElementById('filtro-cliente-tipo').value;
-  const params = new URLSearchParams({ page: _clientesPage, limit: _limit });
+  const params = new URLSearchParams({ page: _clientesPage, limit: clientesLimit });
   if (search) params.set('search', search);
   if (tipo) params.set('tipo', tipo);
   const r = await apiFetch('/clientes?' + params);
@@ -302,7 +303,7 @@ async function cargarClientes() {
       </td>
     </tr>
   `).join('');
-  renderPagination('pag-clientes', r.data.total, _clientesPage, _limit, (p) => { _clientesPage = p; cargarClientes(); });
+    renderPagination('pag-clientes', r.data.total, _clientesPage, clientesLimit, (p) => { _clientesPage = p; cargarClientes(); });
   // Cargar ciudades para filtro
   const ciudades = [...new Set(data.map(e => e.ciudad).filter(Boolean))];
   const sel = document.getElementById('filtro-cliente-ciudad');
@@ -314,6 +315,8 @@ function limpiarFiltrosClientes() {
   document.getElementById('filtro-cliente-search').value = '';
   document.getElementById('filtro-cliente-tipo').value = '';
   document.getElementById('filtro-cliente-ciudad').value = '';
+  clientesLimit = 20;
+  document.getElementById('filtro-cliente-limit').value = '20';
   _clientesPage = 1;
   cargarClientes();
 }
@@ -400,9 +403,21 @@ async function eliminarCliente(id) {
 }
 
 async function bulkDeleteClientes() {
-  const ids = [...document.querySelectorAll('.cb-cliente:checked')].map(cb => cb.value);
-  if (!ids.length) return toast('Selecciona al menos un cliente', 'error');
-  confirmar({ titulo: 'Eliminar clientes', mensaje: `¿Eliminar ${ids.length} cliente(s) seleccionados?`, icono: '🗑️', onConfirm: async () => {
+  const mode = document.getElementById('bulk-select-mode').value;
+  let ids = [];
+
+  if (mode === 'all') {
+    // Fetch ALL client IDs
+    const r = await apiFetch('/clientes?limit=10000');
+    if (!r.ok) return toast('Error al obtener clientes', 'error');
+    ids = (r.data.data || []).map(c => c.id);
+  } else {
+    ids = [...document.querySelectorAll('.cb-cliente:checked')].map(cb => cb.value);
+  }
+
+  if (!ids.length) return toast('No hay clientes para eliminar', 'error');
+
+  confirmar({ titulo: 'Eliminar clientes', mensaje: `¿Eliminar ${ids.length} cliente(s)?`, icono: '🗑️', onConfirm: async () => {
     const r = await apiFetch('/clientes/seleccionados', {
       method: 'DELETE',
       headers: { 'Content-Type': 'application/json' },
