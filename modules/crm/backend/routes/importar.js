@@ -128,14 +128,24 @@ async function importarClientes(rows, onProgress) {
       if (sucursalCodigo && clienteId) {
         const sucExist = await pool.query(`SELECT id FROM crm.sucursales WHERE cliente_id = $1 AND codigo = $2`, [clienteId, sucursalCodigo]);
         if (!sucExist.rows.length) {
-          // Determinar si es principal (primera sucursal del cliente)
-          const countSuc = await pool.query(`SELECT COUNT(*) FROM crm.sucursales WHERE cliente_id = $1`, [clienteId]);
-          const esPrincipal = parseInt(countSuc.rows[0].count) === 0;
+          // Sucursal 001 es la principal (tercero)
+          const esPrincipal = sucursalCodigo === '001';
+
+          // Si es principal, desmarcar las demás
+          if (esPrincipal) {
+            await pool.query(`UPDATE crm.sucursales SET es_principal = FALSE WHERE cliente_id = $1`, [clienteId]);
+          }
 
           await pool.query(`INSERT INTO crm.sucursales (cliente_id, codigo, nombre, direccion, ciudad, departamento, es_principal)
             VALUES ($1,$2,$3,$4,$5,$6,$7)`,
             [clienteId, sucursalCodigo, `${nombre}/${sucursalCodigo}`, r.direccion_1 || r.direccion || '', r.ciudad || '', r.depto_estado || r.deptoestado || '', esPrincipal]);
           sucursalesCreadas++;
+        } else {
+          // Si ya existe, verificar si es la 001 y marcar como principal
+          if (sucursalCodigo === '001') {
+            await pool.query(`UPDATE crm.sucursales SET es_principal = TRUE WHERE id = $1`, [sucExist.rows[0].id]);
+            await pool.query(`UPDATE crm.sucursales SET es_principal = FALSE WHERE cliente_id = $1 AND id != $2`, [clienteId, sucExist.rows[0].id]);
+          }
         }
       }
 

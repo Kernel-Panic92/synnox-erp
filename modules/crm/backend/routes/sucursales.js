@@ -109,4 +109,26 @@ router.delete('/:id', requirePermiso('editar_contacto', 'crm'), async (req, res)
   }
 });
 
+// DELETE /api/sucursales/cliente/:clienteId — Eliminar todas las sucursales de un cliente
+router.delete('/cliente/:clienteId', requirePermiso('editar_contacto', 'crm'), async (req, res) => {
+  try {
+    const result = await pool.query(`UPDATE crm.sucursales SET activa = FALSE WHERE cliente_id = $1 AND activa = TRUE RETURNING id`, [req.params.clienteId]);
+    res.json({ ok: true, eliminadas: result.rowCount });
+  } catch (err) {
+    console.error('[CRM] Error eliminar sucursales:', err);
+    res.status(500).json({ error: 'Error al eliminar sucursales' });
+  }
+});
+
+// DELETE /api/sucursales/todas — Eliminar TODAS las sucursales
+router.delete('/todas', requirePermiso('editar_contacto', 'crm'), async (req, res) => {
+  try {
+    const result = await pool.query(`UPDATE crm.sucursales SET activa = FALSE WHERE activa = TRUE RETURNING id`);
+    res.json({ ok: true, eliminadas: result.rowCount });
+  } catch (err) {
+    console.error('[CRM] Error eliminar todas:', err);
+    res.status(500).json({ error: 'Error al eliminar' });
+  }
+});
+
 export default router;
