@@ -254,7 +254,7 @@ router.delete('/seleccionados', requirePermiso('crear_cotizacion', 'crm'), async
     const { ids } = req.body;
     if (!ids?.length) return res.status(400).json({ error: 'Sin IDs' });
 
-    const result = await pool.query(`DELETE FROM crm.cotizaciones WHERE id = ANY($1) AND estado = 'borrador' RETURNING id`, [ids]);
+    const result = await pool.query(`DELETE FROM crm.cotizaciones WHERE id = ANY($1) RETURNING id`, [ids]);
 
     await auditarEvento({ accion: 'eliminar', entidad: 'cotizacion', usuario_id: req.user.id, metadata: { count: result.rowCount } });
 
