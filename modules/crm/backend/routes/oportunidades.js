@@ -253,7 +253,7 @@ router.put('/:id/mover', requirePermiso('editar_pipeline', 'crm'), async (req, r
 });
 
 // DELETE /api/oportunidades/:id — Eliminar
-router.delete('/:id', requirePermiso('eliminar', 'crm'), async (req, res) => {
+router.delete('/:id', requirePermiso('editar_pipeline', 'crm'), async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(`DELETE FROM crm.oportunidades WHERE id = $1 RETURNING id, nombre`, [id]);
