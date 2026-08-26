@@ -87,7 +87,7 @@ function validateColumns(rows, tipo) {
   return null;
 }
 
-async function importarClientes(rows) {
+async function importarClientes(rows, onProgress) {
   let insertados = 0, actualizados = 0, fallidos = 0;
   const errores = [];
   for (let i = 0; i < rows.length; i++) {
@@ -119,8 +119,10 @@ async function importarClientes(rows) {
            r.tipo_negocio || '', r.email || '', 'real', r.rutas_vehiculos || '', r.rutas_motos || '']);
         insertados++;
       }
+      if (onProgress && i % 10 === 0) onProgress(i + 1, rows.length);
     } catch (e) { fallidos++; errores.push(`Fila ${i+1}: ${e.message}`); }
   }
+  if (onProgress) onProgress(rows.length, rows.length);
   return { insertados, actualizados, fallidos, total: rows.length, errores: errores.slice(0, 50) };
 }
 
@@ -399,7 +401,19 @@ router.post('/', requirePermiso('crear_contacto', 'crm'), upload.single('archivo
     if (validationError) return res.status(400).json({ error: validationError });
 
     console.log(`[CRM] Importando ${tipo}: ${rows.length} filas de ${req.file.originalname}`);
-    const resultado = await PARSERS[tipo](rows);
+
+    // SSE streaming for progress
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+
+    const onProgress = (current, total) => {
+      res.write(`data: ${JSON.stringify({ type: 'progress', current, total })}\n\n`);
+    };
+
+    const resultado = await PARSERS[tipo](rows, onProgress);
 
     await auditarEvento({
       accion: 'importar',
@@ -408,7 +422,8 @@ router.post('/', requirePermiso('crear_contacto', 'crm'), upload.single('archivo
       metadata: { ...resultado, archivo: req.file.originalname, tipo }
     });
 
-    res.json({ ok: true, ...resultado });
+    res.write(`data: ${JSON.stringify({ type: 'done', ok: true, ...resultado })}\n\n`);
+    res.end();
   } catch (err) {
     console.error('[CRM] Error importar:', err);
     res.status(500).json({ error: err.message || 'Error al importar' });

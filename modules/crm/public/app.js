@@ -1461,28 +1461,65 @@ async function ejecutarImportacion() {
   formData.append('tipo', tipo);
   formData.append('archivo', fileInput.files[0]);
 
-  try {
-    const r = await fetch(HF.API + '/importar', { method: 'POST', credentials: 'include', body: formData });
-    const data = await r.json();
-    const div = document.getElementById('importar-resultado');
-    if (!r.ok || !data.ok) {
-      div.innerHTML = `<div style="padding:12px;background:#f8d7da;border-radius:8px;color:#721c24;font-size:13px">❌ ${data.error || 'Error al importar'}</div>`;
-      return;
-    }
-    div.innerHTML = `
-      <div style="padding:12px;background:#d4edda;border-radius:8px;font-size:13px">
-        <div style="font-weight:600;margin-bottom:8px">✅ Importación completada</div>
-        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-          <div><strong>${data.insertados}</strong><br><span style="font-size:11px;color:var(--muted)">Insertados</span></div>
-          <div><strong>${data.actualizados}</strong><br><span style="font-size:11px;color:var(--muted)">Actualizados</span></div>
-          <div><strong>${data.fallidos}</strong><br><span style="font-size:11px;color:var(--muted)">Fallidos</span></div>
-        </div>
-        ${data.errores?.length ? `<div style="margin-top:8px;font-size:11px;color:var(--muted);max-height:100px;overflow-y:auto">${data.errores.join('<br>')}</div>` : ''}
+  const div = document.getElementById('importar-resultado');
+  div.innerHTML = `
+    <div style="padding:12px;background:var(--surface2);border-radius:8px;font-size:13px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div class="spinner" style="width:16px;height:16px;border:2px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite"></div>
+        <span id="importar-status">Procesando...</span>
       </div>
-    `;
-    toast(`${data.insertados} insertados, ${data.actualizados} actualizados`, 'success');
+      <div style="background:var(--border);border-radius:4px;height:8px;overflow:hidden">
+        <div id="importar-progress-bar" style="height:100%;background:var(--accent);width:0%;transition:width .2s"></div>
+      </div>
+      <div id="importar-progress-text" style="font-size:11px;color:var(--muted);margin-top:4px">0 / 0 registros</div>
+    </div>
+  `;
+
+  try {
+    const response = await fetch(HF.API + '/importar', { method: 'POST', credentials: 'include', body: formData });
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+
+      const lines = buffer.split('\n');
+      buffer = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        try {
+          const data = JSON.parse(line.slice(6));
+          if (data.type === 'progress') {
+            const pct = data.total > 0 ? Math.round((data.current / data.total) * 100) : 0;
+            document.getElementById('importar-progress-bar').style.width = pct + '%';
+            document.getElementById('importar-progress-text').textContent = `${data.current} / ${data.total} registros (${pct}%)`;
+            document.getElementById('importar-status').textContent = `Procesando ${data.current} de ${data.total}...`;
+          } else if (data.type === 'done') {
+            document.getElementById('importar-progress-bar').style.width = '100%';
+            document.getElementById('importar-progress-bar').style.background = 'var(--success)';
+            document.getElementById('importar-status').textContent = '✅ Importación completada';
+            div.innerHTML = `
+              <div style="padding:12px;background:#d4edda;border-radius:8px;font-size:13px">
+                <div style="font-weight:600;margin-bottom:8px">✅ Importación completada — ${tipo}</div>
+                <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+                  <div><strong>${data.insertados}</strong><br><span style="font-size:11px;color:var(--muted)">Insertados</span></div>
+                  <div><strong>${data.actualizados}</strong><br><span style="font-size:11px;color:var(--muted)">Actualizados</span></div>
+                  <div><strong>${data.fallidos}</strong><br><span style="font-size:11px;color:var(--muted)">Fallidos</span></div>
+                </div>
+                ${data.errores?.length ? `<div style="margin-top:8px;font-size:11px;color:var(--muted);max-height:100px;overflow-y:auto">${data.errores.join('<br>')}</div>` : ''}
+              </div>
+            `;
+            toast(`${data.insertados} insertados, ${data.actualizados} actualizados`, 'success');
+          }
+        } catch {}
+      }
+    }
   } catch (e) {
-    document.getElementById('importar-resultado').innerHTML = `<div style="padding:12px;background:#f8d7da;border-radius:8px;color:#721c24;font-size:13px">❌ Error de red: ${e.message}</div>`;
+    div.innerHTML = `<div style="padding:12px;background:#f8d7da;border-radius:8px;color:#721c24;font-size:13px">❌ Error de red: ${e.message}</div>`;
   } finally {
     btn.disabled = false;
     btn.textContent = 'Importar';
