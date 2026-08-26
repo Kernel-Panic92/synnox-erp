@@ -101,19 +101,20 @@ async function importarClientes(rows) {
       if (existing.rows.length) {
         await pool.query(`UPDATE crm.clientes SET
           nombre = COALESCE(NULLIF($1,''), nombre),
-          canal = COALESCE(NULLIF($2,''), canal),
-          direccion = COALESCE(NULLIF($3,''), direccion),
-          ciudad = COALESCE(NULLIF($4,''), ciudad),
-          tipo_negocio = COALESCE(NULLIF($5,''), tipo_negocio),
-          email = COALESCE(NULLIF($6,''), email),
+          nit = COALESCE(NULLIF($2,''), nit),
+          canal = COALESCE(NULLIF($3,''), canal),
+          direccion = COALESCE(NULLIF($4,''), direccion),
+          ciudad = COALESCE(NULLIF($5,''), ciudad),
+          tipo_negocio = COALESCE(NULLIF($6,''), tipo_negocio),
+          email = COALESCE(NULLIF($7,''), email),
           actualizado_en = NOW()
-          WHERE codigo_siesa = $7`,
-          [nombre, r.canal || '', r.direccion_1 || r.direccion || '', r.ciudad || '', r.tipo_negocio || '', r.email || '', codigo]);
+          WHERE codigo_siesa = $8`,
+          [nombre, codigo, r.canal || '', r.direccion_1 || r.direccion || '', r.ciudad || '', r.tipo_negocio || '', r.email || '', codigo]);
         actualizados++;
       } else {
-        await pool.query(`INSERT INTO crm.clientes (codigo_siesa, nombre, canal, activo, direccion, ciudad, tipo_negocio, email, tipo, ruta_vehiculos, ruta_motos)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-          [codigo, nombre, r.canal || '', r.estado === 'Activo', r.direccion_1 || r.direccion || '', r.ciudad || '',
+        await pool.query(`INSERT INTO crm.clientes (codigo_siesa, nit, nombre, canal, activo, direccion, ciudad, tipo_negocio, email, tipo, ruta_vehiculos, ruta_motos)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+          [codigo, codigo, nombre, r.canal || '', r.estado === 'Activo', r.direccion_1 || r.direccion || '', r.ciudad || '',
            r.tipo_negocio || '', r.email || '', 'real', r.rutas_vehiculos || '', r.rutas_motos || '']);
         insertados++;
       }

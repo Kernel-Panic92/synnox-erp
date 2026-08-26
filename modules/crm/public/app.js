@@ -289,7 +289,7 @@ async function cargarClientes() {
   const data = r.data.data || [];
   tbody.innerHTML = data.map(e => `
     <tr>
-      <td><input type="checkbox" class="select-cliente" value="${e.id}"></td>
+      <td><input type="checkbox" class="select-cliente" value="${e.id}" onchange="toggleBulkDeleteBtn()"></td>
       <td><a href="#" onclick="verCliente('${e.id}');return false" style="color:var(--accent)">${esc(e.nombre)}</a></td>
       <td>${esc(e.nit || '—')}</td>
       <td><span class="badge badge-${esc(e.tipo)}">${esc(e.tipo)}</span></td>
@@ -395,6 +395,26 @@ async function eliminarCliente(id) {
     const r = await apiFetch('/clientes/' + id, { method: 'DELETE' });
     if (!r.ok) return toast('Error al eliminar', 'error');
     toast('Cliente eliminada', 'success');
+    cargarClientes();
+  }});
+}
+
+function toggleBulkDeleteBtn() {
+  const checked = document.querySelectorAll('.select-cliente:checked').length;
+  document.getElementById('btn-bulk-delete-clientes').style.display = checked > 0 ? '' : 'none';
+}
+
+async function bulkDeleteClientes() {
+  const ids = [...document.querySelectorAll('.select-cliente:checked')].map(cb => cb.value);
+  if (!ids.length) return toast('Selecciona al menos un cliente', 'error');
+  confirmar({ titulo: 'Eliminar clientes', mensaje: `¿Eliminar ${ids.length} cliente(s) seleccionados?`, icono: '🗑️', onConfirm: async () => {
+    const r = await apiFetch('/clientes/seleccionados', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids })
+    });
+    if (!r.ok) return toast(r.data?.error || 'Error al eliminar', 'error');
+    toast(`${r.data.eliminadas} clientes eliminados`, 'success');
     cargarClientes();
   }});
 }
