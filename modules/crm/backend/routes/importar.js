@@ -17,11 +17,31 @@ function normalizeHeader(h) {
     .replace(/^_|_$/g, '');
 }
 
+// ── Mapeo flexible de columnas ──
+function findCol(row, candidates) {
+  for (const c of candidates) {
+    if (row[c] !== undefined && row[c] !== '') return row[c];
+    // Buscar por inclusión (para columnas que pueden tener prefijos)
+    for (const key of Object.keys(row)) {
+      if (key.includes(c) && row[key] !== '') return row[key];
+    }
+  }
+  return '';
+}
+
 // ── Parsear archivo (CSV o XLSX) ──
 function parseFile(buffer, filename) {
   const ext = filename.split('.').pop().toLowerCase();
   if (ext === 'csv' || ext === 'txt') {
-    const text = buffer.toString('utf-8');
+    // Detectar encoding: intentar latin-1 que es el estándar de Siesa
+    let text;
+    try {
+      text = buffer.toString('utf-8');
+      // Si hay caracteres de reemplazo o bytes inválidos, usar latin-1
+      if (text.includes('\ufffd') || /[\x80-\x9f]/.test(buffer.toString('latin1'))) {
+        text = buffer.toString('latin1');
+      }
+    } catch { text = buffer.toString('latin1'); }
     const records = parse(text, { columns: true, skip_empty_lines: true, trim: true, relax_column_count: true });
     return records.map(r => {
       const norm = {};
@@ -45,21 +65,24 @@ function parseFile(buffer, filename) {
 // ── Parsers por tipo ──
 
 const REQUIRED_COLUMNS = {
-  clientes: ['codigo', 'razon_social_sucursal', 'razon_social'],
-  contactos: ['nombre_completo', 'nombres', 'correo_electronico'],
-  leads: ['razon_social', 'nombre_del_cliente', 'numero_de_identificacion'],
-  cotizaciones: ['nombre', 'consecutivo_interno'],
-  items: ['referencia', 'item', 'descripcion', 'desc_item'],
-  inventario: ['codigo', 'referencia', 'bodega']
+  clientes: [['codigo', 'c_digo', 'rut'], ['razon_social', 'raz_n_social']],
+  contactos: [['nombre_completo', 'nombre'], ['correo_electronico', 'email']],
+  leads: [['razon_social', 'raz_n_social'], ['numero_de_identificacion', 'numero_de_identificaci_n']],
+  cotizaciones: [['nombre'], ['consecutivo_interno']],
+  items: [['referencia'], ['item'], ['descripcion', 'desc_item', 'desc__item']],
+  inventario: [['codigo', 'c_digo'], ['referencia'], ['bodega']]
 };
 
 function validateColumns(rows, tipo) {
-  const required = REQUIRED_COLUMNS[tipo];
-  if (!required || !rows.length) return null;
+  const requiredGroups = REQUIRED_COLUMNS[tipo];
+  if (!requiredGroups || !rows.length) return null;
   const fileCols = Object.keys(rows[0]);
-  const hasAny = required.some(r => fileCols.some(c => c.includes(r)));
-  if (!hasAny) {
-    return `El archivo no parece ser del tipo "${tipo}". Columnas encontradas: ${fileCols.slice(0, 8).join(', ')}${fileCols.length > 8 ? '...' : ''}. Se esperaba al menos una de: ${required.join(', ')}`;
+  // For each group of alternatives, at least one must match
+  for (const group of requiredGroups) {
+    const hasMatch = group.some(r => fileCols.some(c => c.includes(r) || r.includes(c)));
+    if (!hasMatch) {
+      return `El archivo no parece ser del tipo "${tipo}". Columnas: ${fileCols.slice(0, 6).join(', ')}... Se esperaba: ${requiredGroups.map(g => g.join('/')).join(', ')}`;
+    }
   }
   return null;
 }
