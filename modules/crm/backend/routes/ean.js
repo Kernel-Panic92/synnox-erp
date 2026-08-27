@@ -19,6 +19,37 @@ router.get('/:id/ean', requirePermiso('crear_cotizacion', 'crm'), async (req, re
   }
 });
 
+// GET /api/productos/:id/inventario — Inventario por bodega
+router.get('/:id/inventario', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM crm.inventario WHERE producto_id = $1 ORDER BY bodega`,
+      [req.params.id]
+    );
+    res.json({ ok: true, data: result.rows });
+  } catch (err) {
+    console.error('[CRM] Error listar inventario:', err);
+    res.status(500).json({ error: 'Error al listar inventario' });
+  }
+});
+
+// GET /api/productos/:id/precios — Precios por lista
+router.get('/:id/precios', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT lpi.*, lp.nombre AS lista_nombre, lp.moneda
+      FROM crm.lista_precio_items lpi
+      INNER JOIN crm.listas_precio lp ON lp.id = lpi.lista_id
+      WHERE lpi.producto_id = $1 AND lp.activa = TRUE
+      ORDER BY lp.nombre
+    `, [req.params.id]);
+    res.json({ ok: true, data: result.rows });
+  } catch (err) {
+    console.error('[CRM] Error listar precios:', err);
+    res.status(500).json({ error: 'Error al listar precios' });
+  }
+});
+
 // GET /api/productos/ean/buscar/:gtin — Buscar producto por EAN
 router.get('/ean/buscar/:gtin', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
   try {

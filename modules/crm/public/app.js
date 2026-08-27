@@ -1495,40 +1495,101 @@ async function verProducto(id) {
   const p = (r.data.data || []).find(x => x.id === id);
   if (!p) return toast('Producto no encontrado', 'error');
 
-  // Fetch EANs
-  const eanR = await apiFetch('/productos/' + id + '/ean');
+  // Fetch EANs, inventory, prices
+  const [eanR, invR, priceR] = await Promise.all([
+    apiFetch('/productos/' + id + '/ean'),
+    apiFetch('/productos/' + id + '/inventario'),
+    apiFetch('/productos/' + id + '/precios')
+  ]);
   const eans = eanR.ok ? (eanR.data.data || []) : [];
+  const inventario = invR.ok ? (invR.data.data || []) : [];
+  const precios = priceR.ok ? (priceR.data.data || []) : [];
+
+  const totalInv = inventario.reduce((s, i) => s + parseFloat(i.existencia || 0), 0);
 
   document.getElementById('detalle-producto-title').textContent = p.nombre;
   document.getElementById('detalle-producto-content').innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div><strong>Codigo:</strong> ${esc(p.codigo)}</div>
-      <div><strong>Estado:</strong> <span class="badge badge-${p.activo ? 'aprobada' : 'rechazada'}">${p.activo ? 'Activo' : 'Inactivo'}</span></div>
-      <div><strong>Unidad:</strong> ${esc(p.unidad_medida || '—')}</div>
-      <div><strong>Precio:</strong> $${formatMoney(p.precio_unitario || 0)}</div>
-      <div><strong>Impuesto:</strong> ${p.tasa_impuesto || 0}%</div>
-      <div><strong>Categoria:</strong> ${esc(p.categoria || '—')}</div>
-      <div><strong>Bodega:</strong> ${esc(p.bodega || '—')}</div>
-      ${p.marca ? `<div><strong>Marca:</strong> ${esc(p.marca)}</div>` : ''}
+    <!-- Tabs -->
+    <div style="display:flex;gap:16px;border-bottom:1px solid var(--border);margin-bottom:16px">
+      <button class="tab-btn active" onclick="cambiarTabProducto('info',this)">Informacion Basica</button>
+      <button class="tab-btn" onclick="cambiarTabProducto('precios',this)">Precios (${precios.length})</button>
+      <button class="tab-btn" onclick="cambiarTabProducto('inventario',this)">Inventario (${inventario.length})</button>
+      <button class="tab-btn" onclick="cambiarTabProducto('ean',this)">Codigos de Barras (${eans.length})</button>
     </div>
-    ${p.descripcion ? `<div style="margin-bottom:12px"><strong>Descripcion:</strong><br>${esc(p.descripcion)}</div>` : ''}
-    ${p.descripcion_gs1 ? `<div style="margin-bottom:12px"><strong>Descripcion GS1:</strong><br>${esc(p.descripcion_gs1)}</div>` : ''}
 
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px">
-      <h4 style="margin:0">Codigos de Barras (${eans.length})</h4>
+    <!-- Tab Info Basica -->
+    <div id="tab-producto-info">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:16px">
+        <div><strong>ID Item:</strong> ${esc(p.codigo)}</div>
+        <div><strong>Referencia:</strong> ${esc(p.codigo)}</div>
+        <div><strong>Descripcion:</strong> ${esc(p.nombre)}</div>
+        <div><strong>Unidad:</strong> ${esc(p.unidad_medida || '—')}</div>
+        <div><strong>Precio base:</strong> $${formatMoney(p.precio_unitario || 0)}</div>
+        <div><strong>Impuesto:</strong> ${p.tasa_impuesto || 0}%</div>
+        <div><strong>Categoria:</strong> ${esc(p.categoria || '—')}</div>
+        <div><strong>Bodega:</strong> ${esc(p.bodega || '—')}</div>
+        <div><strong>Estado:</strong> <span class="badge badge-${p.activo ? 'aprobada' : 'rechazada'}">${p.activo ? 'Activo' : 'Inactivo'}</span></div>
+      </div>
+      ${p.descripcion ? `<div style="margin-bottom:12px"><strong>Descripcion completa:</strong><br>${esc(p.descripcion)}</div>` : ''}
+      ${p.marca ? `<div style="margin-bottom:12px"><strong>Marca:</strong> ${esc(p.marca)}</div>` : ''}
     </div>
-    ${eans.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>GTIN</th><th>Descripcion</th><th>U.M.</th><th>Principal</th></tr></thead><tbody>
-      ${eans.map(e => `<tr>
-        <td><strong>${esc(e.gtin)}</strong></td>
-        <td>${esc(e.descripcion || '—')}</td>
-        <td>${esc(e.unidad_medida || '—')}</td>
-        <td>${e.es_principal ? '<span class="badge badge-aprobada">Principal</span>' : ''}</td>
-      </tr>`).join('')}
-    </tbody></table></div>` : '<p style="color:var(--muted)">Sin codigos de barras registrados</p>'}
 
-    ${p.foto_url ? `<div style="margin-top:16px"><strong>Foto:</strong><br><img src="${esc(p.foto_url)}" style="max-width:200px;border-radius:8px;border:1px solid var(--border);margin-top:8px"></div>` : ''}
+    <!-- Tab Precios -->
+    <div id="tab-producto-precios" style="display:none">
+      ${precios.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr>
+        <th>Lista de precio</th><th>U.M.</th><th>Moneda</th><th>Precio</th>
+      </tr></thead><tbody>
+        ${precios.map(pr => `<tr>
+          <td>${esc(pr.lista_nombre || '—')}</td>
+          <td>${esc(pr.unidad_medida || '—')}</td>
+          <td>${esc(pr.moneda || 'COP')}</td>
+          <td><strong>$${formatMoney(pr.precio || 0)}</strong></td>
+        </tr>`).join('')}
+      </tbody></table></div>` : '<p style="color:var(--muted)">No hay precios configurados para este producto</p>'}
+    </div>
+
+    <!-- Tab Inventario -->
+    <div id="tab-producto-inventario" style="display:none">
+      ${inventario.length ? `
+        <div class="tbl-wrap"><table class="tbl"><thead><tr>
+          <th>ID Bodega</th><th>Bodega</th><th>Existencia</th><th>Comprometida</th><th>Disponible</th>
+        </tr></thead><tbody>
+          ${inventario.map(inv => `<tr>
+            <td>${esc(inv.bodega || '—')}</td>
+            <td>${esc(inv.bodega || '—')}</td>
+            <td>${inv.existencia || 0}</td>
+            <td>${inv.comprometida || 0}</td>
+            <td><strong>${(parseFloat(inv.existencia || 0) - parseFloat(inv.comprometida || 0))}</strong></td>
+          </tr>`).join('')}
+        </tbody></table></div>
+        <div style="text-align:right;font-weight:600;margin-top:8px">Total: ${totalInv}</div>
+      ` : '<p style="color:var(--muted)">No hay datos de inventario para este producto</p>'}
+    </div>
+
+    <!-- Tab Codigos de Barras -->
+    <div id="tab-producto-ean" style="display:none">
+      ${eans.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr>
+        <th>GTIN</th><th>Descripcion</th><th>U.M.</th><th>Principal</th>
+      </tr></thead><tbody>
+        ${eans.map(e => `<tr>
+          <td><strong>${esc(e.gtin)}</strong></td>
+          <td>${esc(e.descripcion || '—')}</td>
+          <td>${esc(e.unidad_medida || '—')}</td>
+          <td>${e.es_principal ? '<span class="badge badge-aprobada">Principal</span>' : ''}</td>
+        </tr>`).join('')}
+      </tbody></table></div>` : '<p style="color:var(--muted)">Sin codigos de barras registrados</p>'}
+    </div>
+
+    ${p.foto_url ? `<div style="margin-top:16px"><img src="${esc(p.foto_url)}" style="max-width:200px;border-radius:8px;border:1px solid var(--border)"></div>` : ''}
   `;
   showModal('modal-detalle-producto');
+}
+
+function cambiarTabProducto(tab, btn) {
+  document.querySelectorAll('#modal-detalle-producto [id^="tab-producto-"]').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('#modal-detalle-producto .tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-producto-' + tab).style.display = '';
+  btn.classList.add('active');
 }
 
 async function bulkDeleteProductos() {
