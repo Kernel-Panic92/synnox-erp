@@ -407,39 +407,58 @@ async function importarItems(rows) {
   return { insertados, actualizados, fallidos, total: rows.length, errores: errores.slice(0, 50) };
 }
 
-async function importarInventario(rows) {
+async function importarInventario(rows, onProgress) {
   let insertados = 0, actualizados = 0, fallidos = 0;
   const errores = [];
   for (let i = 0; i < rows.length; i++) {
     try {
       const r = rows[i];
-      const codigo = String(r.codigo || r.referencia || '').trim();
       const bodega = (r.bodega || '').trim();
-      if (!codigo || !bodega) { fallidos++; errores.push(`Fila ${i+1}: sin código o bodega`); continue; }
+      if (!bodega) { fallidos++; errores.push(`Fila ${i+1}: sin bodega`); continue; }
 
-      // Buscar producto por código
-      const prod = await pool.query(`SELECT id FROM crm.productos WHERE codigo = $1`, [codigo]);
-      if (!prod.rows.length) { fallidos++; errores.push(`Fila ${i+1}: producto ${codigo} no encontrado`); continue; }
+      // Buscar producto por codigo o referencia (con y sin ceros)
+      const codigoRaw = String(r.codigo || '').trim();
+      const referenciaRaw = String(r.referencia || '').trim();
+      const codigoNum = codigoRaw.replace(/^0+/, '');
+
+      let prod = null;
+      // Intentar por codigo exacto
+      if (codigoRaw) {
+        const res1 = await pool.query(`SELECT id FROM crm.productos WHERE codigo = $1`, [codigoRaw]);
+        if (res1.rows.length) prod = res1.rows[0];
+      }
+      // Intentar por codigo sin ceros
+      if (!prod && codigoNum && codigoNum !== codigoRaw) {
+        const res2 = await pool.query(`SELECT id FROM crm.productos WHERE codigo = $1`, [codigoNum]);
+        if (res2.rows.length) prod = res2.rows[0];
+      }
+      // Intentar por referencia
+      if (!prod && referenciaRaw) {
+        const res3 = await pool.query(`SELECT id FROM crm.productos WHERE codigo = $1`, [referenciaRaw]);
+        if (res3.rows.length) prod = res3.rows[0];
+      }
+
+      if (!prod) { fallidos++; errores.push(`Fila ${i+1}: producto ${codigoRaw || referenciaRaw} no encontrado`); continue; }
 
       const precio = parseFloat(String(r.precio || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
       const disponibilidad = parseFloat(String(r.disponibilidad || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
       const existencia = parseFloat(String(r.existencia || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
       const comprometida = parseFloat(String(r.comprometida || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
 
-      const existing = await pool.query(`SELECT id FROM crm.inventario WHERE producto_id = $1 AND bodega = $2`, [prod.rows[0].id, bodega]);
+      const existing = await pool.query(`SELECT id FROM crm.inventario WHERE producto_id = $1 AND bodega = $2`, [prod.id, bodega]);
       if (existing.rows.length) {
         await pool.query(`UPDATE crm.inventario SET precio=$1, disponibilidad=$2, existencia=$3, comprometida=$4,
           unidad_medida=$5, extension_1=$6, extension_1_desc=$7, extension_2=$8, extension_2_desc=$9, sincronizado_en=NOW()
           WHERE producto_id=$10 AND bodega=$11`,
           [precio, disponibilidad, existencia, comprometida,
            r.unidad_medida_inv || '', r.extension_1_id || null, r.extension_1_descripcion || null,
-           r.extension_2_id || null, r.extension_2_descripcion || null, prod.rows[0].id, bodega]);
+           r.extension_2_id || null, r.extension_2_descripcion || null, prod.id, bodega]);
         actualizados++;
       } else {
         await pool.query(`INSERT INTO crm.inventario (producto_id, bodega, precio, disponibilidad, existencia, comprometida,
           unidad_medida, extension_1, extension_1_desc, extension_2, extension_2_desc)
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11)`,
-          [prod.rows[0].id, bodega, precio, disponibilidad, existencia, comprometida,
+          [prod.id, bodega, precio, disponibilidad, existencia, comprometida,
            r.unidad_medida_inv || '', r.extension_1_id || null, r.extension_1_descripcion || null,
            r.extension_2_id || null, r.extension_2_descripcion || null]);
         insertados++;
