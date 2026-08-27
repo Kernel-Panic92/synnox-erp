@@ -69,7 +69,7 @@ function mostrarLogoutConfirm() {
 }
 
 // ── Navigation ──
-const pages = ['dashboard', 'pipeline', 'clientes', 'contactos', 'visitas', 'cotizaciones', 'productos', 'importar', 'descuentos'];
+const pages = ['dashboard', 'pipeline', 'clientes', 'contactos', 'visitas', 'cotizaciones', 'productos', 'inventario', 'importar', 'descuentos'];
 function navigate(page) {
   if (!pages.includes(page)) page = 'dashboard';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -78,7 +78,7 @@ function navigate(page) {
   const nav = document.querySelector(`[data-page="${page}"]`);
   if (el) el.classList.add('active');
   if (nav) nav.classList.add('active');
-  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Visitas', cotizaciones: 'Cotizaciones', productos: 'Productos', importar: 'Importar SIESA', descuentos: 'Descuentos' };
+  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Visitas', cotizaciones: 'Cotizaciones', productos: 'Productos', inventario: 'Inventario', importar: 'Importar SIESA', descuentos: 'Descuentos' };
   document.getElementById('page-title').textContent = titles[page] || 'CRM';
   if (page === 'dashboard') cargarDashboard();
   if (page === 'pipeline') cargarPipeline();
@@ -87,6 +87,7 @@ function navigate(page) {
   if (page === 'visitas') cargarVisitas();
   if (page === 'cotizaciones') cargarCotizaciones();
   if (page === 'productos') cargarProductos();
+  if (page === 'inventario') cargarInventario();
   if (page === 'importar') cargarPaginaImportar();
   if (page === 'descuentos') cargarDescuentos();
 }
@@ -1610,6 +1611,80 @@ async function bulkDeleteProductos() {
     clearSelection();
     cargarProductos();
   }});
+}
+
+// ── Inventario ──
+let _invPage = 1;
+let _invLimit = 50;
+
+async function cargarInventario() {
+  try {
+    const params = new URLSearchParams();
+    const search = document.getElementById('filtro-inv-search')?.value;
+    const bodega = document.getElementById('filtro-inv-bodega')?.value;
+    const stock = document.getElementById('filtro-inv-stock')?.value;
+    if (search) params.set('search', search);
+    if (bodega) params.set('bodega', bodega);
+    if (stock) params.set('stock', stock);
+    params.set('page', _invPage);
+    params.set('limit', _invLimit);
+
+    const r = await apiFetch('/inventario?' + params);
+    if (!r.ok) return;
+
+    const tbody = document.getElementById('tbody-inventario');
+    const data = r.data.data || [];
+    tbody.innerHTML = data.map(inv => {
+      const disponible = parseFloat(inv.existencia || 0) - parseFloat(inv.comprometida || 0);
+      return `<tr>
+        <td><strong>${esc(inv.codigo)}</strong></td>
+        <td>${esc(inv.nombre)}</td>
+        <td>${esc(inv.bodega)}</td>
+        <td>${inv.existencia || 0}</td>
+        <td>${inv.comprometida || 0}</td>
+        <td><strong style="color:${disponible > 0 ? 'var(--success)' : 'var(--danger)'}">${disponible}</strong></td>
+        <td>$${formatMoney(inv.precio || 0)}</td>
+        <td>${esc(inv.unidad_medida || '—')}</td>
+      </tr>`;
+    }).join('');
+
+    renderPagination('pag-inventario', r.data.total, _invPage, _invLimit, (p) => { _invPage = p; cargarInventario(); });
+    cargarBodegasSelect();
+    cargarStatsInventario();
+  } catch (err) { console.error('Error cargar inventario:', err); }
+}
+
+async function cargarBodegasSelect() {
+  try {
+    const r = await apiFetch('/inventario/bodegas');
+    if (!r.ok) return;
+    const select = document.getElementById('filtro-inv-bodega');
+    const current = select?.value || '';
+    select.innerHTML = '<option value="">Todas las bodegas</option>' +
+      (r.data.data || []).map(b => `<option value="${esc(b.bodega)}" ${b.bodega === current ? 'selected' : ''}>${esc(b.bodega)} (${b.productos} productos, ${b.total_existencia} uds)</option>`).join('');
+  } catch {}
+}
+
+async function cargarStatsInventario() {
+  try {
+    const r = await apiFetch('/inventario/stats');
+    if (!r.ok) return;
+    const d = r.data;
+    document.getElementById('stats-inventario').innerHTML = `
+      <div class="stat-card"><div class="stat-value">${d.total_registros || 0}</div><div class="stat-label">Registros</div></div>
+      <div class="stat-card"><div class="stat-value">${d.bodegas || 0}</div><div class="stat-label">Bodegas</div></div>
+      <div class="stat-card"><div class="stat-value">${d.productos_con_stock || 0}</div><div class="stat-label">Con stock</div></div>
+      <div class="stat-card"><div class="stat-value">${formatMoney(d.total_existencia || 0)}</div><div class="stat-label">Total unidades</div></div>
+    `;
+  } catch {}
+}
+
+function limpiarFiltrosInventario() {
+  document.getElementById('filtro-inv-search').value = '';
+  document.getElementById('filtro-inv-bodega').value = '';
+  document.getElementById('filtro-inv-stock').value = '';
+  _invPage = 1;
+  cargarInventario();
 }
 
 // ── Importar SIESA ──

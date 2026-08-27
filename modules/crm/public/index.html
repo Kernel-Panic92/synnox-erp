@@ -103,6 +103,7 @@
     <button class="nav-item" data-page="visitas" onclick="navigate('visitas')"><span class="icon">📍</span> Visitas</button>
     <button class="nav-item" data-page="cotizaciones" onclick="navigate('cotizaciones')"><span class="icon">📄</span> Cotizaciones</button>
     <button class="nav-item" data-page="productos" onclick="navigate('productos')"><span class="icon">📦</span> Productos</button>
+    <button class="nav-item" data-page="inventario" onclick="navigate('inventario')"><span class="icon">📊</span> Inventario</button>
     <button class="nav-item" data-page="importar" onclick="navigate('importar')"><span class="icon">📥</span> Importar SIESA</button>
     <button class="nav-item" data-page="descuentos" onclick="navigate('descuentos')"><span class="icon">💰</span> Descuentos</button>
   </nav>
@@ -380,6 +381,44 @@
         <p style="color:var(--muted);margin-bottom:16px">Importa datos del ERP de SIESA al CRM. Selecciona el tipo de datos y sube el archivo.</p>
         <div class="stats-row" id="stats-importar"></div>
         <div id="importar-tipos-container"></div>
+      </div>
+
+      <!-- Inventario -->
+      <div class="page" id="page-inventario">
+        <div class="page-header">
+          <h3>Inventario por Bodega</h3>
+        </div>
+        <div class="stats-row" id="stats-inventario"></div>
+        <div class="filters">
+          <input type="text" id="filtro-inv-search" placeholder="Buscar producto..." oninput="cargarInventario()">
+          <select id="filtro-inv-bodega" onchange="cargarInventario()">
+            <option value="">Todas las bodegas</option>
+          </select>
+          <select id="filtro-inv-stock" onchange="cargarInventario()">
+            <option value="">Todo el stock</option>
+            <option value="con_stock">Con stock</option>
+            <option value="sin_stock">Sin stock</option>
+          </select>
+          <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosInventario()">✕ Limpiar</button>
+        </div>
+        <div class="tbl-wrap">
+          <table class="tbl" id="tbl-inventario">
+            <thead>
+              <tr>
+                <th>Codigo</th>
+                <th>Producto</th>
+                <th>Bodega</th>
+                <th>Existencia</th>
+                <th>Comprometida</th>
+                <th>Disponible</th>
+                <th>Precio</th>
+                <th>Unidad</th>
+              </tr>
+            </thead>
+            <tbody id="tbody-inventario"></tbody>
+          </table>
+        </div>
+        <div class="pagination" id="pag-inventario"></div>
       </div>
 
     </div>
