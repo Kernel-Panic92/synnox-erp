@@ -113,18 +113,7 @@ router.put('/ean/:id', requirePermiso('crear_cotizacion', 'crm'), async (req, re
   }
 });
 
-// DELETE /api/productos/ean/:id — Eliminar EAN
-router.delete('/ean/:id', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
-  try {
-    await pool.query(`UPDATE crm.productos_ean SET activo = FALSE WHERE id = $1`, [req.params.id]);
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('[CRM] Error eliminar EAN:', err);
-    res.status(500).json({ error: 'Error al eliminar EAN' });
-  }
-});
-
-// DELETE /api/productos/ean/todos — Eliminar todos los EANs
+// DELETE /api/productos/ean/todos — Eliminar todos los EANs (ANTES de /:id)
 router.delete('/ean/todos', async (req, res) => {
   try {
     const result = await pool.query(`DELETE FROM crm.productos_ean RETURNING id`);
@@ -132,6 +121,17 @@ router.delete('/ean/todos', async (req, res) => {
   } catch (err) {
     console.error('[CRM] Error eliminar todos EANs:', err);
     res.status(500).json({ error: 'Error al eliminar' });
+  }
+});
+
+// DELETE /api/productos/ean/:id — Eliminar EAN (DESPUES de /todos)
+router.delete('/ean/:id', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+  try {
+    await pool.query(`UPDATE crm.productos_ean SET activo = FALSE WHERE id = $1`, [req.params.id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[CRM] Error eliminar EAN:', err);
+    res.status(500).json({ error: 'Error al eliminar EAN' });
   }
 });
 
