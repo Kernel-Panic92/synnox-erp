@@ -70,7 +70,8 @@ const REQUIRED_COLUMNS = {
   leads: [['razon_social', 'raz_n_social'], ['numero_de_identificacion', 'numero_de_identificaci_n']],
   cotizaciones: [['nombre'], ['consecutivo_interno']],
   items: [['referencia'], ['item'], ['descripcion', 'desc_item', 'desc__item']],
-  inventario: [['codigo', 'c_digo'], ['referencia'], ['bodega']]
+  inventario: [['codigo', 'c_digo'], ['referencia'], ['bodega']],
+  codigos_barra: [['codigo', 'c_digo'], ['referencia']]
 };
 
 function validateColumns(rows, tipo) {
@@ -448,6 +449,40 @@ async function importarInventario(rows) {
   return { insertados, actualizados, fallidos, total: rows.length, errores: errores.slice(0, 50) };
 }
 
+async function importarCodigosBarra(rows, onProgress) {
+  let insertados = 0, fallidos = 0;
+  const errores = [];
+  for (let i = 0; i < rows.length; i++) {
+    try {
+      const r = rows[i];
+      const gtin = String(r.codigo || r.c_digo || '').trim();
+      const referencia = String(r.referencia || '').trim();
+      const descripcion = (r.desc__item || r.desc_item || '').trim();
+      const unidad = (r.u_m_ || r.unidad || '').trim();
+
+      if (!gtin || !referencia) { fallidos++; errores.push(`Fila ${i+1}: sin EAN o referencia`); continue; }
+
+      // Buscar producto por referencia (codigo)
+      const prod = await pool.query(`SELECT id FROM crm.productos WHERE codigo = $1`, [referencia]);
+      if (!prod.rows.length) { fallidos++; errores.push(`Fila ${i+1}: producto ${referencia} no encontrado`); continue; }
+
+      // Verificar si ya existe el EAN para este producto
+      const existing = await pool.query(`SELECT id FROM crm.productos_ean WHERE producto_id = $1 AND gtin = $2`, [prod.rows[0].id, gtin]);
+      if (existing.rows.length) continue; // skip duplicados
+
+      await pool.query(`
+        INSERT INTO crm.productos_ean (producto_id, gtin, descripcion, unidad_medida)
+        VALUES ($1, $2, $3, $4)
+      `, [prod.rows[0].id, gtin, descripcion || null, unidad || null]);
+      insertados++;
+
+      if (onProgress && i % 10 === 0) onProgress(i + 1, rows.length);
+    } catch (e) { fallidos++; errores.push(`Fila ${i+1}: ${e.message}`); }
+  }
+  if (onProgress) onProgress(rows.length, rows.length);
+  return { insertados, fallidos, total: rows.length, errores: errores.slice(0, 50) };
+}
+
 // ── Endpoint principal ──
 const PARSERS = {
   clientes: importarClientes,
@@ -455,7 +490,8 @@ const PARSERS = {
   leads: importarLeads,
   cotizaciones: importarCotizaciones,
   items: importarItems,
-  inventario: importarInventario
+  inventario: importarInventario,
+  codigos_barra: importarCodigosBarra
 };
 
 router.post('/', requirePermiso('crear_contacto', 'crm'), upload.single('archivo'), async (req, res) => {
