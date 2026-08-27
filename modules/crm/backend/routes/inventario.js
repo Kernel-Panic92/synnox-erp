@@ -92,4 +92,19 @@ router.get('/bodegas', requirePermiso('ver', 'crm'), async (req, res) => {
   }
 });
 
+// DELETE /api/inventario/limpiar — Eliminar registros huérfanos
+router.delete('/limpiar', requirePermiso('editar_contacto', 'crm'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      DELETE FROM crm.inventario i
+      WHERE NOT EXISTS (SELECT 1 FROM crm.productos p WHERE p.id = i.producto_id)
+      RETURNING id
+    `);
+    res.json({ ok: true, eliminados: result.rowCount });
+  } catch (err) {
+    console.error('[CRM] Error limpiar inventario:', err);
+    res.status(500).json({ error: 'Error al limpiar' });
+  }
+});
+
 export default router;
