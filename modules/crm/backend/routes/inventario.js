@@ -107,4 +107,15 @@ router.delete('/limpiar', async (req, res) => {
   }
 });
 
+// DELETE /api/inventario/todos — Eliminar TODO el inventario
+router.delete('/todos', async (req, res) => {
+  try {
+    const result = await pool.query(`DELETE FROM crm.inventario RETURNING id`);
+    res.json({ ok: true, eliminados: result.rowCount });
+  } catch (err) {
+    console.error('[CRM] Error eliminar todo inventario:', err);
+    res.status(500).json({ error: 'Error al eliminar' });
+  }
+});
+
 export default router;
