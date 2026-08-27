@@ -124,6 +124,17 @@ router.delete('/ean/:id', requirePermiso('crear_cotizacion', 'crm'), async (req,
   }
 });
 
+// DELETE /api/productos/ean/todos — Eliminar todos los EANs
+router.delete('/ean/todos', async (req, res) => {
+  try {
+    const result = await pool.query(`DELETE FROM crm.productos_ean RETURNING id`);
+    res.json({ ok: true, eliminados: result.rowCount });
+  } catch (err) {
+    console.error('[CRM] Error eliminar todos EANs:', err);
+    res.status(500).json({ error: 'Error al eliminar' });
+  }
+});
+
 // POST /api/productos/gs1/lookup — Buscar info en GS1 por GTIN
 router.post('/gs1/lookup', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
   try {
