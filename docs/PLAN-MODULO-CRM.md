@@ -336,40 +336,69 @@ auth, framework ni auditoria. Se uso el patron built-in (como proyectos, logisti
 
 ---
 
-## Estado Actual (26 Ago 2026)
+## Estado Actual (27 Ago 2026 — Sesión 2)
 
 ### Completado ✅
 
 | Fase | Feature | Detalle |
 |------|---------|---------|
 | **1A** | Schema + CRUD clientes/contactos | 21 campos SIESA por tercero |
-| **1A** | Importador unificado SIESA | 6 tipos: clientes, contactos, leads, cotizaciones, items, inventario |
+| **1A** | Importador unificado SIESA | 10 tipos: clientes, contactos, leads, cotizaciones, items, inventario, codigos_barra, bodegas, precios, vendedores |
 | **1A** | Barra de progreso SSE | Streaming con progreso en tiempo real |
 | **1A** | Sucursales | CRUD + importacion desde CSV + sucursal 001 = principal |
-| **1A** | Listas de precio | 22 listas creadas desde CSV |
+| **1A** | Listas de precio | 75+ listas + 1,162 precios importados del ERP |
 | **1A** | Campos SIESA completos | departamento, cobrador, correo_fe, asesor, codigo_ean, etc. |
+| **1A** | Importacion ERP | Terceros, Items, Inventario, Bodegas, Precios, Vendedores |
 | **1B** | Pipeline kanban | Drag & drop entre etapas |
 | **1B** | Oportunidades CRUD | + historial de cambios de etapa |
 | **1C** | Visitas GPS | Check-in/out + foto + mapa Leaflet |
 | **1C** | Visitas agrupadas | Por cliente + duracion (checkin→checkout) |
-| **1D** | Cotizaciones | CRUD + items + tabs estilo SIESA |
+| **1D** | Cotizaciones | CRUD + items + tabs estilo SIESA (Info, Precios, Inventario, EANs) |
 | **1D** | Aprobacion descuentos | Auto-aprobado si ≤ umbral, pendiente si > |
 | **1D** | Catalogo productos | Busqueda + agregar al carrito |
+| **1D** | Codigos de barras | 108 EANs vinculados a productos |
+| **1D** | Inventario por bodega | 1,069 registros, 24 bodegas, 127K unidades |
 | **—** | Bulk delete | En todas las tablas (seleccion o todos) |
 | **—** | Paginacion | 20/100/500/1000 registros por pagina |
+| **—** | GS1 Client | Lookup por GTIN (preparado para fotos) |
 
-### Pendiente 🔜
+### Datos importados del ERP
 
-| Fase | Feature | Prioridad | Estimacion |
-|------|---------|-----------|------------|
-| **2A** | **API SIESA** — Sincronizar clientes, precios, productos | 🔴 Alta | 2-3 sesiones |
-| **2A** | Job de sincronizacion automatica | 🔴 Alta | 1 sesion |
-| **2B** | **Leads** — CRUD + conversion a clientes | 🔴 Alta | 1 sesion |
-| **2C** | **Reporteria** — Dashboard, graficas, metricas | 🟡 Media | 2 sesiones |
-| **2D** | **MCP Tools** — 12 tools para IA | 🟡 Media | 2 sesiones |
-| **3** | **Campanas email** (SendGrid/Mailchimp) | 🟢 Baja | 3 sesiones |
-| **4** | **Integracion completa SIESA** (pedidos, facturas) | 🟢 Baja | 5+ sesiones |
-| **5** | **Reporteria avanzada** + analytics | 🟢 Baja | 2 sesiones |
+| Dato | Registros | Archivo |
+|------|-----------|---------|
+| Terceros (clientes) | 2,599 | Terceros clientes.csv |
+| Productos | 1,259 | items.csv |
+| Inventario | 1,069 | Inventario.csv |
+| Bodegas | 24 con stock | Bodegas.csv |
+| Listas de precio | 75+ | Listas de precio.csv |
+| Precios | 1,162 | Precios por item.csv |
+| Codigos de barras | 108 | CODIGOS DE BARRAS ITEMS ERP.csv |
+| Vendedores | 88 | vendedores.csv |
+| Centros operacion | 6 | Centros de operacion.csv |
+| Pedidos | 1,148 | Pedidos mes corriente.csv |
+| Facturas | 2,087 | facturas mes corriente.csv |
+
+### Pendiente 🔜 — Sprint 2 (28 Ago 2026)
+
+| Fase | Feature | Prioridad | Notas |
+|------|---------|-----------|-------|
+| **1E** | **Centros de operacion** — Usar tabla del launcher | 🔴 Alta | Consultar centros_operacion de SQLite |
+| **1E** | **Validacion descuentos** — Rangos y umbrales | 🔴 Alta | Revisar screenshots de SIESA CRM |
+| **1E** | **Flujo completo cotizacion** — Crear con productos reales | 🔴 Alta | Probar flujo end-to-end |
+| **2B** | **Leads** — CRUD + conversion a clientes | 🔴 Alta | Tabla ya existe |
+| **2C** | **Reporteria** — Dashboard, graficas, metricas | 🟡 Media | |
+| **2D** | **MCP Tools** — 12 tools para IA | 🟡 Media | |
+| **3** | **Campanas email** (SendGrid/Mailchimp) | 🟢 Baja | |
+| **4** | **API SIESA** — Sincronizacion automatica | 🟢 Baja | Cuando este disponible |
+| **5** | **Reporteria avanzada** + analytics | 🟢 Baja | |
+
+### Pendiente de revisar con screenshots de SIESA
+
+- [ ] Centros de operacion en cotizaciones
+- [ ] Validacion de descuentos por rango
+- [ ] Flujo de aprobacion completo
+- [ ] Estados del pedido en ERP
+- [ ] Campos adicionales en cotizaciones
 
 ---
 
