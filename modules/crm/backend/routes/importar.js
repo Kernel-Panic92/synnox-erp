@@ -71,7 +71,10 @@ const REQUIRED_COLUMNS = {
   cotizaciones: [['nombre'], ['consecutivo_interno']],
   items: [['referencia'], ['item'], ['descripcion', 'desc_item', 'desc__item']],
   inventario: [['codigo', 'c_digo'], ['referencia'], ['bodega']],
-  codigos_barra: [['codigo', 'c_digo'], ['referencia']]
+  codigos_barra: [['codigo', 'c_digo'], ['referencia']],
+  bodegas: [['codigo', 'c_digo'], ['descripcion']],
+  precios: [['referencia'], ['lista']],
+  vendedores: [['codigo', 'c_digo'], ['nombre']]
 };
 
 function validateColumns(rows, tipo) {
@@ -502,6 +505,99 @@ async function importarCodigosBarra(rows, onProgress) {
   return { insertados, fallidos, total: rows.length, errores: errores.slice(0, 50) };
 }
 
+async function importarBodegas(rows, onProgress) {
+  let insertados = 0, actualizados = 0, fallidos = 0;
+  const errores = [];
+  for (let i = 0; i < rows.length; i++) {
+    try {
+      const r = rows[i];
+      const codigo = (r.codigo || r.c_digo || '').trim();
+      const nombre = (r.descripcion || r.descripci_n || '').trim();
+      if (!codigo || !nombre) { fallidos++; errores.push(`Fila ${i+1}: sin código o nombre`); continue; }
+
+      const existing = await pool.query(`SELECT id FROM crm.bodegas WHERE codigo = $1`, [codigo]);
+      if (existing.rows.length) {
+        await pool.query(`UPDATE crm.bodegas SET nombre = $1 WHERE codigo = $2`, [nombre, codigo]);
+        actualizados++;
+      } else {
+        await pool.query(`INSERT INTO crm.bodegas (codigo, nombre, ciudad) VALUES ($1, $2, $3)`, [codigo, nombre, r.ciudad || '']);
+        insertados++;
+      }
+      if (onProgress && i % 10 === 0) onProgress(i + 1, rows.length);
+    } catch (e) { fallidos++; errores.push(`Fila ${i+1}: ${e.message}`); }
+  }
+  if (onProgress) onProgress(rows.length, rows.length);
+  return { insertados, actualizados, fallidos, total: rows.length, errores: errores.slice(0, 50) };
+}
+
+async function importarPrecios(rows, onProgress) {
+  let insertados = 0, actualizados = 0, fallidos = 0;
+  const errores = [];
+  for (let i = 0; i < rows.length; i++) {
+    try {
+      const r = rows[i];
+      const referencia = (r.referencia || '').trim();
+      const listaCodigo = (r.lista || '').trim();
+      const precioStr = (r.precio || '0').replace(/[^0-9.,]/g, '').replace(',', '.');
+      const precio = parseFloat(precioStr) || 0;
+      if (!referencia || !listaCodigo) { fallidos++; errores.push(`Fila ${i+1}: sin referencia o lista`); continue; }
+
+      // Buscar producto
+      const prod = await pool.query(`SELECT id FROM crm.productos WHERE codigo = $1`, [referencia]);
+      if (!prod.rows.length) { fallidos++; errores.push(`Fila ${i+1}: producto ${referencia} no encontrado`); continue; }
+
+      // Buscar o crear lista de precio
+      let lista = await pool.query(`SELECT id FROM crm.listas_precio WHERE codigo = $1`, [listaCodigo]);
+      if (!lista.rows.length) {
+        const nombre = (r.desc__lista_de_precio || r.desc_lista_de_precio || listaCodigo).trim();
+        const ins = await pool.query(`INSERT INTO crm.listas_precio (codigo, nombre, moneda) VALUES ($1, $2, $3) RETURNING id`, [listaCodigo, nombre, r.moneda || 'COP']);
+        lista = ins;
+      }
+
+      // Upsert precio
+      const existing = await pool.query(`SELECT id FROM crm.lista_precio_items WHERE lista_id = $1 AND producto_id = $2`, [lista.rows[0].id, prod.rows[0].id]);
+      if (existing.rows.length) {
+        await pool.query(`UPDATE crm.lista_precio_items SET precio = $1 WHERE id = $2`, [precio, existing.rows[0].id]);
+        actualizados++;
+      } else {
+        await pool.query(`INSERT INTO crm.lista_precio_items (lista_id, producto_id, precio, moneda) VALUES ($1, $2, $3, $4)`, [lista.rows[0].id, prod.rows[0].id, precio, r.moneda || 'COP']);
+        insertados++;
+      }
+      if (onProgress && i % 10 === 0) onProgress(i + 1, rows.length);
+    } catch (e) { fallidos++; errores.push(`Fila ${i+1}: ${e.message}`); }
+  }
+  if (onProgress) onProgress(rows.length, rows.length);
+  return { insertados, actualizados, fallidos, total: rows.length, errores: errores.slice(0, 50) };
+}
+
+async function importarVendedores(rows, onProgress) {
+  let insertados = 0, actualizados = 0, fallidos = 0;
+  const errores = [];
+  for (let i = 0; i < rows.length; i++) {
+    try {
+      const r = rows[i];
+      const codigo = (r.codigo || r.c_digo || '').trim();
+      const nombre = (r.nombre || '').trim();
+      if (!codigo || !nombre) { fallidos++; errores.push(`Fila ${i+1}: sin código o nombre`); continue; }
+
+      // Guardar en configuracion como JSON
+      const key = `vendedor_${codigo}`;
+      const existing = await pool.query(`SELECT clave FROM crm.configuracion WHERE clave = $1`, [key]);
+      const data = JSON.stringify({ codigo, nombre, cobrador: r.cobrador === 'Si', vendedor: r.vendedor === 'Si' });
+      if (existing.rows.length) {
+        await pool.query(`UPDATE crm.configuracion SET valor = $1 WHERE clave = $2`, [data, key]);
+        actualizados++;
+      } else {
+        await pool.query(`INSERT INTO crm.configuracion (clave, valor, descripcion) VALUES ($1, $2, $3)`, [key, data, `Vendedor: ${nombre}`]);
+        insertados++;
+      }
+      if (onProgress && i % 10 === 0) onProgress(i + 1, rows.length);
+    } catch (e) { fallidos++; errores.push(`Fila ${i+1}: ${e.message}`); }
+  }
+  if (onProgress) onProgress(rows.length, rows.length);
+  return { insertados, actualizados, fallidos, total: rows.length, errores: errores.slice(0, 50) };
+}
+
 // ── Endpoint principal ──
 const PARSERS = {
   clientes: importarClientes,
@@ -510,7 +606,10 @@ const PARSERS = {
   cotizaciones: importarCotizaciones,
   items: importarItems,
   inventario: importarInventario,
-  codigos_barra: importarCodigosBarra
+  codigos_barra: importarCodigosBarra,
+  bodegas: importarBodegas,
+  precios: importarPrecios,
+  vendedores: importarVendedores
 };
 
 router.post('/', requirePermiso('crear_contacto', 'crm'), upload.single('archivo'), async (req, res) => {
@@ -566,7 +665,10 @@ router.get('/tipos', requirePermiso('crear_contacto', 'crm'), (req, res) => {
       { id: 'cotizaciones', nombre: 'Cotizaciones CRM', extensiones: 'xlsx', descripcion: 'Cotizaciones con estados, bodega, centro de operación' },
       { id: 'items', nombre: 'Items / Productos', extensiones: 'xlsx,csv', descripcion: 'Productos con referencia, precio, impuesto, categoría' },
       { id: 'inventario', nombre: 'Inventario por Bodega', extensiones: 'xlsx', descripcion: 'Stock por bodega con precio, disponibilidad, existencia' },
-      { id: 'codigos_barra', nombre: 'Códigos de Barras (EAN)', extensiones: 'csv', descripcion: 'Códigos GS1 vinculados a productos por referencia' }
+      { id: 'codigos_barra', nombre: 'Códigos de Barras (EAN)', extensiones: 'csv', descripcion: 'Códigos GS1 vinculados a productos por referencia' },
+      { id: 'bodegas', nombre: 'Bodegas', extensiones: 'csv', descripcion: 'Almacenes con código, nombre y ubicación' },
+      { id: 'precios', nombre: 'Precios por Item', extensiones: 'csv', descripcion: 'Precios de productos por lista de precio' },
+      { id: 'vendedores', nombre: 'Vendedores', extensiones: 'csv', descripcion: 'Asesores comerciales con código y nombre' }
     ]
   });
 });
