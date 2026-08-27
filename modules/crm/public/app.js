@@ -1409,8 +1409,8 @@ async function cargarProductos() {
     const tbody = document.getElementById('tbody-productos');
     const data = r.data.data || [];
     tbody.innerHTML = data.map(p => `
-      <tr>
-        <td><input type="checkbox" class="row-check cb-producto" value="${p.id}" onchange="updateBulkBar()"></td>
+      <tr style="cursor:pointer" onclick="verProducto('${p.id}')">
+        <td><input type="checkbox" class="row-check cb-producto" value="${p.id}" onchange="event.stopPropagation();updateBulkBar()"></td>
         <td><strong>${esc(p.codigo)}</strong></td>
         <td>${esc(p.nombre)}</td>
         <td>${esc(p.unidad_medida || 'UND')}</td>
@@ -1487,6 +1487,48 @@ async function eliminarProducto(id) {
     toast('Producto eliminado', 'success');
     cargarProductos();
   }});
+}
+
+async function verProducto(id) {
+  const r = await apiFetch('/productos?limit=500');
+  if (!r.ok) return;
+  const p = (r.data.data || []).find(x => x.id === id);
+  if (!p) return toast('Producto no encontrado', 'error');
+
+  // Fetch EANs
+  const eanR = await apiFetch('/productos/' + id + '/ean');
+  const eans = eanR.ok ? (eanR.data.data || []) : [];
+
+  document.getElementById('detalle-producto-title').textContent = p.nombre;
+  document.getElementById('detalle-producto-content').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+      <div><strong>Codigo:</strong> ${esc(p.codigo)}</div>
+      <div><strong>Estado:</strong> <span class="badge badge-${p.activo ? 'aprobada' : 'rechazada'}">${p.activo ? 'Activo' : 'Inactivo'}</span></div>
+      <div><strong>Unidad:</strong> ${esc(p.unidad_medida || '—')}</div>
+      <div><strong>Precio:</strong> $${formatMoney(p.precio_unitario || 0)}</div>
+      <div><strong>Impuesto:</strong> ${p.tasa_impuesto || 0}%</div>
+      <div><strong>Categoria:</strong> ${esc(p.categoria || '—')}</div>
+      <div><strong>Bodega:</strong> ${esc(p.bodega || '—')}</div>
+      ${p.marca ? `<div><strong>Marca:</strong> ${esc(p.marca)}</div>` : ''}
+    </div>
+    ${p.descripcion ? `<div style="margin-bottom:12px"><strong>Descripcion:</strong><br>${esc(p.descripcion)}</div>` : ''}
+    ${p.descripcion_gs1 ? `<div style="margin-bottom:12px"><strong>Descripcion GS1:</strong><br>${esc(p.descripcion_gs1)}</div>` : ''}
+
+    <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px">
+      <h4 style="margin:0">Codigos de Barras (${eans.length})</h4>
+    </div>
+    ${eans.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>GTIN</th><th>Descripcion</th><th>U.M.</th><th>Principal</th></tr></thead><tbody>
+      ${eans.map(e => `<tr>
+        <td><strong>${esc(e.gtin)}</strong></td>
+        <td>${esc(e.descripcion || '—')}</td>
+        <td>${esc(e.unidad_medida || '—')}</td>
+        <td>${e.es_principal ? '<span class="badge badge-aprobada">Principal</span>' : ''}</td>
+      </tr>`).join('')}
+    </tbody></table></div>` : '<p style="color:var(--muted)">Sin codigos de barras registrados</p>'}
+
+    ${p.foto_url ? `<div style="margin-top:16px"><strong>Foto:</strong><br><img src="${esc(p.foto_url)}" style="max-width:200px;border-radius:8px;border:1px solid var(--border);margin-top:8px"></div>` : ''}
+  `;
+  showModal('modal-detalle-producto');
 }
 
 async function bulkDeleteProductos() {
