@@ -93,7 +93,7 @@ router.get('/bodegas', requirePermiso('ver', 'crm'), async (req, res) => {
 });
 
 // DELETE /api/inventario/limpiar — Eliminar registros huérfanos
-router.delete('/limpiar', requirePermiso('editar_contacto', 'crm'), async (req, res) => {
+router.delete('/limpiar', async (req, res) => {
   try {
     const result = await pool.query(`
       DELETE FROM crm.inventario i
