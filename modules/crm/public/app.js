@@ -1726,6 +1726,25 @@ function cambiarTipoImportacion() {
   if (tipoInfo) {
     document.getElementById('importar-archivo').accept = tipoInfo.extensiones.split(',').map(e => '.' + e).join(',');
   }
+
+  // Show order hint for initial imports
+  const orderHint = document.getElementById('importar-orden-hint');
+  const orderText = document.getElementById('importar-orden-texto');
+  const orderMap = {
+    bodegas: 'Primero ← Después: Items, Inventario',
+    items: '← Después: Precios, Inventario, Códigos barras',
+    codigos_barra: '← Después: Precios',
+    precios: '← Después: Inventario',
+    inventario: '← Después: Clientes',
+    clientes: '← Después: Vendedores',
+    vendedores: 'Último'
+  };
+  if (orderMap[tipo]) {
+    orderText.textContent = orderMap[tipo];
+    orderHint.style.display = '';
+  } else {
+    orderHint.style.display = 'none';
+  }
 }
 
 async function ejecutarImportacion() {
