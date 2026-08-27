@@ -16,54 +16,32 @@ Cotizaciones/Pedidos, Campanas, Items, Comercial
 ```
 modules/crm/
 ├── backend/
-│   ├── migrations/          (schema crm)
-│   │   ├── 001_crm_clientes_contactos.sql
-│   │   ├── 002_crm_pipeline.sql
-│   │   ├── 003_crm_visitas_gps.sql
-│   │   ├── 004_crm_cotizaciones.sql
-│   │   ├── 005_crm_descuentos.sql
-│   │   ├── 006_crm_campanas.sql
-│   │   ├── 007_crm_siesa_scaffold.sql
-│   │   └── 008_crm_configuracion.sql
+│   ├── migrations/          (schema crm — 010 migraciones)
 │   ├── routes/
-│   │   ├── contactos.js
-│   │   ├── clientes.js
-│   │   ├── oportunidades.js
-│   │   ├── visitas.js
-│   │   ├── cotizaciones.js
-│   │   ├── descuentos.js
-│   │   ├── campanas.js
-│   │   ├── reportes.js
-│   │   └── dashboard.js
-│   ├── mcp/
-│   │   └── index.js         (~12 tools MCP)
+│   │   ├── clientes.js      (CRUD + bulk delete)
+│   │   ├── contactos.js     (CRUD + bulk delete)
+│   │   ├── sucursales.js    (CRUD por cliente)
+│   │   ├── oportunidades.js (CRUD + historial + drag & drop)
+│   │   ├── visitas.js       (check-in/out GPS + foto)
+│   │   ├── cotizaciones.js  (CRUD + items + descuentos)
+│   │   ├── descuentos.js    (aprobar/rechazar)
+│   │   ├── productos.js     (CRUD + busqueda + importar CSV)
+│   │   └── importar.js      (importador unificado SIESA)
 │   ├── utils/
-│   │   ├── email.js          (hereda SMTP launcher)
-│   │   ├── geocoding.js      (reutilizar de logistica)
-│   │   ├── siesaCrmMigrator.js
-│   │   └── siesaClient.js    (scaffold para API futura)
+│   │   └── siesaClient.js   (FUTURO: cliente API SIESA)
+│   ├── config/db.js
 │   └── server.js
 ├── public/
 │   ├── index.html
-│   ├── base.css
-│   └── js/modules/
-│       ├── contactos.js
-│       ├── clientes.js
-│       ├── pipeline.js
-│       ├── visitas.js
-│       ├── cotizaciones.js
-│       ├── descuentos.js
-│       ├── campanas.js
-│       ├── reportes.js
-│       └── dashboard.js
+│   ├── app.js
+│   ├── framework.js
+│   └── theme.js
 └── package.json
 ```
 
 ## Modelo de Datos (Schema `crm`)
 
-### 1. Clientes
-
-Reemplaza "Clientes" y "Clientes potenciales" de SIESA CRM.
+### 1. Clientes (21 campos SIESA)
 
 ```sql
 CREATE TABLE crm.clientes (
@@ -74,33 +52,64 @@ CREATE TABLE crm.clientes (
   sector VARCHAR(100),
   direccion TEXT,
   ciudad VARCHAR(100),
+  departamento VARCHAR(100),
   latitud DECIMAL(10,8),
   longitud DECIMAL(10,8),
   telefono VARCHAR(30),
   email VARCHAR(200),
   website VARCHAR(300),
   codigo_siesa VARCHAR(30),
-  vendedor_asignado UUID,
+  codigo_ean VARCHAR(50),
+  vendedor_asignado INTEGER,
+  asesor_comercial VARCHAR(255),
+  cobrador VARCHAR(100),
   notas TEXT,
   activo BOOLEAN DEFAULT TRUE,
-  origen VARCHAR(50),
+  origen VARCHAR(50) DEFAULT 'manual',
+  -- Campos SIESA adicionales
+  canal VARCHAR(100),
+  tipo_negocio VARCHAR(100),
+  ruta_vehiculos VARCHAR(100),
+  ruta_motos VARCHAR(100),
+  lista_precios VARCHAR(100),
+  correo_fe VARCHAR(200),
+  sucursal_corporativa VARCHAR(50),
+  razon_social VARCHAR(255),
   creado_en TIMESTAMPTZ DEFAULT NOW(),
   actualizado_en TIMESTAMPTZ DEFAULT NOW()
 );
-
-CREATE INDEX idx_clientes_nombre ON crm.clientes USING gin(nombre gin_trgm_ops);
-CREATE INDEX idx_clientes_nit ON crm.clientes(nit);
-CREATE INDEX idx_clientes_tipo ON crm.clientes(tipo);
-CREATE INDEX idx_clientes_vendedor ON crm.clientes(vendedor_asignado);
-CREATE INDEX idx_clientes_codigo_siesa ON crm.clientes(codigo_siesa);
 ```
 
-### 2. Contactos
+### 2. Sucursales
+
+```sql
+CREATE TABLE crm.sucursales (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  cliente_id UUID NOT NULL REFERENCES crm.clientes(id) ON DELETE CASCADE,
+  codigo VARCHAR(30),
+  nombre VARCHAR(255) NOT NULL,
+  direccion TEXT,
+  ciudad VARCHAR(100),
+  departamento VARCHAR(100),
+  telefono VARCHAR(30),
+  email VARCHAR(200),
+  contacto_nombre VARCHAR(255),
+  es_principal BOOLEAN DEFAULT FALSE,
+  notas TEXT,
+  activa BOOLEAN DEFAULT TRUE,
+  siesa_id VARCHAR(100),
+  creado_en TIMESTAMPTZ DEFAULT NOW(),
+  actualizado_en TIMESTAMPTZ DEFAULT NOW()
+);
+```
+
+### 3. Contactos
 
 ```sql
 CREATE TABLE crm.contactos (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   cliente_id UUID REFERENCES crm.clientes(id) ON DELETE CASCADE,
+  sucursal_id UUID REFERENCES crm.sucursales(id),
   nombre VARCHAR(255) NOT NULL,
   cargo VARCHAR(100),
   email VARCHAR(200),
@@ -111,15 +120,9 @@ CREATE TABLE crm.contactos (
   activo BOOLEAN DEFAULT TRUE,
   creado_en TIMESTAMPTZ DEFAULT NOW()
 );
-
-CREATE INDEX idx_contactos_cliente ON crm.contactos(cliente_id);
-CREATE INDEX idx_contactos_nombre ON crm.contactos USING gin(nombre gin_trgm_ops);
-CREATE INDEX idx_contactos_email ON crm.contactos(email);
 ```
 
-### 3. Pipeline de Oportunidades
-
-Reemplaza "Comercial" de SIESA CRM.
+### 4. Pipeline de Oportunidades
 
 ```sql
 CREATE TABLE crm.oportunidades (
@@ -140,26 +143,15 @@ CREATE TABLE crm.oportunidades (
   actualizado_en TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE INDEX idx_oportunidades_cliente ON crm.oportunidades(cliente_id);
-CREATE INDEX idx_oportunidades_vendedor ON crm.oportunidades(vendedor_id);
-CREATE INDEX idx_oportunidades_etapa ON crm.oportunidades(etapa);
-CREATE INDEX idx_oportunidades_fecha ON crm.oportunidades(fecha_cierre_estimada);
-```
-
-### 4. Historial de Cambios de Etapa
-
-```sql
 CREATE TABLE crm.oportunidad_historial (
   id SERIAL PRIMARY KEY,
   oportunidad_id UUID REFERENCES crm.oportunidades(id) ON DELETE CASCADE,
   etapa_anterior VARCHAR(30),
   etapa_nueva VARCHAR(30),
-  cambiado_por UUID,
+  cambiado_por INTEGER,
   comentario TEXT,
   fecha TIMESTAMPTZ DEFAULT NOW()
 );
-
-CREATE INDEX idx_historial_oportunidad ON crm.oportunidad_historial(oportunidad_id);
 ```
 
 ### 5. Visitas GPS
@@ -169,75 +161,74 @@ CREATE TABLE crm.visitas (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   cliente_id UUID REFERENCES crm.clientes(id),
   contacto_id UUID REFERENCES crm.contactos(id),
-  oportunidad_id UUID REFERENCES crm.oportunidades(id),
-  vendedor_id UUID NOT NULL,
+  oportunidad_id UUID REFERENCES crm.oportunidades(id) ON DELETE SET NULL,
+  vendedor_id INTEGER NOT NULL,
   tipo VARCHAR(20) CHECK (tipo IN ('checkin','checkout')),
   latitud DECIMAL(10,8) NOT NULL,
   longitud DECIMAL(10,8) NOT NULL,
+  precision_gps DECIMAL(10,2),
   notas TEXT,
   evidencia_foto VARCHAR(500),
   fecha TIMESTAMPTZ DEFAULT NOW()
 );
-
-CREATE INDEX idx_visitas_vendedor ON crm.visitas(vendedor_id);
-CREATE INDEX idx_visitas_cliente ON crm.visitas(cliente_id);
-CREATE INDEX idx_visitas_fecha ON crm.visitas(fecha);
-CREATE INDEX idx_visitas_tipo ON crm.visitas(tipo);
 ```
 
 ### 6. Cotizaciones
 
-Reemplaza "Cotizaciones/Pedidos" de SIESA CRM.
-
 ```sql
 CREATE TABLE crm.cotizaciones (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  oportunidad_id UUID REFERENCES crm.oportunidades(id),
+  oportunidad_id UUID REFERENCES crm.oportunidades(id) ON DELETE SET NULL,
   cliente_id UUID REFERENCES crm.clientes(id),
+  sucursal_id UUID REFERENCES crm.sucursales(id),
   numero VARCHAR(50) UNIQUE,
-  estado VARCHAR(20) CHECK (estado IN (
-    'borrador','enviada','aprobada','rechazada',
-    'vencida','enviada_siesa'
-  )),
-  valor_subtotal DECIMAL(15,2),
-  valor_iva DECIMAL(15,2),
-  valor_total DECIMAL(15,2),
+  estado VARCHAR(20) DEFAULT 'borrador',
+  valor_subtotal DECIMAL(15,2) DEFAULT 0,
+  valor_descuento DECIMAL(15,2) DEFAULT 0,
+  valor_iva DECIMAL(15,2) DEFAULT 0,
+  valor_total DECIMAL(15,2) DEFAULT 0,
   moneda VARCHAR(3) DEFAULT 'COP',
   validez_dias SMALLINT DEFAULT 30,
   notas TEXT,
-  archivo_pdf VARCHAR(500),
-  enviado_en TIMESTAMPTZ,
-  aprobada_en TIMESTAMPTZ,
   vencimiento DATE,
+  -- Campos SIESA
+  orden_compra VARCHAR(50),
+  fecha_entrega DATE,
+  centro_operacion VARCHAR(100),
+  bodega VARCHAR(100),
+  condicion_pago VARCHAR(100),
+  lista_precios VARCHAR(100),
+  documento_erp VARCHAR(50),
+  estado_erp VARCHAR(50),
+  vendedor_nombre VARCHAR(255),
+  motivo VARCHAR(100),
+  aprobado BOOLEAN DEFAULT FALSE,
+  enviado_erp BOOLEAN DEFAULT FALSE,
   creado_por UUID,
-  creado_en TIMESTAMPTZ DEFAULT NOW()
+  creado_en TIMESTAMPTZ DEFAULT NOW(),
+  actualizado_en TIMESTAMPTZ DEFAULT NOW()
 );
-
-CREATE INDEX idx_cotizaciones_cliente ON crm.cotizaciones(cliente_id);
-CREATE INDEX idx_cotizaciones_estado ON crm.cotizaciones(estado);
-CREATE INDEX idx_cotizaciones_numero ON crm.cotizaciones(numero);
 
 CREATE TABLE crm.cotizacion_items (
   id SERIAL PRIMARY KEY,
   cotizacion_id UUID REFERENCES crm.cotizaciones(id) ON DELETE CASCADE,
-  producto_siesa VARCHAR(50),
-  descripcion VARCHAR(500),
-  cantidad DECIMAL(10,2),
-  precio_unitario DECIMAL(15,2),
+  referencia VARCHAR(50),
+  descripcion VARCHAR(500) NOT NULL,
+  unidad_medida VARCHAR(20) DEFAULT 'UND',
+  cantidad DECIMAL(10,2) DEFAULT 1,
+  precio_unitario DECIMAL(15,2) DEFAULT 0,
   descuento_pct DECIMAL(5,2) DEFAULT 0,
-  subtotal DECIMAL(15,2)
+  subtotal DECIMAL(15,2) DEFAULT 0,
+  orden SMALLINT DEFAULT 0
 );
-
-CREATE INDEX idx_cotizacion_items_cotizacion ON crm.cotizacion_items(cotizacion_id);
 ```
 
-### 7. Aprobacion de Descuentos
+### 7. Descuentos
 
 ```sql
 CREATE TABLE crm.descuentos_solicitud (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
   cotizacion_id UUID REFERENCES crm.cotizaciones(id),
-  oportunidad_id UUID REFERENCES crm.oportunidades(id),
   cliente_id UUID REFERENCES crm.clientes(id),
   solicitado_por UUID NOT NULL,
   tipo VARCHAR(20) CHECK (tipo IN ('porcentaje','monto_fijo')),
@@ -245,73 +236,62 @@ CREATE TABLE crm.descuentos_solicitud (
   monto_original DECIMAL(15,2) NOT NULL,
   monto_final DECIMAL(15,2) NOT NULL,
   justificacion TEXT,
-  estado VARCHAR(20) CHECK (estado IN (
-    'pendiente','aprobado','rechazado','auto_aprobado'
-  )),
+  estado VARCHAR(20) DEFAULT 'pendiente',
   aprobado_por UUID,
   motivo_rechazo TEXT,
   umbral_aplicado DECIMAL(5,2),
   creado_en TIMESTAMPTZ DEFAULT NOW(),
   resuelto_en TIMESTAMPTZ
 );
-
-CREATE INDEX idx_descuentos_estado ON crm.descuentos_solicitud(estado);
-CREATE INDEX idx_descuentos_cliente ON crm.descuentos_solicitud(cliente_id);
 ```
 
-### 8. Campanas Email
+### 8. Productos + Inventario
 
 ```sql
-CREATE TABLE crm.campanas (
+CREATE TABLE crm.productos (
   id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  codigo VARCHAR(50) UNIQUE NOT NULL,
   nombre VARCHAR(255) NOT NULL,
-  tipo VARCHAR(30),
-  estado VARCHAR(20) CHECK (estado IN (
-    'borrador','activa','pausada','completada'
-  )),
-  provider VARCHAR(50),
-  provider_campaign_id VARCHAR(100),
-  segmento_filtro JSONB,
-  creado_por UUID,
+  descripcion TEXT,
+  unidad_medida VARCHAR(20) DEFAULT 'UND',
+  precio_unitario DECIMAL(15,2) DEFAULT 0,
+  tasa_impuesto DECIMAL(5,2) DEFAULT 0,
+  categoria VARCHAR(100),
+  bodega VARCHAR(100),
+  activo BOOLEAN DEFAULT TRUE,
   creado_en TIMESTAMPTZ DEFAULT NOW()
 );
 
-CREATE TABLE crm.campanas_eventos (
+CREATE TABLE crm.inventario (
   id SERIAL PRIMARY KEY,
-  campana_id UUID REFERENCES crm.campanas(id) ON DELETE CASCADE,
-  contacto_id UUID,
-  evento VARCHAR(30),
-  metadata JSONB,
-  fecha TIMESTAMPTZ DEFAULT NOW()
+  producto_id UUID REFERENCES crm.productos(id),
+  bodega VARCHAR(100) NOT NULL,
+  precio DECIMAL(15,2) DEFAULT 0,
+  disponibilidad DECIMAL(10,2) DEFAULT 0,
+  existencia DECIMAL(10,2) DEFAULT 0,
+  comprometida DECIMAL(10,2) DEFAULT 0,
+  unidad_medida VARCHAR(20),
+  UNIQUE(producto_id, bodega)
 );
-
-CREATE INDEX idx_campanas_eventos_campana ON crm.campanas_eventos(campana_id);
 ```
 
-### 9. SIESA Sync (Scaffold)
+### 9. Listas de Precio
 
 ```sql
-CREATE TABLE crm.siesa_sync_log (
+CREATE TABLE crm.listas_precio (
   id SERIAL PRIMARY KEY,
-  tipo VARCHAR(50),
-  direccion VARCHAR(10),
-  registros_procesados INT,
-  registros_exitosos INT,
-  registros_fallidos INT,
-  detalles JSONB,
-  ejecutado_en TIMESTAMPTZ DEFAULT NOW()
+  codigo VARCHAR(50) UNIQUE NOT NULL,
+  nombre VARCHAR(255) NOT NULL,
+  moneda VARCHAR(3) DEFAULT 'COP',
+  activa BOOLEAN DEFAULT TRUE
 );
 
-CREATE TABLE crm.productos (
-  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  codigo_siesa VARCHAR(50) UNIQUE,
-  nombre VARCHAR(255),
-  descripcion TEXT,
-  precio_unitario DECIMAL(15,2),
-  unidad_medida VARCHAR(20),
-  categoria VARCHAR(100),
-  activo BOOLEAN DEFAULT TRUE,
-  sincronizado_en TIMESTAMPTZ
+CREATE TABLE crm.lista_precio_items (
+  id SERIAL PRIMARY KEY,
+  lista_id INTEGER REFERENCES crm.listas_precio(id) ON DELETE CASCADE,
+  producto_id UUID REFERENCES crm.productos(id),
+  precio DECIMAL(15,2) NOT NULL,
+  UNIQUE(lista_id, producto_id)
 );
 ```
 
@@ -321,14 +301,8 @@ CREATE TABLE crm.productos (
 CREATE TABLE crm.configuracion (
   clave VARCHAR(100) PRIMARY KEY,
   valor TEXT,
-  descripcion TEXT,
-  actualizado_en TIMESTAMPTZ DEFAULT NOW()
+  descripcion TEXT
 );
-
-INSERT INTO crm.configuracion (clave, valor, descripcion) VALUES
-  ('descuento_umbral_aprobacion', '10', 'Porcentaje maximo para aprobacion automatica'),
-  ('numero_cotizacion_prefijo', 'COT', 'Prefijo para numeracion de cotizaciones'),
-  ('numero_cotizacion_anio', EXTRACT(YEAR FROM NOW())::TEXT, 'Anio actual para numeracion');
 ```
 
 ## Permisos del Modulo
@@ -354,288 +328,179 @@ crm: [
 ]
 ```
 
-### Roles de usuario tipicos
+## Decision: No usar Scaffold del Launcher
 
-| Rol | Permisos CRM |
-|-----|-------------|
-| **Asesor comercial** | ver, crear_contacto, editar_contacto, ver_pipeline, crear_oportunidad, editar_pipeline, registrar_visita, ver_mis_visitas, crear_cotizacion |
-| **Gerente de ventas** | Todos los del asesor + ver_visitas, aprobar_descuento, reportes, campanas |
-| **Director/Admin** | Todos |
-| **Soporte** | ver, ver_pipeline (solo lectura) |
+El launcher tiene un scaffold que genera un modulo externo con Express propio,
+JWT independiente y puerto separado. No es suitable para CRM porque no comparte
+auth, framework ni auditoria. Se uso el patron built-in (como proyectos, logistica).
 
-## Flujo de Aprobacion de Descuentos
+---
 
+## Estado Actual (26 Ago 2026)
+
+### Completado ✅
+
+| Fase | Feature | Detalle |
+|------|---------|---------|
+| **1A** | Schema + CRUD clientes/contactos | 21 campos SIESA por tercero |
+| **1A** | Importador unificado SIESA | 6 tipos: clientes, contactos, leads, cotizaciones, items, inventario |
+| **1A** | Barra de progreso SSE | Streaming con progreso en tiempo real |
+| **1A** | Sucursales | CRUD + importacion desde CSV + sucursal 001 = principal |
+| **1A** | Listas de precio | 22 listas creadas desde CSV |
+| **1A** | Campos SIESA completos | departamento, cobrador, correo_fe, asesor, codigo_ean, etc. |
+| **1B** | Pipeline kanban | Drag & drop entre etapas |
+| **1B** | Oportunidades CRUD | + historial de cambios de etapa |
+| **1C** | Visitas GPS | Check-in/out + foto + mapa Leaflet |
+| **1C** | Visitas agrupadas | Por cliente + duracion (checkin→checkout) |
+| **1D** | Cotizaciones | CRUD + items + tabs estilo SIESA |
+| **1D** | Aprobacion descuentos | Auto-aprobado si ≤ umbral, pendiente si > |
+| **1D** | Catalogo productos | Busqueda + agregar al carrito |
+| **—** | Bulk delete | En todas las tablas (seleccion o todos) |
+| **—** | Paginacion | 20/100/500/1000 registros por pagina |
+
+### Pendiente 🔜
+
+| Fase | Feature | Prioridad | Estimacion |
+|------|---------|-----------|------------|
+| **2A** | **API SIESA** — Sincronizar clientes, precios, productos | 🔴 Alta | 2-3 sesiones |
+| **2A** | Job de sincronizacion automatica | 🔴 Alta | 1 sesion |
+| **2B** | **Leads** — CRUD + conversion a clientes | 🔴 Alta | 1 sesion |
+| **2C** | **Reporteria** — Dashboard, graficas, metricas | 🟡 Media | 2 sesiones |
+| **2D** | **MCP Tools** — 12 tools para IA | 🟡 Media | 2 sesiones |
+| **3** | **Campanas email** (SendGrid/Mailchimp) | 🟢 Baja | 3 sesiones |
+| **4** | **Integracion completa SIESA** (pedidos, facturas) | 🟢 Baja | 5+ sesiones |
+| **5** | **Reporteria avanzada** + analytics | 🟢 Baja | 2 sesiones |
+
+---
+
+## Fase 2A — API SIESA (Proxima Prioridad)
+
+### Objetivo
+Sincronizar datos del ERP de SIESA automaticamente via API REST.
+
+### Endpoints necesarios de SIESA
 ```
-Vendedor crea cotizacion con descuento
-         |
-         v
-   Descuento <= umbral? (default: 10%)
-         |
-    +----+----+
-    | SI      | NO
-    v         v
-Auto-aprobado  Pendiente aprobacion
-    |         |
-    |         v
-    |    Gerencia recibe notificacion
-    |         |
-    |    +----+----+
-    |    | APRUEBA | RECHAZA
-    |    v         v
-    |  Aprobado  Rechazado
-    |    |         |
-    |    |         v
-    |    |    Notifica al vendedor
-    |    |
-    v    v
-Cotizacion lista para enviar a SIESA
-```
-
-## Georeferenciacion de Visitas
-
-```
-Vendedor abre visita -> "Check-in"
-  -> navigator.geolocation.getCurrentPosition()
-  -> POST /api/crm/visitas { lat, lng, contacto_id, cliente_id }
-  -> Backend guarda: vendedor_id + GPS + timestamp
-  -> Gerencia ve mapa con pins de visitas + filtro por vendedor/fecha
-```
-
-Reutiliza patrones existentes de logistica:
-- `modules/logistica/public/app.js` (lines 1927-1977): Pin picker Leaflet
-- `modules/logistica/public/app.js` (lines 2040-2074): "Locate me" button
-- `modules/logistica/public/app.js` (lines 81-89): Themed tile layer
-- `modules/logistica/backend/utils/geocoding.js`: Geocoding with cache
-- `framework/base.css` (lines 297-303): Dark mode map CSS
-
-## Migracion desde SIESA CRM
-
-### Archivos CSV esperados
-
-| CSV | Tabla destino | Mapeo clave |
-|-----|--------------|-------------|
-| `clientes.csv` | `crm.clientes` | tipo='real' o 'siesa' |
-| `clientes_potenciales.csv` | `crm.clientes` | tipo='potencial' |
-| `contactos.csv` | `crm.contactos` | FK a cliente por NIT o nombre |
-| `cotizaciones.csv` | `crm.cotizaciones` | FK a cliente |
-| `items.csv` | `crm.productos` | codigo_siesa como unique key |
-
-### Script de migracion
-
-`modules/crm/backend/utils/siesaCrmMigrator.js`
-
-- Lee CSVs con `csv-parser` o `papaparse`
-- Normaliza headers (patron similar a Smart2Go parser en logistica)
-- Dedup por NIT o nombre
-- Log de importacion en `crm.siesa_sync_log`
-- Dry-run mode para verificar antes de insertar
-- Endpoints: `POST /api/crm/migrar/:tipo`, `GET /api/crm/migrar/preview/:tipo`
-
-## Dashboard Principal
-
-```
-+-----------------------------------------------------------+
-|  Dashboard CRM                                             |
-+----------+----------+----------+----------+----------------+
-| Deals    | Pipeline | Visitas  | Cotiz.   | Tasa           |
-| abiertos | Value    | hoy      | pend.    | conversion     |
-|   24     | $45.2M   |   8      |   12     |   18%          |
-+----------+----------+----------+----------+----------------+
-|  Mapa de Visitas (Leaflet)  |  Pipeline Kanban             |
-|  [pins de check-in/out GPS] |  [drag & drop etapas]        |
-+-----------------------------+------------------------------+
-|  Funnel de Conversion        |  Proximas visitas            |
-|  lead -> calificado -> ...   |  agenda del dia              |
-+-----------------------------+------------------------------+
-|  Top vendedores / Descuentos pendientes                    |
-+-----------------------------------------------------------+
+GET /api/siesa/clientes          → Clientes con sucursales
+GET /api/siesa/productos         → Catalogo de productos
+GET /api/siesa/listas-precio     → Listas de precio
+GET /api/siesa/listas-precio/:id → Items con precios
+GET /api/siesa/cotizaciones      → Cotizaciones historicas
+GET /api/siesa/inventario        → Stock por bodega
 ```
 
-## MCP Tools
+### Archivos a crear
+```
+modules/crm/backend/utils/
+├── siesaClient.js       (cliente HTTP para API SIESA)
+├── siesaSync.js         (logica de sincronizacion)
+└── siesaScheduler.js    (job automatico cada 6h)
+
+modules/crm/backend/routes/
+└── siesa.js             (endpoints de sync manual)
+```
+
+### Flujo
+```
+1. Usuario hace clic "Sincronizar con SIESA"
+2. Backend llama a API SIESA
+3. Upsert en tablas locales
+4. Retorna estadisticas
+5. Job automatico cada 6 horas
+```
+
+---
+
+## Fase 2B — Leads
+
+### Funcionalidades
+- CRUD de leads (tabla ya existe)
+- Pipeline: nuevo → contactado → calificado → convertido/perdido
+- Conversion lead → cliente
+- Asignacion de asesor comercial
+- Fuentes: CSV, formulario web, manual
+
+---
+
+## Fase 2C — Reporteria
+
+### Dashboard ejecutivo
+- Ventas por vendedor
+- Conversion lead → cliente
+- Tiempo promedio de ciclo de venta
+- Cotizaciones por estado
+- Visitas por zona
+
+### Graficas
+- Funnel de conversion
+- Tendencia de ventas mensual
+- Mapa de calor de visitas
+- Top 10 clientes por volumen
+
+---
+
+## Fase 2D — MCP Tools
 
 | Tool | Descripcion |
 |------|-------------|
 | `crm_buscar_cliente` | Buscar por nombre, NIT, sector |
 | `crm_buscar_contacto` | Buscar por nombre, email, cliente |
-| `crm_listar_oportunidades` | Pipeline filtrado por etapa/vendedor |
-| `crm_crear_oportunidad` | Crear deal en pipeline |
-| `crm_mover_oportunidad` | Cambiar etapa del deal |
+| `crm_listar_oportunidades` | Pipeline filtrado |
+| `crm_crear_oportunidad` | Crear deal |
+| `crm_mover_oportunidad` | Cambiar etapa |
 | `crm_registrar_visita` | Check-in con GPS |
 | `crm_historial_visitas` | Visitas de un contacto/vendedor |
 | `crm_dashboard` | Resumen ejecutivo |
 | `crm_cotizaciones_pendientes` | Cotizaciones por aprobar |
-| `crm_solicitar_descuento` | Crear solicitud de descuento |
-| `crm_aprobar_descuento` | Aprobar/rechazar descuento |
-| `crm_metricas_conversion` | Tasa lead->real, por vendedor/periodo |
+| `crm_solicitar_descuento` | Crear solicitud |
+| `crm_aprobar_descuento` | Aprobar/rechazar |
+| `crm_metricas_conversion` | Tasa lead→real |
 
-## Decision: No usar Scaffold del Launcher
+---
 
-El launcher tiene un scaffold (`Admin → Modulos → ⚡ Crear`) que genera un modulo
-externo con Express propio, JWT independiente y puerto separado. **No es suitable**
-para CRM porque:
+## Fase 3 — Campanas Email
 
-| Aspecto | Scaffold | Built-in (lo que necesitamos) |
-|---------|----------|------------------------------|
-| Puerto | Puerto separado (ej: 3008) | Comparte 3002 via nginx proxy |
-| Auth | JWT propio o copia estatica | Comparte JWT del launcher |
-| Framework | Copia estatica de archivos | Importa del `framework/` compartido |
-| DB | Sin configuracion PostgreSQL | Schema propio con migraciones |
-| Auditoria | No integrada | `auditarEvento()` compartido |
-| Notificaciones | No integradas | `notificar()` compartido |
-| Permisos | No granulares | `requirePermiso()` con catalogo |
+- Integracion con SendGrid/Mailchimp
+- Crear campana desde el CRM
+- Seleccionar destinatarios (leads, clientes)
+- Plantillas de email
+- Tracking de aperturas y clics
 
-**Decision:** Crear el modulo manualmente siguiendo el patron de built-in
-(proyectos, logistica, proveedores). El modulo se monta como sub-app del launcher
-en el mismo puerto 3002 via `server.js` root.
+---
 
-## Fases de Implementacion
+## Fase 4 — Integracion Completa SIESA
 
-| Fase | Alcance | Dependencia |
-|------|---------|-------------|
-| **1A** | Schema + CRUD contactos/clientes + migrador CSV SIESA | Ninguna |
-| **1B** | Pipeline kanban + oportunidades + historial etapas | 1A |
-| **1C** | Visitas GPS (check-in/out + mapa Leaflet + reporte vendedor) | 1A |
-| **1D** | Cotizaciones + flujo aprobacion descuentos | 1A |
-| **2** | MCP tools + metricas conversion + funnel chart | 1A-1D |
-| **3** | Campanas email (SendGrid/Mailchimp) | 1A |
-| **4** | SIESA ERP sync (catalogo, pedidos, facturas via API) | Negociacion SIESA |
-| **5** | Reporteria avanzada + analytics | 1A-1D |
+- Sincronizar cotizaciones como pedidos en SIESA
+- Estado del pedido en ERP (Retenido, Aprobado, etc.)
+- Sincronizar facturas generadas
+- Actualizar estados automaticamente
 
-### Fase 1A — Detalle de Implementacion
+---
 
-**Objetivo:** CRUD completo de clientes y contactos + migrador CSV desde SIESA CRM.
+## Fase 5 — Reporteria Avanzada
 
-**Archivos a crear:**
+- Reportes PDF exportables
+- Analisis de tendencias
+- Comparativas por periodo
+- KPIs automaticos
+- Alertas de vencimiento
 
-```
-modules/crm/
-├── package.json
-├── backend/
-│   ├── server.js                    (Express sub-app, ESM, montada en server.js root)
-│   ├── config/
-│   │   └── db.js                    (Pool PostgreSQL)
-│   ├── migrations/
-│   │   ├── 001_crm_clientes_contactos.sql
-│   │   └── run.js
-│   ├── routes/
-│   │   ├── clientes.js              (CRUD + busqueda + filtros)
-│   │   └── contactos.js             (CRUD + busqueda por cliente)
-│   └── mcp/
-│       └── index.js                 (Stub MCP)
-├── public/
-│   ├── index.html
-│   ├── base.css
-│   ├── components.css
-│   ├── framework.js
-│   ├── theme.js
-│   └── js/
-│       └── modules/
-│           ├── clientes.js
-│           └── contactos.js
-```
+---
 
-**Archivos a modificar en launcher:**
+## Metricas de Exito
 
-```
-launcher/server.js
-├── Array modules[]: agregar entrada crm
-├── Array builtin[]: agregar 'crm'
-├── defaultPermisosConfig: agregar permisos crm
-└── Seed modulos_plataforma: INSERT OR IGNORE crm
-```
+| Metrica | Meta |
+|---------|------|
+| Tiempo de carga pagina | < 2s |
+| Importacion 2000 registros | < 30s |
+| Sincronizacion SIESA | < 60s |
+| Uptime modulo | 99.5% |
+| Satisfaccion vendedores | > 8/10 |
 
-**Pasos de implementacion:**
+## Riesgos y Mitigaciones
 
-1. Crear estructura de directorios `modules/crm/`
-2. Crear `package.json` con dependencias (express, cors, pg, uuid)
-3. Crear `backend/server.js`:
-   - Express sub-app con ESM
-   - `createProtect(MODULE_ID)` para auth
-   - `requirePermiso()` en cada ruta
-   - Montar routes en `/api/clientes`, `/api/contactos`
-   - Ejecutar migraciones al iniciar
-4. Crear migracion `001_crm_clientes_contactos.sql`:
-   - `CREATE SCHEMA IF NOT EXISTS crm`
-   - Tablas `crm.clientes` y `crm.contactos` con indices
-   - Extension `pg_trgm` para busqueda fuzzy
-5. Crear `routes/clientes.js`:
-   - GET `/api/clientes` (lista con filtros, busqueda, paginacion)
-   - GET `/api/clientes/:id` (detalle con contactos)
-   - POST `/api/clientes` (crear)
-   - PUT `/api/clientes/:id` (editar)
-   - DELETE `/api/clientes/:id` (soft delete)
-   - DELETE `/api/clientes/seleccionados` (bulk delete)
-6. Crear `routes/contactos.js`:
-   - GET `/api/contactos` (lista con filtro por cliente)
-   - GET `/api/contactos/:id` (detalle)
-   - POST `/api/contactos` (crear)
-   - PUT `/api/contactos/:id` (editar)
-   - DELETE `/api/contactos/:id` (soft delete)
-7. Registrar en `launcher/server.js`:
-   - Agregar `crm` al array `modules[]`
-   - Agregar `'crm'` al array `builtin[]`
-   - Agregar permisos `crm` a `defaultPermisosConfig`
-8. Crear frontend basico:
-   - `index.html` con sidebar, nav items, paginas
-   - `app.js` con navigate, api, carga de modulos
-   - `js/modules/clientes.js` con tabla, filtros, modales
-   - `js/modules/contactos.js` con tabla, filtros, modales
-9. Ejecutar migracion en PostgreSQL
-10. Verificar: listar, crear, editar, eliminar clientes y contactos
-
-**Criterios de aceptacion:**
-
-- [ ] Tabla `crm.clientes` creada con indices
-- [ ] Tabla `crm.contactos` creada con FK a clientes
-- [ ] CRUD clientes funciona (GET, POST, PUT, DELETE)
-- [ ] CRUD contactos funciona (GET, POST, PUT, DELETE)
-- [ ] Busqueda fuzzy por nombre funciona (pg_trgm)
-- [ ] Paginacion funciona
-- [ ] Filtros por tipo, vendedor, ciudad funcionan
-- [ ] Soft delete funciona (activo = FALSE)
-- [ ] Permisos CRM registrados en launcher
-- [ ] Modulo visible en sidebar del launcher
-- [ ] Auth compartida funciona (mismo JWT)
-
-## Archivos a Modificar
-
-| Archivo | Cambio |
-|---------|--------|
-| `server.js` (root) | Montar CRM como sub-app ESM en `/crm/` + SPA catch-all |
-| `launcher/server.js` | Agregar modulo `crm` al array `modules[]` y `builtin[]` |
-| `launcher/server.js` | Seed de permisos `crm` en `defaultPermisosConfig` |
-| `launcher/shell/index.html` | Nav item "CRM" en sidebar |
-| `launcher/shell/app.js` | Ruta `#page-crm` y ocultar botones admin para asesores |
-
-## Convenciones a Seguir
-
-- **Modales**: Definir en HTML con `class="modal-overlay"`, NO crear dinamicamente
-- **Confirmaciones**: Usar `confirmModal()` del framework, NUNCA `confirm()`
-- **Mensajes**: Usar `toast()` del framework
-- **CSS**: Usar variables del framework (`var(--surface)`, `var(--border)`, etc.)
-- **API**: Todas las rutas usan `verificarToken, requirePermiso`. Respuestas: `{ ok: true }` o `{ error: 'msg' }`
-- **DB**: Migraciones con `CREATE TABLE IF NOT EXISTS` y `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`
-- **Auth**: Siempre via `createProtect(MODULE_ID)`
-- **Leaflet en modales**: Limpiar `el._leaflet_id = null` antes de `L.map(el)`. Usar `invalidateSize()` con timeout
-- **GPS coordinates**: `DECIMAL(10,8)` (consistente con logistica)
-- **UUIDs**: `uuid_generate_v4()` en PostgreSQL
-- **Timestamps**: `TIMESTAMPTZ DEFAULT NOW()`
-- **Soft delete**: `activo BOOLEAN DEFAULT TRUE`
-- **Auditoria**: Usar `auditarEvento()` de framework/audit.js
-- **Notificaciones**: Usar `notificar()` de framework/notify.js
-
-## Estado Actual
-
-- [x] Plan aprobado por el usuario
-- [x] Branch `feat/crm-module` creada
-- [x] Documentacion formal creada
-- [x] Decision: No usar scaffold (usar patron built-in)
-- [x] Fase 1A: Detalle de implementacion documentado
-- [ ] Fase 1A: Schema + CRUD contactos/clientes + migrador CSV
-- [ ] Fase 1B: Pipeline kanban + oportunidades
-- [ ] Fase 1C: Visitas GPS
-- [ ] Fase 1D: Cotizaciones + aprobacion descuentos
-- [ ] Fase 2: MCP tools + metricas
-- [ ] Fase 3: Campanas email
-- [ ] Fase 4: SIESA ERP sync
-- [ ] Fase 5: Reporteria avanzada
+| Riesgo | Mitigacion |
+|--------|------------|
+| API SIESA no disponible | Importar CSV como fallback |
+| Volumen alto de datos | Paginacion + cache |
+| Cambios en estructura SIESA | Mapeo flexible de columnas |
+| Multi-device (mobile) | UI responsive, GPS funcional |
