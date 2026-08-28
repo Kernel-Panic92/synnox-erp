@@ -1240,6 +1240,9 @@ async function abrirModalCrearActividad() {
   document.getElementById('act-cliente-selected').style.display = 'none';
   document.getElementById('act-cliente-selected').textContent = '';
   await cargarActClientesCache();
+  const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
+  document.getElementById('act-fecha-inicio').max = nowLocal;
+  document.getElementById('act-fecha-fin').max = nowLocal;
   const tipoEl = document.getElementById('act-tipo');
   const estadoEl = document.getElementById('act-estado');
   tipoEl.onchange = actualizarActGPSGroup;
