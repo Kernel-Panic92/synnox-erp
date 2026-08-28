@@ -2352,6 +2352,10 @@ function adminAbrirInicio(){
 }
 function adminVolver(){ adminAbrirInicio(); }
 async function adminAbrirSeccion(seccion){
+  // Secciones que navegan a una página propia (sin volver a admin)
+  if(seccion==='importar'){ navigate('importar'); return; }
+  if(seccion==='descuentos'){ navigate('descuentos'); return; }
+  // Sub-vistas internas con botón volver
   const cont=document.getElementById('admin-seccion');
   document.getElementById('admin-inicio').style.display='none';
   document.getElementById('admin-btn-volver').style.display='';
@@ -2359,12 +2363,6 @@ async function adminAbrirSeccion(seccion){
   if(seccion==='perfiles'){
     cont.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">Perfiles de Venta</h3><button class="btn btn-sm btn-primary" onclick="abrirModalPerfilVenta()">+ Nuevo Perfil</button></div><p style="color:var(--muted);font-size:12px">Si un usuario no está asignado a ningún perfil, no podrá crear cotizaciones (solo lectura).</p><div id="perfiles-venta-list" style="display:grid;gap:12px"></div>';
     cargarPerfilesVenta();
-  } else if(seccion==='importar'){
-    cont.innerHTML='<h3 style="margin:0 0 12px">Importar SIESA</h3><p style="color:var(--muted);font-size:13px">Se abre la vista de importación.</p>';
-    setTimeout(()=>navigate('importar'),200);
-  } else if(seccion==='descuentos'){
-    cont.innerHTML='<h3 style="margin:0 0 12px">Descuentos pendientes</h3><p style="color:var(--muted);font-size:13px">Se abre la vista de descuentos.</p>';
-    setTimeout(()=>navigate('descuentos'),200);
   } else if(seccion==='siesa'){
     cont.innerHTML='<h3 style="margin:0 0 12px">Sincronizar con SIESA Hub</h3><p style="color:var(--muted);font-size:13px">Integración con la API de SIESA Hub en preparación. Por ahora se importa por CSV desde la sección Importar SIESA.</p>';
   }
