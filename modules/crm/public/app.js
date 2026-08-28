@@ -78,7 +78,7 @@ function navigate(page) {
   const nav = document.querySelector(`[data-page="${page}"]`);
   if (el) el.classList.add('active');
   if (nav) nav.classList.add('active');
-  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', leads: 'Leads', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Visitas', cotizaciones: 'Cotizaciones', productos: 'Productos', inventario: 'Inventario', importar: 'Importar SIESA', descuentos: 'Descuentos' };
+  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', leads: 'Clientes Potenciales', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Visitas', cotizaciones: 'Cotizaciones', productos: 'Productos', inventario: 'Inventario', importar: 'Importar SIESA', descuentos: 'Descuentos' };
   document.getElementById('page-title').textContent = titles[page] || 'CRM';
   if (page === 'dashboard') cargarDashboard();
   if (page === 'pipeline') cargarPipeline();
@@ -597,8 +597,9 @@ async function cargarLeads() {
         <td>${formatDate(l.creado_en)}</td>
         <td>
           <button class="btn btn-sm btn-secondary" onclick="editarLead('${l.id}')">✏️</button>
-          ${l.estado !== 'convertido' ? `<button class="btn btn-sm btn-primary" onclick="convertirLead('${l.id}','${esc(l.raison_social)}')">🔄 Convertir</button>` : ''}
-          <button class="btn btn-sm btn-danger" onclick="eliminarLead('${l.id}')">🗑️</button>
+          ${l.estado === 'calificado' ? `<button class="btn btn-sm btn-primary" onclick="enviarLeadERP('${l.id}','${esc(l.raison_social)}')">📤 Enviar ERP</button>` : ''}
+          ${l.estado === 'enviado_erp' ? `<button class="btn btn-sm btn-primary" onclick="marcarConvertido('${l.id}','${esc(l.raison_social)}')">✅ Convertido</button>` : ''}
+          ${l.estado !== 'convertido' ? `<button class="btn btn-sm btn-danger" onclick="eliminarLead('${l.id}')">🗑️</button>` : ''}
         </td>
       </tr>
     `).join('');
@@ -690,11 +691,20 @@ async function eliminarLead(id) {
   }});
 }
 
-async function convertirLead(id, nombre) {
-  confirmar({ titulo: 'Convertir lead', mensaje: `Convertir "${nombre}" en cliente real?`, icono: '🔄', onConfirm: async () => {
+async function enviarLeadERP(id, nombre) {
+  confirmar({ titulo: 'Enviar a ERP', mensaje: `Enviar "${nombre}" al ERP para revisión?`, icono: '📤', onConfirm: async () => {
+    const r = await apiFetch('/leads/' + id + '/enviar', { method: 'PUT' });
+    if (!r.ok) return toast(r.data?.error || 'Error al enviar', 'error');
+    toast('Lead enviado a ERP. Pendiente revisión de contabilidad.', 'success');
+    cargarLeads();
+  }});
+}
+
+async function marcarConvertido(id, nombre) {
+  confirmar({ titulo: 'Marcar como convertido', mensaje: `¿"${nombre}" ya fue creado como tercero en el ERP?`, icono: '✅', onConfirm: async () => {
     const r = await apiFetch('/leads/' + id + '/convertir', { method: 'POST' });
-    if (!r.ok) return toast(r.data?.error || 'Error al convertir', 'error');
-    toast('Lead convertido en cliente', 'success');
+    if (!r.ok) return toast(r.data?.error || 'Error al marcar', 'error');
+    toast('Lead marcado como convertido', 'success');
     cargarLeads();
   }});
 }
