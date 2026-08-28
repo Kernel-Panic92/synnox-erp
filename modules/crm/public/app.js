@@ -1031,20 +1031,27 @@ function verDetalleVisita(v) {
   document.getElementById('modal-detalle-visita').dataset.visitaId = v.id;
   document.getElementById('btn-eliminar-visita').style.display = '';
 
-  document.getElementById('detalle-visita-title').textContent = `Actividad — ${esc(v.cliente_nombre || '')}`;
+  document.getElementById('detalle-visita-title').textContent = `Actividad — ${esc(v.asunto || v.cliente_nombre || '')}`;
   document.getElementById('detalle-visita-content').innerHTML = `
     <div class="form-row" style="margin-bottom:12px">
       <div><strong>Cliente:</strong> ${esc(v.cliente_nombre || '—')}</div>
-      <div><strong>Contacto:</strong> ${esc(v.contacto_nombre || '—')}</div>
+      <div><strong>Tipo:</strong> ${esc(v.tipo_actividad || '—')}</div>
+    </div>
+    ${v.asunto ? `<div style="margin-bottom:12px"><strong>Asunto:</strong> ${esc(v.asunto)}</div>` : ''}
+    ${v.descripcion ? `<div style="margin-bottom:12px"><strong>Descripcion:</strong><br>${esc(v.descripcion)}</div>` : ''}
+    <div class="form-row" style="margin-bottom:12px">
+      <div><strong>Inicio:</strong> ${formatDateTime(v.fecha_inicio || v.fecha)}</div>
+      <div><strong>Fin:</strong> ${v.fecha_fin ? formatDateTime(v.fecha_fin) : (v.checkout ? formatDateTime(v.checkout.fecha) : '—')}</div>
     </div>
     <div class="form-row" style="margin-bottom:12px">
-      <div><strong>Llegada:</strong> ${formatDateTime(v.fecha)}</div>
-      <div><strong>Salida:</strong> ${v.checkout ? formatDateTime(v.checkout.fecha) : '<span style="color:var(--warning)">En curso</span>'}</div>
+      <div><strong>Estado:</strong> ${esc(v.estado || (v.checkout ? 'realizada' : 'en_proceso'))}</div>
+      <div><strong>Recordatorio:</strong> ${esc(v.recordatorio || 'nunca')}</div>
     </div>
     <div class="form-row" style="margin-bottom:12px">
       <div><strong>Duracion:</strong> <span style="font-size:16px;font-weight:700;color:var(--accent)">${v.duracion || '—'}</span></div>
-      <div><strong>Vendedor:</strong> ${esc(v.vendedor_nombre || '#' + v.vendedor_id)}</div>
+      <div><strong>Lugar:</strong> ${esc(v.lugar || '—')}</div>
     </div>
+    ${v.propietario_nombre ? `<div style="margin-bottom:12px"><strong>Propietario:</strong> ${esc(v.propietario_nombre || '#' + v.vendedor_id)}</div>` : `<div style="margin-bottom:12px"><strong>Vendedor:</strong> ${esc(v.vendedor_nombre || '#' + v.vendedor_id)}</div>`}
     ${hasCoords ? `
       <div style="margin-bottom:12px">
         <strong>Ubicacion:</strong>
@@ -1096,6 +1103,33 @@ function limpiarFiltrosVisitas() {
   document.getElementById('filtro-visitas-vendedor').value = '';
   document.getElementById('filtro-visitas-desde').value = '';
   document.getElementById('filtro-visitas-hasta').value = '';
+  cargarVisitas();
+}
+
+async function abrirModalCrearActividad() {
+  await cargarClientesSelect('act-cliente', '');
+  showModal('modal-crear-actividad');
+}
+
+async function guardarActividad() {
+  const body = {
+    cliente_id: document.getElementById('act-cliente').value,
+    asunto: document.getElementById('act-asunto').value,
+    descripcion: document.getElementById('act-descripcion').value,
+    tipo_actividad: document.getElementById('act-tipo').value,
+    lugar: document.getElementById('act-lugar').value,
+    fecha_inicio: document.getElementById('act-fecha-inicio').value || null,
+    fecha_fin: document.getElementById('act-fecha-fin').value || null,
+    estado: document.getElementById('act-estado').value,
+    recordatorio: document.getElementById('act-recordatorio').value
+  };
+  if (!body.cliente_id) return toast('Selecciona un cliente', 'error');
+  if (!body.asunto && !body.descripcion) return toast('Escribe el nombre de la actividad', 'error');
+
+  const r = await apiFetch('/actividades', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  if (!r.ok) return toast(r.data?.error || 'Error al crear', 'error');
+  toast('Actividad creada', 'success');
+  hideModal('modal-crear-actividad');
   cargarVisitas();
 }
 

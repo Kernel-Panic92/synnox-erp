@@ -57,19 +57,45 @@ const upload = multer({
 
 const router = express.Router();
 
-// Helper para guardar visita
-async function guardarVisita({ tipo, cliente_id, contacto_id, oportunidad_id, vendedor_id, latitud, longitud, precision_gps, notas, evidencia_foto, asunto, lugar, tipo_actividad, descripcion, fecha_inicio, req }) {
+// Helper para guardar actividad
+async function guardarVisita({ tipo, cliente_id, contacto_id, oportunidad_id, vendedor_id, latitud, longitud, precision_gps, notas, evidencia_foto, asunto, lugar, tipo_actividad, descripcion, fecha_inicio, fecha_fin, estado, recordatorio, propietario_nombre, req }) {
   const result = await pool.query(`
-    INSERT INTO crm.visitas (tipo, cliente_id, contacto_id, oportunidad_id, vendedor_id, latitud, longitud, precision_gps, notas, evidencia_foto, asunto, lugar, tipo_actividad, descripcion, fecha_inicio)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+    INSERT INTO crm.visitas (tipo, cliente_id, contacto_id, oportunidad_id, vendedor_id, latitud, longitud, precision_gps, notas, evidencia_foto, asunto, lugar, tipo_actividad, descripcion, fecha_inicio, fecha_fin, estado, recordatorio, propietario_nombre)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19)
     RETURNING *
   `, [tipo, cliente_id || null, contacto_id || null, oportunidad_id || null, vendedor_id, latitud, longitud, precision_gps || null, notas || null, evidencia_foto || null,
-      asunto || null, lugar || null, tipo_actividad || 'visita', descripcion || null, fecha_inicio || null]);
+      asunto || null, lugar || null, tipo_actividad || 'visita', descripcion || null, fecha_inicio || null,
+      fecha_fin || null, estado || 'no_iniciada', recordatorio || 'nunca', propietario_nombre || null]);
 
   await auditarEvento({ accion: tipo, entidad: 'actividad', entidad_id: result.rows[0].id, usuario_id: vendedor_id, metadata: { cliente_id, latitud, longitud } });
 
   return result.rows[0];
 }
+
+// POST /api/actividades — Crear actividad (sin GPS, para reuniones/llamadas/notas)
+router.post('/actividades', requirePermiso('registrar_visita', 'crm'), async (req, res) => {
+  try {
+    const { cliente_id, contacto_id, asunto, lugar, tipo_actividad, descripcion, fecha_inicio, fecha_fin, estado, recordatorio } = req.body;
+    if (!cliente_id) return res.status(400).json({ error: 'El cliente es obligatorio' });
+    if (!asunto && !descripcion) return res.status(400).json({ error: 'El asunto es obligatorio' });
+
+    const actividad = await guardarVisita({
+      tipo: tipo_actividad === 'reunion' ? 'checkin' : tipo_actividad,
+      cliente_id, contacto_id,
+      vendedor_id: req.user.id, latitud: null, longitud: null,
+      asunto, lugar, tipo_actividad, descripcion,
+      fecha_inicio: fecha_inicio || new Date(),
+      fecha_fin, estado, recordatorio,
+      propietario_nombre: req.user.nombre || null,
+      req
+    });
+
+    res.status(201).json({ ok: true, data: actividad });
+  } catch (err) {
+    console.error('[CRM] Error crear actividad:', err);
+    res.status(500).json({ error: err.message || 'Error al crear actividad' });
+  }
+});
 
 // POST /api/visitas/checkin
 router.post('/checkin', requirePermiso('registrar_visita', 'crm'), upload.single('foto'), async (req, res) => {

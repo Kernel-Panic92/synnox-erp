@@ -306,7 +306,8 @@
         <div class="page-header">
           <h3>Actividades</h3>
           <div class="page-actions">
-            <button class="btn btn-sm btn-primary" onclick="abrirModalVisita('checkin')">📍 Check-in</button>
+            <button class="btn btn-sm btn-primary" onclick="abrirModalCrearActividad()">+ Nueva Actividad</button>
+            <button class="btn btn-sm btn-secondary" onclick="abrirModalVisita('checkin')">📍 Check-in</button>
             <button class="btn btn-sm btn-secondary" onclick="abrirModalVisita('checkout')">🏁 Check-out</button>
           </div>
         </div>
@@ -687,6 +688,82 @@
       <div style="flex:1"></div>
       <button class="btn btn-secondary" onclick="hideModal('modal-oportunidad')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarOportunidad()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal Crear Actividad -->
+<div class="modal-overlay" id="modal-crear-actividad">
+  <div class="modal" style="max-width:700px">
+    <h3>Nueva Actividad</h3>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Nombre *</label>
+        <input type="text" id="act-asunto" placeholder="Ej: Reunion para presentar catalogo">
+      </div>
+      <div class="form-group">
+        <label>Tipo</label>
+        <select id="act-tipo">
+          <option value="reunion">Reunion</option>
+          <option value="visita">Visita</option>
+          <option value="llamada">Llamada</option>
+          <option value="nota">Nota</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Descripcion</label>
+      <textarea id="act-descripcion" style="min-height:60px"></textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Cliente *</label>
+        <select id="act-cliente"></select>
+      </div>
+      <div class="form-group">
+        <label>Lugar</label>
+        <input type="text" id="act-lugar" placeholder="Ej: Sede principal, Mall plaza">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Fecha Inicio</label>
+        <input type="datetime-local" id="act-fecha-inicio">
+      </div>
+      <div class="form-group">
+        <label>Fecha Fin</label>
+        <input type="datetime-local" id="act-fecha-fin">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Estado</label>
+        <select id="act-estado">
+          <option value="no_iniciada">No Iniciada</option>
+          <option value="asignada">Asignada</option>
+          <option value="en_proceso">En Proceso</option>
+          <option value="realizada">Realizada</option>
+          <option value="no_realizada">No Realizada</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Recordatorio</label>
+        <select id="act-recordatorio">
+          <option value="nunca">Nunca</option>
+          <option value="5m">5 minutos antes</option>
+          <option value="10m">10 minutos antes</option>
+          <option value="15m">15 minutos antes</option>
+          <option value="30m">30 minutos antes</option>
+          <option value="45m">45 minutos antes</option>
+          <option value="1h">1 hora antes</option>
+          <option value="2h">2 horas antes</option>
+          <option value="1d">1 dia antes</option>
+        </select>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-secondary" onclick="hideModal('modal-crear-actividad')">Cancelar</button>
+      <button class="btn btn-primary" onclick="guardarActividad()">Guardar</button>
     </div>
   </div>
 </div>
