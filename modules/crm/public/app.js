@@ -1029,6 +1029,7 @@ function verDetalleVisita(v) {
 
   // Store activity ID for delete
   document.getElementById('modal-detalle-visita').dataset.visitaId = v.id;
+  document.getElementById('btn-eliminar-visita').style.display = '';
 
   document.getElementById('detalle-visita-title').textContent = `Actividad — ${esc(v.cliente_nombre || '')}`;
   document.getElementById('detalle-visita-content').innerHTML = `
