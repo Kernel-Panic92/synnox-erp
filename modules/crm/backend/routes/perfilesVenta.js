@@ -13,7 +13,7 @@ function getLauncherDb() {
 
 // Helper: verifica si req.user tiene al menos uno de los perms en crm.perfiles_venta
 // Si no tiene perfil_venta asignado => bloquea creación de cotizaciones (lectura sí pasa)
-export async function requireVentasPerfil(permiso) {
+export function requireVentasPerfil(permiso) {
   return async (req, res, next) => {
     try {
       // Admin/gerente del launcher (rol) pasa directo si es admin
