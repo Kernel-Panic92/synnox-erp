@@ -336,7 +336,7 @@ auth, framework ni auditoria. Se uso el patron built-in (como proyectos, logisti
 
 ---
 
-## Estado Actual (27 Ago 2026 — Sesión 2)
+## Estado Actual (28 Ago 2026 — Sesión 3)
 
 ### Completado ✅
 
@@ -351,16 +351,20 @@ auth, framework ni auditoria. Se uso el patron built-in (como proyectos, logisti
 | **1A** | Importacion ERP | Terceros, Items, Inventario, Bodegas, Precios, Vendedores |
 | **1B** | Pipeline kanban | Drag & drop entre etapas |
 | **1B** | Oportunidades CRUD | + historial de cambios de etapa |
-| **1C** | Visitas GPS | Check-in/out + foto + mapa Leaflet |
-| **1C** | Visitas agrupadas | Por cliente + duracion (checkin→checkout) |
-| **1D** | Cotizaciones | CRUD + items + tabs estilo SIESA (Info, Precios, Inventario, EANs) |
+| **1C** | Actividades (ex Visitas) | Tipos: visita/reunion/llamada/nota; estados; auto check-in/out |
+| **1C** | Actividades UX | Cliente combobox, foto, mapa no editable, fechas, recordatorio |
+| **1D** | Cotizaciones | CRUD + items + tabs estilo SIESA + Estado ERP + Doc. ERP (CPV) |
 | **1D** | Aprobacion descuentos | Auto-aprobado si ≤ umbral, pendiente si > |
 | **1D** | Catalogo productos | Busqueda + agregar al carrito |
-| **1D** | Codigos de barras | 108 EANs vinculados a productos |
+| **1D** | Codigos de barras | 108 EANs vinculados a productos + GS1 lookup |
 | **1D** | Inventario por bodega | 1,069 registros, 24 bodegas, 127K unidades |
+| **1E** | Leads (Clientes Potenciales) | CRUD + conversion con confirmacion ERP + reconciliacion |
+| **1E** | Admin + Perfiles de Venta | Submódulo Admin, RBAC híbrido (launcher auth + CRM comercial) |
+| **1E** | Webhook ERP | `PUT /cotizaciones/erp-update` preparado para SIESA Hub |
 | **—** | Bulk delete | En todas las tablas (seleccion o todos) |
 | **—** | Paginacion | 20/100/500/1000 registros por pagina |
 | **—** | GS1 Client | Lookup por GTIN (preparado para fotos) |
+| **—** | Facturas | Tabla `crm.facturas` + tab en detalle cliente (solo lectura) |
 
 ### Datos importados del ERP
 
@@ -378,27 +382,39 @@ auth, framework ni auditoria. Se uso el patron built-in (como proyectos, logisti
 | Pedidos | 1,148 | Pedidos mes corriente.csv |
 | Facturas | 2,087 | facturas mes corriente.csv |
 
-### Pendiente 🔜 — Sprint 2 (28 Ago 2026)
+### RBAC híbrido (nuevo)
+- **Launcher**: auth global (`perfil_id`), perfiles `CRM - X` creados como plantilla sin asignar.
+- **CRM**: `crm.perfiles_venta` / `perfil_venta_permisos` / `usuario_perfil_venta`.
+- `requireVentasPerfil()` bloquea `POST /cotizaciones` si el usuario no tiene perfil de ventas (403). Admin pasa.
+- Gestión diaria en `CRM → Admin → Perfiles de Venta` (asignación de usuarios N:M).
+
+### Pendiente 🔜 — Sprint 3
 
 | Fase | Feature | Prioridad | Notas |
 |------|---------|-----------|-------|
-| **1E** | **Centros de operacion** — Usar tabla del launcher | 🔴 Alta | Consultar centros_operacion de SQLite |
-| **1E** | **Validacion descuentos** — Rangos y umbrales | 🔴 Alta | Revisar screenshots de SIESA CRM |
-| **1E** | **Flujo completo cotizacion** — Crear con productos reales | 🔴 Alta | Probar flujo end-to-end |
-| **2B** | **Leads** — CRUD + conversion a clientes | 🔴 Alta | Tabla ya existe |
+| **2A** | **SIESA Hub API** — `siesaClient.js` + `siesaSync.js` + scheduler | 🔴 Alta | Revisada propuesta; decidir compra y obtener credenciales |
+| **1E** | **Validacion descuentos por rango** + notificar Gerencia | 🔴 Alta | Flujo Notificación Jacques: pendiente → push/mail al aprobador |
+| **1E** | **Centros de operacion** en cotizaciones | 🟡 Media | Usar tabla del launcher |
+| **1E** | **Flujo completo cotizacion** end-to-end con productos reales | 🟡 Media | Probar con 1,259 productos |
 | **2C** | **Reporteria** — Dashboard, graficas, metricas | 🟡 Media | |
 | **2D** | **MCP Tools** — 12 tools para IA | 🟡 Media | |
 | **3** | **Campanas email** (SendGrid/Mailchimp) | 🟢 Baja | |
-| **4** | **API SIESA** — Sincronizacion automatica | 🟢 Baja | Cuando este disponible |
+| **4** | **Integracion completa SIESA** (pedidos, facturas) | 🟢 Baja | Vía webhook erp-update |
 | **5** | **Reporteria avanzada** + analytics | 🟢 Baja | |
+| **—** | **PWA responsive** (MVP movil) | 🟢 Baja | Posponer: sidebar→bottom nav, manifest+SW |
 
 ### Pendiente de revisar con screenshots de SIESA
 
+- [x] Perfiles de venta / roles (mapeados a RBAC híbrido)
+- [ ] Validacion de descuentos por rango (rangos + aprobador)
+- [ ] Flujo de aprobacion completo + notificacion a Gerencia
+- [ ] Estados del pedido en ERP (CPV → Retenido/Cumplido)
 - [ ] Centros de operacion en cotizaciones
-- [ ] Validacion de descuentos por rango
-- [ ] Flujo de aprobacion completo
-- [ ] Estados del pedido en ERP
-- [ ] Campos adicionales en cotizaciones
+
+### Decisiones de la sesión
+- **SIESA Hub** como bus para todo Synnox (REST/JSON + OAuth2). CSV = plan B hasta credenciales.
+- **RBAC híbrido**: launcher para auth global; CRM maneja permisos comerciales internamente.
+- **Perfiles de launcher** (`CRM - X`) quedan como plantilla sin asignar; gestión diaria en CRM → Admin.
 
 ---
 

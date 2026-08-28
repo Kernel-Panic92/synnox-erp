@@ -1,5 +1,110 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (28 Ago 2026 — sesión 49)
+
+### Cambios Sesión 49 — CRM: Leads, Actividades, Admin, Perfiles de Venta y alineación con SIESA Hub
+
+Sesión larga en `feat/crm-module` (rama de trabajo del CRM). Se consolidó el
+CRM como módulo core de datos (clientes/productos) y se preparó para SIESA Hub
+(propuesta comercial revisada: REST/JSON + OAuth2, SaaS $2.05M/mes, kick-off
+$1.67M; se decidió usarlo como bus para todo Synnox). Importación CSV se
+mantiene como plan B hasta credenciales.
+
+#### Leads (Clientes Potenciales)
+- Nuevo módulo `crm.leads` con página, CRUD, filtros por estado y stats.
+- Estados: nuevo → contactado → calificado → enviado_erp → convertido (y perdido).
+- Botón "Convertir" intenta llamar API SIESA; sin API devuelve 503 con toast
+  "Solicita a contabilidad la creación del tercero" (el vendedor no ve el ERP).
+- `PUT /leads/:id/confirmar` lo usa contabilidad para marcar convertido tras
+  crear el tercero (crea cliente real + `erp_tercero_id`).
+- `POST /leads/reconciliar` compara NIT de leads vs clientes existentes y marca
+  convertidos automáticamente (0 coincidencias iniciales: leads del CRM SIESA
+  vs clientes del ERP tienen formatos distintos).
+- Campo `erp_tercero_id` (migración 013).
+
+#### Actividades (antes Visitas)
+- Renombrado: sidebar "📋 Actividades". Tipos: visita, reunion, llamada, nota.
+- Nuevo modal "Nueva Actividad": cliente combobox (busca por NIT/nombre, single),
+  asunto, descripción, lugar, fechas inicio/fin, estado, recordatorio, foto,
+  mapa no editable (Leaflet).
+- Auto check-in GPS al pasar a En Proceso, check-out al pasar a Realizada
+  (solo Reunión); otros tipos solo checkin. Estados: no_iniciada, asignada,
+  en_proceso, realizada, no_realizada.
+- Anti-fraude: fechas pasadas bloqueadas (min=now en picker + validación).
+- Botón eliminar en modal detalle (`DELETE /visitas/:id`).
+- Migración 015 y 016 (campos asunto, lugar, tipo_actividad, estado,
+  descripcion, fecha_inicio/fin, recordatorio, propietario_nombre).
+
+#### Submódulo Admin (perfiles de venta internos)
+- Decisión: RBAC híbrido — launcher sigue para auth global (`perfil_id`),
+  CRM maneja internamente permisos comerciales (aprobación de descuentos).
+- Migración 017: `crm.perfiles_venta`, `crm.perfil_venta_permisos`,
+  `crm.usuario_perfil_venta`. Seed 3 perfiles: Gerencia(16), Comercial(9),
+  Aprobador(3) — sin usuarios asignados.
+- `routes/perfilesVenta.js`: CRUD perfiles + `PUT /:id/usuarios` transaccional
+  (lee `launcher.db` read-only) + `GET /me/mis-permisos`.
+- Middleware `requireVentasPerfil(permiso)`: si el usuario no tiene perfil de
+  ventas → 403 en creación de cotizaciones (admin pasa). Aplicado a
+  `POST /cotizaciones`.
+- IMPORTANTE: `requireVentasPerfil` NO es `async` (retorna middleware; si es
+  async retorna Promise y rompe el montaje → 404 en `/crm/api/*`).
+- Frontend `#page-admin`: centro de gestión con tarjetas (Perfiles de Venta,
+  Importar SIESA, Descuentos pendientes, Sincronizar ERP). Tarjetas según
+  permisos (configurar/siesa_sync/aprobar_descuento/admin). Sidebar depurado:
+  Importar SIESA y Descuentos ya no están en el nav, se acceden desde Admin.
+- Botón volver unificado en header ("← Volver a Admin" para páginas externas,
+  "← Volver" para sub-vistas internas).
+
+#### Importación SIESA (plan B CSV hasta API)
+- Importadores: clientes, contactos, leads, cotizaciones, items, inventario,
+  codigos_barra (EAN), bodegas, precios, vendedores.
+- Datos del ERP cargados: 2,599 clientes, 1,259 productos, 1,069 inventario,
+  108 EANs, 75+ listas de precio, 1,162 precios, 24 bodegas, 88 vendedores.
+- Importador de clientes crea sucursales (001 = principal) y contactos desde
+  tercero; maneja encoding latin-1; validación flexible de columnas.
+- Inventario: busca producto por código exacto/sin ceros/referencia.
+- Barra de progreso SSE en importaciones (text/event-stream cada 10 filas).
+
+#### Productos, EAN y GS1
+- Tabla `crm.productos_ean` (múltiples EANs por producto), endpoints CRUD y
+  `GET /productos/ean/buscar/:gtin`.
+- `utils/gs1Client.js`: `lookupByGTIN()` / `lookupBatch()` (API GS1, gratis).
+  Migración 011 (gtin, foto_url, marca, descripcion_gs1) + 012 (productos_ean).
+- Modal producto con tabs estilo SIESA: Info, Precios, Inventario, EANs.
+- Módulo Inventario por Bodega (`routes/inventario.js`): tabla, filtros, stats.
+
+#### Cotizaciones y ERP
+- Webhook `PUT /cotizaciones/erp-update` para que SIESA Hub empuje
+  `{ numero, documento_erp, estado_erp, estado_crm }` (preparado, sin API aún).
+- Tabla Cotizaciones con columnas Estado ERP y Doc. ERP (CPV).
+- Tablas nuevas: `crm.facturas` (014), `crm.clientes` con 21 campos SIESA (010).
+- Modal detalle cliente con tabs: Datos Básicos, Sucursales, Contactos,
+  Cotizaciones, Facturas.
+- Filtros por columna estilo SIESA en tabla clientes.
+
+#### Bugs resueltos
+- `import createProtect` se ejecutaba antes de `dotenv.config()` → 500 en todo
+  `/crm/api/*`; fix con `await import()` dinámico tras cargar `.env`.
+- `app.use('/api', protect, sucursalesRoutes)` capturaba `/api/version`,
+  `/api/dashboard` como `/:clienteId/sucursales` → 500; fix: montar en
+  `/api/clientes` y `/api/sucursales`.
+- Rutas específicas DELETE (`/seleccionados`, `/todos`, `/ean/todos`) deben ir
+  ANTES de `/:id` (Express matchea primero la paramétrica).
+- FK a `oportunidades` sin CASCADE → bloqueaba DELETE; fix `ON DELETE SET NULL`
+  (migración 009).
+- `confirmModal` no existe en framework.js del CRM → usar `confirmar()`.
+- `abrirModal`/`cerrarModal` del CRM colisionaban con framework → renombrados a
+  `showModal`/`hideModal`.
+- Permiso `eliminar` no existe → usar `editar_pipeline` en DELETE oportunidad.
+
+#### Documentación
+- `docs/PLAN-MODULO-CRM.md` unificado (un solo plan, eliminado PLAN-TRABAJO-CRM.md).
+- Revisada propuesta SIESA Hub: `~/Downloads/PROPUESTA siesa hub.pdf`.
+
+#### Perfiles creados en launcher (plantillas, sin asignar)
+- `CRM - Gerencia` (16 perms crm), `CRM - Comercial` (9), `CRM - Aprobador
+  Descuentos` (3). Quedan como respaldo; gestión diaria pasa a CRM → Admin.
+
 ## Estado (18 Ago 2026 — sesión 46)
 
 ### Cambios Sesión 46 — Archivo de Proyectos Completados (Fase 2)
