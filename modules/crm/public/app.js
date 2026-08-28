@@ -1143,6 +1143,8 @@ function filtrarActClientes(q) {
   };
 }
 
+let _actMap = null;
+
 function actualizarActGPSGroup() {
   const tipo = document.getElementById('act-tipo')?.value;
   const estado = document.getElementById('act-estado')?.value;
@@ -1151,39 +1153,62 @@ function actualizarActGPSGroup() {
   const necesita = tipo === 'reunion' && (estado === 'en_proceso' || estado === 'realizada');
   group.style.display = necesita ? '' : 'none';
   if (necesita) {
+    setTimeout(() => {
+      const mapEl = document.getElementById('act-map');
+      if (mapEl && !mapEl._leaflet_id) {
+        _actMap = L.map(mapEl, { zoomControl: true }).setView([4.6, -74.07], 5);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 }).addTo(_actMap);
+        setTimeout(() => _actMap.invalidateSize(), 200);
+      } else if (_actMap) {
+        setTimeout(() => _actMap.invalidateSize(), 150);
+      }
+    }, 120);
     const coordsEl = document.getElementById('act-coords');
-    if (!coordsEl.value || coordsEl.value === '—') obtenerGPSAct();
+    const textEl = document.getElementById('act-coords-text');
+    if ((!coordsEl.dataset.lat || !coordsEl.dataset.lng) && (!textEl || textEl.textContent === '—')) obtenerGPSAct();
   }
+}
+
+function setActMapMarker(lat, lng) {
+  if (!_actMap) return;
+  _actMap.setView([lat, lng], 16);
+  _actMap.eachLayer(l => { if (l instanceof L.Marker) _actMap.removeLayer(l); });
+  L.marker([lat, lng]).addTo(_actMap);
+  setTimeout(() => _actMap.invalidateSize(), 150);
 }
 
 function obtenerGPSAct() {
   const el = document.getElementById('act-coords');
+  const textEl = document.getElementById('act-coords-text');
   if (!el) return;
-  if (!navigator.geolocation) { el.value = 'GPS no disponible'; return; }
-  el.value = 'Obteniendo GPS...';
+  if (!navigator.geolocation) { if (textEl) textEl.textContent = 'GPS no disponible'; return; }
+  if (textEl) textEl.textContent = 'Obteniendo GPS...';
   navigator.geolocation.getCurrentPosition(pos => {
     const lat = pos.coords.latitude.toFixed(6);
     const lng = pos.coords.longitude.toFixed(6);
-    el.value = `${lat}, ${lng}`;
     el.dataset.lat = lat;
     el.dataset.lng = lng;
     el.dataset.precision = String(Math.round(pos.coords.accuracy));
+    if (textEl) textEl.textContent = `${lat}, ${lng} · ±${Math.round(pos.coords.accuracy)}m`;
+    setActMapMarker(parseFloat(lat), parseFloat(lng));
   }, err => {
-    el.value = 'Error GPS: ' + err.message;
+    if (textEl) textEl.textContent = 'Error GPS: ' + err.message;
   }, { enableHighAccuracy: true, timeout: 10000 });
 }
 
 function obtenerGPSActPromise() {
   return new Promise(resolve => {
     const el = document.getElementById('act-coords');
+    const textEl = document.getElementById('act-coords-text');
     if (el && el.dataset.lat && el.dataset.lng) return resolve();
     if (!navigator.geolocation) return resolve();
     navigator.geolocation.getCurrentPosition(pos => {
       if (el) {
-        el.value = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
         el.dataset.lat = String(pos.coords.latitude.toFixed(6));
         el.dataset.lng = String(pos.coords.longitude.toFixed(6));
         el.dataset.precision = String(Math.round(pos.coords.accuracy));
+        if (textEl) textEl.textContent = `${el.dataset.lat}, ${el.dataset.lng} · ±${el.dataset.precision}m`;
+        setActMapMarker(parseFloat(el.dataset.lat), parseFloat(el.dataset.lng));
       }
       resolve();
     }, () => resolve(), { enableHighAccuracy: true, timeout: 7000 });
@@ -1200,10 +1225,10 @@ async function abrirModalCrearActividad() {
   document.getElementById('act-estado').value = 'no_iniciada';
   document.getElementById('act-recordatorio').value = 'nunca';
   document.getElementById('act-foto').value = '';
-  document.getElementById('act-coords').value = '';
-  document.getElementById('act-coords').dataset.lat = '';
-  document.getElementById('act-coords').dataset.lng = '';
-  document.getElementById('act-coords').dataset.precision = '';
+  const coordsEl2 = document.getElementById('act-coords');
+  coordsEl2.value = ''; coordsEl2.dataset.lat = ''; coordsEl2.dataset.lng = ''; coordsEl2.dataset.precision = '';
+  const txt2 = document.getElementById('act-coords-text'); if (txt2) txt2.textContent = '—';
+  if (_actMap) { try { _actMap.remove(); } catch {} _actMap = null; const mEl = document.getElementById('act-map'); if (mEl) { mEl._leaflet_id = null; mEl.innerHTML = ''; } }
   document.getElementById('act-cliente-search').value = '';
   document.getElementById('act-cliente').value = '';
   document.getElementById('act-cliente').style.display = 'none';
