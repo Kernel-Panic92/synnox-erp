@@ -1027,7 +1027,10 @@ function verDetalleVisita(v) {
   const lng = v.longitud ? parseFloat(v.longitud) : null;
   const hasCoords = lat && lng;
 
-  document.getElementById('detalle-visita-title').textContent = `Visita — ${esc(v.cliente_nombre || '')}`;
+  // Store activity ID for delete
+  document.getElementById('modal-detalle-visita').dataset.visitaId = v.id;
+
+  document.getElementById('detalle-visita-title').textContent = `Actividad — ${esc(v.cliente_nombre || '')}`;
   document.getElementById('detalle-visita-content').innerHTML = `
     <div class="form-row" style="margin-bottom:12px">
       <div><strong>Cliente:</strong> ${esc(v.cliente_nombre || '—')}</div>
@@ -1074,6 +1077,18 @@ function verDetalleVisita(v) {
       setTimeout(() => map.invalidateSize(), 200);
     }, 150);
   }
+}
+
+async function eliminarActividad() {
+  const id = document.getElementById('modal-detalle-visita').dataset.visitaId;
+  if (!id) return;
+  confirmar({ titulo: 'Eliminar actividad', mensaje: 'Eliminar esta actividad?', icono: '🗑️', onConfirm: async () => {
+    const r = await apiFetch('/visitas/' + id, { method: 'DELETE' });
+    if (!r.ok) return toast(r.data?.error || 'Error al eliminar', 'error');
+    toast('Actividad eliminada', 'success');
+    hideModal('modal-detalle-visita');
+    cargarVisitas();
+  }});
 }
 
 function limpiarFiltrosVisitas() {

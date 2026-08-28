@@ -213,5 +213,18 @@ router.get('/resumen', requirePermiso('ver_visitas', 'crm'), async (req, res) =>
   }
 });
 
+// DELETE /api/visitas/:id — Eliminar actividad
+router.delete('/:id', requirePermiso('registrar_visita', 'crm'), async (req, res) => {
+  try {
+    const result = await pool.query(`DELETE FROM crm.visitas WHERE id = $1 RETURNING id`, [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Actividad no encontrada' });
+    await auditarEvento({ accion: 'eliminar', entidad: 'actividad', entidad_id: req.params.id, usuario_id: req.user.id });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[CRM] Error eliminar actividad:', err);
+    res.status(500).json({ error: 'Error al eliminar' });
+  }
+});
+
 export default router;
 export { uploadDir };
