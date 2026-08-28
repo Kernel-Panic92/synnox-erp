@@ -132,6 +132,28 @@ router.put('/:id', requirePermiso('crear_contacto', 'crm'), async (req, res) => 
   }
 });
 
+// POST /api/leads/reconciliar — Comparar leads con clientes existentes
+router.post('/reconciliar', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
+  try {
+    // Buscar leads no convertidos que tengan NIT coincidente con un cliente
+    const result = await pool.query(`
+      UPDATE crm.leads l
+      SET estado = 'convertido', cliente_convertido = TRUE,
+        cliente_id = c.id, fecha_conversion = l.actualizado_en, actualizado_en = NOW()
+      FROM crm.clientes c
+      WHERE l.numero_identificacion = c.nit
+        AND l.estado != 'convertido'
+        AND c.activo = TRUE
+      RETURNING l.id, l.raison_social, l.numero_identificacion, c.id AS cliente_id
+    `);
+
+    res.json({ ok: true, convertidos: result.rowCount, leads: result.rows });
+  } catch (err) {
+    console.error('[CRM] Error reconciliar leads:', err);
+    res.status(500).json({ error: 'Error al reconciliar' });
+  }
+});
+
 // DELETE /api/leads/:id
 router.delete('/:id', requirePermiso('eliminar_contacto', 'crm'), async (req, res) => {
   try {

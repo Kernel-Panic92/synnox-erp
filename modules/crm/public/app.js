@@ -713,6 +713,19 @@ async function marcarConvertido(id, nombre) {
   }});
 }
 
+async function reconciliarLeads() {
+  confirmar({ titulo: 'Reconciliar leads', mensaje: 'Comparar leads con clientes existentes por NIT?', icono: '🔍', onConfirm: async () => {
+    const r = await apiFetch('/leads/reconciliar', { method: 'POST' });
+    if (!r.ok) return toast(r.data?.error || 'Error al reconciliar', 'error');
+    if (r.data.convertidos === 0) {
+      toast('No se encontraron leads que coincidan con clientes existentes', 'info');
+    } else {
+      toast(`${r.data.convertidos} lead(s) marcado(s) como convertido(s)`, 'success');
+    }
+    cargarLeads();
+  }});
+}
+
 // ── Contactos ──
 async function cargarContactos() {
   const search = document.getElementById('filtro-contacto-search').value;
