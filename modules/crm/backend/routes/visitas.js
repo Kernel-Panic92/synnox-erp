@@ -58,14 +58,15 @@ const upload = multer({
 const router = express.Router();
 
 // Helper para guardar visita
-async function guardarVisita({ tipo, cliente_id, contacto_id, oportunidad_id, vendedor_id, latitud, longitud, precision_gps, notas, evidencia_foto, req }) {
+async function guardarVisita({ tipo, cliente_id, contacto_id, oportunidad_id, vendedor_id, latitud, longitud, precision_gps, notas, evidencia_foto, asunto, lugar, tipo_actividad, descripcion, fecha_inicio, req }) {
   const result = await pool.query(`
-    INSERT INTO crm.visitas (tipo, cliente_id, contacto_id, oportunidad_id, vendedor_id, latitud, longitud, precision_gps, notas, evidencia_foto)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+    INSERT INTO crm.visitas (tipo, cliente_id, contacto_id, oportunidad_id, vendedor_id, latitud, longitud, precision_gps, notas, evidencia_foto, asunto, lugar, tipo_actividad, descripcion, fecha_inicio)
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
     RETURNING *
-  `, [tipo, cliente_id || null, contacto_id || null, oportunidad_id || null, vendedor_id, latitud, longitud, precision_gps || null, notas || null, evidencia_foto || null]);
+  `, [tipo, cliente_id || null, contacto_id || null, oportunidad_id || null, vendedor_id, latitud, longitud, precision_gps || null, notas || null, evidencia_foto || null,
+      asunto || null, lugar || null, tipo_actividad || 'visita', descripcion || null, fecha_inicio || null]);
 
-  await auditarEvento({ accion: tipo, entidad: 'visita', entidad_id: result.rows[0].id, usuario_id: vendedor_id, metadata: { cliente_id, latitud, longitud } });
+  await auditarEvento({ accion: tipo, entidad: 'actividad', entidad_id: result.rows[0].id, usuario_id: vendedor_id, metadata: { cliente_id, latitud, longitud } });
 
   return result.rows[0];
 }
@@ -73,7 +74,8 @@ async function guardarVisita({ tipo, cliente_id, contacto_id, oportunidad_id, ve
 // POST /api/visitas/checkin
 router.post('/checkin', requirePermiso('registrar_visita', 'crm'), upload.single('foto'), async (req, res) => {
   try {
-    const { cliente_id, contacto_id, oportunidad_id, latitud, longitud, precision_gps, notas } = req.body;
+    const { cliente_id, contacto_id, oportunidad_id, latitud, longitud, precision_gps, notas,
+            asunto, lugar, tipo_actividad, descripcion } = req.body;
     if (!cliente_id) return res.status(400).json({ error: 'El cliente es obligatorio' });
     if (!latitud || !longitud) return res.status(400).json({ error: 'Las coordenadas GPS son obligatorias' });
 
@@ -93,7 +95,8 @@ router.post('/checkin', requirePermiso('registrar_visita', 'crm'), upload.single
 
     const visita = await guardarVisita({
       tipo: 'checkin', cliente_id, contacto_id, oportunidad_id,
-      vendedor_id: req.user.id, latitud, longitud, precision_gps, notas, evidencia_foto
+      vendedor_id: req.user.id, latitud, longitud, precision_gps, notas, evidencia_foto,
+      asunto, lugar, tipo_actividad, descripcion, fecha_inicio: new Date()
     });
 
     res.status(201).json({ ok: true, data: visita });
@@ -106,7 +109,8 @@ router.post('/checkin', requirePermiso('registrar_visita', 'crm'), upload.single
 // POST /api/visitas/checkout
 router.post('/checkout', requirePermiso('registrar_visita', 'crm'), upload.single('foto'), async (req, res) => {
   try {
-    const { cliente_id, contacto_id, oportunidad_id, latitud, longitud, precision_gps, notas } = req.body;
+    const { cliente_id, contacto_id, oportunidad_id, latitud, longitud, precision_gps, notas,
+            asunto, lugar, tipo_actividad, descripcion } = req.body;
     if (!cliente_id) return res.status(400).json({ error: 'El cliente es obligatorio' });
     if (!latitud || !longitud) return res.status(400).json({ error: 'Las coordenadas GPS son obligatorias' });
 
@@ -114,7 +118,8 @@ router.post('/checkout', requirePermiso('registrar_visita', 'crm'), upload.singl
 
     const visita = await guardarVisita({
       tipo: 'checkout', cliente_id, contacto_id, oportunidad_id,
-      vendedor_id: req.user.id, latitud, longitud, precision_gps, notas, evidencia_foto
+      vendedor_id: req.user.id, latitud, longitud, precision_gps, notas, evidencia_foto,
+      asunto, lugar, tipo_actividad, descripcion
     });
 
     res.status(201).json({ ok: true, data: visita });

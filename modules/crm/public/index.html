@@ -103,7 +103,7 @@
     <button class="nav-item" data-page="leads" onclick="navigate('leads')"><span class="icon">🎯</span> Clientes Potenciales</button>
     <button class="nav-item" data-page="clientes" onclick="navigate('clientes')"><span class="icon">🏢</span> Clientes</button>
     <button class="nav-item" data-page="contactos" onclick="navigate('contactos')"><span class="icon">👤</span> Contactos</button>
-    <button class="nav-item" data-page="visitas" onclick="navigate('visitas')"><span class="icon">📍</span> Visitas</button>
+    <button class="nav-item" data-page="visitas" onclick="navigate('visitas')"><span class="icon">📋</span> Actividades</button>
     <button class="nav-item" data-page="cotizaciones" onclick="navigate('cotizaciones')"><span class="icon">📄</span> Cotizaciones</button>
     <button class="nav-item" data-page="productos" onclick="navigate('productos')"><span class="icon">📦</span> Productos</button>
     <button class="nav-item" data-page="inventario" onclick="navigate('inventario')"><span class="icon">📊</span> Inventario</button>
@@ -301,10 +301,10 @@
         <div class="pagination" id="pag-contactos"></div>
       </div>
 
-      <!-- Visitas -->
+      <!-- Actividades -->
       <div class="page" id="page-visitas">
         <div class="page-header">
-          <h3>Visitas</h3>
+          <h3>Actividades</h3>
           <div class="page-actions">
             <button class="btn btn-sm btn-primary" onclick="abrirModalVisita('checkin')">📍 Check-in</button>
             <button class="btn btn-sm btn-secondary" onclick="abrirModalVisita('checkout')">🏁 Check-out</button>
@@ -689,14 +689,29 @@
   </div>
 </div>
 
-<!-- Modal Visita -->
+<!-- Modal Actividad -->
 <div class="modal-overlay" id="modal-visita">
   <div class="modal">
     <h3 id="modal-visita-title">Check-in</h3>
     <input type="hidden" id="visita-tipo" value="checkin">
+    <div class="form-row">
+      <div class="form-group">
+        <label>Tipo de Actividad</label>
+        <select id="visita-tipo-actividad">
+          <option value="visita">Visita</option>
+          <option value="reunion">Reunion</option>
+          <option value="llamada">Llamada</option>
+          <option value="nota">Nota</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Cliente *</label>
+        <select id="visita-cliente" required></select>
+      </div>
+    </div>
     <div class="form-group">
-      <label>Cliente *</label>
-      <select id="visita-cliente" required></select>
+      <label>Asunto</label>
+      <input type="text" id="visita-asunto" placeholder="Ej: Reunion para presentar catalogo">
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -709,6 +724,10 @@
       </div>
     </div>
     <div class="form-group">
+      <label>Lugar</label>
+      <input type="text" id="visita-lugar" placeholder="Ej: Sede principal, Mall plaza">
+    </div>
+    <div class="form-group">
       <label>Coordenadas GPS</label>
       <input type="text" id="visita-coords" readonly style="background:var(--surface2)">
     </div>
@@ -717,7 +736,7 @@
       <input type="file" id="visita-foto" accept="image/*" capture="environment">
     </div>
     <div class="form-group">
-      <label>Notas</label>
+      <label>Descripcion / Notas</label>
       <textarea id="visita-notas"></textarea>
     </div>
     <div class="btn-row">

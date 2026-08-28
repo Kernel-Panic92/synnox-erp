@@ -78,7 +78,7 @@ function navigate(page) {
   const nav = document.querySelector(`[data-page="${page}"]`);
   if (el) el.classList.add('active');
   if (nav) nav.classList.add('active');
-  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', leads: 'Clientes Potenciales', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Visitas', cotizaciones: 'Cotizaciones', productos: 'Productos', inventario: 'Inventario', importar: 'Importar SIESA', descuentos: 'Descuentos' };
+  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', leads: 'Clientes Potenciales', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Actividades', cotizaciones: 'Cotizaciones', productos: 'Productos', inventario: 'Inventario', importar: 'Importar SIESA', descuentos: 'Descuentos' };
   document.getElementById('page-title').textContent = titles[page] || 'CRM';
   if (page === 'dashboard') cargarDashboard();
   if (page === 'pipeline') cargarPipeline();
@@ -1089,6 +1089,9 @@ async function abrirModalVisita(tipo) {
   document.getElementById('visita-coords').value = 'Obteniendo GPS...';
   document.getElementById('visita-notas').value = '';
   document.getElementById('visita-foto').value = '';
+  document.getElementById('visita-asunto').value = '';
+  document.getElementById('visita-lugar').value = '';
+  document.getElementById('visita-tipo-actividad').value = 'visita';
   document.getElementById('btn-guardar-visita').disabled = true;
   document.getElementById('btn-guardar-visita').textContent = 'Obteniendo GPS...';
   await cargarClientesSelect('visita-cliente', '');
@@ -1174,6 +1177,9 @@ async function guardarVisita() {
   formData.append('longitud', lng.trim());
   formData.append('precision_gps', document.getElementById('visita-coords').dataset.precision || '');
   formData.append('notas', document.getElementById('visita-notas').value);
+  formData.append('asunto', document.getElementById('visita-asunto').value);
+  formData.append('lugar', document.getElementById('visita-lugar').value);
+  formData.append('tipo_actividad', document.getElementById('visita-tipo-actividad').value);
   const foto = document.getElementById('visita-foto').files[0];
   if (foto) formData.append('foto', foto);
 
