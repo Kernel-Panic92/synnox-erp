@@ -69,7 +69,7 @@ function mostrarLogoutConfirm() {
 }
 
 // ── Navigation ──
-const pages = ['dashboard', 'pipeline', 'clientes', 'contactos', 'visitas', 'cotizaciones', 'productos', 'inventario', 'importar', 'descuentos'];
+const pages = ['dashboard', 'pipeline', 'leads', 'clientes', 'contactos', 'visitas', 'cotizaciones', 'productos', 'inventario', 'importar', 'descuentos'];
 function navigate(page) {
   if (!pages.includes(page)) page = 'dashboard';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -78,10 +78,11 @@ function navigate(page) {
   const nav = document.querySelector(`[data-page="${page}"]`);
   if (el) el.classList.add('active');
   if (nav) nav.classList.add('active');
-  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Visitas', cotizaciones: 'Cotizaciones', productos: 'Productos', inventario: 'Inventario', importar: 'Importar SIESA', descuentos: 'Descuentos' };
+  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', leads: 'Leads', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Visitas', cotizaciones: 'Cotizaciones', productos: 'Productos', inventario: 'Inventario', importar: 'Importar SIESA', descuentos: 'Descuentos' };
   document.getElementById('page-title').textContent = titles[page] || 'CRM';
   if (page === 'dashboard') cargarDashboard();
   if (page === 'pipeline') cargarPipeline();
+  if (page === 'leads') cargarLeads();
   if (page === 'clientes') cargarClientes();
   if (page === 'contactos') cargarContactos();
   if (page === 'visitas') cargarVisitas();
@@ -560,6 +561,141 @@ async function eliminarTodosClientes() {
     if (!r.ok) return toast(r.data?.error || 'Error al eliminar', 'error');
     toast(`${r.data.eliminados} clientes eliminados`, 'success');
     cargarClientes();
+  }});
+}
+
+// ── Leads ──
+let _leadsPage = 1;
+
+async function cargarLeads() {
+  try {
+    const params = new URLSearchParams();
+    const search = document.getElementById('filtro-lead-search')?.value;
+    const estado = document.getElementById('filtro-lead-estado')?.value;
+    if (search) params.set('search', search);
+    if (estado) params.set('estado', estado);
+    params.set('page', _leadsPage);
+    params.set('limit', _limit);
+
+    const r = await apiFetch('/leads?' + params);
+    if (!r.ok) return;
+
+    const tbody = document.getElementById('tbody-leads');
+    const data = r.data.data || [];
+    const estadoColors = { nuevo: 'info', contactado: 'warning', calificado: 'potencial', enviado_erp: 'siesa', convertido: 'aprobada', perdido: 'rechazada' };
+
+    tbody.innerHTML = data.map(l => `
+      <tr>
+        <td><input type="checkbox" class="row-check cb-lead" value="${l.id}" onchange="event.stopPropagation();updateBulkBar()"></td>
+        <td><a href="#" onclick="verLead('${l.id}');return false" style="color:var(--accent)">${esc(l.raison_social)}</a></td>
+        <td>${esc(l.numero_identificacion || '—')}</td>
+        <td>${esc(l.ciudad || '—')}</td>
+        <td><span class="badge badge-${estadoColors[l.estado] || 'info'}">${esc(l.estado)}</span></td>
+        <td>${esc(l.asesor_comercial || '—')}</td>
+        <td>${esc(l.telefono || '—')}</td>
+        <td>${esc(l.email || '—')}</td>
+        <td>${formatDate(l.creado_en)}</td>
+        <td>
+          <button class="btn btn-sm btn-secondary" onclick="editarLead('${l.id}')">✏️</button>
+          ${l.estado !== 'convertido' ? `<button class="btn btn-sm btn-primary" onclick="convertirLead('${l.id}','${esc(l.raison_social)}')">🔄 Convertir</button>` : ''}
+          <button class="btn btn-sm btn-danger" onclick="eliminarLead('${l.id}')">🗑️</button>
+        </td>
+      </tr>
+    `).join('');
+
+    renderPagination('pag-leads', r.data.total, _leadsPage, _limit, (p) => { _leadsPage = p; cargarLeads(); });
+    cargarStatsLeads();
+  } catch (err) { console.error('Error cargar leads:', err); }
+}
+
+async function cargarStatsLeads() {
+  try {
+    const r = await apiFetch('/leads/stats');
+    if (!r.ok) return;
+    const d = r.data;
+    document.getElementById('stats-leads').innerHTML = `
+      <div class="stat-card"><div class="stat-value">${d.total || 0}</div><div class="stat-label">Total</div></div>
+      <div class="stat-card"><div class="stat-value">${d.convertidos || 0}</div><div class="stat-label">Convertidos</div></div>
+      <div class="stat-card"><div class="stat-value">${(d.por_estado || []).find(e => e.estado === 'nuevo')?.total || 0}</div><div class="stat-label">Nuevos</div></div>
+      <div class="stat-card"><div class="stat-value">${(d.por_estado || []).find(e => e.estado === 'enviado_erp')?.total || 0}</div><div class="stat-label">Enviados ERP</div></div>
+    `;
+  } catch {}
+}
+
+function limpiarFiltrosLeads() {
+  document.getElementById('filtro-lead-search').value = '';
+  document.getElementById('filtro-lead-estado').value = '';
+  _leadsPage = 1;
+  cargarLeads();
+}
+
+function abrirModalLead(lead = null) {
+  document.getElementById('modal-lead-title').textContent = lead ? 'Editar Lead' : 'Nuevo Lead';
+  document.getElementById('lead-id').value = lead?.id || '';
+  document.getElementById('lead-razon-social').value = lead?.raison_social || '';
+  document.getElementById('lead-nit').value = lead?.numero_identificacion || '';
+  document.getElementById('lead-nombre-est').value = lead?.nombre_establecimiento || '';
+  document.getElementById('lead-estado').value = lead?.estado || 'nuevo';
+  document.getElementById('lead-ciudad').value = lead?.ciudad || '';
+  document.getElementById('lead-departamento').value = lead?.departamento || '';
+  document.getElementById('lead-direccion').value = lead?.direccion || '';
+  document.getElementById('lead-telefono').value = lead?.telefono || '';
+  document.getElementById('lead-email').value = lead?.email || '';
+  document.getElementById('lead-asesor').value = lead?.asesor_comercial || '';
+  document.getElementById('lead-canal').value = lead?.canal || '';
+  document.getElementById('lead-notas').value = lead?.notas || '';
+  showModal('modal-lead');
+}
+
+async function editarLead(id) {
+  const r = await apiFetch('/leads/' + id);
+  if (!r.ok) return toast('Error al cargar', 'error');
+  abrirModalLead(r.data.data);
+}
+
+async function guardarLead() {
+  const id = document.getElementById('lead-id').value;
+  const body = {
+    raison_social: document.getElementById('lead-razon-social').value,
+    numero_identificacion: document.getElementById('lead-nit').value,
+    nombre_establecimiento: document.getElementById('lead-nombre-est').value,
+    estado: document.getElementById('lead-estado').value,
+    ciudad: document.getElementById('lead-ciudad').value,
+    departamento: document.getElementById('lead-departamento').value,
+    direccion: document.getElementById('lead-direccion').value,
+    telefono: document.getElementById('lead-telefono').value,
+    email: document.getElementById('lead-email').value,
+    asesor_comercial: document.getElementById('lead-asesor').value,
+    canal: document.getElementById('lead-canal').value,
+    notas: document.getElementById('lead-notas').value
+  };
+  if (!body.raison_social) return toast('La razon social es obligatoria', 'error');
+
+  const r = id
+    ? await apiFetch('/leads/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    : await apiFetch('/leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+
+  if (!r.ok) return toast(r.data?.error || 'Error al guardar', 'error');
+  toast(id ? 'Lead actualizado' : 'Lead creado', 'success');
+  hideModal('modal-lead');
+  cargarLeads();
+}
+
+async function eliminarLead(id) {
+  confirmar({ titulo: 'Eliminar lead', mensaje: 'Eliminar este lead?', icono: '🗑️', onConfirm: async () => {
+    const r = await apiFetch('/leads/' + id, { method: 'DELETE' });
+    if (!r.ok) return toast('Error al eliminar', 'error');
+    toast('Lead eliminado', 'success');
+    cargarLeads();
+  }});
+}
+
+async function convertirLead(id, nombre) {
+  confirmar({ titulo: 'Convertir lead', mensaje: `Convertir "${nombre}" en cliente real?`, icono: '🔄', onConfirm: async () => {
+    const r = await apiFetch('/leads/' + id + '/convertir', { method: 'POST' });
+    if (!r.ok) return toast(r.data?.error || 'Error al convertir', 'error');
+    toast('Lead convertido en cliente', 'success');
+    cargarLeads();
   }});
 }
 

@@ -40,6 +40,7 @@ import importarRoutes from './routes/importar.js';
 import sucursalesRoutes from './routes/sucursales.js';
 import eanRoutes from './routes/ean.js';
 import inventarioRoutes from './routes/inventario.js';
+import leadsRoutes from './routes/leads.js';
 
 const protect = createProtect(MODULE_ID);
 
@@ -55,6 +56,7 @@ app.use('/api/clientes', protect, sucursalesRoutes);
 app.use('/api/sucursales', protect, sucursalesRoutes);
 app.use('/api/productos', protect, eanRoutes);
 app.use('/api/inventario', protect, inventarioRoutes);
+app.use('/api/leads', protect, leadsRoutes);
 
 // Public endpoint for centros
 app.get('/api/centros', (req, res) => {
