@@ -91,7 +91,7 @@ function navigate(page) {
   if (page === 'inventario') cargarInventario();
   if (page === 'importar') cargarPaginaImportar();
   if (page === 'descuentos') cargarDescuentos();
-  if (page === 'admin') cargarPerfilesVenta();
+  if (page === 'admin') cargarAdmin();
 }
 
 // ── Dashboard ──
@@ -2314,11 +2314,55 @@ function toggleSidebarCollapse() { document.getElementById('sidebar').classList.
 // ── Admin Perfiles Venta ──
 const CRM_PERMISOS = ['ver','crear_contacto','editar_contacto','eliminar_contacto','ver_pipeline','editar_pipeline','crear_oportunidad','registrar_visita','ver_visitas','ver_mis_visitas','crear_cotizacion','aprobar_descuento','campanas','reportes','configurar','siesa_sync'];
 let _perfilesVentaCache=[];
+
+async function cargarAdmin(){
+  const misPermisos = await apiFetch('/perfiles-venta/me/mis-permisos');
+  const perms = new Set((misPermisos.ok && misPermisos.data?.permisos) || []);
+  const puedeConfigurar = usuario?.rol==='admin' || perms.has('configurar') || perms.has('siesa_sync');
+  const cards=[
+    {icon:'👥',titulo:'Perfiles de Venta',desc:'Crear/editar perfiles y asignar vendedores',seccion:'perfiles',perm:true},
+    {icon:'📥',titulo:'Importar SIESA',desc:'Cargar datos desde archivos del ERP/CRM',seccion:'importar',perm:puedeConfigurar},
+    {icon:'💰',titulo:'Descuentos pendientes',desc:'Solicitudes por aprobar',seccion:'descuentos',perm:true},
+    {icon:'🔄',titulo:'Sincronizar ERP',desc:'SIESA Hub (cuando esté disponible)',seccion:'siesa',perm:puedeConfigurar},
+  ];
+  document.getElementById('admin-cards').innerHTML=cards.filter(c=>c.perm).map(c=>`
+    <div onclick="adminAbrirSeccion('${c.seccion}')" style="border:1px solid var(--border);border-radius:12px;padding:16px;background:var(--surface);cursor:pointer;transition:.15s">
+      <div style="font-size:28px">${c.icon}</div>
+      <div style="font-weight:600;margin-top:8px">${c.titulo}</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:4px">${c.desc}</div>
+    </div>`).join('');
+  adminAbrirInicio();
+}
+function adminAbrirInicio(){
+  document.getElementById('admin-inicio').style.display='';
+  document.getElementById('admin-seccion').style.display='none';
+  document.getElementById('admin-btn-volver').style.display='none';
+}
+function adminVolver(){ adminAbrirInicio(); }
+async function adminAbrirSeccion(seccion){
+  const cont=document.getElementById('admin-seccion');
+  document.getElementById('admin-inicio').style.display='none';
+  document.getElementById('admin-btn-volver').style.display='';
+  cont.style.display='';
+  if(seccion==='perfiles'){
+    cont.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">Perfiles de Venta</h3><button class="btn btn-sm btn-primary" onclick="abrirModalPerfilVenta()">+ Nuevo Perfil</button></div><p style="color:var(--muted);font-size:12px">Si un usuario no está asignado a ningún perfil, no podrá crear cotizaciones (solo lectura).</p><div id="perfiles-venta-list" style="display:grid;gap:12px"></div>';
+    cargarPerfilesVenta();
+  } else if(seccion==='importar'){
+    cont.innerHTML='<h3 style="margin:0 0 12px">Importar SIESA</h3><p style="color:var(--muted);font-size:13px">Se abre la vista de importación.</p>';
+    setTimeout(()=>navigate('importar'),200);
+  } else if(seccion==='descuentos'){
+    cont.innerHTML='<h3 style="margin:0 0 12px">Descuentos pendientes</h3><p style="color:var(--muted);font-size:13px">Se abre la vista de descuentos.</p>';
+    setTimeout(()=>navigate('descuentos'),200);
+  } else if(seccion==='siesa'){
+    cont.innerHTML='<h3 style="margin:0 0 12px">Sincronizar con SIESA Hub</h3><p style="color:var(--muted);font-size:13px">Integración con la API de SIESA Hub en preparación. Por ahora se importa por CSV desde la sección Importar SIESA.</p>';
+  }
+}
 async function cargarPerfilesVenta(){
   const r=await apiFetch('/perfiles-venta');
   if(!r.ok) return toast(r.data?.error||'Error cargando perfiles','error');
   _perfilesVentaCache=r.data.data||[];
   const c=document.getElementById('perfiles-venta-list');
+  if(!c) return;
   c.innerHTML=_perfilesVentaCache.map(p=>`
     <div style="border:1px solid var(--border);border-radius:10px;padding:14px;background:var(--surface)">
       <div style="display:flex;justify-content:space-between;gap:8px">
