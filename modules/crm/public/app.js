@@ -337,7 +337,6 @@ async function verCliente(id) {
   const r = await apiFetch('/clientes/' + id);
   if (!r.ok) return;
   const e = r.data.data;
-  const contactos = e.contactos || [];
 
   // Fetch sucursales
   const sucR = await apiFetch('/clientes/' + id + '/sucursales');
@@ -345,54 +344,64 @@ async function verCliente(id) {
 
   document.getElementById('detalle-cliente-title').textContent = e.nombre;
   document.getElementById('detalle-cliente-content').innerHTML = `
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
-      <div><strong>NIT:</strong> ${esc(e.nit || '—')}</div>
-      <div><strong>Tipo:</strong> <span class="badge badge-${esc(e.tipo)}">${esc(e.tipo)}</span></div>
-      <div><strong>Canal:</strong> ${esc(e.canal || '—')}</div>
-      <div><strong>Ciudad:</strong> ${esc(e.ciudad || '—')}</div>
-      <div><strong>Departamento:</strong> ${esc(e.departamento || '—')}</div>
-      <div><strong>Region:</strong> ${esc(e.sector || '—')}</div>
-      <div><strong>Direccion:</strong> ${esc(e.direccion || '—')}</div>
-      <div><strong>Telefono:</strong> ${esc(e.telefono || '—')}</div>
-      <div><strong>Email:</strong> ${esc(e.email || '—')}</div>
-      <div><strong>Correo F.E.:</strong> ${esc(e.correo_fe || '—')}</div>
-      <div><strong>Codigo SIESA:</strong> ${esc(e.codigo_siesa || '—')}</div>
-      <div><strong>Codigo EAN:</strong> ${esc(e.codigo_ean || '—')}</div>
-      <div><strong>Tipo negocio:</strong> ${esc(e.tipo_negocio || '—')}</div>
-      <div><strong>Lista precios:</strong> ${esc(e.lista_precios || '—')}</div>
-      <div><strong>Asesor:</strong> ${esc(e.asesor_comercial || '—')}</div>
-      <div><strong>Cobrador:</strong> ${esc(e.cobrador || '—')}</div>
-      <div><strong>Sucursal corp:</strong> ${esc(e.sucursal_corporativa || '—')}</div>
-      <div><strong>Rutas vehiculos:</strong> ${esc(e.ruta_vehiculos || '—')}</div>
+    <div style="display:flex;gap:16px;border-bottom:1px solid var(--border);margin-bottom:16px">
+      <button class="tab-btn active" onclick="cambiarTabCliente('datos',this)">Datos Basicos</button>
+      <button class="tab-btn" onclick="cambiarTabCliente('sucursales',this)">Sucursales (${sucursales.length})</button>
+      <button class="tab-btn" onclick="cambiarTabCliente('contactos',this)">Contactos (${(e.contactos || []).length})</button>
     </div>
-    ${e.razon_social ? `<div style="margin-bottom:12px"><strong>Razon social:</strong> ${esc(e.razon_social)}</div>` : ''}
-    ${e.notas ? `<div style="margin-bottom:16px"><strong>Notas:</strong><br>${esc(e.notas)}</div>` : ''}
 
-    <div style="display:flex;justify-content:space-between;align-items:center;margin:16px 0 8px">
-      <h4 style="margin:0">Sucursales (${sucursales.length})</h4>
-      <button class="btn btn-sm btn-primary" onclick="abrirModalSucursal('${id}')">+ Nueva</button>
+    <div id="tab-cliente-datos">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+        <div>
+          <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Razon Social</div><div>${esc(e.nombre)}</div></div>
+          <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Numero de Identificacion</div><div>${esc(e.nit || '—')}</div></div>
+          <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Correo Electronico</div><div>${esc(e.email || '—')}</div></div>
+          <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Asesor Comercial</div><div>${esc(e.asesor_comercial || '—')}</div></div>
+          <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Canal</div><div>${esc(e.canal || '—')}</div></div>
+        </div>
+        <div>
+          <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Nombre Establecimiento</div><div>${esc(e.razon_social || e.nombre)}</div></div>
+          <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Telefono</div><div>${esc(e.telefono || '—')}</div></div>
+          <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Pagina Web</div><div>${esc(e.website || '—')}</div></div>
+          <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Tipo Negocio</div><div>${esc(e.tipo_negocio || '—')}</div></div>
+          <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Tipo Cliente</div><div>${esc(e.tipo || '—')}</div></div>
+        </div>
+      </div>
+      ${e.direccion ? `<div style="margin-top:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Direccion</div><div>${esc(e.direccion)}</div></div>` : ''}
     </div>
-    ${sucursales.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Codigo</th><th>Nombre</th><th>Direccion</th><th>Ciudad</th><th>Telefono</th><th>Principal</th><th></th></tr></thead><tbody>
-      ${sucursales.map(s => `<tr>
-        <td><strong>${esc(s.codigo || '—')}</strong></td>
-        <td>${esc(s.nombre)}</td>
-        <td>${esc(s.direccion || '—')}</td>
-        <td>${esc(s.ciudad || '—')}</td>
-        <td>${esc(s.telefono || '—')}</td>
-        <td>${s.es_principal ? '<span class="badge badge-aprobada">Principal</span>' : ''}</td>
-        <td>
-          <button class="btn btn-sm btn-secondary" onclick="editarSucursal('${s.id}','${id}')">✏️</button>
-          <button class="btn btn-sm btn-danger" onclick="eliminarSucursal('${s.id}','${id}')">🗑️</button>
-        </td>
-      </tr>`).join('')}
-    </tbody></table></div>` : '<p style="color:var(--muted)">Sin sucursales. Agrega la primera sucursal del cliente.</p>'}
 
-    <h4 style="margin:16px 0 8px">Contactos (${contactos.length})</h4>
-    ${contactos.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nombre</th><th>Cargo</th><th>Email</th><th>Telefono</th></tr></thead><tbody>
-      ${contactos.map(c => `<tr><td>${esc(c.nombre)}</td><td>${esc(c.cargo || '—')}</td><td>${esc(c.email || '—')}</td><td>${esc(c.telefono || '—')}</td></tr>`).join('')}
-    </tbody></table></div>` : '<p style="color:var(--muted)">Sin contactos registrados</p>'}
+    <div id="tab-cliente-sucursales" style="display:none">
+      ${sucursales.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Codigo</th><th>Nombre</th><th>Direccion</th><th>Ciudad</th><th>Telefono</th><th>Principal</th><th></th></tr></thead><tbody>
+        ${sucursales.map(s => `<tr>
+          <td><strong>${esc(s.codigo || '—')}</strong></td>
+          <td>${esc(s.nombre)}</td>
+          <td>${esc(s.direccion || '—')}</td>
+          <td>${esc(s.ciudad || '—')}</td>
+          <td>${esc(s.telefono || '—')}</td>
+          <td>${s.es_principal ? '<span class="badge badge-aprobada">Principal</span>' : ''}</td>
+          <td>
+            <button class="btn btn-sm btn-secondary" onclick="editarSucursal('${s.id}','${id}')">✏️</button>
+            <button class="btn btn-sm btn-danger" onclick="eliminarSucursal('${s.id}','${id}')">🗑️</button>
+          </td>
+        </tr>`).join('')}
+      </tbody></table></div>` : '<p style="color:var(--muted)">Sin sucursales</p>'}
+      <button class="btn btn-sm btn-primary" onclick="abrirModalSucursal('${id}')" style="margin-top:8px">+ Nueva Sucursal</button>
+    </div>
+
+    <div id="tab-cliente-contactos" style="display:none">
+      ${(e.contactos || []).length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nombre</th><th>Cargo</th><th>Email</th><th>Telefono</th></tr></thead><tbody>
+        ${e.contactos.map(c => `<tr><td>${esc(c.nombre)}</td><td>${esc(c.cargo || '—')}</td><td>${esc(c.email || '—')}</td><td>${esc(c.telefono || '—')}</td></tr>`).join('')}
+      </tbody></table></div>` : '<p style="color:var(--muted)">Sin contactos</p>'}
+    </div>
   `;
   showModal('modal-detalle-cliente');
+}
+
+function cambiarTabCliente(tab, btn) {
+  document.querySelectorAll('#modal-detalle-cliente [id^="tab-cliente-"]').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('#modal-detalle-cliente .tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-cliente-' + tab).style.display = '';
+  btn.classList.add('active');
 }
 
 // ── Sucursales ──
