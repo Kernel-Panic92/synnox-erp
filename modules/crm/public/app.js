@@ -2316,6 +2316,7 @@ const CRM_PERMISOS = ['ver','crear_contacto','editar_contacto','eliminar_contact
 let _perfilesVentaCache=[];
 
 async function cargarAdmin(){
+  document.getElementById('btn-volver-admin').style.display='none';
   const misPermisos = await apiFetch('/perfiles-venta/me/mis-permisos');
   const perms = new Set((misPermisos.ok && misPermisos.data?.permisos) || []);
   const esAdmin = usuario?.rol==='admin';
@@ -2352,10 +2353,13 @@ function adminAbrirInicio(){
 }
 function adminVolver(){ adminAbrirInicio(); }
 async function adminAbrirSeccion(seccion){
-  // Secciones que navegan a una página propia (sin volver a admin)
-  if(seccion==='importar'){ navigate('importar'); return; }
-  if(seccion==='descuentos'){ navigate('descuentos'); return; }
-  // Sub-vistas internas con botón volver
+  // Secciones que navegan a una página propia (con botón global Volver a Admin)
+  if(seccion==='importar' || seccion==='descuentos'){
+    document.getElementById('btn-volver-admin').style.display='';
+    navigate(seccion);
+    return;
+  }
+  // Sub-vistas internas con botón volver (en header admin)
   const cont=document.getElementById('admin-seccion');
   document.getElementById('admin-inicio').style.display='none';
   document.getElementById('admin-btn-volver').style.display='';
@@ -2366,6 +2370,10 @@ async function adminAbrirSeccion(seccion){
   } else if(seccion==='siesa'){
     cont.innerHTML='<h3 style="margin:0 0 12px">Sincronizar con SIESA Hub</h3><p style="color:var(--muted);font-size:13px">Integración con la API de SIESA Hub en preparación. Por ahora se importa por CSV desde la sección Importar SIESA.</p>';
   }
+}
+function volverDesdeAdmin(){
+  document.getElementById('btn-volver-admin').style.display='none';
+  navigate('admin');
 }
 async function cargarPerfilesVenta(){
   const r=await apiFetch('/perfiles-venta');
