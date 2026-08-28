@@ -597,7 +597,7 @@ async function cargarLeads() {
         <td>${formatDate(l.creado_en)}</td>
         <td>
           <button class="btn btn-sm btn-secondary" onclick="editarLead('${l.id}')">✏️</button>
-          ${l.estado === 'calificado' ? `<button class="btn btn-sm btn-primary" onclick="enviarLeadERP('${l.id}','${esc(l.raison_social)}')">📤 Enviar ERP</button>` : ''}
+          ${l.estado !== 'convertido' && l.estado !== 'enviado_erp' ? `<button class="btn btn-sm btn-primary" onclick="enviarLeadERP('${l.id}','${esc(l.raison_social)}')">🔄 Convertir</button>` : ''}
           ${l.estado === 'enviado_erp' ? `<button class="btn btn-sm btn-primary" onclick="marcarConvertido('${l.id}','${esc(l.raison_social)}')">✅ Convertido</button>` : ''}
           ${l.estado !== 'convertido' ? `<button class="btn btn-sm btn-danger" onclick="eliminarLead('${l.id}')">🗑️</button>` : ''}
         </td>
