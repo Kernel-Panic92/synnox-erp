@@ -2318,11 +2318,23 @@ let _perfilesVentaCache=[];
 async function cargarAdmin(){
   const misPermisos = await apiFetch('/perfiles-venta/me/mis-permisos');
   const perms = new Set((misPermisos.ok && misPermisos.data?.permisos) || []);
-  const puedeConfigurar = usuario?.rol==='admin' || perms.has('configurar') || perms.has('siesa_sync');
+  const esAdmin = usuario?.rol==='admin';
+  const puedeConfigurar = esAdmin || perms.has('configurar') || perms.has('siesa_sync');
+  const puedeAprobar = esAdmin || perms.has('aprobar_descuento');
+  const puedeVerAdmin = esAdmin || puedeConfigurar || puedeAprobar;
+  // Ocultar/mostrar Admin en sidebar según permisos
+  const navAdmin = document.querySelector('.nav-item[data-page="admin"]');
+  if (navAdmin) navAdmin.style.display = puedeVerAdmin ? '' : 'none';
+  // Si no tiene acceso, mostrar aviso
+  if (!puedeVerAdmin) {
+    document.getElementById('admin-cards').innerHTML='<p style="color:var(--muted)">No tienes permisos de administración.</p>';
+    adminAbrirInicio();
+    return;
+  }
   const cards=[
     {icon:'👥',titulo:'Perfiles de Venta',desc:'Crear/editar perfiles y asignar vendedores',seccion:'perfiles',perm:true},
     {icon:'📥',titulo:'Importar SIESA',desc:'Cargar datos desde archivos del ERP/CRM',seccion:'importar',perm:puedeConfigurar},
-    {icon:'💰',titulo:'Descuentos pendientes',desc:'Solicitudes por aprobar',seccion:'descuentos',perm:true},
+    {icon:'💰',titulo:'Descuentos pendientes',desc:'Solicitudes por aprobar',seccion:'descuentos',perm:puedeAprobar},
     {icon:'🔄',titulo:'Sincronizar ERP',desc:'SIESA Hub (cuando esté disponible)',seccion:'siesa',perm:puedeConfigurar},
   ];
   document.getElementById('admin-cards').innerHTML=cards.filter(c=>c.perm).map(c=>`
