@@ -396,6 +396,44 @@ router.delete('/:id/items/:itemId', requirePermiso('crear_cotizacion', 'crm'), a
 
 // ── Estado ──
 
+// PUT /api/cotizaciones/erp-update — Webhook para recibir actualizaciones del ERP
+router.put('/erp-update', async (req, res) => {
+  try {
+    const { numero, documento_erp, estado_erp, estado_crm } = req.body;
+    if (!numero) return res.status(400).json({ error: 'El numero de cotizacion es obligatorio' });
+
+    const cot = await pool.query(`SELECT id, numero FROM crm.cotizaciones WHERE numero = $1`, [numero]);
+    if (!cot.rows.length) return res.status(404).json({ error: `Cotizacion ${numero} no encontrada` });
+
+    const updates = [];
+    const params = [];
+    let paramIdx = 1;
+
+    if (documento_erp) { updates.push(`documento_erp = $${paramIdx++}`); params.push(documento_erp); }
+    if (estado_erp) { updates.push(`estado_erp = $${paramIdx++}`); params.push(estado_erp); }
+    if (estado_crm) { updates.push(`estado = $${paramIdx++}`); params.push(estado_crm); }
+
+    if (updates.length) {
+      updates.push(`actualizado_en = NOW()`);
+      params.push(cot.rows[0].id);
+      await pool.query(`UPDATE crm.cotizaciones SET ${updates.join(', ')} WHERE id = $${paramIdx}`, params);
+    }
+
+    await auditarEvento({
+      accion: 'erp_update',
+      entidad: 'cotizacion',
+      entidad_id: cot.rows[0].id,
+      usuario_id: 0,
+      metadata: { numero, documento_erp, estado_erp, estado_crm }
+    });
+
+    res.json({ ok: true, cotizacion_id: cot.rows[0].id });
+  } catch (err) {
+    console.error('[CRM] Error ERP update:', err);
+    res.status(500).json({ error: 'Error al actualizar desde ERP' });
+  }
+});
+
 // PUT /api/cotizaciones/:id/estado — Cambiar estado
 router.put('/:id/estado', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
   try {
