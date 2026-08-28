@@ -1241,8 +1241,10 @@ async function abrirModalCrearActividad() {
   document.getElementById('act-cliente-selected').textContent = '';
   await cargarActClientesCache();
   const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
-  document.getElementById('act-fecha-inicio').max = nowLocal;
-  document.getElementById('act-fecha-fin').max = nowLocal;
+  const fi = document.getElementById('act-fecha-inicio');
+  const ff = document.getElementById('act-fecha-fin');
+  fi.min = nowLocal; ff.min = nowLocal;
+  fi.removeAttribute('max'); ff.removeAttribute('max');
   const tipoEl = document.getElementById('act-tipo');
   const estadoEl = document.getElementById('act-estado');
   tipoEl.onchange = actualizarActGPSGroup;
@@ -1261,9 +1263,9 @@ async function guardarActividad() {
   const fechaFinVal = document.getElementById('act-fecha-fin').value;
   if (!clienteId) return toast('Selecciona un cliente (busca por NIT o nombre y elige)', 'error');
   if (!asunto && !descripcion) return toast('Escribe el nombre de la actividad', 'error');
-  const now = new Date();
-  if (fechaInicioVal && new Date(fechaInicioVal) > now) return toast('Fecha inicio no puede ser futura (anti-fraude)', 'error');
-  if (fechaFinVal && new Date(fechaFinVal) > now) return toast('Fecha fin no puede ser futura (anti-fraude)', 'error');
+  const now = new Date(); now.setSeconds(0,0);
+  if (fechaInicioVal && new Date(fechaInicioVal) < now) return toast('Fecha inicio no puede ser pasada (anti-fraude)', 'error');
+  if (fechaFinVal && new Date(fechaFinVal) < now) return toast('Fecha fin no puede ser pasada (anti-fraude)', 'error');
   if (fechaInicioVal && fechaFinVal && new Date(fechaFinVal) < new Date(fechaInicioVal)) return toast('Fecha fin no puede ser anterior a inicio', 'error');
 
   const btn = document.getElementById('btn-guardar-actividad');
