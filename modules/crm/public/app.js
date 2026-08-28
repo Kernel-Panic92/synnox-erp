@@ -654,6 +654,12 @@ async function editarLead(id) {
   abrirModalLead(r.data.data);
 }
 
+async function verLead(id) {
+  const r = await apiFetch('/leads/' + id);
+  if (!r.ok) return toast('Error al cargar', 'error');
+  abrirModalLead(r.data.data);
+}
+
 async function guardarLead() {
   const id = document.getElementById('lead-id').value;
   const body = {
