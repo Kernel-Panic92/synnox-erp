@@ -145,43 +145,87 @@ router.delete('/:id', requirePermiso('eliminar_contacto', 'crm'), async (req, re
   }
 });
 
-// POST /api/leads/:id/convertir — Convertir lead a cliente
+// POST /api/leads/:id/convertir — Enviar lead a ERP para crear tercero
 router.post('/:id/convertir', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const lead = await pool.query(`SELECT * FROM crm.leads WHERE id = $1`, [id]);
+    if (!lead.rows.length) return res.status(404).json({ error: 'Lead no encontrado' });
+    if (lead.rows[0].estado === 'convertido') return res.status(400).json({ error: 'Este lead ya fue convertido' });
+
+    // TODO: Cuando tengamos la API de SIESA, aqui se crea el tercero
+    // const siesaResponse = await crearTerceroERP(lead.rows[0]);
+    // if (!siesaResponse.ok) return res.status(502).json({ error: 'Error en API SIESA' });
+
+    // Por ahora, simular que la API no esta disponible
+    const apiDisponible = false; // Cambiar a true cuando tengamos la API
+
+    if (!apiDisponible) {
+      return res.status(503).json({
+        error: 'API de SIESA no disponible. El tercero debe crearse manualmente en el ERP.',
+        lead_id: id,
+        datos_tercero: {
+          codigo: lead.rows[0].numero_identificacion,
+          razon_social: lead.rows[0].raison_social,
+          nit: lead.rows[0].numero_identificacion,
+          direccion: lead.rows[0].direccion,
+          ciudad: lead.rows[0].ciudad,
+          email: lead.rows[0].email,
+          telefono: lead.rows[0].telefono
+        }
+      });
+    }
+
+    // Cuando la API este disponible:
+    // await pool.query(`
+    //   UPDATE crm.leads SET estado = 'enviado_erp', erp_tercero_id = $1, actualizado_en = NOW() WHERE id = $2
+    // `, [siesaResponse.tercero_id, id]);
+
+    res.status(503).json({ error: 'API de SIESA no disponible aun' });
+  } catch (err) {
+    console.error('[CRM] Error convertir lead:', err);
+    res.status(500).json({ error: 'Error al procesar' });
+  }
+});
+
+// PUT /api/leads/:id/confirmar — Contabilidad confirma que tercero fue creado en ERP
+router.put('/:id/confirmar', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
     const { id } = req.params;
+    const { erp_tercero_id } = req.body;
 
     const lead = await client.query(`SELECT * FROM crm.leads WHERE id = $1`, [id]);
     if (!lead.rows.length) return res.status(404).json({ error: 'Lead no encontrado' });
-    if (lead.rows[0].cliente_convertido) return res.status(400).json({ error: 'Este lead ya fue convertido' });
+    if (lead.rows[0].estado === 'convertido') return res.status(400).json({ error: 'Ya convertido' });
 
     const l = lead.rows[0];
 
-    // Crear cliente
+    // Crear cliente en CRM
     const cliente = await client.query(`
       INSERT INTO crm.clientes (codigo_siesa, nit, nombre, canal, activo, direccion, ciudad, departamento,
         email, telefono, tipo, tipo_negocio, notas, asesor_comercial)
       VALUES ($1,$2,$3,$4,TRUE,$5,$6,$7,$8,$9,'real',$10,$11,$12) RETURNING id
-    `, [l.numero_identificacion, l.numero_identificacion, l.raison_social, l.canal || '',
+    `, [erp_tercero_id || l.numero_identificacion, l.numero_identificacion, l.raison_social, l.canal || '',
         l.direccion, l.ciudad, l.departamento, l.email, l.telefono, l.tipo_negocio, l.notas, l.asesor_comercial]);
 
-    // Actualizar lead
+    // Marcar lead como convertido
     await client.query(`
       UPDATE crm.leads SET estado = 'convertido', cliente_convertido = TRUE,
-        cliente_id = $1, fecha_conversion = NOW(), actualizado_en = NOW()
-      WHERE id = $2
-    `, [cliente.rows[0].id, id]);
+        cliente_id = $1, fecha_conversion = NOW(), erp_tercero_id = $2, actualizado_en = NOW()
+      WHERE id = $3
+    `, [cliente.rows[0].id, erp_tercero_id || null, id]);
 
     await auditarEvento({ accion: 'convertir', entidad: 'lead', entidad_id: id, usuario_id: req.user.id,
-      metadata: { cliente_id: cliente.rows[0].id, raison_social: l.raison_social } });
+      metadata: { cliente_id: cliente.rows[0].id, erp_tercero_id } });
 
     await client.query('COMMIT');
     res.json({ ok: true, cliente_id: cliente.rows[0].id });
   } catch (err) {
     await client.query('ROLLBACK');
-    console.error('[CRM] Error convertir lead:', err);
-    res.status(500).json({ error: 'Error al convertir lead' });
+    console.error('[CRM] Error confirmar conversion:', err);
+    res.status(500).json({ error: 'Error al confirmar' });
   } finally {
     client.release();
   }

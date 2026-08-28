@@ -692,19 +692,30 @@ async function eliminarLead(id) {
 }
 
 async function enviarLeadERP(id, nombre) {
-  confirmar({ titulo: 'Enviar a ERP', mensaje: `Enviar "${nombre}" al ERP para revisión?`, icono: '📤', onConfirm: async () => {
-    const r = await apiFetch('/leads/' + id + '/enviar', { method: 'PUT' });
+  confirmar({ titulo: 'Convertir a tercero', mensaje: `Enviar "${nombre}" al ERP para crear tercero?`, icono: '🔄', onConfirm: async () => {
+    const r = await apiFetch('/leads/' + id + '/convertir', { method: 'POST' });
+    if (r.status === 503) {
+      // API no disponible - mostrar datos para copiar al ERP
+      const datos = r.data?.datos_tercero;
+      toast('API de SIESA no disponible. Crea el tercero manualmente en el ERP.', 'error');
+      if (datos) {
+        console.log('Datos para crear tercero en ERP:', datos);
+        // Mostrar modal con los datos
+        alert(`Datos para crear tercero en ERP:\n\nCódigo: ${datos.codigo}\nRazón social: ${datos.razon_social}\nNIT: ${datos.nit}\nDirección: ${datos.direccion}\nCiudad: ${datos.ciudad}\nEmail: ${datos.email}\nTeléfono: ${datos.telefono}\n\nDespués de crearlo, marca como "Convertido".`);
+      }
+      return;
+    }
     if (!r.ok) return toast(r.data?.error || 'Error al enviar', 'error');
-    toast('Lead enviado a ERP. Pendiente revisión de contabilidad.', 'success');
+    toast('Lead enviado a ERP', 'success');
     cargarLeads();
   }});
 }
 
 async function marcarConvertido(id, nombre) {
-  confirmar({ titulo: 'Marcar como convertido', mensaje: `¿"${nombre}" ya fue creado como tercero en el ERP?`, icono: '✅', onConfirm: async () => {
-    const r = await apiFetch('/leads/' + id + '/convertir', { method: 'POST' });
-    if (!r.ok) return toast(r.data?.error || 'Error al marcar', 'error');
-    toast('Lead marcado como convertido', 'success');
+  confirmar({ titulo: 'Confirmar conversion', mensaje: `¿"${nombre}" ya fue creado como tercero en el ERP?`, icono: '✅', onConfirm: async () => {
+    const r = await apiFetch('/leads/' + id + '/confirmar', { method: 'PUT' });
+    if (!r.ok) return toast(r.data?.error || 'Error al confirmar', 'error');
+    toast('Lead convertido en cliente', 'success');
     cargarLeads();
   }});
 }
