@@ -1121,6 +1121,8 @@ function filtrarActClientes(q) {
   const sel = document.getElementById('act-cliente');
   const selectedDiv = document.getElementById('act-cliente-selected');
   const qq = (q || '').toLowerCase().trim();
+  // single select: if already selected, ignore new search unless cleared
+  if (sel.value && selectedDiv.style.display !== 'none') return;
   if (!qq) { sel.style.display = 'none'; sel.innerHTML = ''; return; }
   const filtered = _actClientesCache.filter(c =>
     (c.nombre && c.nombre.toLowerCase().includes(qq)) ||
@@ -1132,12 +1134,12 @@ function filtrarActClientes(q) {
   sel.style.display = '';
   sel.onchange = () => {
     const opt = sel.options[sel.selectedIndex];
-    if (!opt || !opt.value) return;
+    if (!opt || !opt.value || opt.textContent === 'No hay resultados') return;
     selectedDiv.textContent = '✓ ' + opt.textContent + '  ✕';
     selectedDiv.style.display = '';
     selectedDiv.title = 'Click para quitar';
     selectedDiv.style.cursor = 'pointer';
-    selectedDiv.onclick = () => { selectedDiv.style.display = 'none'; sel.value = ''; };
+    selectedDiv.onclick = () => { selectedDiv.style.display = 'none'; sel.value = ''; document.getElementById('act-cliente-search').value = ''; };
     sel.style.display = 'none';
     document.getElementById('act-cliente-search').value = '';
   };
@@ -1150,19 +1152,21 @@ function actualizarActGPSGroup() {
   const estado = document.getElementById('act-estado')?.value;
   const group = document.getElementById('act-gps-group');
   if (!group) return;
+  group.style.display = '';
   const necesita = tipo === 'reunion' && (estado === 'en_proceso' || estado === 'realizada');
-  group.style.display = necesita ? '' : 'none';
+  const hint = document.querySelector('#act-gps-group label small');
+  if (hint) hint.textContent = necesita ? '— auto al guardar (Reunión)' : '— se capturará al pasar a En Proceso / Realizada (solo Reunión)';
+  setTimeout(() => {
+    const mapEl = document.getElementById('act-map');
+    if (mapEl && !mapEl._leaflet_id) {
+      _actMap = L.map(mapEl, { zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false }).setView([4.6, -74.07], 5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 }).addTo(_actMap);
+      setTimeout(() => _actMap.invalidateSize(), 200);
+    } else if (_actMap) {
+      setTimeout(() => _actMap.invalidateSize(), 150);
+    }
+  }, 120);
   if (necesita) {
-    setTimeout(() => {
-      const mapEl = document.getElementById('act-map');
-      if (mapEl && !mapEl._leaflet_id) {
-        _actMap = L.map(mapEl, { zoomControl: true }).setView([4.6, -74.07], 5);
-        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '&copy; OpenStreetMap', maxZoom: 19 }).addTo(_actMap);
-        setTimeout(() => _actMap.invalidateSize(), 200);
-      } else if (_actMap) {
-        setTimeout(() => _actMap.invalidateSize(), 150);
-      }
-    }, 120);
     const coordsEl = document.getElementById('act-coords');
     const textEl = document.getElementById('act-coords-text');
     if ((!coordsEl.dataset.lat || !coordsEl.dataset.lng) && (!textEl || textEl.textContent === '—')) obtenerGPSAct();
@@ -1250,8 +1254,14 @@ async function guardarActividad() {
   const descripcion = document.getElementById('act-descripcion').value.trim();
   const tipo = document.getElementById('act-tipo').value;
   const estado = document.getElementById('act-estado').value;
+  const fechaInicioVal = document.getElementById('act-fecha-inicio').value;
+  const fechaFinVal = document.getElementById('act-fecha-fin').value;
   if (!clienteId) return toast('Selecciona un cliente (busca por NIT o nombre y elige)', 'error');
   if (!asunto && !descripcion) return toast('Escribe el nombre de la actividad', 'error');
+  const now = new Date();
+  if (fechaInicioVal && new Date(fechaInicioVal) > now) return toast('Fecha inicio no puede ser futura (anti-fraude)', 'error');
+  if (fechaFinVal && new Date(fechaFinVal) > now) return toast('Fecha fin no puede ser futura (anti-fraude)', 'error');
+  if (fechaInicioVal && fechaFinVal && new Date(fechaFinVal) < new Date(fechaInicioVal)) return toast('Fecha fin no puede ser anterior a inicio', 'error');
 
   const btn = document.getElementById('btn-guardar-actividad');
   const necesitaGPS = tipo === 'reunion' && (estado === 'en_proceso' || estado === 'realizada');
