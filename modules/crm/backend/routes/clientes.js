@@ -114,6 +114,20 @@ router.get('/:id', requirePermiso('ver', 'crm'), async (req, res) => {
   }
 });
 
+// GET /api/clientes/:id/facturas — Facturas del cliente
+router.get('/:id/facturas', requirePermiso('ver', 'crm'), async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT * FROM crm.facturas WHERE cliente_id = $1 ORDER BY fecha DESC LIMIT 50`,
+      [req.params.id]
+    );
+    res.json({ ok: true, data: result.rows });
+  } catch (err) {
+    console.error('[CRM] Error listar facturas:', err);
+    res.status(500).json({ error: 'Error al listar facturas' });
+  }
+});
+
 // POST /api/clientes — Crear cliente
 router.post('/', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
   try {

@@ -338,9 +338,13 @@ async function verCliente(id) {
   if (!r.ok) return;
   const e = r.data.data;
 
-  // Fetch sucursales
-  const sucR = await apiFetch('/clientes/' + id + '/sucursales');
+  // Fetch sucursales and facturas
+  const [sucR, facR] = await Promise.all([
+    apiFetch('/clientes/' + id + '/sucursales'),
+    apiFetch('/clientes/' + id + '/facturas')
+  ]);
   const sucursales = sucR.ok ? (sucR.data.data || []) : [];
+  const facturas = facR.ok ? (facR.data.data || []) : [];
 
   document.getElementById('detalle-cliente-title').textContent = e.nombre;
   document.getElementById('detalle-cliente-content').innerHTML = `
@@ -348,6 +352,7 @@ async function verCliente(id) {
       <button class="tab-btn active" onclick="cambiarTabCliente('datos',this)">Datos Basicos</button>
       <button class="tab-btn" onclick="cambiarTabCliente('sucursales',this)">Sucursales (${sucursales.length})</button>
       <button class="tab-btn" onclick="cambiarTabCliente('contactos',this)">Contactos (${(e.contactos || []).length})</button>
+      <button class="tab-btn" onclick="cambiarTabCliente('facturas',this)">Facturas (${facturas.length})</button>
     </div>
 
     <div id="tab-cliente-datos">
@@ -392,6 +397,18 @@ async function verCliente(id) {
       ${(e.contactos || []).length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nombre</th><th>Cargo</th><th>Email</th><th>Telefono</th></tr></thead><tbody>
         ${e.contactos.map(c => `<tr><td>${esc(c.nombre)}</td><td>${esc(c.cargo || '—')}</td><td>${esc(c.email || '—')}</td><td>${esc(c.telefono || '—')}</td></tr>`).join('')}
       </tbody></table></div>` : '<p style="color:var(--muted)">Sin contactos</p>'}
+    </div>
+
+    <div id="tab-cliente-facturas" style="display:none">
+      ${facturas.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Numero</th><th>Estado</th><th>Fecha</th><th>Vencimiento</th><th>Valor Total</th></tr></thead><tbody>
+        ${facturas.map(f => `<tr>
+          <td><strong>${esc(f.numero)}</strong></td>
+          <td><span class="badge badge-${f.estado === 'Aprobadas' ? 'aprobada' : 'info'}">${esc(f.estado || '—')}</span></td>
+          <td>${formatDate(f.fecha)}</td>
+          <td>${formatDate(f.fecha_vencimiento)}</td>
+          <td><strong>$${formatMoney(f.valor_total || 0)}</strong></td>
+        </tr>`).join('')}
+      </tbody></table></div>` : '<p style="color:var(--muted)">Sin facturas registradas. Se sincronizarán cuando tengamos la API del ERP.</p>'}
     </div>
   `;
   showModal('modal-detalle-cliente');
