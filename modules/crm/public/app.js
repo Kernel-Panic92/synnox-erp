@@ -2349,20 +2349,39 @@ async function cargarAdmin(){
 function adminAbrirInicio(){
   document.getElementById('admin-inicio').style.display='';
   document.getElementById('admin-seccion').style.display='none';
-  document.getElementById('admin-btn-volver').style.display='none';
+  ocultarVolverAdmin();
 }
 function adminVolver(){ adminAbrirInicio(); }
+function mostrarVolverAdmin(texto){
+  const b=document.getElementById('btn-volver-admin');
+  if(!b) return;
+  b.textContent=texto||'← Volver';
+  b.style.display='';
+  _volverAdminFn = (texto && texto.includes('Admin')) ? function(){ navigate('admin'); } : adminAbrirInicio;
+}
+function ocultarVolverAdmin(){
+  const b=document.getElementById('btn-volver-admin');
+  if(b){ b.style.display='none'; b.textContent='← Volver'; }
+  _volverAdminFn=null;
+}
+let _volverAdminFn=null;
+function volverDesdeAdmin(){
+  const b=document.getElementById('btn-volver-admin');
+  if(b) b.style.display='none';
+  if(typeof _volverAdminFn==='function'){ _volverAdminFn(); return; }
+  navigate('admin');
+}
 async function adminAbrirSeccion(seccion){
-  // Secciones que navegan a una página propia (con botón global Volver a Admin)
+  // Secciones que navegan a una página propia (botón header '← Volver a Admin')
   if(seccion==='importar' || seccion==='descuentos'){
-    document.getElementById('btn-volver-admin').style.display='';
+    mostrarVolverAdmin('← Volver a Admin');
     navigate(seccion);
     return;
   }
-  // Sub-vistas internas con botón volver (en header admin)
+  // Sub-vistas internas (botón header '← Volver')
   const cont=document.getElementById('admin-seccion');
   document.getElementById('admin-inicio').style.display='none';
-  document.getElementById('admin-btn-volver').style.display='';
+  mostrarVolverAdmin('← Volver');
   cont.style.display='';
   if(seccion==='perfiles'){
     cont.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">Perfiles de Venta</h3><button class="btn btn-sm btn-primary" onclick="abrirModalPerfilVenta()">+ Nuevo Perfil</button></div><p style="color:var(--muted);font-size:12px">Si un usuario no está asignado a ningún perfil, no podrá crear cotizaciones (solo lectura).</p><div id="perfiles-venta-list" style="display:grid;gap:12px"></div>';
@@ -2370,10 +2389,6 @@ async function adminAbrirSeccion(seccion){
   } else if(seccion==='siesa'){
     cont.innerHTML='<h3 style="margin:0 0 12px">Sincronizar con SIESA Hub</h3><p style="color:var(--muted);font-size:13px">Integración con la API de SIESA Hub en preparación. Por ahora se importa por CSV desde la sección Importar SIESA.</p>';
   }
-}
-function volverDesdeAdmin(){
-  document.getElementById('btn-volver-admin').style.display='none';
-  navigate('admin');
 }
 async function cargarPerfilesVenta(){
   const r=await apiFetch('/perfiles-venta');
