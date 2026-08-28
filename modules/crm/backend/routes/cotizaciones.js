@@ -1,6 +1,7 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
+import { requireVentasPerfil } from './perfilesVenta.js';
 import { auditarEvento } from '../../../../framework/audit.js';
 
 const router = express.Router();
@@ -146,8 +147,8 @@ router.get('/:id', requirePermiso('crear_cotizacion', 'crm'), async (req, res) =
   }
 });
 
-// POST /api/cotizaciones — Crear cotizacion
-router.post('/', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+// POST /api/cotizaciones — Crear cotizacion (requiere perfil de venta)
+router.post('/', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil('crear_cotizacion'), async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');

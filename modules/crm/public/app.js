@@ -69,7 +69,7 @@ function mostrarLogoutConfirm() {
 }
 
 // ── Navigation ──
-const pages = ['dashboard', 'pipeline', 'leads', 'clientes', 'contactos', 'visitas', 'cotizaciones', 'productos', 'inventario', 'importar', 'descuentos'];
+const pages = ['dashboard', 'pipeline', 'leads', 'clientes', 'contactos', 'visitas', 'cotizaciones', 'productos', 'inventario', 'importar', 'descuentos', 'admin'];
 function navigate(page) {
   if (!pages.includes(page)) page = 'dashboard';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -78,7 +78,7 @@ function navigate(page) {
   const nav = document.querySelector(`[data-page="${page}"]`);
   if (el) el.classList.add('active');
   if (nav) nav.classList.add('active');
-  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', leads: 'Clientes Potenciales', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Actividades', cotizaciones: 'Cotizaciones', productos: 'Productos', inventario: 'Inventario', importar: 'Importar SIESA', descuentos: 'Descuentos' };
+  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', leads: 'Clientes Potenciales', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Actividades', cotizaciones: 'Cotizaciones', productos: 'Productos', inventario: 'Inventario', importar: 'Importar SIESA', descuentos: 'Descuentos', admin: 'Admin' };
   document.getElementById('page-title').textContent = titles[page] || 'CRM';
   if (page === 'dashboard') cargarDashboard();
   if (page === 'pipeline') cargarPipeline();
@@ -91,6 +91,7 @@ function navigate(page) {
   if (page === 'inventario') cargarInventario();
   if (page === 'importar') cargarPaginaImportar();
   if (page === 'descuentos') cargarDescuentos();
+  if (page === 'admin') cargarPerfilesVenta();
 }
 
 // ── Dashboard ──
@@ -2309,3 +2310,76 @@ function toggleSelectAll(checkbox, tipo) {
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.querySelector('.sidebar-overlay').classList.toggle('open'); }
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.querySelector('.sidebar-overlay').classList.remove('open'); }
 function toggleSidebarCollapse() { document.getElementById('sidebar').classList.toggle('collapsed'); }
+
+// ── Admin Perfiles Venta ──
+const CRM_PERMISOS = ['ver','crear_contacto','editar_contacto','eliminar_contacto','ver_pipeline','editar_pipeline','crear_oportunidad','registrar_visita','ver_visitas','ver_mis_visitas','crear_cotizacion','aprobar_descuento','campanas','reportes','configurar','siesa_sync'];
+let _perfilesVentaCache=[];
+async function cargarPerfilesVenta(){
+  const r=await apiFetch('/perfiles-venta');
+  if(!r.ok) return toast(r.data?.error||'Error cargando perfiles','error');
+  _perfilesVentaCache=r.data.data||[];
+  const c=document.getElementById('perfiles-venta-list');
+  c.innerHTML=_perfilesVentaCache.map(p=>`
+    <div style="border:1px solid var(--border);border-radius:10px;padding:14px;background:var(--surface)">
+      <div style="display:flex;justify-content:space-between;gap:8px">
+        <div><strong>${esc(p.nombre)}</strong> <span style="color:var(--muted);font-size:12px">(${p.usuarios_count} usuarios)</span><br><span style="color:var(--muted);font-size:12px">${esc(p.descripcion||'')}</span><br><span style="font-size:11px;color:var(--muted)">${(p.permisos||[]).join(', ')||'sin permisos'}</span></div>
+        <div style="display:flex;gap:6px;align-items:start">
+          <button class="btn btn-sm btn-secondary" onclick="abrirModalPerfilVentaUsuarios(${p.id})">Usuarios</button>
+          <button class="btn btn-sm btn-secondary" onclick="abrirModalPerfilVenta(${p.id})">Editar</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarPerfilVenta(${p.id})">Eliminar</button>
+        </div>
+      </div>
+    </div>`).join('') || '<p style="color:var(--muted)">Sin perfiles</p>';
+}
+function abrirModalPerfilVenta(id){
+  const p=id? _perfilesVentaCache.find(x=>x.id===id):null;
+  document.getElementById('perfil-venta-id').value=p?.id||'';
+  document.getElementById('perfil-venta-nombre').value=p?.nombre||'';
+  document.getElementById('perfil-venta-desc').value=p?.descripcion||'';
+  const cont=document.getElementById('perfil-venta-permisos');
+  cont.innerHTML=CRM_PERMISOS.map(perm=>`<label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" value="${perm}" ${(p?.permisos||[]).includes(perm)?'checked':''}> ${perm}</label>`).join('');
+  showModal('modal-perfil-venta');
+}
+async function guardarPerfilVenta(){
+  const id=document.getElementById('perfil-venta-id').value;
+  const nombre=document.getElementById('perfil-venta-nombre').value.trim();
+  const descripcion=document.getElementById('perfil-venta-desc').value.trim();
+  const permisos=[...document.querySelectorAll('#perfil-venta-permisos input:checked')].map(i=>i.value);
+  if(!nombre) return toast('Nombre requerido','error');
+  const r=id? await apiFetch('/perfiles-venta/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre,descripcion,permisos})})
+             : await apiFetch('/perfiles-venta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre,descripcion,permisos})});
+  if(!r.ok) return toast(r.data?.error||'Error','error');
+  hideModal('modal-perfil-venta'); cargarPerfilesVenta();
+}
+async function eliminarPerfilVenta(id){
+  confirmar({titulo:'Eliminar perfil',mensaje:'¿Eliminar perfil de venta?',icono:'🗑️',onConfirm: async()=>{
+    const r=await apiFetch('/perfiles-venta/'+id,{method:'DELETE'}); if(!r.ok) return toast(r.data?.error||'Error','error');
+    toast('Eliminado','success'); cargarPerfilesVenta();
+  }});
+}
+let _perfilVentaUsuariosCache=[];
+async function abrirModalPerfilVentaUsuarios(id){
+  document.getElementById('perfil-venta-usuarios-id').value=id;
+  const title=_perfilesVentaCache.find(x=>x.id===id)?.nombre||'';
+  document.getElementById('perfil-venta-usuarios-title').textContent='Asignar usuarios — '+title;
+  const r=await apiFetch('/perfiles-venta/'+id+'/usuarios'); if(!r.ok) return toast(r.data?.error||'Error','error');
+  _perfilVentaUsuariosCache=r.data.usuarios||[];
+  const asignados=new Set(r.data.asignados||[]);
+  document.getElementById('perfil-venta-usuarios-lista').innerHTML=_perfilVentaUsuariosCache.map(u=>`<label style="display:flex;gap:8px;align-items:center;padding:6px;border-bottom:1px solid var(--border)"><input type="checkbox" value="${u.id}" ${asignados.has(u.id)?'checked':''}> <span style="flex:1"><strong>${esc(u.nombre)}</strong> <span style="color:var(--muted)">${esc(u.email||'')}</span></span><span style="font-size:11px;color:var(--muted)">${esc(u.rol||'')}</span></label>`).join('');
+  document.getElementById('perfil-venta-usuarios-filtro').value='';
+  showModal('modal-perfil-venta-usuarios');
+}
+function filtrarPerfilVentaUsuarios(){
+  const q=document.getElementById('perfil-venta-usuarios-filtro').value.toLowerCase();
+  document.querySelectorAll('#perfil-venta-usuarios-lista label').forEach(l=>{ l.style.display=l.textContent.toLowerCase().includes(q)?'':'none'; });
+}
+function perfilVentaSelTodos(v){
+  document.querySelectorAll('#perfil-venta-usuarios-lista input[type=checkbox]').forEach(cb=>{ if(cb.closest('label').style.display!=='none') cb.checked=v; });
+}
+async function guardarPerfilVentaUsuarios(){
+  const id=document.getElementById('perfil-venta-usuarios-id').value;
+  const usuario_ids=[...document.querySelectorAll('#perfil-venta-usuarios-lista input:checked')].map(i=>parseInt(i.value));
+  const r=await apiFetch('/perfiles-venta/'+id+'/usuarios',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({usuario_ids})});
+  if(!r.ok) return toast(r.data?.error||'Error','error');
+  toast('Asignaciones guardadas','success'); hideModal('modal-perfil-venta-usuarios'); cargarPerfilesVenta();
+}

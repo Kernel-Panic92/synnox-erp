@@ -109,6 +109,7 @@
     <button class="nav-item" data-page="inventario" onclick="navigate('inventario')"><span class="icon">📊</span> Inventario</button>
     <button class="nav-item" data-page="importar" onclick="navigate('importar')"><span class="icon">📥</span> Importar SIESA</button>
     <button class="nav-item" data-page="descuentos" onclick="navigate('descuentos')"><span class="icon">💰</span> Descuentos</button>
+    <button class="nav-item" data-page="admin" onclick="navigate('admin')"><span class="icon">⚙️</span> Admin</button>
   </nav>
   <div class="sidebar-footer">
     <a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a>
@@ -489,6 +490,16 @@
           </table>
         </div>
         <div class="pagination" id="pag-inventario"></div>
+      </div>
+
+      <!-- Admin: Perfiles de Venta -->
+      <div class="page" id="page-admin">
+        <div class="page-header">
+          <h3>Admin — Perfiles de Venta</h3>
+          <div class="page-actions"><button class="btn btn-sm btn-primary" onclick="abrirModalPerfilVenta()">+ Nuevo Perfil</button></div>
+        </div>
+        <p style="color:var(--muted);font-size:13px">Los perfiles de venta son internos del CRM. Si un usuario no está asignado a ninguno, no podrá crear cotizaciones (solo lectura). Gestiona aquí sin tocar el launcher.</p>
+        <div id="perfiles-venta-list" style="display:grid;gap:12px;margin-top:12px"></div>
       </div>
 
     </div>
@@ -1182,6 +1193,27 @@
       <button class="btn btn-secondary" onclick="hideModal('modal-producto')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarProducto()">Guardar</button>
     </div>
+  </div>
+</div>
+
+<!-- Modal Perfil Venta -->
+<div class="modal-overlay" id="modal-perfil-venta">
+  <div class="modal" style="max-width:560px">
+    <h3 id="modal-perfil-venta-title">Nuevo Perfil de Venta</h3>
+    <input type="hidden" id="perfil-venta-id">
+    <div class="form-group"><label>Nombre *</label><input type="text" id="perfil-venta-nombre" placeholder="Ej: CRM - Comercial"></div>
+    <div class="form-group"><label>Descripcion</label><input type="text" id="perfil-venta-desc"></div>
+    <div class="form-group"><label>Permisos</label><div id="perfil-venta-permisos" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:10px"></div></div>
+    <div class="btn-row"><button class="btn btn-secondary" onclick="hideModal('modal-perfil-venta')">Cancelar</button><button class="btn btn-primary" onclick="guardarPerfilVenta()">Guardar</button></div>
+  </div>
+</div>
+<div class="modal-overlay" id="modal-perfil-venta-usuarios">
+  <div class="modal" style="max-width:520px">
+    <h3 id="modal-perfil-venta-usuarios-title">Asignar usuarios</h3>
+    <input type="hidden" id="perfil-venta-usuarios-id">
+    <div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" id="perfil-venta-usuarios-filtro" placeholder="Filtrar por nombre o email..." oninput="filtrarPerfilVentaUsuarios()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px"><button class="btn btn-sm btn-secondary" onclick="perfilVentaSelTodos(true)">Todos</button><button class="btn btn-sm btn-secondary" onclick="perfilVentaSelTodos(false)">Ninguno</button></div>
+    <div id="perfil-venta-usuarios-lista" style="max-height:340px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div>
+    <div class="btn-row"><button class="btn btn-secondary" onclick="hideModal('modal-perfil-venta-usuarios')">Cancelar</button><button class="btn btn-primary" onclick="guardarPerfilVentaUsuarios()">Guardar</button></div>
   </div>
 </div>
 
