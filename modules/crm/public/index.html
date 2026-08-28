@@ -217,6 +217,13 @@
           <select id="filtro-cliente-ciudad" onchange="cargarClientes()">
             <option value="">Todas las ciudades</option>
           </select>
+          <select id="filtro-cliente-canal" onchange="cargarClientes()">
+            <option value="">Todos los canales</option>
+            <option value="HORECA">HORECA</option>
+            <option value="CUENTA CLAVE">Cuenta Clave</option>
+            <option value="VENTA DIRECTA">Venta Directa</option>
+            <option value="COMERCIO ELECTRONICO">Com. Electronico</option>
+          </select>
           <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosClientes()">✕ Limpiar</button>
           <select id="filtro-cliente-limit" onchange="clientesLimit=parseInt(this.value);_clientesPage=1;cargarClientes()" style="margin-left:auto">
             <option value="20">20 por página</option>
@@ -332,11 +339,10 @@
                 <th>Cliente</th>
                 <th>Estado</th>
                 <th>Items</th>
-                <th>Subtotal</th>
-                <th>Descuento</th>
-                <th>IVA</th>
                 <th>Total</th>
                 <th>Vencimiento</th>
+                <th>Estado ERP</th>
+                <th>Doc. ERP</th>
                 <th>Acciones</th>
               </tr>
             </thead>

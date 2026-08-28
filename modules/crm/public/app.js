@@ -283,9 +283,11 @@ function formatMoney(n) {
 async function cargarClientes() {
   const search = document.getElementById('filtro-cliente-search').value;
   const tipo = document.getElementById('filtro-cliente-tipo').value;
+  const canal = document.getElementById('filtro-cliente-canal')?.value || '';
   const params = new URLSearchParams({ page: _clientesPage, limit: clientesLimit });
   if (search) params.set('search', search);
   if (tipo) params.set('tipo', tipo);
+  if (canal) params.set('canal', canal);
   const r = await apiFetch('/clientes?' + params);
   if (!r.ok) return;
   const tbody = document.getElementById('tbody-clientes');
@@ -317,6 +319,7 @@ function limpiarFiltrosClientes() {
   document.getElementById('filtro-cliente-search').value = '';
   document.getElementById('filtro-cliente-tipo').value = '';
   document.getElementById('filtro-cliente-ciudad').value = '';
+  document.getElementById('filtro-cliente-canal').value = '';
   clientesLimit = 20;
   document.getElementById('filtro-cliente-limit').value = '20';
   _clientesPage = 1;
@@ -1162,6 +1165,7 @@ async function cargarCotizaciones() {
 
     const tbody = document.getElementById('tbody-cotizaciones');
     const data = r.data.data || [];
+    const erpColors = { '': 'info', 'borrador': 'info', 'enviada': 'warning', 'aprobada': 'success', 'rechazada': 'danger', 'vencida': 'muted', 'convertida': 'success' };
     tbody.innerHTML = data.map(c => `
       <tr>
         <td><input type="checkbox" class="row-check cb-cotizacion" value="${c.id}" onchange="updateBulkBar()"></td>
@@ -1169,11 +1173,10 @@ async function cargarCotizaciones() {
         <td>${esc(c.cliente_nombre || '—')}</td>
         <td><span class="badge badge-${c.estado}">${esc(c.estado)}</span></td>
         <td>${c.total_items || 0}</td>
-        <td>$${formatMoney(c.valor_subtotal || 0)}</td>
-        <td>$${formatMoney(c.valor_descuento || 0)}</td>
-        <td>$${formatMoney(c.valor_iva || 0)}</td>
         <td><strong>$${formatMoney(c.valor_total || 0)}</strong></td>
         <td>${formatDate(c.vencimiento)}</td>
+        <td>${esc(c.estado_erp || '—')}</td>
+        <td>${esc(c.documento_erp || '—')}</td>
         <td>
           <button class="btn btn-sm btn-secondary" onclick="editarCotizacion('${c.id}')">Editar</button>
           ${c.estado === 'borrador' ? `<button class="btn btn-sm btn-danger" onclick="eliminarCotizacion('${c.id}')">Eliminar</button>` : ''}

@@ -8,7 +8,7 @@ const router = express.Router();
 // GET /api/clientes — Listar clientes con filtros, busqueda y paginacion
 router.get('/', requirePermiso('ver', 'crm'), async (req, res) => {
   try {
-    const { tipo, vendedor, ciudad, search, page = 1, limit = 20, sort = 'creado_en', order = 'desc' } = req.query;
+    const { tipo, vendedor, ciudad, canal, search, page = 1, limit = 20, sort = 'creado_en', order = 'desc' } = req.query;
     const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
     const conditions = ['e.activo = TRUE'];
     const params = [];
@@ -17,6 +17,10 @@ router.get('/', requirePermiso('ver', 'crm'), async (req, res) => {
     if (tipo) {
       conditions.push(`e.tipo = $${paramIdx++}`);
       params.push(tipo);
+    }
+    if (canal) {
+      conditions.push(`e.canal ILIKE $${paramIdx++}`);
+      params.push(`%${canal}%`);
     }
     if (vendedor) {
       conditions.push(`e.vendedor_asignado = $${paramIdx++}`);
