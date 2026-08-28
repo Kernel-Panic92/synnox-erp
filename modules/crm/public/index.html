@@ -19,6 +19,8 @@
 .tbl th,.tbl td{padding:10px 12px;text-align:left;border-bottom:1px solid var(--border)}
 .tbl th{background:var(--surface2);font-weight:600;font-size:12px;text-transform:uppercase;letter-spacing:.3px;color:var(--muted);position:sticky;top:0}
 .tbl tr:hover td{background:var(--surface2)}
+.filter-row th{padding:4px 6px !important;background:var(--surface) !important}
+.filter-row input{width:100%;padding:4px 8px;border:1px solid var(--border);border-radius:4px;background:var(--surface);color:var(--text);font-size:11px}
 .tbl .badge{display:inline-block;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600}
 .badge-potencial{background:#fff3cd;color:#856404}
 .badge-real{background:#d4edda;color:#155724}
@@ -207,15 +209,12 @@
           </div>
         </div>
         <div class="filters">
-          <input type="text" id="filtro-cliente-search" placeholder="Buscar cliente..." oninput="cargarClientes()">
+          <input type="text" id="filtro-cliente-search" placeholder="Buscar por nombre, NIT o sector..." oninput="cargarClientes()">
           <select id="filtro-cliente-tipo" onchange="cargarClientes()">
             <option value="">Todos los tipos</option>
             <option value="potencial">Potencial</option>
             <option value="real">Real</option>
             <option value="siesa">SIESA</option>
-          </select>
-          <select id="filtro-cliente-ciudad" onchange="cargarClientes()">
-            <option value="">Todas las ciudades</option>
           </select>
           <select id="filtro-cliente-canal" onchange="cargarClientes()">
             <option value="">Todos los canales</option>
@@ -224,13 +223,16 @@
             <option value="VENTA DIRECTA">Venta Directa</option>
             <option value="COMERCIO ELECTRONICO">Com. Electronico</option>
           </select>
-          <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosClientes()">✕ Limpiar</button>
-          <select id="filtro-cliente-limit" onchange="clientesLimit=parseInt(this.value);_clientesPage=1;cargarClientes()" style="margin-left:auto">
-            <option value="20">20 por página</option>
-            <option value="100">100 por página</option>
-            <option value="500">500 por página</option>
-            <option value="1000">1000 por página</option>
+          <select id="filtro-cliente-ciudad" onchange="cargarClientes()">
+            <option value="">Todas las ciudades</option>
           </select>
+          <select id="filtro-cliente-limit" onchange="clientesLimit=parseInt(this.value);_clientesPage=1;cargarClientes()" style="margin-left:auto">
+            <option value="20">20</option>
+            <option value="100">100</option>
+            <option value="500">500</option>
+            <option value="1000">1000</option>
+          </select>
+          <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosClientes()">✕ Limpiar</button>
         </div>
         <div class="tbl-wrap">
           <table class="tbl" id="tbl-clientes">
@@ -240,10 +242,22 @@
                 <th>Nombre</th>
                 <th>NIT</th>
                 <th>Tipo</th>
+                <th>Canal</th>
                 <th>Ciudad</th>
                 <th>Contactos</th>
                 <th>Creado</th>
                 <th>Acciones</th>
+              </tr>
+              <tr class="filter-row">
+                <th></th>
+                <th><input type="text" id="filtro-col-nombre" placeholder="Buscar Nombre" oninput="cargarClientes()"></th>
+                <th><input type="text" id="filtro-col-nit" placeholder="Buscar NIT" oninput="cargarClientes()"></th>
+                <th></th>
+                <th></th>
+                <th><input type="text" id="filtro-col-ciudad" placeholder="Buscar Ciudad" oninput="cargarClientes()"></th>
+                <th></th>
+                <th></th>
+                <th></th>
               </tr>
             </thead>
             <tbody id="tbody-clientes"></tbody>

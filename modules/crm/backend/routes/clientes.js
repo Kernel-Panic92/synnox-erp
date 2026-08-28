@@ -8,7 +8,7 @@ const router = express.Router();
 // GET /api/clientes — Listar clientes con filtros, busqueda y paginacion
 router.get('/', requirePermiso('ver', 'crm'), async (req, res) => {
   try {
-    const { tipo, vendedor, ciudad, canal, search, page = 1, limit = 20, sort = 'creado_en', order = 'desc' } = req.query;
+    const { tipo, vendedor, ciudad, canal, search, col_nombre, col_nit, col_ciudad, page = 1, limit = 20, sort = 'creado_en', order = 'desc' } = req.query;
     const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
     const conditions = ['e.activo = TRUE'];
     const params = [];
@@ -29,6 +29,18 @@ router.get('/', requirePermiso('ver', 'crm'), async (req, res) => {
     if (ciudad) {
       conditions.push(`e.ciudad ILIKE $${paramIdx++}`);
       params.push(`%${ciudad}%`);
+    }
+    if (col_nombre) {
+      conditions.push(`e.nombre ILIKE $${paramIdx++}`);
+      params.push(`%${col_nombre}%`);
+    }
+    if (col_nit) {
+      conditions.push(`e.nit ILIKE $${paramIdx++}`);
+      params.push(`%${col_nit}%`);
+    }
+    if (col_ciudad) {
+      conditions.push(`e.ciudad ILIKE $${paramIdx++}`);
+      params.push(`%${col_ciudad}%`);
     }
     if (search) {
       conditions.push(`(e.nombre ILIKE $${paramIdx} OR e.nit ILIKE $${paramIdx} OR e.sector ILIKE $${paramIdx})`);

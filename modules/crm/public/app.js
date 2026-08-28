@@ -281,24 +281,31 @@ function formatMoney(n) {
   return Number(n).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 async function cargarClientes() {
-  const search = document.getElementById('filtro-cliente-search').value;
-  const tipo = document.getElementById('filtro-cliente-tipo').value;
+  const search = document.getElementById('filtro-cliente-search')?.value || '';
+  const tipo = document.getElementById('filtro-cliente-tipo')?.value || '';
   const canal = document.getElementById('filtro-cliente-canal')?.value || '';
+  const colNombre = document.getElementById('filtro-col-nombre')?.value || '';
+  const colNit = document.getElementById('filtro-col-nit')?.value || '';
+  const colCiudad = document.getElementById('filtro-col-ciudad')?.value || '';
   const params = new URLSearchParams({ page: _clientesPage, limit: clientesLimit });
   if (search) params.set('search', search);
   if (tipo) params.set('tipo', tipo);
   if (canal) params.set('canal', canal);
+  if (colNombre) params.set('col_nombre', colNombre);
+  if (colNit) params.set('col_nit', colNit);
+  if (colCiudad) params.set('col_ciudad', colCiudad);
   const r = await apiFetch('/clientes?' + params);
   if (!r.ok) return;
   const tbody = document.getElementById('tbody-clientes');
   const data = r.data.data || [];
-  tbody.innerHTML = data.map(e => `
-    <tr>
-      <td><input type="checkbox" class="row-check cb-cliente" value="${e.id}" onchange="updateBulkBar()"></td>
-      <td><a href="#" onclick="verCliente('${e.id}');return false" style="color:var(--accent)">${esc(e.nombre)}</a></td>
-      <td>${esc(e.nit || '—')}</td>
-      <td><span class="badge badge-${esc(e.tipo)}">${esc(e.tipo)}</span></td>
-      <td>${esc(e.ciudad || '—')}</td>
+    tbody.innerHTML = data.map(e => `
+      <tr>
+        <td><input type="checkbox" class="row-check cb-cliente" value="${e.id}" onchange="updateBulkBar()"></td>
+        <td><a href="#" onclick="verCliente('${e.id}');return false" style="color:var(--accent)">${esc(e.nombre)}</a></td>
+        <td>${esc(e.nit || '—')}</td>
+        <td><span class="badge badge-${esc(e.tipo)}">${esc(e.tipo)}</span></td>
+        <td>${esc(e.canal || '—')}</td>
+        <td>${esc(e.ciudad || '—')}</td>
       <td>${e.total_contactos || 0}</td>
       <td>${formatDate(e.creado_en)}</td>
       <td>
