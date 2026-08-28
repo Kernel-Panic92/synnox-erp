@@ -338,13 +338,15 @@ async function verCliente(id) {
   if (!r.ok) return;
   const e = r.data.data;
 
-  // Fetch sucursales and facturas
-  const [sucR, facR] = await Promise.all([
+  // Fetch sucursales, facturas and cotizaciones
+  const [sucR, facR, cotR] = await Promise.all([
     apiFetch('/clientes/' + id + '/sucursales'),
-    apiFetch('/clientes/' + id + '/facturas')
+    apiFetch('/clientes/' + id + '/facturas'),
+    apiFetch('/cotizaciones?cliente_id=' + id + '&limit=50')
   ]);
   const sucursales = sucR.ok ? (sucR.data.data || []) : [];
   const facturas = facR.ok ? (facR.data.data || []) : [];
+  const cotizaciones = cotR.ok ? (cotR.data.data || []) : [];
 
   document.getElementById('detalle-cliente-title').textContent = e.nombre;
   document.getElementById('detalle-cliente-content').innerHTML = `
@@ -352,6 +354,7 @@ async function verCliente(id) {
       <button class="tab-btn active" onclick="cambiarTabCliente('datos',this)">Datos Basicos</button>
       <button class="tab-btn" onclick="cambiarTabCliente('sucursales',this)">Sucursales (${sucursales.length})</button>
       <button class="tab-btn" onclick="cambiarTabCliente('contactos',this)">Contactos (${(e.contactos || []).length})</button>
+      <button class="tab-btn" onclick="cambiarTabCliente('cotizaciones',this)">Cotizaciones (${cotizaciones.length})</button>
       <button class="tab-btn" onclick="cambiarTabCliente('facturas',this)">Facturas (${facturas.length})</button>
     </div>
 
@@ -409,6 +412,18 @@ async function verCliente(id) {
           <td><strong>$${formatMoney(f.valor_total || 0)}</strong></td>
         </tr>`).join('')}
       </tbody></table></div>` : '<p style="color:var(--muted)">Sin facturas registradas. Se sincronizarán cuando tengamos la API del ERP.</p>'}
+    </div>
+
+    <div id="tab-cliente-cotizaciones" style="display:none">
+      ${cotizaciones.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Numero</th><th>Estado</th><th>Estado ERP</th><th>Total</th><th>Vencimiento</th></tr></thead><tbody>
+        ${cotizaciones.map(c => `<tr style="cursor:pointer" onclick="hideModal('modal-detalle-cliente');verCotizacion('${c.id}')">
+          <td><a href="#" style="color:var(--accent)">${esc(c.numero)}</a></td>
+          <td><span class="badge badge-${c.estado}">${esc(c.estado)}</span></td>
+          <td>${esc(c.estado_erp || '—')}</td>
+          <td><strong>$${formatMoney(c.valor_total || 0)}</strong></td>
+          <td>${formatDate(c.vencimiento)}</td>
+        </tr>`).join('')}
+      </tbody></table></div>` : '<p style="color:var(--muted)">Sin cotizaciones para este cliente.</p>'}
     </div>
   `;
   showModal('modal-detalle-cliente');
