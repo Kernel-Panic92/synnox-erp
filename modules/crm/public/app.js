@@ -695,14 +695,7 @@ async function enviarLeadERP(id, nombre) {
   confirmar({ titulo: 'Convertir a tercero', mensaje: `Enviar "${nombre}" al ERP para crear tercero?`, icono: '🔄', onConfirm: async () => {
     const r = await apiFetch('/leads/' + id + '/convertir', { method: 'POST' });
     if (r.status === 503) {
-      // API no disponible - mostrar datos para copiar al ERP
-      const datos = r.data?.datos_tercero;
-      toast('API de SIESA no disponible. Crea el tercero manualmente en el ERP.', 'error');
-      if (datos) {
-        console.log('Datos para crear tercero en ERP:', datos);
-        // Mostrar modal con los datos
-        alert(`Datos para crear tercero en ERP:\n\nCódigo: ${datos.codigo}\nRazón social: ${datos.razon_social}\nNIT: ${datos.nit}\nDirección: ${datos.direccion}\nCiudad: ${datos.ciudad}\nEmail: ${datos.email}\nTeléfono: ${datos.telefono}\n\nDespués de crearlo, marca como "Convertido".`);
-      }
+      toast('API de SIESA no disponible. Solicita a contabilidad la creación del tercero.', 'error');
       return;
     }
     if (!r.ok) return toast(r.data?.error || 'Error al enviar', 'error');
