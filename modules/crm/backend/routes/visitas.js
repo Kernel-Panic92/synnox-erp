@@ -72,17 +72,21 @@ async function guardarVisita({ tipo, cliente_id, contacto_id, oportunidad_id, ve
   return result.rows[0];
 }
 
-// POST /api/actividades — Crear actividad (sin GPS, para reuniones/llamadas/notas)
-router.post('/actividades', requirePermiso('registrar_visita', 'crm'), async (req, res) => {
+// POST /api/actividades — Crear actividad (con GPS auto si Reunión en Proceso/Realizada + foto)
+router.post('/actividades', requirePermiso('registrar_visita', 'crm'), upload.single('foto'), async (req, res) => {
   try {
-    const { cliente_id, contacto_id, asunto, lugar, tipo_actividad, descripcion, fecha_inicio, fecha_fin, estado, recordatorio } = req.body;
+    const { cliente_id, contacto_id, asunto, lugar, tipo_actividad, descripcion, fecha_inicio, fecha_fin, estado, recordatorio, latitud, longitud, precision_gps } = req.body;
     if (!cliente_id) return res.status(400).json({ error: 'El cliente es obligatorio' });
     if (!asunto && !descripcion) return res.status(400).json({ error: 'El asunto es obligatorio' });
+
+    const evidencia_foto = req.file ? `/crm/uploads/visitas/${req.file.filename}` : null;
 
     const actividad = await guardarVisita({
       tipo: tipo_actividad === 'reunion' ? 'checkin' : tipo_actividad,
       cliente_id, contacto_id,
-      vendedor_id: req.user.id, latitud: null, longitud: null,
+      vendedor_id: req.user.id,
+      latitud: latitud || null, longitud: longitud || null, precision_gps: precision_gps || null,
+      evidencia_foto,
       asunto, lugar, tipo_actividad, descripcion,
       fecha_inicio: fecha_inicio || new Date(),
       fecha_fin, estado, recordatorio,

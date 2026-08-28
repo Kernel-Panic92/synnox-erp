@@ -1106,29 +1106,164 @@ function limpiarFiltrosVisitas() {
   cargarVisitas();
 }
 
+let _actClientesCache = [];
+
+async function cargarActClientesCache() {
+  if (_actClientesCache.length) return _actClientesCache;
+  const r = await apiFetch('/clientes?limit=1000');
+  if (!r.ok) return [];
+  const data = r.data.data || r.data || [];
+  _actClientesCache = Array.isArray(data) ? data : [];
+  return _actClientesCache;
+}
+
+function filtrarActClientes(q) {
+  const sel = document.getElementById('act-cliente');
+  const selectedDiv = document.getElementById('act-cliente-selected');
+  const qq = (q || '').toLowerCase().trim();
+  if (!qq) { sel.style.display = 'none'; sel.innerHTML = ''; return; }
+  const filtered = _actClientesCache.filter(c =>
+    (c.nombre && c.nombre.toLowerCase().includes(qq)) ||
+    (c.nit && String(c.nit).toLowerCase().includes(qq)) ||
+    (c.codigo_siesa && String(c.codigo_siesa).toLowerCase().includes(qq))
+  ).slice(0, 20);
+  if (!filtered.length) { sel.innerHTML = '<option>No hay resultados</option>'; sel.style.display = ''; return; }
+  sel.innerHTML = filtered.map(c => `<option value="${c.id}">${esc(c.nombre)} — ${esc(c.nit || c.codigo_siesa || '')}</option>`).join('');
+  sel.style.display = '';
+  sel.onchange = () => {
+    const opt = sel.options[sel.selectedIndex];
+    if (!opt || !opt.value) return;
+    selectedDiv.textContent = '✓ ' + opt.textContent + '  ✕';
+    selectedDiv.style.display = '';
+    selectedDiv.title = 'Click para quitar';
+    selectedDiv.style.cursor = 'pointer';
+    selectedDiv.onclick = () => { selectedDiv.style.display = 'none'; sel.value = ''; };
+    sel.style.display = 'none';
+    document.getElementById('act-cliente-search').value = '';
+  };
+}
+
+function actualizarActGPSGroup() {
+  const tipo = document.getElementById('act-tipo')?.value;
+  const estado = document.getElementById('act-estado')?.value;
+  const group = document.getElementById('act-gps-group');
+  if (!group) return;
+  const necesita = tipo === 'reunion' && (estado === 'en_proceso' || estado === 'realizada');
+  group.style.display = necesita ? '' : 'none';
+  if (necesita) {
+    const coordsEl = document.getElementById('act-coords');
+    if (!coordsEl.value || coordsEl.value === '—') obtenerGPSAct();
+  }
+}
+
+function obtenerGPSAct() {
+  const el = document.getElementById('act-coords');
+  if (!el) return;
+  if (!navigator.geolocation) { el.value = 'GPS no disponible'; return; }
+  el.value = 'Obteniendo GPS...';
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude.toFixed(6);
+    const lng = pos.coords.longitude.toFixed(6);
+    el.value = `${lat}, ${lng}`;
+    el.dataset.lat = lat;
+    el.dataset.lng = lng;
+    el.dataset.precision = String(Math.round(pos.coords.accuracy));
+  }, err => {
+    el.value = 'Error GPS: ' + err.message;
+  }, { enableHighAccuracy: true, timeout: 10000 });
+}
+
+function obtenerGPSActPromise() {
+  return new Promise(resolve => {
+    const el = document.getElementById('act-coords');
+    if (el && el.dataset.lat && el.dataset.lng) return resolve();
+    if (!navigator.geolocation) return resolve();
+    navigator.geolocation.getCurrentPosition(pos => {
+      if (el) {
+        el.value = `${pos.coords.latitude.toFixed(6)}, ${pos.coords.longitude.toFixed(6)}`;
+        el.dataset.lat = String(pos.coords.latitude.toFixed(6));
+        el.dataset.lng = String(pos.coords.longitude.toFixed(6));
+        el.dataset.precision = String(Math.round(pos.coords.accuracy));
+      }
+      resolve();
+    }, () => resolve(), { enableHighAccuracy: true, timeout: 7000 });
+  });
+}
+
 async function abrirModalCrearActividad() {
-  await cargarClientesSelect('act-cliente', '');
+  document.getElementById('act-asunto').value = '';
+  document.getElementById('act-descripcion').value = '';
+  document.getElementById('act-tipo').value = 'reunion';
+  document.getElementById('act-lugar').value = '';
+  document.getElementById('act-fecha-inicio').value = '';
+  document.getElementById('act-fecha-fin').value = '';
+  document.getElementById('act-estado').value = 'no_iniciada';
+  document.getElementById('act-recordatorio').value = 'nunca';
+  document.getElementById('act-foto').value = '';
+  document.getElementById('act-coords').value = '';
+  document.getElementById('act-coords').dataset.lat = '';
+  document.getElementById('act-coords').dataset.lng = '';
+  document.getElementById('act-coords').dataset.precision = '';
+  document.getElementById('act-cliente-search').value = '';
+  document.getElementById('act-cliente').value = '';
+  document.getElementById('act-cliente').style.display = 'none';
+  document.getElementById('act-cliente').innerHTML = '';
+  document.getElementById('act-cliente-selected').style.display = 'none';
+  document.getElementById('act-cliente-selected').textContent = '';
+  await cargarActClientesCache();
+  const tipoEl = document.getElementById('act-tipo');
+  const estadoEl = document.getElementById('act-estado');
+  tipoEl.onchange = actualizarActGPSGroup;
+  estadoEl.onchange = actualizarActGPSGroup;
+  actualizarActGPSGroup();
   showModal('modal-crear-actividad');
 }
 
 async function guardarActividad() {
-  const body = {
-    cliente_id: document.getElementById('act-cliente').value,
-    asunto: document.getElementById('act-asunto').value,
-    descripcion: document.getElementById('act-descripcion').value,
-    tipo_actividad: document.getElementById('act-tipo').value,
-    lugar: document.getElementById('act-lugar').value,
-    fecha_inicio: document.getElementById('act-fecha-inicio').value || null,
-    fecha_fin: document.getElementById('act-fecha-fin').value || null,
-    estado: document.getElementById('act-estado').value,
-    recordatorio: document.getElementById('act-recordatorio').value
-  };
-  if (!body.cliente_id) return toast('Selecciona un cliente', 'error');
-  if (!body.asunto && !body.descripcion) return toast('Escribe el nombre de la actividad', 'error');
+  const clienteId = document.getElementById('act-cliente').value;
+  const asunto = document.getElementById('act-asunto').value.trim();
+  const descripcion = document.getElementById('act-descripcion').value.trim();
+  const tipo = document.getElementById('act-tipo').value;
+  const estado = document.getElementById('act-estado').value;
+  if (!clienteId) return toast('Selecciona un cliente (busca por NIT o nombre y elige)', 'error');
+  if (!asunto && !descripcion) return toast('Escribe el nombre de la actividad', 'error');
 
-  const r = await apiFetch('/actividades', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  if (!r.ok) return toast(r.data?.error || 'Error al crear', 'error');
-  toast('Actividad creada', 'success');
+  const btn = document.getElementById('btn-guardar-actividad');
+  const necesitaGPS = tipo === 'reunion' && (estado === 'en_proceso' || estado === 'realizada');
+  if (necesitaGPS) {
+    const coordsEl = document.getElementById('act-coords');
+    if (!coordsEl.dataset.lat) {
+      btn.disabled = true; btn.textContent = 'Obteniendo GPS...';
+      await obtenerGPSActPromise();
+      btn.disabled = false; btn.textContent = 'Guardar';
+    }
+  }
+
+  const fd = new FormData();
+  fd.append('cliente_id', clienteId);
+  fd.append('asunto', asunto);
+  fd.append('descripcion', descripcion);
+  fd.append('tipo_actividad', tipo);
+  fd.append('lugar', document.getElementById('act-lugar').value);
+  fd.append('fecha_inicio', document.getElementById('act-fecha-inicio').value || '');
+  fd.append('fecha_fin', document.getElementById('act-fecha-fin').value || '');
+  fd.append('estado', estado);
+  fd.append('recordatorio', document.getElementById('act-recordatorio').value);
+  const coordsEl = document.getElementById('act-coords');
+  if (coordsEl.dataset.lat && coordsEl.dataset.lng) {
+    fd.append('latitud', coordsEl.dataset.lat);
+    fd.append('longitud', coordsEl.dataset.lng);
+    fd.append('precision_gps', coordsEl.dataset.precision || '');
+  }
+  const foto = document.getElementById('act-foto').files[0];
+  if (foto) fd.append('foto', foto);
+
+  btn.disabled = true; btn.textContent = 'Guardando...';
+  const r = await fetch(HF.API + '/actividades', { method: 'POST', credentials: 'include', body: fd });
+  const data = await r.json().catch(() => ({}));
+  btn.disabled = false; btn.textContent = 'Guardar';
+  if (!r.ok) return toast(data.error || 'Error al crear', 'error');
+  toast(necesitaGPS ? (estado === 'en_proceso' ? 'Check-in registrado' : 'Check-out registrado') : 'Actividad creada', 'success');
   hideModal('modal-crear-actividad');
   cargarVisitas();
 }
