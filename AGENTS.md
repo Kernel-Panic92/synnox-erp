@@ -1,5 +1,36 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (29 Ago 2026 — sesión 50)
+
+### Cambios Sesión 50 — CRM: UX accesible en Leads y Sucursales
+
+Sesión corta de pulido en `feat/crm-module` enfocada en accesibilidad y
+responsividad del CRM.
+
+#### Leads — Botones de acción
+- Botones de la tabla de leads ahora son **icono solo** (✏️ 🔄 ✅ 🗑️),
+  alineados horizontalmente y del mismo tamaño (32×32px).
+- Atributos ARIA en todas las acciones: `title` + `aria-label` descriptivos
+  que incluyen el nombre del lead (ej: "Convertir lead ACME").
+- La columna de acciones usa `inline-flex` para mantener la alineación de
+  los renglones de la tabla.
+
+#### Clientes — Tabla de sucursales responsive
+- Modal de detalle cliente: lista de sucursales ahora es **scrollable**
+  verticalmente (máx. 420px) con header fijo.
+- Se eliminó el scroll horizontal usando `table-layout: fixed` y anchos de
+  columna definidos para Código, Nombre, Dirección, Ciudad, Teléfono,
+  Principal y Acciones.
+- El texto de las celdas se ajusta con `break-word`; en viewports estrechos
+  se ocultan progresivamente las columnas Teléfono (<680px) y Ciudad (<560px)
+  mediante `@container` queries.
+- Botones de acción de sucursales con `title` y `aria-label`.
+
+#### Commits
+- `225c238` — `feat(crm): botones de acciones de leads en icono con aria-label y alineación horizontal`
+- `f498bdd` — `feat(crm): tabla de sucursales scrollable con header fijo y aria en acciones`
+- `c948ac3` — `feat(crm): tabla de sucursales responsive sin scroll horizontal`
+
 ## Estado (28 Ago 2026 — sesión 49)
 
 ### Cambios Sesión 49 — CRM: Leads, Actividades, Admin, Perfiles de Venta y alineación con SIESA Hub
