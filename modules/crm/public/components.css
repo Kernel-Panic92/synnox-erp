@@ -47,10 +47,39 @@ button, .btn {
 .tbl td:last-child .btn { display: inline-flex; width: 32px; height: 32px; padding: 0; justify-content: center; align-items: center; line-height: 1; vertical-align: middle; }
 .tbl tr:hover { background: rgba(255,255,255,.02); }
 
-/* Tablas scrollables con header fijo */
-.tbl-scrollable { max-height: 420px; overflow-y: auto; overflow-x: auto; }
-.tbl-scrollable .tbl { min-width: 100%; }
+/* Tablas scrollables con header fijo y responsive */
+.tbl-scrollable { max-height: 420px; overflow-y: auto; overflow-x: hidden; container-type: inline-size; container-name: tbl-responsive; }
+.tbl-scrollable .tbl { width: 100%; table-layout: fixed; }
 .tbl-scrollable .tbl thead th { position: sticky; top: 0; background: var(--surface2); z-index: 1; }
+.tbl-scrollable .tbl th,
+.tbl-scrollable .tbl td { overflow-wrap: break-word; word-break: break-word; }
+.tbl-scrollable .tbl td:last-child { white-space: nowrap; text-align: right; }
+.tbl-scrollable .tbl td:last-child .btn { width: 28px; height: 28px; }
+
+/* Anchos de columnas para tabla de sucursales */
+.tbl-scrollable .tbl th:nth-child(1),
+.tbl-scrollable .tbl td:nth-child(1) { width: 56px; }
+.tbl-scrollable .tbl th:nth-child(2),
+.tbl-scrollable .tbl td:nth-child(2) { width: 22%; }
+.tbl-scrollable .tbl th:nth-child(3),
+.tbl-scrollable .tbl td:nth-child(3) { width: 28%; }
+.tbl-scrollable .tbl th:nth-child(4),
+.tbl-scrollable .tbl td:nth-child(4) { width: 14%; }
+.tbl-scrollable .tbl th:nth-child(5),
+.tbl-scrollable .tbl td:nth-child(5) { width: 14%; }
+.tbl-scrollable .tbl th:nth-child(6),
+.tbl-scrollable .tbl td:nth-child(6) { width: 12%; }
+.tbl-scrollable .tbl th:nth-child(7),
+.tbl-scrollable .tbl td:nth-child(7) { width: 76px; }
+
+@container tbl-responsive (max-width: 680px) {
+  .tbl-scrollable .tbl th:nth-child(5),
+  .tbl-scrollable .tbl td:nth-child(5) { display: none; }
+}
+@container tbl-responsive (max-width: 560px) {
+  .tbl-scrollable .tbl th:nth-child(4),
+  .tbl-scrollable .tbl td:nth-child(4) { display: none; }
+}
 
 /* ── Forms ── */
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
