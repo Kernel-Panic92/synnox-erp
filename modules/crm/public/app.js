@@ -380,7 +380,7 @@ async function verCliente(id) {
     </div>
 
     <div id="tab-cliente-sucursales" style="display:none">
-      ${sucursales.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr><th>Codigo</th><th>Nombre</th><th>Direccion</th><th>Ciudad</th><th>Telefono</th><th>Principal</th><th></th></tr></thead><tbody>
+      ${sucursales.length ? `<div class="tbl-wrap tbl-scrollable"><table class="tbl"><thead><tr><th>Codigo</th><th>Nombre</th><th>Direccion</th><th>Ciudad</th><th>Telefono</th><th>Principal</th><th></th></tr></thead><tbody>
         ${sucursales.map(s => `<tr>
           <td><strong>${esc(s.codigo || '—')}</strong></td>
           <td>${esc(s.nombre)}</td>
@@ -389,8 +389,8 @@ async function verCliente(id) {
           <td>${esc(s.telefono || '—')}</td>
           <td>${s.es_principal ? '<span class="badge badge-aprobada">Principal</span>' : ''}</td>
           <td>
-            <button class="btn btn-sm btn-secondary" onclick="editarSucursal('${s.id}','${id}')">✏️</button>
-            <button class="btn btn-sm btn-danger" onclick="eliminarSucursal('${s.id}','${id}')">🗑️</button>
+            <button class="btn btn-sm btn-secondary" onclick="editarSucursal('${s.id}','${id}')" title="Editar sucursal" aria-label="Editar sucursal ${esc(s.nombre)}">✏️</button>
+            <button class="btn btn-sm btn-danger" onclick="eliminarSucursal('${s.id}','${id}')" title="Eliminar sucursal" aria-label="Eliminar sucursal ${esc(s.nombre)}">🗑️</button>
           </td>
         </tr>`).join('')}
       </tbody></table></div>` : '<p style="color:var(--muted)">Sin sucursales</p>'}
