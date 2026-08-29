@@ -648,10 +648,10 @@ async function cargarLeads() {
         <td>${esc(l.email || '—')}</td>
         <td>${formatDate(l.creado_en)}</td>
         <td>
-          <button class="btn btn-sm btn-secondary" onclick="editarLead('${l.id}')">✏️</button>
-          ${l.estado !== 'convertido' && l.estado !== 'enviado_erp' ? `<button class="btn btn-sm btn-primary" onclick="enviarLeadERP('${l.id}','${esc(l.raison_social)}')">🔄 Convertir</button>` : ''}
-          ${l.estado === 'enviado_erp' ? `<button class="btn btn-sm btn-primary" onclick="marcarConvertido('${l.id}','${esc(l.raison_social)}')">✅ Convertido</button>` : ''}
-          ${l.estado !== 'convertido' ? `<button class="btn btn-sm btn-danger" onclick="eliminarLead('${l.id}')">🗑️</button>` : ''}
+          <button class="btn btn-sm btn-secondary" onclick="editarLead('${l.id}')" title="Editar lead" aria-label="Editar lead ${esc(l.raison_social)}">✏️</button>
+          ${l.estado !== 'convertido' && l.estado !== 'enviado_erp' ? `<button class="btn btn-sm btn-primary" onclick="enviarLeadERP('${l.id}','${esc(l.raison_social)}')" title="Convertir a tercero" aria-label="Convertir lead ${esc(l.raison_social)}">🔄</button>` : ''}
+          ${l.estado === 'enviado_erp' ? `<button class="btn btn-sm btn-primary" onclick="marcarConvertido('${l.id}','${esc(l.raison_social)}')" title="Marcar como convertido" aria-label="Marcar lead ${esc(l.raison_social)} como convertido">✅</button>` : ''}
+          ${l.estado !== 'convertido' ? `<button class="btn btn-sm btn-danger" onclick="eliminarLead('${l.id}')" title="Eliminar lead" aria-label="Eliminar lead ${esc(l.raison_social)}">🗑️</button>` : ''}
         </td>
       </tr>
     `).join('');

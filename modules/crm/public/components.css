@@ -42,7 +42,9 @@ button, .btn {
 .tbl th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
 .tbl th.sortable:hover { color: var(--text); }
 .tbl th .sort-indicator { font-size: 10px; margin-left: 2px; }
-.tbl td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; }
+.tbl td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; }
+.tbl td:last-child { white-space: nowrap; }
+.tbl td:last-child .btn { display: inline-flex; width: 32px; height: 32px; padding: 0; justify-content: center; align-items: center; line-height: 1; vertical-align: middle; }
 .tbl tr:hover { background: rgba(255,255,255,.02); }
 
 /* ── Forms ── */
