@@ -1593,7 +1593,27 @@ async function abrirModalCotizacion(cotizacion = null) {
   document.getElementById('cotizacion-condicion-pago').value = cotizacion?.condicion_pago || '';
   document.getElementById('cotizacion-fecha-entrega').value = cotizacion?.fecha_entrega ? cotizacion.fecha_entrega.split('T')[0] : '';
 
-  await cargarClientesSelect('cotizacion-cliente', cotizacion?.cliente_id);
+  // Reset cliente searchable
+  document.getElementById('cotizacion-cliente-search').value = '';
+  document.getElementById('cotizacion-cliente').style.display = 'none';
+  document.getElementById('cotizacion-cliente').innerHTML = '';
+  document.getElementById('cotizacion-cliente-selected').style.display = 'none';
+  document.getElementById('cotizacion-cliente-selected').textContent = '';
+  document.getElementById('cotizacion-contacto').innerHTML = '<option value="">Sin contacto</option>';
+  if (cotizacion?.cliente_id) {
+    const rc = await apiFetch('/clientes/' + cotizacion.cliente_id);
+    if (rc.ok) {
+      const c = rc.data.data;
+      const sel = document.getElementById('cotizacion-cliente');
+      sel.innerHTML = `<option value="${c.id}" selected>${esc(c.nombre)} — ${esc(c.nit || '')}</option>`;
+      sel.value = c.id;
+      const sd = document.getElementById('cotizacion-cliente-selected');
+      sd.textContent = '✓ ' + c.nombre + ' — ' + (c.nit || '') + '  ✕';
+      sd.style.display = ''; sd.style.cursor = 'pointer';
+      sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; document.getElementById('cotizacion-cliente-search').value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; };
+      await cargarContactosCotizacion(c.id, cotizacion?.contacto_id || null);
+    }
+  }
   await cargarOportunidadesSelect('cotizacion-oportunidad', cotizacion?.oportunidad_id);
 
   _cotizacionItems = [];
@@ -1614,6 +1634,45 @@ function cambiarTabCotizacion(tab, btn) {
   document.querySelectorAll('#modal-cotizacion .tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-cotizacion-' + tab).style.display = '';
   if (btn) btn.classList.add('active');
+}
+
+let _cotClienteTimer = null;
+async function filtrarCotizacionClientes(q) {
+  const sel = document.getElementById('cotizacion-cliente');
+  const sd = document.getElementById('cotizacion-cliente-selected');
+  if (sel.value && sd.style.display !== 'none') return;
+  const qq = (q || '').trim();
+  if (!qq || qq.length < 2) { sel.style.display = 'none'; sel.innerHTML = ''; return; }
+  clearTimeout(_cotClienteTimer);
+  _cotClienteTimer = setTimeout(async () => {
+    const r = await apiFetch('/clientes?search=' + encodeURIComponent(qq) + '&limit=20');
+    if (!r.ok) return;
+    const data = r.data.data || [];
+    if (!data.length) { sel.innerHTML = '<option>No hay resultados</option>'; sel.style.display = ''; return; }
+    sel.innerHTML = data.map(c => `<option value="${c.id}">${esc(c.nombre)} — ${esc(c.nit || '')}</option>`).join('');
+    sel.style.display = '';
+    sel.onchange = async () => {
+      const opt = sel.options[sel.selectedIndex];
+      if (!opt || !opt.value || opt.textContent === 'No hay resultados') return;
+      sd.textContent = '✓ ' + opt.textContent + '  ✕';
+      sd.style.display = ''; sd.style.cursor = 'pointer';
+      sd.title = 'Click para quitar';
+      sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; sel.style.display='none'; document.getElementById('cotizacion-cliente-search').value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; };
+      sel.style.display = 'none';
+      document.getElementById('cotizacion-cliente-search').value = '';
+      await cargarContactosCotizacion(opt.value);
+    };
+  }, 300);
+}
+
+async function cargarContactosCotizacion(clienteId, selectedId = null) {
+  const sel = document.getElementById('cotizacion-contacto');
+  sel.innerHTML = '<option value="">Sin contacto</option>';
+  if (!clienteId) return;
+  const r = await apiFetch('/contactos?cliente_id=' + clienteId + '&limit=100');
+  if (!r.ok) return;
+  const data = r.data.data || [];
+  sel.innerHTML = '<option value="">Sin contacto</option>' + data.map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${esc(c.nombre)}${c.cargo ? ' — '+esc(c.cargo):''}</option>`).join('');
 }
 
 let _buscarProductoTimer = null;
