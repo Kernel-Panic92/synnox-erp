@@ -2914,7 +2914,7 @@ async function cargarMaestroChecklist(tipo, containerId, seleccionados){
     }
     if(!data.length){ cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Sin datos</span>'; return; }
     const selSet = new Set((seleccionados||[]).map(String));
-    cont.innerHTML = data.map(it=>`<label style="display:flex;gap:6px;align-items:center;font-size:12px;margin-bottom:4px"><input type="checkbox" value="${esc(it.codigo)}" ${selSet.has(String(it.codigo))?'checked':''}> ${esc(it.nombre)} <small style="color:var(--muted)">${esc(it.codigo)}</small></label>`).join('');
+    cont.innerHTML = `<div style="display:flex;gap:6px;margin-bottom:6px"><button type="button" class="btn btn-sm btn-secondary" style="padding:2px 8px;font-size:11px" onclick="this.closest('.maestro-checklist').querySelectorAll('input').forEach(c=>c.checked=true)">Todos</button><button type="button" class="btn btn-sm btn-secondary" style="padding:2px 8px;font-size:11px" onclick="this.closest('.maestro-checklist').querySelectorAll('input').forEach(c=>c.checked=false)">Ninguno</button></div>` + data.map(it=>`<label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;padding:4px 2px;line-height:1.3;border-bottom:1px solid var(--border);"><input type="checkbox" value="${esc(it.codigo)}" ${selSet.has(String(it.codigo))?'checked':''} style="margin-top:2px;flex-shrink:0"><span style="flex:1;min-width:0;overflow-wrap:break-word">${esc(it.nombre)} <small style="color:var(--muted);display:block">${esc(it.codigo)}</small></span></label>`).join('');
   } catch { cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Error</span>'; }
 }
 
