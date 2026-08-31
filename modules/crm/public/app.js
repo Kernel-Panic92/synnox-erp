@@ -2166,14 +2166,30 @@ async function cargarOportunidadesSelect(selectId, selectedId) {
     const select = document.getElementById(selectId);
     select.innerHTML = '<option value="">Sin oportunidad</option>' +
       data.map(o => `<option value="${o.id}" ${o.id === selectedId ? 'selected' : ''}>${esc(o.nombre)} — ${esc(o.cliente_nombre || '')}</option>`).join('');
-    // cuando se elige oportunidad, traer su cliente
+    // cuando se elige oportunidad, traer su cliente y sugerir productos
     if (selectId === 'cotizacion-oportunidad') {
       select.onchange = async () => {
         const oid = select.value;
         if (!oid) return;
         const opp = _oportunidadesCache.find(o => o.id === oid);
-        const clienteId = opp?.cliente_id || (await apiFetch('/oportunidades/' + oid).then(x=>x.ok?x.data.cliente_id:null).catch(()=>null));
+        const clienteId = opp?.cliente_id || (await apiFetch('/oportunidades/' + oid).then(x=>x.ok?x.data.data.cliente_id||x.data.cliente_id:null).catch(()=>null));
         if (clienteId) await setClienteCotizacion(clienteId);
+        // Sugerir productos de la oportunidad al carrito
+        try {
+          const pr = await apiFetch('/oportunidades/' + oid + '/productos');
+          if (pr.ok && pr.data.data.length) {
+            let added = 0;
+            for (const op of pr.data.data) {
+              if (_cotizacionItems.find(it => it.referencia === op.codigo)) continue;
+              _cotizacionItems.push({ descripcion: op.producto_nombre || op.nombre, referencia: op.codigo, unidad_medida: op.unidad_medida || 'UND', cantidad: parseFloat(op.cantidad)||1, precio_unitario: parseFloat(op.precio_unitario||op.precio_maestro||0), descuento_pct: 0 });
+              added++;
+            }
+            if (added) {
+              renderItemsCotizacion();
+              toast(`${added} producto(s) de la oportunidad agregados. Revisa el carrito.`, 'success');
+            }
+          }
+        } catch {}
       };
     }
   } catch {}
