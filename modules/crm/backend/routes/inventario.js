@@ -86,18 +86,30 @@ router.get('/stats', requirePermiso('ver', 'crm'), async (req, res) => {
   }
 });
 
-// GET /api/inventario/bodegas — Lista de bodegas
+// GET /api/inventario/bodegas — Lista de bodegas con nombre
 router.get('/bodegas', requirePermiso('ver', 'crm'), async (req, res) => {
   try {
     const result = await pool.query(`
-      SELECT bodega, COUNT(*) AS productos, SUM(existencia) AS total_existencia
-      FROM crm.inventario
-      GROUP BY bodega
-      ORDER BY bodega
+      SELECT i.bodega, b.nombre AS bodega_nombre, COUNT(*) AS productos, SUM(i.existencia) AS total_existencia
+      FROM crm.inventario i
+      LEFT JOIN crm.bodegas b ON b.codigo = i.bodega
+      GROUP BY i.bodega, b.nombre
+      ORDER BY i.bodega
     `);
     res.json({ ok: true, data: result.rows });
   } catch (err) {
     console.error('[CRM] Error listar bodegas:', err);
+    res.status(500).json({ error: 'Error al listar bodegas' });
+  }
+});
+
+// GET /api/inventario/bodegas-all — Lista completa de bodegas (maestro)
+router.get('/bodegas-all', requirePermiso('ver', 'crm'), async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT codigo, nombre, ciudad FROM crm.bodegas ORDER BY codigo`);
+    res.json({ ok: true, data: result.rows });
+  } catch (err) {
+    console.error('[CRM] Error listar bodegas master:', err);
     res.status(500).json({ error: 'Error al listar bodegas' });
   }
 });

@@ -1699,9 +1699,11 @@ async function cargarCentrosCotizacion(selected) {
       return;
     }
     sel.innerHTML = '<option value="">Seleccione centro de operación</option>' + final.map(c => {
-      const nombre = c.nombre || c.descripcion || c.codigo || c;
-      const val = c.codigo || c.nombre || c;
-      return `<option value="${esc(val)}" ${val === selected ? 'selected' : ''}>${esc(nombre)}</option>`;
+      const codigo = c.codigo || '';
+      const nombre = c.nombre || c.descripcion || '';
+      const label = codigo && nombre ? `${codigo} — ${nombre}` : (nombre || codigo);
+      const val = codigo || nombre;
+      return `<option value="${esc(val)}" ${val === selected ? 'selected' : ''}>${esc(label)}</option>`;
     }).join('');
     if (selected && !final.find(c => (c.codigo||c.nombre||c) === selected)) {
       sel.innerHTML += `<option value="${esc(selected)}" selected>${esc(selected)} (actual)</option>`;
@@ -1714,14 +1716,24 @@ async function cargarBodegasCotizacion(selected) {
   if (!sel) return;
   sel.innerHTML = '<option value="">Seleccione bodega</option>';
   try {
-    const r = await apiFetch('/inventario/bodegas');
-    const data = r.ok ? (r.data.data || []) : [];
+    let data = [];
+    const r = await apiFetch('/inventario/bodegas-all');
+    if (r.ok) data = r.data.data || [];
+    if (!data.length) {
+      const r2 = await apiFetch('/inventario/bodegas');
+      if (r2.ok) data = (r2.data.data || []).map(b => ({ codigo: b.bodega, nombre: b.bodega_nombre || '', bodega: b.bodega, bodega_nombre: b.bodega_nombre }));
+    }
     if (!data.length) {
       if (selected) sel.innerHTML += `<option value="${esc(selected)}" selected>${esc(selected)}</option>`;
       return;
     }
-    sel.innerHTML = '<option value="">Seleccione bodega</option>' + data.map(b => `<option value="${esc(b.bodega)}" ${b.bodega === selected ? 'selected' : ''}>${esc(b.bodega)}</option>`).join('');
-    if (selected && !data.find(b => b.bodega === selected)) {
+    sel.innerHTML = '<option value="">Seleccione bodega</option>' + data.map(b => {
+      const codigo = b.codigo || b.bodega || '';
+      const nombre = b.nombre || b.bodega_nombre || '';
+      const label = nombre ? `${codigo} — ${nombre}` : codigo;
+      return `<option value="${esc(codigo)}" ${codigo === selected ? 'selected' : ''}>${esc(label)}</option>`;
+    }).join('');
+    if (selected && !data.find(b => (b.codigo || b.bodega) === selected)) {
       sel.innerHTML += `<option value="${esc(selected)}" selected>${esc(selected)} (actual)</option>`;
     }
   } catch { sel.innerHTML = '<option value="">Error cargando bodegas</option>'; }
