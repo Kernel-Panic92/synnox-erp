@@ -1937,8 +1937,8 @@ async function cargarProductos() {
         <td>${esc(p.categoria || '—')}</td>
         <td>${esc(p.bodega || '—')}</td>
         <td>
-          <button class="btn btn-sm btn-secondary" onclick="editarProducto('${p.id}')">Editar</button>
-          <button class="btn btn-sm btn-danger" onclick="eliminarProducto('${p.id}')">Eliminar</button>
+          <button class="btn btn-sm btn-secondary" onclick="editarProducto('${p.id}')" title="Editar producto" aria-label="Editar producto ${esc(p.nombre)}">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarProducto('${p.id}')" title="Eliminar producto" aria-label="Eliminar producto ${esc(p.nombre)}">🗑️</button>
         </td>
       </tr>
     `).join('');
