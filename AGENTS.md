@@ -1,5 +1,85 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (31 Ago 2026 — sesión 51)
+
+### Cambios Sesión 51 — CRM: Maestros SIESA, Pipeline con productos y pulido masivo del flujo comercial
+
+Sesión larga en `feat/crm-module` (continuación de la 50). Se llevaron a dinámico todos los datos de cotización, se corrigió el CRUD de productos, se estabilizó el perfil de ventas para no depender de hardcode y se centralizó el framework de acciones accesibles.
+
+#### Productos — CRUD y precios
+- `GET /productos/:id` + `PUT /:id` (código no editable `readOnly` + tooltip) — fix `6002` que aparecía en tabla pero daba `Producto no encontrado` por `find` sobre `limit 500` sin `search` (`184a58e`).
+- Parseo de precios formato colombiano `parsePrecio()` (`$2.300` → 2300): fix en `importar.js` (`items`, `inventario`, `precios`) y `productos.js` (`ef6e3aa`). Botón temporal `POST /importar/reparar-precios` (`f772db9`) usado una vez y retirado (`6283558`).
+
+#### Cotizaciones — Estados y flujo ERP
+- Filas sin `CPV`/`documento_erp` en rojo (`row-no-erp`), `Estado ERP` → badge `No enviado` y botón `🚀 Enviar al ERP` (`POST /cotizaciones/:id/enviar-erp` con auditoría, placeholder Hub) (`029f0f1`).
+- `GET /cotizaciones/stats` ahora respeta `search`/`estado` (+ `monto_total` filtrado) (`d55edef`).
+
+#### Framework — Acciones accesibles
+- Nuevo estándar en `framework/framework.js` + `framework/components.css` y espejos en `modules/crm/public/`: clase `btn-action` (32×32) + contenedor `tbl-actions` y helpers `actionBtn({icon,title,ariaLabel,onclick,variant})` / `actionGroup()` (`785c005`). Documentado en `AGENTS.md: Convenciones`.
+- `Cotización Enviar al ERP` pasa a icono solo con `btn-action` + `aria-label` (`9cf17b4`).
+
+#### Pipeline — Widgets y productos en oportunidad
+- Widgets ejecutivos filtrados por vendedor en `#stats-pipeline`: **Oportunidades**, **Pipeline abierto** (`SUM monto`), **Forecast ponderado** (`SUM monto×probabilidad/100`) y **Win rate** (`ganada/(ganada+perdida)`) vía `GET /oportunidades/stats?vendedor=` (`e67e0b4`).
+- Nueva tabla `crm.oportunidad_productos` (migración `018`) + endpoints `GET/POST/DELETE /oportunidades/:id/productos` con recálculo de `monto_esperado` (`4921c42`). Modal oportunidad con buscador del maestro (`GET /productos/buscar`), lista con `×` y total vivo.
+- Al elegir oportunidad en **Nueva Cotización**, se auto-carga su cliente (`setClienteCotizacion`) y se sugieren sus productos al carrito (`ccaa0dc`). Fix guardado de `monto_esperado`/`fecha_cierre_estimada` con `split('T')[0]` (`b8549bd`).
+- Oportunidad puede ligarse a **lead alternativo**: columna `lead_id` (migración `019`), backend acepta `cliente_id` **o** `lead_id`, kanban muestra `cliente_nombre || lead_nombre` (`c86da2d` + fix validación `0ad29cb` quita `required` y añade helper `* Requerido: cliente o lead`).
+
+#### Cotización — Datos dinámicos
+- **Cliente** buscable (`#cotizacion-cliente-search` + `filtrarCotizacionClientes` → `GET /clientes?search=&limit=20`, debounce 300ms) con `GET /clientes/:id` y `✓ Cliente — NIT ✕` (`8de352b`).
+- **Contacto** dependiente: `GET /contactos?cliente_id=` al seleccionar cliente (`cargarContactosCotizacion`).
+- **Centro de Operación** y **Bodega** pasan de `input` a `select` dinámicos (`GET /centros` del Launcher con `codigo` como `value` y `GET /inventario/bodegas-all` → `codigo — nombre`) (`b1cb281` + `07bf929` muestra `100 — ITAGUI`).
+- **Carrito Referencia** autocompleta: `onReferenciaChange` → `GET /productos/buscar?q=6002` y rellena descripción/UM/precio (`fd49b2b`).
+
+#### Maestros SIESA y centros
+- Centros del ERP (`Centros de operacion.csv` 6 filas `100/101/200/201/300/301`) upsertados en `launcher.db` y disponibles vía `GET /api/centros` para el CRM.
+- Migración `020` crea `crm.motivos_venta`, `crm.tipos_documento`, `crm.centros_costo`, `crm.unidades_negocio` + `perfiles_venta.config JSONB` y seeds (`VENTAS`, `PEDIDO_VENTA_CRM`, 7 centros costo...).
+- Endpoint `GET /api/maestros?tipo=` + `POST /maestros/sync` (stub Hub) y fix `activa` vs `activo` (`2d668be`).
+- Importadores nuevos `motivos_venta`, `tipos_documento`, `centros_costo`, `unidades_negocio` con XML Crystal para motivos (`Motivos_de_venta.xml` 22 filas) y CSV latín1 (`37d1d9c`) e importados (71 centros costo, 19 tipos doc como `CPE/CPV/CPR`, 23 motivos).
+
+#### Perfil de ventas — 100% configurable (sin hardcode)
+- Migración `021` limpia `16 → 6` permisos comerciales (`crear_cotizacion`, `aprobar_descuento`, `configurar`, `siesa_sync`, `ver_pipeline`, `editar_pipeline`); `CRM - Gerencia 6/6`, `Comercial 3/6`, `Aprobador 2/6`, `Vendedor Generico 3/6` (`1d646cf`).
+- Modal `perfil-venta` con 4 tabs (`Datos básicos`, `Descuentos`, `Permisos`, `Márgenes`) y sin hardcode (`2bd63f2`):
+  - **Datos básicos**: 8 combos SIESA-style (`multi-combo` con tags `×`, buscador, `Todos/Ninguno`, `fixed` dropdown 280px) cargados vía `GET /maestros`/`GET /centros` con `cache: 'no-store'` y `Set` persistente (`79f16e0` + fixes `da3bdd5`, `a873a2a`, `4ebd005` evita `304 cached`, `a791897` fix `set is not defined`).
+  - **Descuentos**: `modalidad`, `Rango 1/2/3` (1/60/70), `Permite Global` y 4 combos de aprobadores (`GET /perfiles-venta/usuarios-all`) (`bb20bba`).
+  - **Permisos**: grid `1fr 1fr` con 6 checkboxes estilizados (`e94504a` fix overflow vertical).
+  - **Márgenes**: grid `1fr 1fr 1fr` con 10 switches (`¿Mostrar columna/fila Margen Bruto %`...).
+- Correcciones de layout: sin cuadros concéntricos (`e1dcf8a`), tags `max-height:110px` scrollable (`431f7f6`) y dropdown `fixed` con reposicionamiento y cierre en scroll/click fuera.
+
+#### Commits sesión 51 (desde `eb99ee5`)
+- `184a58e` — `fix(crm): productos 6002 no encontrado — GET/PUT por id y codigo no editable`
+- `ef6e3aa` — `fix(crm): parseo de precios formato colombiano .300 -> 2300`
+- `f772db9` / `6283558` — `feat/chore(crm): boton temporal reparar precios truncados x1000` (usado y retirado)
+- `029f0f1` — `feat(crm): cotizaciones sin CPV en rojo, estado No enviado y boton Enviar al ERP`
+- `785c005` — `feat(framework): botones de accion accesibles icon-only con aria-label`
+- `9cf17b4` — `fix(crm): cotizacion Enviar al ERP icon-only con btn-action y aria`
+- `e67e0b4` — `feat(crm): widgets pipeline ejecutivo (monto, forecast ponderado, win rate) filtrados por vendedor`
+- `8de352b` — `fix(crm): cotizacion cliente buscable dinamico y contactos por cliente`
+- `b1cb281` — `feat(crm): centro de operacion y bodega dinamicos en cotizacion`
+- `07bf929` — `feat(crm): bodega con nombre (codigo — nombre) en cotizacion`
+- `fd49b2b` — `fix(crm): carrito referencia autocompleta producto al digitar codigo`
+- `4921c42` — `feat(crm): productos en oportunidad (maestro) con busqueda y sync monto`
+- `ccaa0dc` — `feat(crm): sugerir productos de oportunidad al elegirla en cotizacion`
+- `b8549bd` — `fix(crm): oportunidad guarda monto y fecha (formato date y monto productos)`
+- `c86da2d` — `feat(crm): oportunidad con cliente potencial (lead) alternativo a cliente`
+- `0ad29cb` — `fix(crm): oportunidad requiere cliente o lead (uno de los dos)`
+- `2cb6227` — `feat(crm): maestros SIESA (motivos, tipos doc, centros costo, unidades negocio) y endpoint /maestros`
+- `2bd63f2` — `feat(crm): perfil de ventas configurable con maestros, descuentos y margenes (sin hardcode)`
+- `bfcbae9` — `feat(crm): importadores maestros faltantes para perfil`
+- `2d668be` — `fix(crm): maestros activa vs activo column`
+- `4c86fe6` — `fix(crm): perfil maestros checklist legible con Todos/Ninguno y layout`
+- `79f16e0` — `feat(crm): perfil maestros combobox multi-select SIESA-style con tags y filtro`
+- `da3bdd5` — `fix(crm): combobox maestros lista todas las opciones al hacer clic`
+- `a873a2a` — `fix(crm): maestros combobox SIESA-style sin checkboxes, badges con × y lista al hacer clic`
+- `37d1d9c` — `fix(crm): importadores maestros soportan XML (Motivos) y columnas flexibles + upsert activo`
+- `4ebd005` — `fix(crm): maestros combobox evita 304 cached (cache busting) que mostraba Error`
+- `8aab2d9` — `fix(crm): muestra error real en maestros para debug`
+- `a791897` — `fix(crm): define set in renderMaestroDropdown (ReferenceError)`
+- `e1dcf8a` — `fix(crm): perfil maestros sin cuadros concentricos, dropdown 280px y modal overflow visible`
+- `431f7f6` — `fix(crm): perfil maestros tags scrollable (110px) y dropdown fixed sin cortes`
+- `bb20bba` — `fix(crm): aprobadores descuentos multi-combo SIESA-style con usuarios-all`
+- `1d646cf` — `refactor(crm): perfil ventas solo permisos comerciales (6) sin duplicar launcher`
+- `e94504a` — `fix(crm): permisos grid 1fr 1fr y labels sin overflow vertical`
+
 ## Estado (29 Ago 2026 — sesión 50)
 
 ### Cambios Sesión 50 — CRM: UX accesible y widgets filtrados
