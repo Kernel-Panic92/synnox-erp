@@ -2933,6 +2933,9 @@ async function cargarMaestroChecklist(tipo, containerId, seleccionados){
       const handler = (e)=>{ if(!combo.contains(e.target)) dd.style.display='none'; };
       combo._outsideHandler = handler;
       document.addEventListener('click', handler);
+      const modal = document.getElementById('modal-perfil-venta')?.querySelector('.modal');
+      if(modal) modal.addEventListener('scroll', ()=> dd.style.display='none');
+      window.addEventListener('scroll', ()=> dd.style.display='none', true);
     }, 100);
   } catch(e){ console.error('cargarMaestro/Aprobadores', e); cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Error: '+esc(e.message)+'</span>'; }
 }
@@ -2955,11 +2958,16 @@ function renderMaestroDropdown(containerId, filter, data, selSet){
 }
 function abrirMaestroCombo(containerId){
   const dd = document.getElementById(containerId+'-dropdown');
-  if(!dd) return;
+  const combo = document.getElementById(containerId+'-combo');
+  if(!dd || !combo) return;
   const data = (window._maestroCache && window._maestroCache[containerId]) || [];
   const set = window._maestroSelected[containerId] || new Set();
   const input = document.getElementById(containerId+'-input');
   renderMaestroDropdown(containerId, input ? input.value : '', data, set);
+  const rect = combo.getBoundingClientRect();
+  dd.style.top = (rect.bottom + 4) + 'px';
+  dd.style.left = rect.left + 'px';
+  dd.style.width = rect.width + 'px';
   dd.style.display = 'block';
 }
 function filtrarMaestroCombo(tipo, containerId, q){
