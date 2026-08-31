@@ -29,20 +29,21 @@ router.get('/', requirePermiso('ver_pipeline', 'crm'), async (req, res) => {
       params.push(cliente_id);
     }
     if (search) {
-      conditions.push(`(o.nombre ILIKE $${paramIdx} OR e.nombre ILIKE $${paramIdx})`);
+      conditions.push(`(o.nombre ILIKE $${paramIdx} OR e.nombre ILIKE $${paramIdx} OR l.raison_social ILIKE $${paramIdx})`);
       params.push(`%${search}%`);
       paramIdx++;
     }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
-    const countResult = await pool.query(`SELECT COUNT(*) FROM crm.oportunidades o LEFT JOIN crm.clientes e ON e.id = o.cliente_id ${where}`, params);
+    const countResult = await pool.query(`SELECT COUNT(*) FROM crm.oportunidades o LEFT JOIN crm.clientes e ON e.id = o.cliente_id LEFT JOIN crm.leads l ON l.id = o.lead_id ${where}`, params);
     const total = parseInt(countResult.rows[0].count);
 
     const result = await pool.query(`
-      SELECT o.*, e.nombre AS cliente_nombre, c.nombre AS contacto_nombre
+      SELECT o.*, e.nombre AS cliente_nombre, c.nombre AS contacto_nombre, l.raison_social AS lead_nombre
       FROM crm.oportunidades o
       LEFT JOIN crm.clientes e ON e.id = o.cliente_id
+      LEFT JOIN crm.leads l ON l.id = o.lead_id
       LEFT JOIN crm.contactos c ON c.id = o.contacto_id
       ${where}
       ORDER BY o.creado_en DESC
@@ -72,9 +73,10 @@ router.get('/pipeline', requirePermiso('ver_pipeline', 'crm'), async (req, res) 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
     const result = await pool.query(`
-      SELECT o.*, e.nombre AS cliente_nombre, c.nombre AS contacto_nombre
+      SELECT o.*, e.nombre AS cliente_nombre, c.nombre AS contacto_nombre, l.raison_social AS lead_nombre
       FROM crm.oportunidades o
       LEFT JOIN crm.clientes e ON e.id = o.cliente_id
+      LEFT JOIN crm.leads l ON l.id = o.lead_id
       LEFT JOIN crm.contactos c ON c.id = o.contacto_id
       ${where}
       ORDER BY o.creado_en DESC
@@ -147,9 +149,10 @@ router.get('/:id', requirePermiso('ver_pipeline', 'crm'), async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(`
-      SELECT o.*, e.nombre AS cliente_nombre, c.nombre AS contacto_nombre, c.email AS contacto_email
+      SELECT o.*, e.nombre AS cliente_nombre, c.nombre AS contacto_nombre, c.email AS contacto_email, l.raison_social AS lead_nombre
       FROM crm.oportunidades o
       LEFT JOIN crm.clientes e ON e.id = o.cliente_id
+      LEFT JOIN crm.leads l ON l.id = o.lead_id
       LEFT JOIN crm.contactos c ON c.id = o.contacto_id
       WHERE o.id = $1
     `, [id]);
@@ -230,17 +233,18 @@ router.delete('/:id/productos/:productoId', requirePermiso('editar_pipeline', 'c
   }
 });
 
-// POST /api/oportunidades — Crear oportunidad
+// POST /api/oportunidades — Crear oportunidad (cliente o lead)
 router.post('/', requirePermiso('crear_oportunidad', 'crm'), async (req, res) => {
   try {
-    const { cliente_id, contacto_id, nombre, monto_esperado, probabilidad, etapa, vendedor_id, fecha_cierre_estimada } = req.body;
+    const { cliente_id, lead_id, contacto_id, nombre, monto_esperado, probabilidad, etapa, vendedor_id, fecha_cierre_estimada } = req.body;
     if (!nombre) return res.status(400).json({ error: 'El nombre es obligatorio' });
+    if (!cliente_id && !lead_id) return res.status(400).json({ error: 'Seleccione un cliente o un lead' });
 
     const result = await pool.query(`
-      INSERT INTO crm.oportunidades (cliente_id, contacto_id, nombre, monto_esperado, probabilidad, etapa, vendedor_id, fecha_cierre_estimada)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+      INSERT INTO crm.oportunidades (cliente_id, lead_id, contacto_id, nombre, monto_esperado, probabilidad, etapa, vendedor_id, fecha_cierre_estimada)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       RETURNING *
-    `, [cliente_id || null, contacto_id || null, nombre, monto_esperado || 0, probabilidad || 10, etapa || 'lead', vendedor_id || req.user.id, fecha_cierre_estimada || null]);
+    `, [cliente_id || null, lead_id || null, contacto_id || null, nombre, monto_esperado || 0, probabilidad || 10, etapa || 'lead', vendedor_id || req.user.id, fecha_cierre_estimada || null]);
 
     // Registrar en historial
     await pool.query(
@@ -265,7 +269,7 @@ router.put('/:id', requirePermiso('editar_pipeline', 'crm'), async (req, res) =>
     const existing = await pool.query(`SELECT * FROM crm.oportunidades WHERE id = $1`, [id]);
     if (!existing.rows.length) return res.status(404).json({ error: 'Oportunidad no encontrada' });
 
-    const fields = ['cliente_id', 'contacto_id', 'nombre', 'monto_esperado', 'probabilidad', 'motivo_perdida', 'vendedor_id', 'fecha_cierre_estimada'];
+    const fields = ['cliente_id', 'lead_id', 'contacto_id', 'nombre', 'monto_esperado', 'probabilidad', 'motivo_perdida', 'vendedor_id', 'fecha_cierre_estimada'];
     const updates = [];
     const params = [];
     let paramIdx = 1;

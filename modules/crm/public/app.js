@@ -162,7 +162,7 @@ async function cargarPipeline() {
         ${(pipeline[etapa.id] || []).map(o => `
           <div class="kanban-card" draggable="true" ondragstart="dragOportunidad(event, '${o.id}')" onclick="editarOportunidad('${o.id}')">
             <div class="card-title">${esc(o.nombre)}</div>
-            <div class="card-cliente">${esc(o.cliente_nombre || '—')}</div>
+            <div class="card-cliente">${esc(o.cliente_nombre || o.lead_nombre || '—')}</div>
             <div class="card-monto">$${formatMoney(o.monto_esperado || 0)}</div>
             <div class="card-meta">
               <span>${o.probabilidad || 0}%</span>
@@ -219,6 +219,7 @@ async function abrirModalOportunidad(oportunidad = null) {
   };
   document.getElementById('grupo-motivo-perdida').style.display = (oportunidad?.etapa === 'perdida') ? 'block' : 'none';
   await cargarClientesSelect('oportunidad-cliente', oportunidad?.cliente_id);
+  await cargarLeadsSelectOportunidad(oportunidad?.lead_id);
   await cargarContactosOportunidad(oportunidad?.contacto_id);
   await cargarVendedoresSelect('oportunidad-vendedor', oportunidad?.vendedor_id);
   // Productos
@@ -281,6 +282,33 @@ function actualizarCantOportunidad(pid, val) {
   if (it) { it.cantidad = parseFloat(val)||1; renderOportunidadProductos(); }
 }
 
+async function cargarLeadsSelectOportunidad(selectedId) {
+  const sel = document.getElementById('oportunidad-lead');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Sin lead</option>';
+  try {
+    const r = await apiFetch('/leads?limit=500');
+    if (!r.ok) return;
+    const data = r.data.data || [];
+    sel.innerHTML = '<option value="">Sin lead</option>' + data.map(l => `<option value="${l.id}" ${l.id===selectedId?'selected':''}>${esc(l.raison_social)} — ${esc(l.numero_identificacion||'')}</option>`).join('');
+  } catch {}
+}
+function onClienteOportunidadChange() {
+  const cli = document.getElementById('oportunidad-cliente').value;
+  const leadSel = document.getElementById('oportunidad-lead');
+  if (cli && leadSel.value) { leadSel.value = ''; toast('Cliente seleccionado — lead limpiado', 'info'); }
+  cargarContactosOportunidad(null);
+}
+function onLeadOportunidadChange() {
+  const lead = document.getElementById('oportunidad-lead').value;
+  const cliSel = document.getElementById('oportunidad-cliente');
+  if (lead && cliSel.value) {
+    cliSel.value = '';
+    document.getElementById('oportunidad-contacto').innerHTML = '<option value="">Sin contacto</option>';
+    toast('Lead seleccionado — cliente limpiado', 'info');
+  }
+}
+
 async function editarOportunidad(id) {
   const r = await apiFetch('/oportunidades/' + id);
   if (!r.ok) return;
@@ -300,7 +328,8 @@ async function guardarOportunidad() {
   const id = document.getElementById('oportunidad-id').value;
   const body = {
     nombre: document.getElementById('oportunidad-nombre').value,
-    cliente_id: document.getElementById('oportunidad-cliente').value,
+    cliente_id: document.getElementById('oportunidad-cliente').value || null,
+    lead_id: document.getElementById('oportunidad-lead').value || null,
     contacto_id: document.getElementById('oportunidad-contacto').value || null,
     monto_esperado: parseFloat(document.getElementById('oportunidad-monto').value) || 0,
     probabilidad: parseInt(document.getElementById('oportunidad-probabilidad').value) || 0,
@@ -310,7 +339,7 @@ async function guardarOportunidad() {
     motivo_perdida: document.getElementById('oportunidad-etapa').value === 'perdida' ? (document.getElementById('oportunidad-motivo-perdida').value || null) : null
   };
   if (!body.nombre) return toast('El nombre es obligatorio', 'error');
-  if (!body.cliente_id) return toast('Seleccione un cliente', 'error');
+  if (!body.cliente_id && !body.lead_id) return toast('Seleccione un cliente o un lead', 'error');
   const r = id
     ? await apiFetch('/oportunidades/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     : await apiFetch('/oportunidades', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
