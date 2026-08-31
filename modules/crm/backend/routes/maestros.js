@@ -5,12 +5,12 @@ import { requirePermiso } from '../../../../framework/auth.mjs';
 const router = express.Router();
 
 const MAP = {
-  motivo_venta: { table: 'crm.motivos_venta', cols: ['codigo','nombre'] },
-  tipo_documento: { table: 'crm.tipos_documento', cols: ['codigo','nombre'] },
-  centro_costo: { table: 'crm.centros_costo', cols: ['codigo','nombre'] },
-  unidad_negocio: { table: 'crm.unidades_negocio', cols: ['codigo','nombre'] },
-  lista_precio: { table: 'crm.listas_precio', cols: ['codigo','nombre'] },
-  bodega: { table: 'crm.bodegas', cols: ['codigo','nombre'] },
+  motivo_venta: { table: 'crm.motivos_venta', cols: ['codigo','nombre'], activoCol: 'activo' },
+  tipo_documento: { table: 'crm.tipos_documento', cols: ['codigo','nombre'], activoCol: 'activo' },
+  centro_costo: { table: 'crm.centros_costo', cols: ['codigo','nombre'], activoCol: 'activo' },
+  unidad_negocio: { table: 'crm.unidades_negocio', cols: ['codigo','nombre'], activoCol: 'activo' },
+  lista_precio: { table: 'crm.listas_precio', cols: ['codigo','nombre'], activoCol: 'activa' },
+  bodega: { table: 'crm.bodegas', cols: ['codigo','nombre'], activoCol: 'activa' },
 };
 
 // GET /api/maestros?tipo=motivo_venta|...
@@ -19,7 +19,8 @@ router.get('/', requirePermiso('ver', 'crm'), async (req, res) => {
     const { tipo, q, limit = 100 } = req.query;
     if (tipo && MAP[tipo]) {
       const cfg = MAP[tipo];
-      let sql = `SELECT * FROM ${cfg.table} WHERE activo = TRUE`;
+      const col = cfg.activoCol || 'activo';
+      let sql = `SELECT * FROM ${cfg.table} WHERE ${col} = TRUE`;
       const params = [];
       if (q) { sql += ` AND (codigo ILIKE $1 OR nombre ILIKE $1)`; params.push(`%${q}%`); }
       sql += ` ORDER BY nombre LIMIT ${parseInt(limit)}`;
@@ -29,7 +30,8 @@ router.get('/', requirePermiso('ver', 'crm'), async (req, res) => {
     // Sin tipo: devuelve conteos de todos
     const counts = {};
     for (const [k, cfg] of Object.entries(MAP)) {
-      const r = await pool.query(`SELECT COUNT(*) FROM ${cfg.table} WHERE activo = TRUE`);
+      const col = cfg.activoCol || 'activo';
+      const r = await pool.query(`SELECT COUNT(*) FROM ${cfg.table} WHERE ${col} = TRUE`);
       counts[k] = parseInt(r.rows[0].count);
     }
     // Centros vienen del Launcher via proxy (si está disponible)
