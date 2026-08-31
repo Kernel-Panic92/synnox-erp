@@ -34,14 +34,15 @@ responsividad y widgets que reflejan los filtros activos.
 - Botones de acción de sucursales con `title` y `aria-label`.
 
 #### Widgets filtrados en tiempo real
-- **Inventario y Leads**: los endpoints `/inventario/stats` y `/leads/stats`
-  ahora aplican los mismos filtros que la tabla, y el frontend los pasa
-  desde `cargarStatsInventario()` / `cargarStatsLeads()`.
+- **Inventario, Leads y Cotizaciones**: los endpoints `/inventario/stats`,
+  `/leads/stats` y `/cotizaciones/stats` ahora aplican los mismos filtros que
+  la tabla, y el frontend los pasa desde `cargarStats*()`.
 - **Productos, Contactos y Clientes**: nuevos endpoints `/productos/stats`,
   `/contactos/stats` y `/clientes/stats` que respetan filtros; se añadieron
   contenedores `.stats-row` y funciones `cargarStats*()` en el frontend.
 - **Clientes**: fix del filtro por ciudad que no se enviaba al backend;
   limpieza de filtros ahora incluye también los filtros por columna.
+- **Productos**: botones de acciones en icono con `aria-label`.
 
 #### Commits
 - `225c238` — `feat(crm): botones de acciones de leads en icono con aria-label y alineación horizontal`
@@ -50,6 +51,8 @@ responsividad y widgets que reflejan los filtros activos.
 - `04a1c20` — `feat(crm): botones de acciones de cotizaciones en icono con aria-label`
 - `7dcb2af` — `feat(crm): stats de inventario y leads respetan filtros activos`
 - `ced1b87` — `feat(crm): widgets filtrados en inventario/leads y nuevos widgets en productos/contactos/clientes`
+- `bba1eba` — `feat(crm): aria-label en botones de acciones de productos`
+- `d55edef` — `feat(crm): stats de cotizaciones respetan filtros activos`
 
 ## Estado (28 Ago 2026 — sesión 49)
 
