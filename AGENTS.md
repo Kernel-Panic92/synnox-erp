@@ -2,10 +2,10 @@
 
 ## Estado (29 Ago 2026 — sesión 50)
 
-### Cambios Sesión 50 — CRM: UX accesible en Leads, Cotizaciones y Sucursales
+### Cambios Sesión 50 — CRM: UX accesible y widgets filtrados
 
-Sesión corta de pulido en `feat/crm-module` enfocada en accesibilidad y
-responsividad del CRM.
+Sesión de pulido en `feat/crm-module` enfocada en accesibilidad,
+responsividad y widgets que reflejan los filtros activos.
 
 #### Leads — Botones de acción
 - Botones de la tabla de leads ahora son **icono solo** (✏️ 🔄 ✅ 🗑️),
@@ -33,11 +33,23 @@ responsividad del CRM.
   mediante `@container` queries.
 - Botones de acción de sucursales con `title` y `aria-label`.
 
+#### Widgets filtrados en tiempo real
+- **Inventario y Leads**: los endpoints `/inventario/stats` y `/leads/stats`
+  ahora aplican los mismos filtros que la tabla, y el frontend los pasa
+  desde `cargarStatsInventario()` / `cargarStatsLeads()`.
+- **Productos, Contactos y Clientes**: nuevos endpoints `/productos/stats`,
+  `/contactos/stats` y `/clientes/stats` que respetan filtros; se añadieron
+  contenedores `.stats-row` y funciones `cargarStats*()` en el frontend.
+- **Clientes**: fix del filtro por ciudad que no se enviaba al backend;
+  limpieza de filtros ahora incluye también los filtros por columna.
+
 #### Commits
 - `225c238` — `feat(crm): botones de acciones de leads en icono con aria-label y alineación horizontal`
 - `f498bdd` — `feat(crm): tabla de sucursales scrollable con header fijo y aria en acciones`
 - `c948ac3` — `feat(crm): tabla de sucursales responsive sin scroll horizontal`
 - `04a1c20` — `feat(crm): botones de acciones de cotizaciones en icono con aria-label`
+- `7dcb2af` — `feat(crm): stats de inventario y leads respetan filtros activos`
+- `ced1b87` — `feat(crm): widgets filtrados en inventario/leads y nuevos widgets en productos/contactos/clientes`
 
 ## Estado (28 Ago 2026 — sesión 49)
 
