@@ -1223,15 +1223,79 @@
   </div>
 </div>
 
-<!-- Modal Perfil Venta -->
+<!-- Modal Perfil Venta (configurable, 4 tabs) -->
 <div class="modal-overlay" id="modal-perfil-venta">
-  <div class="modal" style="max-width:560px">
+  <div class="modal" style="max-width:860px;max-height:90vh;overflow:auto">
     <h3 id="modal-perfil-venta-title">Nuevo Perfil de Venta</h3>
     <input type="hidden" id="perfil-venta-id">
-    <div class="form-group"><label>Nombre *</label><input type="text" id="perfil-venta-nombre" placeholder="Ej: CRM - Comercial"></div>
-    <div class="form-group"><label>Descripcion</label><input type="text" id="perfil-venta-desc"></div>
-    <div class="form-group"><label>Permisos</label><div id="perfil-venta-permisos" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:220px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:10px"></div></div>
-    <div class="btn-row"><button class="btn btn-secondary" onclick="hideModal('modal-perfil-venta')">Cancelar</button><button class="btn btn-primary" onclick="guardarPerfilVenta()">Guardar</button></div>
+    <div style="display:flex;gap:16px;border-bottom:1px solid var(--border);margin-bottom:16px;flex-wrap:wrap">
+      <button class="tab-btn active" onclick="cambiarTabPerfil('datos',this)">Datos básicos</button>
+      <button class="tab-btn" onclick="cambiarTabPerfil('descuentos',this)">Descuentos</button>
+      <button class="tab-btn" onclick="cambiarTabPerfil('permisos',this)">Permisos</button>
+      <button class="tab-btn" onclick="cambiarTabPerfil('margenes',this)">Márgenes</button>
+    </div>
+
+    <!-- Tab Datos básicos -->
+    <div id="tab-perfil-datos">
+      <div class="form-row">
+        <div class="form-group"><label>Nombre *</label><input type="text" id="perfil-venta-nombre" placeholder="Ej: CRM - Comercial"></div>
+        <div class="form-group"><label>Descripcion</label><input type="text" id="perfil-venta-desc"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+        <div class="form-group"><label>Listas de Precios (Posibles)</label><div id="perfil-maestro-lista_precio" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
+        <div class="form-group"><label>Motivos (Ventas)</label><div id="perfil-maestro-motivo_venta" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
+        <div class="form-group"><label>Tipos de Documentos</label><div id="perfil-maestro-tipo_documento" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
+        <div class="form-group"><label>Tipos de Documentos Facturas</label><div id="perfil-maestro-tipo_documento_factura" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"><small style="color:var(--muted)">Usa los mismos Tipos de Documento</small></div></div>
+        <div class="form-group"><label>Bodegas pedido</label><div id="perfil-maestro-bodega" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
+        <div class="form-group"><label>Bodegas para consulta inventario</label><div id="perfil-maestro-bodega_consulta" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
+        <div class="form-group"><label>Centros de Operación</label><div id="perfil-maestro-centro_operacion" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
+        <div class="form-group"><label>Centros de Costo</label><div id="perfil-maestro-centro_costo" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
+        <div class="form-group"><label>Unidades de Negocio</label><div id="perfil-maestro-unidad_negocio" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
+        <div class="form-group"><label>Portafolio / Categorías</label><div id="perfil-maestro-portafolio" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"><small style="color:var(--muted)">Opcional — categorías de productos</small></div></div>
+      </div>
+    </div>
+
+    <!-- Tab Descuentos -->
+    <div id="tab-perfil-descuentos" style="display:none">
+      <div class="form-row">
+        <div class="form-group"><label>Modalidad de Descuentos</label><select id="perfil-desc-modalidad"><option value="CRM">Aplicar Descuentos CRM</option><option value="ERP">Aplicar Descuentos ERP</option><option value="Ninguno">No aplicar</option></select></div>
+        <div class="form-group"><label><input type="checkbox" id="perfil-desc-global"> Permite Descuento Global</label></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Rango 1 Descuento Manual CRM (0 - X)</label><input type="number" id="perfil-desc-rango1" min="0" max="100" step="0.1" value="1"></div>
+        <div class="form-group"><label>Rango 2 (X - Y)</label><input type="number" id="perfil-desc-rango2" min="0" max="100" step="0.1" value="60"></div>
+        <div class="form-group"><label>Rango 3 (Y - Z)</label><input type="number" id="perfil-desc-rango3" min="0" max="100" step="0.1" value="70"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px">
+        <div class="form-group"><label>Si Supera Descuento Manual ERP o CRM Aprueba</label><div id="perfil-desc-aprob-supera" style="max-height:120px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
+        <div class="form-group"><label>Aprobador Rango 1</label><div id="perfil-desc-aprob-r1" style="max-height:120px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
+        <div class="form-group"><label>Aprobador Rango 2</label><div id="perfil-desc-aprob-r2" style="max-height:120px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
+        <div class="form-group"><label>Aprobador Rango 3</label><div id="perfil-desc-aprob-r3" style="max-height:120px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
+      </div>
+    </div>
+
+    <!-- Tab Permisos -->
+    <div id="tab-perfil-permisos" style="display:none">
+      <div class="form-group"><label>Permisos del sistema</label><div id="perfil-venta-permisos" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:10px"></div></div>
+    </div>
+
+    <!-- Tab Márgenes -->
+    <div id="tab-perfil-margenes" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
+        <label><input type="checkbox" id="perfil-mg-bruto-pct"> ¿Mostrar columna "Margen Bruto %"? </label>
+        <label><input type="checkbox" id="perfil-mg-valor-bruto"> ¿Mostrar columna "Valor Margen Bruto"? </label>
+        <label><input type="checkbox" id="perfil-mg-con-desc-pct"> ¿Mostrar columna "Margen con Descuento %"? </label>
+        <label><input type="checkbox" id="perfil-mg-valor-con-desc"> ¿Mostrar columna "Valor Margen con Descuento"? </label>
+        <label><input type="checkbox" id="perfil-mg-utilidad"> ¿Mostrar columna "Margen Utilidad" (icono visual)? </label>
+        <label><input type="checkbox" id="perfil-mg-fila-bruto-pct"> ¿Mostrar fila "Margen Bruto %"? </label>
+        <label><input type="checkbox" id="perfil-mg-fila-total-bruto"> ¿Mostrar fila "Valor Total Margen Bruto"? </label>
+        <label><input type="checkbox" id="perfil-mg-fila-total-con-desc"> ¿Mostrar fila "Total Valor Bruto con Descuento"? </label>
+        <label><input type="checkbox" id="perfil-mg-fila-margen-con-desc-pct"> ¿Mostrar fila "Margen con Descuento %"? </label>
+        <label><input type="checkbox" id="perfil-mg-fila-valor-con-desc"> ¿Mostrar fila "Valor Total Margen con Descuento"? </label>
+      </div>
+    </div>
+
+    <div class="btn-row" style="margin-top:16px"><button class="btn btn-secondary" onclick="hideModal('modal-perfil-venta')">Cancelar</button><button class="btn btn-primary" onclick="guardarPerfilVenta()">Guardar</button></div>
   </div>
 </div>
 <div class="modal-overlay" id="modal-perfil-venta-usuarios">

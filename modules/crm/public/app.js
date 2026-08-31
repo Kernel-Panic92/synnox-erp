@@ -2842,23 +2842,153 @@ async function cargarPerfilesVenta(){
       </div>
     </div>`).join('') || '<p style="color:var(--muted)">Sin perfiles</p>';
 }
-function abrirModalPerfilVenta(id){
+function cambiarTabPerfil(tab, btn){
+  document.querySelectorAll('#modal-perfil-venta [id^="tab-perfil-"]').forEach(el=>el.style.display='none');
+  document.querySelectorAll('#modal-perfil-venta .tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-perfil-'+tab).style.display='';
+  if(btn) btn.classList.add('active');
+}
+
+async function abrirModalPerfilVenta(id){
   const p=id? _perfilesVentaCache.find(x=>x.id===id):null;
+  const cfg = p?.config || {};
   document.getElementById('perfil-venta-id').value=p?.id||'';
   document.getElementById('perfil-venta-nombre').value=p?.nombre||'';
   document.getElementById('perfil-venta-desc').value=p?.descripcion||'';
-  const cont=document.getElementById('perfil-venta-permisos');
-  cont.innerHTML=CRM_PERMISOS.map(perm=>`<label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" value="${perm}" ${(p?.permisos||[]).includes(perm)?'checked':''}> ${perm}</label>`).join('');
+  // Reset tabs
+  cambiarTabPerfil('datos', document.querySelector('#modal-perfil-venta .tab-btn'));
+  // Permisos
+  document.getElementById('perfil-venta-permisos').innerHTML=CRM_PERMISOS.map(perm=>`<label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" value="${perm}" ${(p?.permisos||[]).includes(perm)?'checked':''}> ${perm}</label>`).join('');
+  // Datos básicos — maestros dinámicos
+  await Promise.all([
+    cargarMaestroChecklist('lista_precio','perfil-maestro-lista_precio', cfg.listas_precio||cfg.lista_precio||[]),
+    cargarMaestroChecklist('motivo_venta','perfil-maestro-motivo_venta', cfg.motivos||cfg.motivo_venta||[]),
+    cargarMaestroChecklist('tipo_documento','perfil-maestro-tipo_documento', cfg.tipos_documento||cfg.tipo_documento||[]),
+    cargarMaestroChecklist('bodega','perfil-maestro-bodega', cfg.bodegas_pedido||cfg.bodega||[]),
+    cargarMaestroChecklist('bodega','perfil-maestro-bodega_consulta', cfg.bodegas_consulta||[]),
+    cargarMaestroChecklist('centro_operacion','perfil-maestro-centro_operacion', cfg.centros_operacion||cfg.centro_operacion||[]),
+    cargarMaestroChecklist('centro_costo','perfil-maestro-centro_costo', cfg.centros_costo||cfg.centro_costo||[]),
+    cargarMaestroChecklist('unidad_negocio','perfil-maestro-unidad_negocio', cfg.unidades_negocio||cfg.unidad_negocio||[]),
+  ]);
+  // Descuentos
+  const d = cfg.descuentos || {};
+  document.getElementById('perfil-desc-modalidad').value = d.modalidad || 'CRM';
+  document.getElementById('perfil-desc-rango1').value = d.rango1 ?? 1;
+  document.getElementById('perfil-desc-rango2').value = d.rango2 ?? 60;
+  document.getElementById('perfil-desc-rango3').value = d.rango3 ?? 70;
+  document.getElementById('perfil-desc-global').checked = d.permite_global ?? true;
+  await Promise.all([
+    cargarAprobadoresChecklist('perfil-desc-aprob-supera', d.aprobadores?.supera||[]),
+    cargarAprobadoresChecklist('perfil-desc-aprob-r1', d.aprobadores?.r1||[]),
+    cargarAprobadoresChecklist('perfil-desc-aprob-r2', d.aprobadores?.r2||[]),
+    cargarAprobadoresChecklist('perfil-desc-aprob-r3', d.aprobadores?.r3||[]),
+  ]);
+  // Márgenes
+  const m = cfg.margenes || {};
+  document.getElementById('perfil-mg-bruto-pct').checked = m.bruto_pct ?? true;
+  document.getElementById('perfil-mg-valor-bruto').checked = m.valor_bruto ?? true;
+  document.getElementById('perfil-mg-con-desc-pct').checked = m.con_desc_pct ?? true;
+  document.getElementById('perfil-mg-valor-con-desc').checked = m.valor_con_desc ?? true;
+  document.getElementById('perfil-mg-utilidad').checked = m.utilidad ?? true;
+  document.getElementById('perfil-mg-fila-bruto-pct').checked = m.fila_bruto_pct ?? true;
+  document.getElementById('perfil-mg-fila-total-bruto').checked = m.fila_total_bruto ?? true;
+  document.getElementById('perfil-mg-fila-total-con-desc').checked = m.fila_total_con_desc ?? true;
+  document.getElementById('perfil-mg-fila-margen-con-desc-pct').checked = m.fila_margen_con_desc_pct ?? true;
+  document.getElementById('perfil-mg-fila-valor-con-desc').checked = m.fila_valor_con_desc ?? true;
   showModal('modal-perfil-venta');
 }
+
+async function cargarMaestroChecklist(tipo, containerId, seleccionados){
+  const cont = document.getElementById(containerId);
+  if(!cont) return;
+  cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Cargando...</span>';
+  try {
+    let data = [];
+    if(tipo === 'centro_operacion'){
+      const r = await apiFetch('/centros');
+      data = r.ok ? (Array.isArray(r.data)?r.data:(r.data.data||[])) : [];
+      data = data.map(c=>({ codigo: c.codigo||c.nombre, nombre: c.nombre }));
+    } else {
+      const r = await apiFetch('/maestros?tipo=' + tipo);
+      data = r.ok ? (r.data.data || []) : [];
+    }
+    if(!data.length){ cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Sin datos</span>'; return; }
+    const selSet = new Set((seleccionados||[]).map(String));
+    cont.innerHTML = data.map(it=>`<label style="display:flex;gap:6px;align-items:center;font-size:12px;margin-bottom:4px"><input type="checkbox" value="${esc(it.codigo)}" ${selSet.has(String(it.codigo))?'checked':''}> ${esc(it.nombre)} <small style="color:var(--muted)">${esc(it.codigo)}</small></label>`).join('');
+  } catch { cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Error</span>'; }
+}
+
+async function cargarAprobadoresChecklist(containerId, seleccionados){
+  const cont = document.getElementById(containerId);
+  if(!cont) return;
+  cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Cargando...</span>';
+  try {
+    // Reusar lista de usuarios del launcher
+    const r = await apiFetch('/perfiles-venta/' + (document.getElementById('perfil-venta-id').value || '0') + '/usuarios');
+    let usuarios = [];
+    if(r.ok) usuarios = r.data.usuarios || [];
+    else {
+      const r2 = await fetch(HF.API.replace(/\/crm\/api.*/, '/api/admin/usuarios'), { headers: { 'Authorization':'Bearer '+HF.TOKEN }}).then(x=>x.json()).catch(()=>null);
+      if(r2 && Array.isArray(r2)) usuarios = r2;
+    }
+    // Fallback: _perfilVentaUsuariosCache o lista genérica
+    if(!usuarios.length && Array.isArray(_perfilVentaUsuariosCache)) usuarios = _perfilVentaUsuariosCache;
+    if(!usuarios.length){ cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Sin usuarios</span>'; return; }
+    const selSet = new Set((seleccionados||[]).map(String));
+    cont.innerHTML = usuarios.map(u=>`<label style="display:flex;gap:6px;align-items:center;font-size:12px;margin-bottom:4px"><input type="checkbox" value="${u.id}" ${selSet.has(String(u.id))?'checked':''}> ${esc(u.nombre)} <small style="color:var(--muted)">${esc(u.email||'')}</small></label>`).join('');
+  } catch { cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Error</span>'; }
+}
+
+function getCheckedValues(containerId){
+  const cont = document.getElementById(containerId);
+  if(!cont) return [];
+  return [...cont.querySelectorAll('input:checked')].map(i=>i.value);
+}
+
 async function guardarPerfilVenta(){
   const id=document.getElementById('perfil-venta-id').value;
   const nombre=document.getElementById('perfil-venta-nombre').value.trim();
   const descripcion=document.getElementById('perfil-venta-desc').value.trim();
   const permisos=[...document.querySelectorAll('#perfil-venta-permisos input:checked')].map(i=>i.value);
   if(!nombre) return toast('Nombre requerido','error');
-  const r=id? await apiFetch('/perfiles-venta/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre,descripcion,permisos})})
-             : await apiFetch('/perfiles-venta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({nombre,descripcion,permisos})});
+  const config = {
+    listas_precio: getCheckedValues('perfil-maestro-lista_precio'),
+    motivo_venta: getCheckedValues('perfil-maestro-motivo_venta'),
+    tipo_documento: getCheckedValues('perfil-maestro-tipo_documento'),
+    bodega: getCheckedValues('perfil-maestro-bodega'),
+    bodega_consulta: getCheckedValues('perfil-maestro-bodega_consulta'),
+    centro_operacion: getCheckedValues('perfil-maestro-centro_operacion'),
+    centro_costo: getCheckedValues('perfil-maestro-centro_costo'),
+    unidad_negocio: getCheckedValues('perfil-maestro-unidad_negocio'),
+    descuentos: {
+      modalidad: document.getElementById('perfil-desc-modalidad').value,
+      rango1: parseFloat(document.getElementById('perfil-desc-rango1').value)||0,
+      rango2: parseFloat(document.getElementById('perfil-desc-rango2').value)||0,
+      rango3: parseFloat(document.getElementById('perfil-desc-rango3').value)||0,
+      permite_global: document.getElementById('perfil-desc-global').checked,
+      aprobadores: {
+        supera: getCheckedValues('perfil-desc-aprob-supera'),
+        r1: getCheckedValues('perfil-desc-aprob-r1'),
+        r2: getCheckedValues('perfil-desc-aprob-r2'),
+        r3: getCheckedValues('perfil-desc-aprob-r3'),
+      }
+    },
+    margenes: {
+      bruto_pct: document.getElementById('perfil-mg-bruto-pct').checked,
+      valor_bruto: document.getElementById('perfil-mg-valor-bruto').checked,
+      con_desc_pct: document.getElementById('perfil-mg-con-desc-pct').checked,
+      valor_con_desc: document.getElementById('perfil-mg-valor-con-desc').checked,
+      utilidad: document.getElementById('perfil-mg-utilidad').checked,
+      fila_bruto_pct: document.getElementById('perfil-mg-fila-bruto-pct').checked,
+      fila_total_bruto: document.getElementById('perfil-mg-fila-total-bruto').checked,
+      fila_total_con_desc: document.getElementById('perfil-mg-fila-total-con-desc').checked,
+      fila_margen_con_desc_pct: document.getElementById('perfil-mg-fila-margen-con-desc-pct').checked,
+      fila_valor_con_desc: document.getElementById('perfil-mg-fila-valor-con-desc').checked,
+    }
+  };
+  const body = { nombre, descripcion, permisos, config };
+  const r=id? await apiFetch('/perfiles-venta/'+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
+             : await apiFetch('/perfiles-venta',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
   if(!r.ok) return toast(r.data?.error||'Error','error');
   hideModal('modal-perfil-venta'); cargarPerfilesVenta();
 }

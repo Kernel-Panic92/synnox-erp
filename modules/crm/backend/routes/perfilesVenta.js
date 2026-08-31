@@ -53,9 +53,10 @@ router.get('/', requirePermiso('configurar', 'crm'), async (req, res) => {
 // POST /api/perfiles-venta — crear
 router.post('/', requirePermiso('configurar', 'crm'), async (req, res) => {
   try {
-    const { nombre, descripcion, permisos } = req.body;
+    const { nombre, descripcion, permisos, config } = req.body;
     if (!nombre) return res.status(400).json({ error: 'Nombre requerido' });
-    const r = await pool.query(`INSERT INTO crm.perfiles_venta (nombre, descripcion) VALUES ($1,$2) RETURNING *`, [nombre, descripcion||'']);
+    const cfg = config && typeof config === 'object' ? config : {};
+    const r = await pool.query(`INSERT INTO crm.perfiles_venta (nombre, descripcion, config) VALUES ($1,$2,$3) RETURNING *`, [nombre, descripcion||'', JSON.stringify(cfg)]);
     if (Array.isArray(permisos)) {
       const ins = `INSERT INTO crm.perfil_venta_permisos (perfil_id, permiso) VALUES ($1,$2) ON CONFLICT DO NOTHING`;
       for (const perm of permisos) await pool.query(ins, [r.rows[0].id, perm]);
@@ -67,9 +68,17 @@ router.post('/', requirePermiso('configurar', 'crm'), async (req, res) => {
 // PUT /api/perfiles-venta/:id — editar
 router.put('/:id', requirePermiso('configurar', 'crm'), async (req, res) => {
   try {
-    const { nombre, descripcion, permisos } = req.body;
-    if (nombre) await pool.query(`UPDATE crm.perfiles_venta SET nombre=$1, descripcion=$2 WHERE id=$3`, [nombre, descripcion||'', req.params.id]);
-    else if (descripcion!==undefined) await pool.query(`UPDATE crm.perfiles_venta SET descripcion=$1 WHERE id=$2`, [descripcion, req.params.id]);
+    const { nombre, descripcion, permisos, config } = req.body;
+    const updates = [];
+    const params = [];
+    let idx = 1;
+    if (nombre !== undefined) { updates.push(`nombre=$${idx++}`); params.push(nombre); }
+    if (descripcion !== undefined) { updates.push(`descripcion=$${idx++}`); params.push(descripcion); }
+    if (config !== undefined) { updates.push(`config=$${idx++}`); params.push(JSON.stringify(config)); }
+    if (updates.length) {
+      params.push(req.params.id);
+      await pool.query(`UPDATE crm.perfiles_venta SET ${updates.join(', ')} WHERE id=$${idx}`, params);
+    }
     if (Array.isArray(permisos)) {
       await pool.query(`DELETE FROM crm.perfil_venta_permisos WHERE perfil_id=$1`, [req.params.id]);
       for (const perm of permisos) await pool.query(`INSERT INTO crm.perfil_venta_permisos (perfil_id, permiso) VALUES ($1,$2) ON CONFLICT DO NOTHING`, [req.params.id, perm]);
