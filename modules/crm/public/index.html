@@ -1276,22 +1276,22 @@
 
     <!-- Tab Permisos -->
     <div id="tab-perfil-permisos" style="display:none">
-      <div class="form-group"><label>Permisos del sistema</label><div id="perfil-venta-permisos" style="display:grid;grid-template-columns:1fr 1fr;gap:6px;max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:10px"></div></div>
+      <div class="form-group"><label>Permisos del sistema</label><div id="perfil-venta-permisos" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px;max-height:320px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:10px"></div></div>
     </div>
 
     <!-- Tab Márgenes -->
     <div id="tab-perfil-margenes" style="display:none">
-      <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-        <label><input type="checkbox" id="perfil-mg-bruto-pct"> ¿Mostrar columna "Margen Bruto %"? </label>
-        <label><input type="checkbox" id="perfil-mg-valor-bruto"> ¿Mostrar columna "Valor Margen Bruto"? </label>
-        <label><input type="checkbox" id="perfil-mg-con-desc-pct"> ¿Mostrar columna "Margen con Descuento %"? </label>
-        <label><input type="checkbox" id="perfil-mg-valor-con-desc"> ¿Mostrar columna "Valor Margen con Descuento"? </label>
-        <label><input type="checkbox" id="perfil-mg-utilidad"> ¿Mostrar columna "Margen Utilidad" (icono visual)? </label>
-        <label><input type="checkbox" id="perfil-mg-fila-bruto-pct"> ¿Mostrar fila "Margen Bruto %"? </label>
-        <label><input type="checkbox" id="perfil-mg-fila-total-bruto"> ¿Mostrar fila "Valor Total Margen Bruto"? </label>
-        <label><input type="checkbox" id="perfil-mg-fila-total-con-desc"> ¿Mostrar fila "Total Valor Bruto con Descuento"? </label>
-        <label><input type="checkbox" id="perfil-mg-fila-margen-con-desc-pct"> ¿Mostrar fila "Margen con Descuento %"? </label>
-        <label><input type="checkbox" id="perfil-mg-fila-valor-con-desc"> ¿Mostrar fila "Valor Total Margen con Descuento"? </label>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:8px">
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;padding:4px 2px;line-height:1.3;min-width:0;overflow-wrap:break-word"><input type="checkbox" id="perfil-mg-bruto-pct" style="margin-top:2px;flex-shrink:0"><span style="flex:1;min-width:0"> ¿Mostrar columna "Margen Bruto %"?</span></label>
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;padding:4px 2px;line-height:1.3;min-width:0;overflow-wrap:break-word"><input type="checkbox" id="perfil-mg-valor-bruto" style="margin-top:2px;flex-shrink:0"><span style="flex:1;min-width:0"> ¿Mostrar columna "Valor Margen Bruto"?</span></label>
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;padding:4px 2px;line-height:1.3;min-width:0;overflow-wrap:break-word"><input type="checkbox" id="perfil-mg-con-desc-pct" style="margin-top:2px;flex-shrink:0"><span style="flex:1;min-width:0"> ¿Mostrar columna "Margen con Descuento %"?</span></label>
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;padding:4px 2px;line-height:1.3;min-width:0;overflow-wrap:break-word"><input type="checkbox" id="perfil-mg-valor-con-desc" style="margin-top:2px;flex-shrink:0"><span style="flex:1;min-width:0"> ¿Mostrar columna "Valor Margen con Descuento"?</span></label>
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;padding:4px 2px;line-height:1.3;min-width:0;overflow-wrap:break-word"><input type="checkbox" id="perfil-mg-utilidad" style="margin-top:2px;flex-shrink:0"><span style="flex:1;min-width:0"> ¿Mostrar columna "Margen Utilidad" (icono visual)?</span></label>
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;padding:4px 2px;line-height:1.3;min-width:0;overflow-wrap:break-word"><input type="checkbox" id="perfil-mg-fila-bruto-pct" style="margin-top:2px;flex-shrink:0"><span style="flex:1;min-width:0"> ¿Mostrar fila "Margen Bruto %"?</span></label>
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;padding:4px 2px;line-height:1.3;min-width:0;overflow-wrap:break-word"><input type="checkbox" id="perfil-mg-fila-total-bruto" style="margin-top:2px;flex-shrink:0"><span style="flex:1;min-width:0"> ¿Mostrar fila "Valor Total Margen Bruto"?</span></label>
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;padding:4px 2px;line-height:1.3;min-width:0;overflow-wrap:break-word"><input type="checkbox" id="perfil-mg-fila-total-con-desc" style="margin-top:2px;flex-shrink:0"><span style="flex:1;min-width:0"> ¿Mostrar fila "Total Valor Bruto con Descuento"?</span></label>
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;padding:4px 2px;line-height:1.3;min-width:0;overflow-wrap:break-word"><input type="checkbox" id="perfil-mg-fila-margen-con-desc-pct" style="margin-top:2px;flex-shrink:0"><span style="flex:1;min-width:0"> ¿Mostrar fila "Margen con Descuento %"?</span></label>
+        <label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;padding:4px 2px;line-height:1.3;min-width:0;overflow-wrap:break-word"><input type="checkbox" id="perfil-mg-fila-valor-con-desc" style="margin-top:2px;flex-shrink:0"><span style="flex:1;min-width:0"> ¿Mostrar fila "Valor Total Margen con Descuento"?</span></label>
       </div>
     </div>
 

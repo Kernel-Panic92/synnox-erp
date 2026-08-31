@@ -2858,7 +2858,7 @@ async function abrirModalPerfilVenta(id){
   // Reset tabs
   cambiarTabPerfil('datos', document.querySelector('#modal-perfil-venta .tab-btn'));
   // Permisos
-  document.getElementById('perfil-venta-permisos').innerHTML=CRM_PERMISOS.map(perm=>`<label style="display:flex;gap:6px;align-items:center;font-size:13px"><input type="checkbox" value="${perm}" ${(p?.permisos||[]).includes(perm)?'checked':''}> ${perm}</label>`).join('');
+  document.getElementById('perfil-venta-permisos').innerHTML=CRM_PERMISOS.map(perm=>`<label style="display:flex;gap:8px;align-items:center;font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);min-width:0;overflow-wrap:break-word"><input type="checkbox" value="${perm}" ${(p?.permisos||[]).includes(perm)?'checked':''} style="flex-shrink:0"> <span style="flex:1;min-width:0">${perm}</span></label>`).join('');
   // Datos básicos — maestros dinámicos
   await Promise.all([
     cargarMaestroChecklist('lista_precio','perfil-maestro-lista_precio', cfg.listas_precio||cfg.lista_precio||[]),
