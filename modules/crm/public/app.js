@@ -1723,7 +1723,7 @@ function renderItemsCotizacion() {
       const sub = (it.cantidad || 1) * (it.precio_unitario || 0) * (1 - (it.descuento_pct || 0) / 100);
       return `
         <div class="item-row" style="grid-template-columns:60px 1fr 50px 80px 60px 80px 30px">
-          <input value="${esc(it.referencia || '')}" onchange="updateItemCotizacion(${i},'referencia',this.value)" placeholder="Ref" style="font-size:11px">
+          <input value="${esc(it.referencia || '')}" onchange="onReferenciaChange(${i}, this.value)" onblur="onReferenciaChange(${i}, this.value)" placeholder="Ref" style="font-size:11px">
           <input value="${esc(it.descripcion)}" onchange="updateItemCotizacion(${i},'descripcion',this.value)" placeholder="Descripcion">
           <input value="${esc(it.unidad_medida || 'UND')}" onchange="updateItemCotizacion(${i},'unidad_medida',this.value)" style="font-size:11px">
           <input type="number" value="${it.cantidad || 1}" min="0.01" step="0.01" onchange="updateItemCotizacion(${i},'cantidad',parseFloat(this.value))">
@@ -1744,6 +1744,25 @@ function agregarItemCotizacion() {
 
 function updateItemCotizacion(idx, field, value) {
   _cotizacionItems[idx][field] = value;
+  renderItemsCotizacion();
+}
+
+async function onReferenciaChange(idx, codigo) {
+  const val = (codigo || '').trim();
+  _cotizacionItems[idx].referencia = val;
+  if (!val || val.length < 2) { renderItemsCotizacion(); return; }
+  try {
+    const r = await apiFetch('/productos/buscar?q=' + encodeURIComponent(val));
+    if (!r.ok || !r.data.data.length) { renderItemsCotizacion(); return; }
+    const exact = r.data.data.find(p => String(p.codigo).toLowerCase() === val.toLowerCase()) || r.data.data[0];
+    if (exact) {
+      _cotizacionItems[idx].descripcion = exact.nombre;
+      _cotizacionItems[idx].unidad_medida = exact.unidad_medida || 'UND';
+      _cotizacionItems[idx].precio_unitario = parseFloat(exact.precio_unitario || 0);
+      _cotizacionItems[idx].referencia = exact.codigo;
+      toast('Producto ' + exact.codigo + ' cargado', 'success');
+    }
+  } catch {}
   renderItemsCotizacion();
 }
 
