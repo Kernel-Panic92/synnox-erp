@@ -2247,6 +2247,20 @@ function limpiarFiltrosInventario() {
 // ── Importar SIESA ──
 let _importarTipos = [];
 
+async function repararPrecios() {
+  const btn = document.getElementById('btn-reparar-precios');
+  const res = document.getElementById('reparar-precios-result');
+  if (!confirmar) return;
+  confirmar({ titulo: 'Reparar precios', mensaje: '¿Multiplicar x1000 todos los precios < $500? Usar solo una vez.', icono: '🛠️', onConfirm: async () => {
+    btn.disabled = true; btn.textContent = 'Reparando...'; res.textContent = '';
+    const r = await apiFetch('/importar/reparar-precios', { method: 'POST' });
+    if (!r.ok) { toast(r.data?.error || 'Error', 'error'); btn.disabled = false; btn.textContent = 'Reparar precios'; return; }
+    const d = r.data;
+    res.textContent = `✔ Lista: ${d.reparados.lista_precios}, Productos: ${d.reparados.productos}, Inventario: ${d.reparados.inventario}`;
+    toast('Precios reparados', 'success'); btn.textContent = 'Reparado'; 
+  }});
+}
+
 async function cargarPaginaImportar() {
   const r = await apiFetch('/importar/tipos');
   if (!r.ok) return;

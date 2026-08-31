@@ -671,6 +671,21 @@ router.post('/', requirePermiso('crear_contacto', 'crm'), upload.single('archivo
   }
 });
 
+// POST /api/importar/reparar-precios — TEMPORAL: corrige precios truncados $2.3 -> 2300
+router.post('/reparar-precios', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
+  try {
+    const umbral = 500; // precios < 500 se asumen truncados (2.3, 26, etc.)
+    const r1 = await pool.query(`UPDATE crm.lista_precio_items SET precio = precio * 1000 WHERE precio > 0 AND precio < $1 RETURNING id`, [umbral]);
+    const r2 = await pool.query(`UPDATE crm.productos SET precio_unitario = precio_unitario * 1000 WHERE precio_unitario > 0 AND precio_unitario < $1 RETURNING id`, [umbral]);
+    const r3 = await pool.query(`UPDATE crm.inventario SET precio = precio * 1000 WHERE precio > 0 AND precio < $1 RETURNING id`, [umbral]);
+    // Nota: 2.773*1000=2773, 26*1000=26000. Requiere revisar caso a caso si precio correcto era <500.
+    res.json({ ok: true, reparados: { lista_precios: r1.rowCount, productos: r2.rowCount, inventario: r3.rowCount }, umbral });
+  } catch (err) {
+    console.error('[CRM] Error reparar precios:', err);
+    res.status(500).json({ error: 'Error al reparar' });
+  }
+});
+
 // GET /api/importar/tipos — Listar tipos disponibles
 router.get('/tipos', requirePermiso('crear_contacto', 'crm'), (req, res) => {
   res.json({
