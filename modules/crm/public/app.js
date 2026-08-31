@@ -2073,15 +2073,46 @@ async function rechazarDescuento(id) {
   cargarDescuentos();
 }
 
+let _oportunidadesCache = [];
 async function cargarOportunidadesSelect(selectId, selectedId) {
   try {
     const r = await apiFetch('/oportunidades?limit=500');
     if (!r.ok) return;
     const data = r.data.data || [];
+    _oportunidadesCache = data;
     const select = document.getElementById(selectId);
     select.innerHTML = '<option value="">Sin oportunidad</option>' +
-      data.map(o => `<option value="${o.id}" ${o.id === selectedId ? 'selected' : ''}>${esc(o.nombre)}</option>`).join('');
+      data.map(o => `<option value="${o.id}" ${o.id === selectedId ? 'selected' : ''}>${esc(o.nombre)} — ${esc(o.cliente_nombre || '')}</option>`).join('');
+    // cuando se elige oportunidad, traer su cliente
+    if (selectId === 'cotizacion-oportunidad') {
+      select.onchange = async () => {
+        const oid = select.value;
+        if (!oid) return;
+        const opp = _oportunidadesCache.find(o => o.id === oid);
+        const clienteId = opp?.cliente_id || (await apiFetch('/oportunidades/' + oid).then(x=>x.ok?x.data.cliente_id:null).catch(()=>null));
+        if (clienteId) await setClienteCotizacion(clienteId);
+      };
+    }
   } catch {}
+}
+
+async function setClienteCotizacion(clienteId) {
+  const sel = document.getElementById('cotizacion-cliente');
+  const sd = document.getElementById('cotizacion-cliente-selected');
+  const search = document.getElementById('cotizacion-cliente-search');
+  const r = await apiFetch('/clientes/' + clienteId);
+  if (!r.ok) { toast('Cliente de la oportunidad no encontrado', 'warning'); return; }
+  const c = r.data.data;
+  sel.innerHTML = `<option value="${c.id}" selected>${esc(c.nombre)} — ${esc(c.nit || '')}</option>`;
+  sel.value = c.id;
+  sd.textContent = '✓ ' + c.nombre + ' — ' + (c.nit || '') + '  ✕';
+  sd.style.display = ''; sd.style.cursor = 'pointer';
+  sd.title = 'Click para quitar';
+  sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; search.value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; };
+  sel.style.display = 'none';
+  search.value = '';
+  await cargarContactosCotizacion(c.id);
+  toast('Cliente cargado desde oportunidad', 'success');
 }
 
 // ── Productos ──
