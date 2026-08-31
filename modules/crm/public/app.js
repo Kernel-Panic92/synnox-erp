@@ -2913,9 +2913,80 @@ async function cargarMaestroChecklist(tipo, containerId, seleccionados){
       data = r.ok ? (r.data.data || []) : [];
     }
     if(!data.length){ cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Sin datos</span>'; return; }
-    const selSet = new Set((seleccionados||[]).map(String));
-    cont.innerHTML = `<div style="display:flex;gap:6px;margin-bottom:6px"><button type="button" class="btn btn-sm btn-secondary" style="padding:2px 8px;font-size:11px" onclick="this.closest('.maestro-checklist').querySelectorAll('input').forEach(c=>c.checked=true)">Todos</button><button type="button" class="btn btn-sm btn-secondary" style="padding:2px 8px;font-size:11px" onclick="this.closest('.maestro-checklist').querySelectorAll('input').forEach(c=>c.checked=false)">Ninguno</button></div>` + data.map(it=>`<label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;padding:4px 2px;line-height:1.3;border-bottom:1px solid var(--border);"><input type="checkbox" value="${esc(it.codigo)}" ${selSet.has(String(it.codigo))?'checked':''} style="margin-top:2px;flex-shrink:0"><span style="flex:1;min-width:0;overflow-wrap:break-word">${esc(it.nombre)} <small style="color:var(--muted);display:block">${esc(it.codigo)}</small></span></label>`).join('');
+    window._maestroCache = window._maestroCache || {};
+    window._maestroCache[containerId] = data;
+    window._maestroSelected = window._maestroSelected || {};
+    window._maestroSelected[containerId] = new Set((seleccionados||[]).map(String));
+    cont.innerHTML = `
+      <div class="multi-combo" id="${containerId}-combo" onclick="document.getElementById('${containerId}-input')?.focus()">
+        <div class="multi-combo-tags" id="${containerId}-tags"></div>
+        <input type="text" placeholder="Buscar y seleccionar..." class="multi-combo-input" id="${containerId}-input" oninput="filtrarMaestroCombo('${tipo}','${containerId}', this.value)" onfocus="abrirMaestroCombo('${containerId}')" autocomplete="off">
+        <div class="multi-combo-dropdown" id="${containerId}-dropdown" style="display:none"></div>
+      </div>`;
+    renderMaestroTags(containerId, window._maestroSelected[containerId]);
+    renderMaestroDropdown(containerId, '', data, window._maestroSelected[containerId]);
+    // Cerrar al hacer click fuera
+    setTimeout(()=>{
+      const combo = document.getElementById(containerId+'-combo');
+      const dd = document.getElementById(containerId+'-dropdown');
+      if(!combo || combo._outsideHandler) return;
+      const handler = (e)=>{ if(!combo.contains(e.target)) dd.style.display='none'; };
+      combo._outsideHandler = handler;
+      document.addEventListener('click', handler);
+    }, 100);
   } catch { cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Error</span>'; }
+}
+function renderMaestroTags(containerId, selSet){
+  const tagsCont = document.getElementById(containerId+'-tags');
+  if(!tagsCont) return;
+  const data = (window._maestroCache && window._maestroCache[containerId]) || [];
+  const selected = data.filter(it=> selSet.has(String(it.codigo)));
+  if(!selected.length){ tagsCont.innerHTML = '<span style="color:var(--muted);font-size:11px">Sin selección</span>'; return; }
+  tagsCont.innerHTML = selected.map(it=>`<span class="multi-combo-tag">${esc(it.nombre)}<small style="color:var(--muted)"> ${esc(it.codigo)}</small><span class="remove" onclick="event.stopPropagation();toggleMaestroItem('${containerId}','${esc(it.codigo).replace(/'/g,"\\'")}')">×</span></span>`).join('');
+}
+function renderMaestroDropdown(containerId, filter, data, selSet){
+  const dd = document.getElementById(containerId+'-dropdown');
+  if(!dd) return;
+  const q = (filter||'').toLowerCase();
+  const filtered = q ? data.filter(it=> String(it.codigo).toLowerCase().includes(q) || String(it.nombre).toLowerCase().includes(q)) : data;
+  if(!filtered.length){ dd.innerHTML = '<div style="padding:8px;color:var(--muted);font-size:12px">Sin resultados</div>'; return; }
+  dd.innerHTML = `<div style="display:flex;gap:6px;padding:4px 2px;position:sticky;top:0;background:var(--surface);z-index:1"><button type="button" class="btn btn-sm btn-secondary" style="padding:2px 8px;font-size:11px" onclick="seleccionarTodosMaestro('${containerId}', true)">Todos</button><button type="button" class="btn btn-sm btn-secondary" style="padding:2px 8px;font-size:11px" onclick="seleccionarTodosMaestro('${containerId}', false)">Ninguno</button></div>` + filtered.map(it=>`<label style="display:flex;gap:8px;align-items:center;font-size:12px;padding:6px 4px;border-bottom:1px solid var(--border);cursor:pointer"><input type="checkbox" value="${esc(it.codigo)}" ${selSet.has(String(it.codigo))?'checked':''} onchange="onMaestroCheckChange('${containerId}','${esc(it.codigo).replace(/'/g,"\\'")}', this.checked)" style="flex-shrink:0"><span style="flex:1;min-width:0;overflow-wrap:break-word">${esc(it.nombre)} <small style="color:var(--muted)"> ${esc(it.codigo)}</small></span></label>`).join('');
+}
+function abrirMaestroCombo(containerId){
+  const dd = document.getElementById(containerId+'-dropdown');
+  if(dd) dd.style.display = dd.style.display==='none' ? 'block' : 'block';
+}
+function filtrarMaestroCombo(tipo, containerId, q){
+  const data = (window._maestroCache && window._maestroCache[containerId]) || [];
+  const set = window._maestroSelected[containerId] || new Set();
+  renderMaestroDropdown(containerId, q, data, set);
+  document.getElementById(containerId+'-dropdown').style.display='block';
+}
+function onMaestroCheckChange(containerId, codigo, checked){
+  const set = window._maestroSelected[containerId] || new Set();
+  const code = String(codigo).trim();
+  if(checked) set.add(code); else set.delete(code);
+  window._maestroSelected[containerId] = set;
+  renderMaestroTags(containerId, set);
+}
+function toggleMaestroItem(containerId, codigo){
+  const set = window._maestroSelected[containerId] || new Set();
+  const code = String(codigo).trim();
+  if(set.has(code)) set.delete(code); else set.add(code);
+  window._maestroSelected[containerId] = set;
+  renderMaestroTags(containerId, set);
+  const data = (window._maestroCache && window._maestroCache[containerId]) || [];
+  const input = document.getElementById(containerId+'-input');
+  renderMaestroDropdown(containerId, input ? input.value : '', data, set);
+}
+function seleccionarTodosMaestro(containerId, checked){
+  const data = (window._maestroCache && window._maestroCache[containerId]) || [];
+  const set = new Set();
+  if(checked) data.forEach(it=> set.add(String(it.codigo)));
+  window._maestroSelected[containerId] = set;
+  renderMaestroTags(containerId, set);
+  const input = document.getElementById(containerId+'-input');
+  renderMaestroDropdown(containerId, input ? input.value : '', data, set);
 }
 
 async function cargarAprobadoresChecklist(containerId, seleccionados){
@@ -2940,6 +3011,7 @@ async function cargarAprobadoresChecklist(containerId, seleccionados){
 }
 
 function getCheckedValues(containerId){
+  if(window._maestroSelected && window._maestroSelected[containerId]) return [...window._maestroSelected[containerId]];
   const cont = document.getElementById(containerId);
   if(!cont) return [];
   return [...cont.querySelectorAll('input:checked')].map(i=>i.value);
