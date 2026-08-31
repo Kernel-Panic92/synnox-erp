@@ -615,6 +615,34 @@ async function importarVendedores(rows, onProgress) {
   return { insertados, actualizados, fallidos, total: rows.length, errores: errores.slice(0, 50) };
 }
 
+async function importarMaestroGenerico(rows, table, onProgress) {
+  let insertados = 0, actualizados = 0, fallidos = 0;
+  const errores = [];
+  for (let i = 0; i < rows.length; i++) {
+    try {
+      const r = rows[i];
+      const codigo = (r.codigo || r.c_digo || '').trim();
+      const nombre = (r.descripcion || r.descripci_n || r.nombre || '').trim();
+      if (!codigo || !nombre) { fallidos++; errores.push(`Fila ${i+1}: sin código o nombre`); continue; }
+      const existing = await pool.query(`SELECT codigo FROM ${table} WHERE codigo = $1`, [codigo]);
+      if (existing.rows.length) {
+        await pool.query(`UPDATE ${table} SET nombre = $1 WHERE codigo = $2`, [nombre, codigo]);
+        actualizados++;
+      } else {
+        await pool.query(`INSERT INTO ${table} (codigo, nombre) VALUES ($1,$2)`, [codigo, nombre]);
+        insertados++;
+      }
+      if (onProgress && i % 10 === 0) onProgress(i + 1, rows.length);
+    } catch (e) { fallidos++; errores.push(`Fila ${i+1}: ${e.message}`); }
+  }
+  if (onProgress) onProgress(rows.length, rows.length);
+  return { insertados, actualizados, fallidos, total: rows.length, errores: errores.slice(0, 50) };
+}
+async function importarMotivos(rows, onProgress) { return importarMaestroGenerico(rows, 'crm.motivos_venta', onProgress); }
+async function importarTiposDocumento(rows, onProgress) { return importarMaestroGenerico(rows, 'crm.tipos_documento', onProgress); }
+async function importarCentrosCosto(rows, onProgress) { return importarMaestroGenerico(rows, 'crm.centros_costo', onProgress); }
+async function importarUnidadesNegocio(rows, onProgress) { return importarMaestroGenerico(rows, 'crm.unidades_negocio', onProgress); }
+
 // ── Endpoint principal ──
 const PARSERS = {
   clientes: importarClientes,
@@ -626,7 +654,11 @@ const PARSERS = {
   codigos_barra: importarCodigosBarra,
   bodegas: importarBodegas,
   precios: importarPrecios,
-  vendedores: importarVendedores
+  vendedores: importarVendedores,
+  motivos_venta: importarMotivos,
+  tipos_documento: importarTiposDocumento,
+  centros_costo: importarCentrosCosto,
+  unidades_negocio: importarUnidadesNegocio
 };
 
 router.post('/', requirePermiso('crear_contacto', 'crm'), upload.single('archivo'), async (req, res) => {
@@ -686,7 +718,11 @@ router.get('/tipos', requirePermiso('crear_contacto', 'crm'), (req, res) => {
       { id: 'codigos_barra', nombre: 'Códigos de Barras (EAN)', extensiones: 'csv', descripcion: 'Códigos GS1 vinculados a productos por referencia' },
       { id: 'bodegas', nombre: 'Bodegas', extensiones: 'csv', descripcion: 'Almacenes con código, nombre y ubicación' },
       { id: 'precios', nombre: 'Precios por Item', extensiones: 'csv', descripcion: 'Precios de productos por lista de precio' },
-      { id: 'vendedores', nombre: 'Vendedores', extensiones: 'csv', descripcion: 'Asesores comerciales con código y nombre' }
+      { id: 'vendedores', nombre: 'Vendedores', extensiones: 'csv', descripcion: 'Asesores comerciales con código y nombre' },
+      { id: 'motivos_venta', nombre: 'Motivos de Venta', extensiones: 'csv', descripcion: 'Motivos SIESA para cotizaciones (VENTAS, etc.)' },
+      { id: 'tipos_documento', nombre: 'Tipos de Documento', extensiones: 'csv', descripcion: 'Tipos SIESA (PEDIDO DE VENTA CRM, etc.)' },
+      { id: 'centros_costo', nombre: 'Centros de Costo', extensiones: 'csv', descripcion: 'Centros de costo SIESA' },
+      { id: 'unidades_negocio', nombre: 'Unidades de Negocio', extensiones: 'csv', descripcion: 'Unidades SIESA (PRODUCCION CRUDOS, etc.)' }
     ]
   });
 });
