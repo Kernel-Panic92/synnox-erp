@@ -185,6 +185,42 @@ router.post('/importar', requirePermiso('crear_cotizacion', 'crm'), upload.singl
   }
 });
 
+// GET /api/productos/:id — Detalle
+router.get('/:id', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+  try {
+    const result = await pool.query(`SELECT * FROM crm.productos WHERE id = $1`, [req.params.id]);
+    if (!result.rows.length) return res.status(404).json({ error: 'Producto no encontrado' });
+    res.json({ ok: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('[CRM] Error obtener producto:', err);
+    res.status(500).json({ error: 'Error al obtener producto' });
+  }
+});
+
+// PUT /api/productos/:id — Editar producto (codigo no editable)
+router.put('/:id', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await pool.query(`SELECT id FROM crm.productos WHERE id = $1`, [id]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Producto no encontrado' });
+
+    const { nombre, descripcion, unidad_medida, precio_unitario, tasa_impuesto, categoria, bodega } = req.body;
+    if (!nombre) return res.status(400).json({ error: 'El nombre es obligatorio' });
+
+    const result = await pool.query(`
+      UPDATE crm.productos
+      SET nombre = $1, descripcion = $2, unidad_medida = $3, precio_unitario = $4, tasa_impuesto = $5, categoria = $6, bodega = $7, actualizado_en = NOW()
+      WHERE id = $8 RETURNING *
+    `, [nombre, descripcion || null, unidad_medida || 'UND', precio_unitario || 0, tasa_impuesto || 0, categoria || null, bodega || null, id]);
+
+    await auditarEvento({ accion: 'editar', entidad: 'producto', entidad_id: id, usuario_id: req.user.id, metadata: { nombre } });
+    res.json({ ok: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('[CRM] Error editar producto:', err);
+    res.status(500).json({ error: 'Error al editar producto' });
+  }
+});
+
 // POST /api/productos — Crear producto
 router.post('/', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
   try {
@@ -200,6 +236,7 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => 
       RETURNING *
     `, [codigo, nombre, descripcion || null, unidad_medida || 'UND', precio_unitario || 0, tasa_impuesto || 0, categoria || null, bodega || null]);
 
+    await auditarEvento({ accion: 'crear', entidad: 'producto', entidad_id: result.rows[0].id, usuario_id: req.user.id, metadata: { codigo, nombre } });
     res.status(201).json({ ok: true, data: result.rows[0] });
   } catch (err) {
     console.error('[CRM] Error crear producto:', err);

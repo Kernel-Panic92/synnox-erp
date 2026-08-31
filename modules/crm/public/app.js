@@ -1993,15 +1993,16 @@ async function abrirModalProducto(producto = null) {
   document.getElementById('producto-tasa').value = producto?.tasa_impuesto || 0;
   document.getElementById('producto-categoria').value = producto?.categoria || '';
   document.getElementById('producto-bodega').value = producto?.bodega || '';
+  const codigoInput = document.getElementById('producto-codigo');
+  codigoInput.readOnly = !!producto;
+  codigoInput.title = producto ? 'El codigo de referencia no se puede editar' : '';
   showModal('modal-producto');
 }
 
 async function editarProducto(id) {
-  const r = await apiFetch('/productos?limit=500');
-  if (!r.ok) return;
-  const data = r.data.data || [];
-  const p = data.find(x => x.id === id);
-  if (p) abrirModalProducto(p);
+  const r = await apiFetch('/productos/' + id);
+  if (!r.ok) return toast(r.data?.error || 'Producto no encontrado', 'error');
+  abrirModalProducto(r.data.data);
 }
 
 async function guardarProducto() {
@@ -2019,9 +2020,13 @@ async function guardarProducto() {
 
   if (!body.codigo || !body.nombre) return toast('Codigo y nombre son obligatorios', 'error');
 
-  const r = await apiFetch('/productos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const url = id ? '/productos/' + id : '/productos';
+  const method = id ? 'PUT' : 'POST';
+  // codigo es identificador interno, no se envia en edicion
+  const payload = id ? (({ codigo, ...rest }) => rest)(body) : body;
+  const r = await apiFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
   if (!r.ok) return toast(r.data?.error || 'Error al guardar', 'error');
-  toast('Producto guardado', 'success');
+  toast(id ? 'Producto actualizado' : 'Producto creado', 'success');
   hideModal('modal-producto');
   cargarProductos();
 }
@@ -2036,10 +2041,9 @@ async function eliminarProducto(id) {
 }
 
 async function verProducto(id) {
-  const r = await apiFetch('/productos?limit=500');
-  if (!r.ok) return;
-  const p = (r.data.data || []).find(x => x.id === id);
-  if (!p) return toast('Producto no encontrado', 'error');
+  const r = await apiFetch('/productos/' + id);
+  if (!r.ok) return toast(r.data?.error || 'Producto no encontrado', 'error');
+  const p = r.data.data;
 
   // Fetch EANs, inventory, prices
   const [eanR, invR, priceR] = await Promise.all([
