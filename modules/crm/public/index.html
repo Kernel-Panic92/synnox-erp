@@ -1225,7 +1225,7 @@
 
 <!-- Modal Perfil Venta (configurable, 4 tabs) -->
 <div class="modal-overlay" id="modal-perfil-venta">
-  <div class="modal" style="max-width:860px;max-height:90vh;overflow:auto">
+  <div class="modal" style="max-width:860px;max-height:90vh;overflow:visible">
     <h3 id="modal-perfil-venta-title">Nuevo Perfil de Venta</h3>
     <input type="hidden" id="perfil-venta-id">
     <div style="display:flex;gap:16px;border-bottom:1px solid var(--border);margin-bottom:16px;flex-wrap:wrap">
@@ -1241,17 +1241,17 @@
         <div class="form-group"><label>Nombre *</label><input type="text" id="perfil-venta-nombre" placeholder="Ej: CRM - Comercial"></div>
         <div class="form-group"><label>Descripcion</label><input type="text" id="perfil-venta-desc"></div>
       </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
-        <div class="form-group"><label>Listas de Precios (Posibles)</label><div id="perfil-maestro-lista_precio" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
-        <div class="form-group"><label>Motivos (Ventas)</label><div id="perfil-maestro-motivo_venta" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
-        <div class="form-group"><label>Tipos de Documentos</label><div id="perfil-maestro-tipo_documento" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
-        <div class="form-group"><label>Tipos de Documentos Facturas</label><div id="perfil-maestro-tipo_documento_factura" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"><small style="color:var(--muted)">Usa los mismos Tipos de Documento</small></div></div>
-        <div class="form-group"><label>Bodegas pedido</label><div id="perfil-maestro-bodega" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
-        <div class="form-group"><label>Bodegas para consulta inventario</label><div id="perfil-maestro-bodega_consulta" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
-        <div class="form-group"><label>Centros de Operación</label><div id="perfil-maestro-centro_operacion" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
-        <div class="form-group"><label>Centros de Costo</label><div id="perfil-maestro-centro_costo" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
-        <div class="form-group"><label>Unidades de Negocio</label><div id="perfil-maestro-unidad_negocio" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div></div>
-        <div class="form-group"><label>Portafolio / Categorías</label><div id="perfil-maestro-portafolio" class="maestro-checklist" style="max-height:140px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"><small style="color:var(--muted)">Opcional — categorías de productos</small></div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div class="form-group"><label>Listas de Precios (Posibles)</label><div id="perfil-maestro-lista_precio"></div></div>
+        <div class="form-group"><label>Motivos (Ventas)</label><div id="perfil-maestro-motivo_venta"></div></div>
+        <div class="form-group"><label>Tipos de Documentos</label><div id="perfil-maestro-tipo_documento"></div></div>
+        <div class="form-group"><label>Tipos de Documentos Facturas</label><div id="perfil-maestro-tipo_documento_factura"><small style="color:var(--muted)">Usa los mismos Tipos de Documento</small></div></div>
+        <div class="form-group"><label>Bodegas pedido</label><div id="perfil-maestro-bodega"></div></div>
+        <div class="form-group"><label>Bodegas para consulta inventario</label><div id="perfil-maestro-bodega_consulta"></div></div>
+        <div class="form-group"><label>Centros de Operación</label><div id="perfil-maestro-centro_operacion"></div></div>
+        <div class="form-group"><label>Centros de Costo</label><div id="perfil-maestro-centro_costo"></div></div>
+        <div class="form-group"><label>Unidades de Negocio</label><div id="perfil-maestro-unidad_negocio"></div></div>
+        <div class="form-group"><label>Portafolio / Categorías</label><div id="perfil-maestro-portafolio"><small style="color:var(--muted)">Opcional — categorías de productos</small></div></div>
       </div>
     </div>
 

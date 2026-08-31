@@ -107,7 +107,7 @@ button, .btn {
 .multi-combo-tag .remove { cursor: pointer; font-weight: 700; color: var(--muted); margin-left: 2px; }
 .multi-combo-tag .remove:hover { color: var(--danger); }
 .multi-combo-input { width: 100%; border: none; background: transparent; outline: none; font-size: 13px; color: var(--text); padding: 2px 0; }
-.multi-combo-dropdown { position: absolute; top: 100%; left: 0; right: 0; max-height: 180px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; z-index: 50; box-shadow: 0 8px 20px rgba(0,0,0,.15); margin-top: 4px; padding: 4px; }
+.multi-combo-dropdown { position: absolute; top: 100%; left: 0; right: 0; max-height: 280px; overflow: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; z-index: 50; box-shadow: 0 8px 20px rgba(0,0,0,.15); margin-top: 4px; padding: 4px; }
 .multi-combo-dropdown label { display: flex; gap: 8px; align-items: flex-start; font-size: 12px; padding: 6px 4px; line-height: 1.3; border-bottom: 1px solid var(--border); cursor: pointer; }
 .multi-combo-dropdown label:last-child { border-bottom: none; }
 .multi-combo-dropdown label:hover { background: var(--surface2); }
