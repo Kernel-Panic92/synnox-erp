@@ -1458,10 +1458,10 @@ async function cargarCotizaciones() {
         <td>${esc(c.estado_erp || '—')}</td>
         <td>${esc(c.documento_erp || '—')}</td>
         <td>
-          <button class="btn btn-sm btn-secondary" onclick="editarCotizacion('${c.id}')">Editar</button>
-          ${c.estado === 'borrador' ? `<button class="btn btn-sm btn-danger" onclick="eliminarCotizacion('${c.id}')">Eliminar</button>` : ''}
-          ${c.estado === 'borrador' ? `<button class="btn btn-sm btn-primary" onclick="cambiarEstadoCotizacion('${c.id}','enviada')">Enviar</button>` : ''}
-          ${c.estado === 'enviada' ? `<button class="btn btn-sm btn-primary" onclick="cambiarEstadoCotizacion('${c.id}','aprobada')">Aprobar</button>` : ''}
+          <button class="btn btn-sm btn-secondary" onclick="editarCotizacion('${c.id}')" title="Editar cotizacion" aria-label="Editar cotizacion ${esc(c.numero)}">✏️</button>
+          ${c.estado === 'borrador' ? `<button class="btn btn-sm btn-danger" onclick="eliminarCotizacion('${c.id}')" title="Eliminar cotizacion" aria-label="Eliminar cotizacion ${esc(c.numero)}">🗑️</button>` : ''}
+          ${c.estado === 'borrador' ? `<button class="btn btn-sm btn-primary" onclick="cambiarEstadoCotizacion('${c.id}','enviada')" title="Enviar cotizacion" aria-label="Enviar cotizacion ${esc(c.numero)}">📤</button>` : ''}
+          ${c.estado === 'enviada' ? `<button class="btn btn-sm btn-primary" onclick="cambiarEstadoCotizacion('${c.id}','aprobada')" title="Aprobar cotizacion" aria-label="Aprobar cotizacion ${esc(c.numero)}">✅</button>` : ''}
         </td>
       </tr>
     `).join('');
