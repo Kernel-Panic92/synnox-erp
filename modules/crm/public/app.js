@@ -2905,11 +2905,11 @@ async function cargarMaestroChecklist(tipo, containerId, seleccionados){
   try {
     let data = [];
     if(tipo === 'centro_operacion'){
-      const r = await apiFetch('/centros');
+      const r = await apiFetch('/centros?_=' + Date.now(), { cache: 'no-store' });
       data = r.ok ? (Array.isArray(r.data)?r.data:(r.data.data||[])) : [];
       data = data.map(c=>({ codigo: c.codigo||c.nombre, nombre: c.nombre }));
     } else {
-      const r = await apiFetch('/maestros?tipo=' + tipo);
+      const r = await apiFetch('/maestros?tipo=' + tipo + '&_=' + Date.now(), { cache: 'no-store' });
       data = r.ok ? (r.data.data || []) : [];
     }
     if(!data.length){ cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Sin datos</span>'; return; }
