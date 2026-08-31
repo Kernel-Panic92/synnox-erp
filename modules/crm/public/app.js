@@ -285,6 +285,7 @@ async function cargarClientes() {
   const search = document.getElementById('filtro-cliente-search')?.value || '';
   const tipo = document.getElementById('filtro-cliente-tipo')?.value || '';
   const canal = document.getElementById('filtro-cliente-canal')?.value || '';
+  const ciudad = document.getElementById('filtro-cliente-ciudad')?.value || '';
   const colNombre = document.getElementById('filtro-col-nombre')?.value || '';
   const colNit = document.getElementById('filtro-col-nit')?.value || '';
   const colCiudad = document.getElementById('filtro-col-ciudad')?.value || '';
@@ -292,6 +293,7 @@ async function cargarClientes() {
   if (search) params.set('search', search);
   if (tipo) params.set('tipo', tipo);
   if (canal) params.set('canal', canal);
+  if (ciudad) params.set('ciudad', ciudad);
   if (colNombre) params.set('col_nombre', colNombre);
   if (colNit) params.set('col_nit', colNit);
   if (colCiudad) params.set('col_ciudad', colCiudad);
@@ -299,7 +301,7 @@ async function cargarClientes() {
   if (!r.ok) return;
   const tbody = document.getElementById('tbody-clientes');
   const data = r.data.data || [];
-    tbody.innerHTML = data.map(e => `
+  tbody.innerHTML = data.map(e => `
       <tr>
         <td><input type="checkbox" class="row-check cb-cliente" value="${e.id}" onchange="updateBulkBar()"></td>
         <td><a href="#" onclick="verCliente('${e.id}');return false" style="color:var(--accent)">${esc(e.nombre)}</a></td>
@@ -307,20 +309,53 @@ async function cargarClientes() {
         <td><span class="badge badge-${esc(e.tipo)}">${esc(e.tipo)}</span></td>
         <td>${esc(e.canal || '—')}</td>
         <td>${esc(e.ciudad || '—')}</td>
-      <td>${e.total_contactos || 0}</td>
-      <td>${formatDate(e.creado_en)}</td>
-      <td>
-        <button class="btn btn-sm btn-secondary" onclick="editarCliente('${e.id}')" title="Editar">✏️</button>
-        <button class="btn btn-sm btn-danger" onclick="eliminarCliente('${e.id}')" title="Eliminar">🗑️</button>
-      </td>
-    </tr>
-  `).join('');
-    renderPagination('pag-clientes', r.data.total, _clientesPage, clientesLimit, (p) => { _clientesPage = p; cargarClientes(); });
+        <td>${e.total_contactos || 0}</td>
+        <td>${formatDate(e.creado_en)}</td>
+        <td>
+          <button class="btn btn-sm btn-secondary" onclick="editarCliente('${e.id}')" title="Editar cliente" aria-label="Editar cliente ${esc(e.nombre)}">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarCliente('${e.id}')" title="Eliminar cliente" aria-label="Eliminar cliente ${esc(e.nombre)}">🗑️</button>
+        </td>
+      </tr>
+    `).join('');
+  renderPagination('pag-clientes', r.data.total, _clientesPage, clientesLimit, (p) => { _clientesPage = p; cargarClientes(); });
   // Cargar ciudades para filtro
   const ciudades = [...new Set(data.map(e => e.ciudad).filter(Boolean))];
   const sel = document.getElementById('filtro-cliente-ciudad');
   const actual = sel.value;
   sel.innerHTML = '<option value="">Todas las ciudades</option>' + ciudades.map(c => `<option value="${esc(c)}" ${c === actual ? 'selected' : ''}>${esc(c)}</option>`).join('');
+  cargarStatsClientes();
+}
+
+async function cargarStatsClientes() {
+  try {
+    const params = new URLSearchParams();
+    const search = document.getElementById('filtro-cliente-search')?.value;
+    const tipo = document.getElementById('filtro-cliente-tipo')?.value;
+    const canal = document.getElementById('filtro-cliente-canal')?.value;
+    const ciudad = document.getElementById('filtro-cliente-ciudad')?.value;
+    const colNombre = document.getElementById('filtro-col-nombre')?.value;
+    const colNit = document.getElementById('filtro-col-nit')?.value;
+    const colCiudad = document.getElementById('filtro-col-ciudad')?.value;
+    if (search) params.set('search', search);
+    if (tipo) params.set('tipo', tipo);
+    if (canal) params.set('canal', canal);
+    if (ciudad) params.set('ciudad', ciudad);
+    if (colNombre) params.set('col_nombre', colNombre);
+    if (colNit) params.set('col_nit', colNit);
+    if (colCiudad) params.set('col_ciudad', colCiudad);
+
+    const r = await apiFetch('/clientes/stats?' + params);
+    if (!r.ok) return;
+    const d = r.data;
+    const topTipo = (d.por_tipo || []).slice(0, 2).map(t => `${esc(t.tipo || 'Sin tipo')}: ${t.total}`).join(' · ') || '—';
+    const topCiudad = (d.por_ciudad || []).slice(0, 2).map(c => `${esc(c.ciudad)}: ${c.total}`).join(' · ') || '—';
+    document.getElementById('stats-clientes').innerHTML = `
+      <div class="stat-card"><div class="stat-value">${d.total || 0}</div><div class="stat-label">Clientes</div></div>
+      <div class="stat-card"><div class="stat-value" style="font-size:18px;line-height:1.3">${topTipo}</div><div class="stat-label">Por tipo</div></div>
+      <div class="stat-card"><div class="stat-value" style="font-size:18px;line-height:1.3">${topCiudad}</div><div class="stat-label">Top ciudades</div></div>
+      <div class="stat-card"><div class="stat-value">${d.recientes?.length || 0}</div><div class="stat-label">Recientes</div></div>
+    `;
+  } catch {}
 }
 
 function limpiarFiltrosClientes() {
@@ -328,6 +363,9 @@ function limpiarFiltrosClientes() {
   document.getElementById('filtro-cliente-tipo').value = '';
   document.getElementById('filtro-cliente-ciudad').value = '';
   document.getElementById('filtro-cliente-canal').value = '';
+  document.getElementById('filtro-col-nombre').value = '';
+  document.getElementById('filtro-col-nit').value = '';
+  document.getElementById('filtro-col-ciudad').value = '';
   clientesLimit = 20;
   document.getElementById('filtro-cliente-limit').value = '20';
   _clientesPage = 1;
@@ -819,6 +857,27 @@ async function cargarContactos() {
   renderPagination('pag-contactos', r.data.total, _contactosPage, _limit, (p) => { _contactosPage = p; cargarContactos(); });
   // Cargar clientes en select de filtro
   await cargarClientesSelect('filtro-contacto-cliente', clienteId);
+  cargarStatsContactos();
+}
+
+async function cargarStatsContactos() {
+  try {
+    const params = new URLSearchParams();
+    const search = document.getElementById('filtro-contacto-search')?.value;
+    const clienteId = document.getElementById('filtro-contacto-cliente')?.value;
+    if (search) params.set('search', search);
+    if (clienteId) params.set('cliente_id', clienteId);
+
+    const r = await apiFetch('/contactos/stats?' + params);
+    if (!r.ok) return;
+    const d = r.data;
+    document.getElementById('stats-contactos').innerHTML = `
+      <div class="stat-card"><div class="stat-value">${d.total || 0}</div><div class="stat-label">Contactos</div></div>
+      <div class="stat-card"><div class="stat-value">${d.con_email || 0}</div><div class="stat-label">Con email</div></div>
+      <div class="stat-card"><div class="stat-value">${d.con_telefono || 0}</div><div class="stat-label">Con telefono</div></div>
+      <div class="stat-card"><div class="stat-value">${d.decision_makers || 0}</div><div class="stat-label">Decision makers</div></div>
+    `;
+  } catch {}
 }
 
 function limpiarFiltrosContactos() {
@@ -1885,7 +1944,29 @@ async function cargarProductos() {
     `).join('');
 
     renderPagination('pag-productos', r.data.total, _productosPage, 50, (p) => { _productosPage = p; cargarProductos(); });
+    cargarStatsProductos();
   } catch (err) { console.error('Error cargar productos:', err); }
+}
+
+async function cargarStatsProductos() {
+  try {
+    const params = new URLSearchParams();
+    const search = document.getElementById('filtro-producto-search')?.value;
+    const categoria = document.getElementById('filtro-producto-categoria')?.value;
+    if (search) params.set('search', search);
+    if (categoria) params.set('categoria', categoria);
+
+    const r = await apiFetch('/productos/stats?' + params);
+    if (!r.ok) return;
+    const d = r.data;
+    const topCat = (d.por_categoria || []).slice(0, 2).map(c => `${esc(c.categoria || 'Sin categoria')}: ${c.total}`).join(' · ') || '—';
+    document.getElementById('stats-productos').innerHTML = `
+      <div class="stat-card"><div class="stat-value">${d.total || 0}</div><div class="stat-label">Productos</div></div>
+      <div class="stat-card"><div class="stat-value">${d.con_precio || 0}</div><div class="stat-label">Con precio</div></div>
+      <div class="stat-card"><div class="stat-value">${d.sin_categoria || 0}</div><div class="stat-label">Sin categoria</div></div>
+      <div class="stat-card"><div class="stat-value" style="font-size:18px;line-height:1.3">${topCat}</div><div class="stat-label">Top categorias</div></div>
+    `;
+  } catch {}
 }
 
 function limpiarFiltrosProductos() {

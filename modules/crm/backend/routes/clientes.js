@@ -5,53 +5,60 @@ import { auditarEvento } from '../../../../framework/audit.js';
 
 const router = express.Router();
 
+function buildClientesWhere(req) {
+  const { tipo, vendedor, ciudad, canal, search, col_nombre, col_nit, col_ciudad } = req.query;
+  const conditions = ['e.activo = TRUE'];
+  const params = [];
+  let paramIdx = 1;
+
+  if (tipo) {
+    conditions.push(`e.tipo = $${paramIdx++}`);
+    params.push(tipo);
+  }
+  if (canal) {
+    conditions.push(`e.canal ILIKE $${paramIdx++}`);
+    params.push(`%${canal}%`);
+  }
+  if (vendedor) {
+    conditions.push(`e.vendedor_asignado = $${paramIdx++}`);
+    params.push(parseInt(vendedor));
+  }
+  if (ciudad) {
+    conditions.push(`e.ciudad ILIKE $${paramIdx++}`);
+    params.push(`%${ciudad}%`);
+  }
+  if (col_nombre) {
+    conditions.push(`e.nombre ILIKE $${paramIdx++}`);
+    params.push(`%${col_nombre}%`);
+  }
+  if (col_nit) {
+    conditions.push(`e.nit ILIKE $${paramIdx++}`);
+    params.push(`%${col_nit}%`);
+  }
+  if (col_ciudad) {
+    conditions.push(`e.ciudad ILIKE $${paramIdx++}`);
+    params.push(`%${col_ciudad}%`);
+  }
+  if (search) {
+    conditions.push(`(e.nombre ILIKE $${paramIdx} OR e.nit ILIKE $${paramIdx} OR e.sector ILIKE $${paramIdx})`);
+    params.push(`%${search}%`);
+    paramIdx++;
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  return { where, params };
+}
+
 // GET /api/clientes — Listar clientes con filtros, busqueda y paginacion
 router.get('/', requirePermiso('ver', 'crm'), async (req, res) => {
   try {
-    const { tipo, vendedor, ciudad, canal, search, col_nombre, col_nit, col_ciudad, page = 1, limit = 20, sort = 'creado_en', order = 'desc' } = req.query;
+    const { page = 1, limit = 20, sort = 'creado_en', order = 'desc' } = req.query;
     const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
-    const conditions = ['e.activo = TRUE'];
-    const params = [];
-    let paramIdx = 1;
-
-    if (tipo) {
-      conditions.push(`e.tipo = $${paramIdx++}`);
-      params.push(tipo);
-    }
-    if (canal) {
-      conditions.push(`e.canal ILIKE $${paramIdx++}`);
-      params.push(`%${canal}%`);
-    }
-    if (vendedor) {
-      conditions.push(`e.vendedor_asignado = $${paramIdx++}`);
-      params.push(parseInt(vendedor));
-    }
-    if (ciudad) {
-      conditions.push(`e.ciudad ILIKE $${paramIdx++}`);
-      params.push(`%${ciudad}%`);
-    }
-    if (col_nombre) {
-      conditions.push(`e.nombre ILIKE $${paramIdx++}`);
-      params.push(`%${col_nombre}%`);
-    }
-    if (col_nit) {
-      conditions.push(`e.nit ILIKE $${paramIdx++}`);
-      params.push(`%${col_nit}%`);
-    }
-    if (col_ciudad) {
-      conditions.push(`e.ciudad ILIKE $${paramIdx++}`);
-      params.push(`%${col_ciudad}%`);
-    }
-    if (search) {
-      conditions.push(`(e.nombre ILIKE $${paramIdx} OR e.nit ILIKE $${paramIdx} OR e.sector ILIKE $${paramIdx})`);
-      params.push(`%${search}%`);
-      paramIdx++;
-    }
-
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const { where, params } = buildClientesWhere(req);
     const allowedSort = ['nombre', 'ciudad', 'tipo', 'creado_en', 'actualizado_en'];
     const sortCol = allowedSort.includes(sort) ? sort : 'creado_en';
     const sortOrder = order.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+    let paramIdx = params.length + 1;
 
     const countResult = await pool.query(`SELECT COUNT(*) FROM crm.clientes e ${where}`, params);
     const total = parseInt(countResult.rows[0].count);
@@ -72,14 +79,16 @@ router.get('/', requirePermiso('ver', 'crm'), async (req, res) => {
   }
 });
 
-// GET /api/clientes/stats — Estadisticas del dashboard
+// GET /api/clientes/stats — Estadisticas (respetan filtros activos)
 router.get('/stats', requirePermiso('ver', 'crm'), async (req, res) => {
   try {
+    const { where, params } = buildClientesWhere(req);
+
     const [total, porTipo, porCiudad, recientes] = await Promise.all([
-      pool.query(`SELECT COUNT(*) FROM crm.clientes WHERE activo = TRUE`),
-      pool.query(`SELECT tipo, COUNT(*) AS total FROM crm.clientes WHERE activo = TRUE GROUP BY tipo ORDER BY total DESC`),
-      pool.query(`SELECT ciudad, COUNT(*) AS total FROM crm.clientes WHERE activo = TRUE AND ciudad IS NOT NULL GROUP BY ciudad ORDER BY total DESC LIMIT 10`),
-      pool.query(`SELECT id, nombre, tipo, ciudad, creado_en FROM crm.clientes WHERE activo = TRUE ORDER BY creado_en DESC LIMIT 5`)
+      pool.query(`SELECT COUNT(*) FROM crm.clientes e ${where}`, params),
+      pool.query(`SELECT e.tipo, COUNT(*) AS total FROM crm.clientes e ${where} GROUP BY e.tipo ORDER BY total DESC`, params),
+      pool.query(`SELECT e.ciudad, COUNT(*) AS total FROM crm.clientes e ${where} AND e.ciudad IS NOT NULL GROUP BY e.ciudad ORDER BY total DESC LIMIT 10`, params),
+      pool.query(`SELECT e.id, e.nombre, e.tipo, e.ciudad, e.creado_en FROM crm.clientes e ${where} ORDER BY e.creado_en DESC LIMIT 5`, params)
     ]);
 
     res.json({

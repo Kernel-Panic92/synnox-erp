@@ -7,26 +7,34 @@ import { auditarEvento } from '../../../../framework/audit.js';
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 10 * 1024 * 1024 } });
 
+function buildProductosWhere(req) {
+  const { search, categoria } = req.query;
+  const conditions = ['p.activo = TRUE'];
+  const params = [];
+  let paramIdx = 1;
+
+  if (search) {
+    conditions.push(`(p.codigo ILIKE $${paramIdx} OR p.nombre ILIKE $${paramIdx} OR p.descripcion ILIKE $${paramIdx})`);
+    params.push(`%${search}%`);
+    paramIdx++;
+  }
+  if (categoria) {
+    conditions.push(`p.categoria = $${paramIdx++}`);
+    params.push(categoria);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  return { where, params };
+}
+
 // GET /api/productos — Listar productos
 router.get('/', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
   try {
-    const { search, categoria, page = 1, limit = 50 } = req.query;
+    const { page = 1, limit = 50 } = req.query;
     const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
-    const conditions = ['p.activo = TRUE'];
-    const params = [];
-    let paramIdx = 1;
+    const { where, params } = buildProductosWhere(req);
+    let paramIdx = params.length + 1;
 
-    if (search) {
-      conditions.push(`(p.codigo ILIKE $${paramIdx} OR p.nombre ILIKE $${paramIdx} OR p.descripcion ILIKE $${paramIdx})`);
-      params.push(`%${search}%`);
-      paramIdx++;
-    }
-    if (categoria) {
-      conditions.push(`p.categoria = $${paramIdx++}`);
-      params.push(categoria);
-    }
-
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const countResult = await pool.query(`SELECT COUNT(*) FROM crm.productos p ${where}`, params);
     const total = parseInt(countResult.rows[0].count);
 
@@ -41,6 +49,31 @@ router.get('/', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
   } catch (err) {
     console.error('[CRM] Error listar productos:', err);
     res.status(500).json({ error: 'Error al listar productos' });
+  }
+});
+
+// GET /api/productos/stats — Estadisticas (respetan filtros activos)
+router.get('/stats', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+  try {
+    const { where, params } = buildProductosWhere(req);
+
+    const [total, conPrecio, porCategoria, sinCategoria] = await Promise.all([
+      pool.query(`SELECT COUNT(*) FROM crm.productos p ${where}`, params),
+      pool.query(`SELECT COUNT(*) FROM crm.productos p ${where} AND p.precio_unitario > 0`, params),
+      pool.query(`SELECT p.categoria, COUNT(*) AS total FROM crm.productos p ${where} GROUP BY p.categoria ORDER BY total DESC LIMIT 5`, params),
+      pool.query(`SELECT COUNT(*) FROM crm.productos p ${where} AND (p.categoria IS NULL OR p.categoria = '')`, params)
+    ]);
+
+    res.json({
+      ok: true,
+      total: parseInt(total.rows[0].count),
+      con_precio: parseInt(conPrecio.rows[0].count),
+      sin_categoria: parseInt(sinCategoria.rows[0].count),
+      por_categoria: porCategoria.rows
+    });
+  } catch (err) {
+    console.error('[CRM] Error stats productos:', err);
+    res.status(500).json({ error: 'Error al obtener estadisticas' });
   }
 });
 

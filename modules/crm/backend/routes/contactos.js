@@ -5,29 +5,36 @@ import { auditarEvento } from '../../../../framework/audit.js';
 
 const router = express.Router();
 
+function buildContactosWhere(req) {
+  const { cliente_id, search } = req.query;
+  const conditions = ['c.activo = TRUE'];
+  const params = [];
+  let paramIdx = 1;
+
+  if (cliente_id) {
+    conditions.push(`c.cliente_id = $${paramIdx++}`);
+    params.push(cliente_id);
+  }
+  if (search) {
+    conditions.push(`(c.nombre ILIKE $${paramIdx} OR c.email ILIKE $${paramIdx} OR c.cargo ILIKE $${paramIdx})`);
+    params.push(`%${search}%`);
+    paramIdx++;
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  return { where, params };
+}
+
 // GET /api/contactos — Listar contactos con filtros y paginacion
 router.get('/', requirePermiso('ver', 'crm'), async (req, res) => {
   try {
-    const { cliente_id, search, page = 1, limit = 20, sort = 'creado_en', order = 'desc' } = req.query;
+    const { page = 1, limit = 20, sort = 'creado_en', order = 'desc' } = req.query;
     const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
-    const conditions = ['c.activo = TRUE'];
-    const params = [];
-    let paramIdx = 1;
-
-    if (cliente_id) {
-      conditions.push(`c.cliente_id = $${paramIdx++}`);
-      params.push(cliente_id);
-    }
-    if (search) {
-      conditions.push(`(c.nombre ILIKE $${paramIdx} OR c.email ILIKE $${paramIdx} OR c.cargo ILIKE $${paramIdx})`);
-      params.push(`%${search}%`);
-      paramIdx++;
-    }
-
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const { where, params } = buildContactosWhere(req);
     const allowedSort = ['nombre', 'email', 'cargo', 'creado_en'];
     const sortCol = allowedSort.includes(sort) ? sort : 'creado_en';
     const sortOrder = order.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+    let paramIdx = params.length + 1;
 
     const countResult = await pool.query(`SELECT COUNT(*) FROM crm.contactos c ${where}`, params);
     const total = parseInt(countResult.rows[0].count);
@@ -45,6 +52,31 @@ router.get('/', requirePermiso('ver', 'crm'), async (req, res) => {
   } catch (err) {
     console.error('[CRM] Error listar contactos:', err);
     res.status(500).json({ error: 'Error al listar contactos' });
+  }
+});
+
+// GET /api/contactos/stats — Estadisticas (respetan filtros activos)
+router.get('/stats', requirePermiso('ver', 'crm'), async (req, res) => {
+  try {
+    const { where, params } = buildContactosWhere(req);
+
+    const [total, conEmail, conTelefono, decisionMakers] = await Promise.all([
+      pool.query(`SELECT COUNT(*) FROM crm.contactos c ${where}`, params),
+      pool.query(`SELECT COUNT(*) FROM crm.contactos c ${where} AND c.email IS NOT NULL AND c.email <> ''`, params),
+      pool.query(`SELECT COUNT(*) FROM crm.contactos c ${where} AND c.telefono IS NOT NULL AND c.telefono <> ''`, params),
+      pool.query(`SELECT COUNT(*) FROM crm.contactos c ${where} AND c.es_decision_maker = TRUE`, params)
+    ]);
+
+    res.json({
+      ok: true,
+      total: parseInt(total.rows[0].count),
+      con_email: parseInt(conEmail.rows[0].count),
+      con_telefono: parseInt(conTelefono.rows[0].count),
+      decision_makers: parseInt(decisionMakers.rows[0].count)
+    });
+  } catch (err) {
+    console.error('[CRM] Error stats contactos:', err);
+    res.status(500).json({ error: 'Error al obtener estadisticas' });
   }
 });
 
