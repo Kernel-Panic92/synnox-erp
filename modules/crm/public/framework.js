@@ -271,6 +271,21 @@ function esc(s) {
   return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
+// ── Action buttons (accessible, icon-only) — standard for tables ──
+function actionBtn({ icon, title, ariaLabel, onclick, variant = 'secondary', disabled = false }) {
+  const v = ['secondary','primary','danger','success','outline'].includes(variant) ? variant : 'secondary';
+  const dis = disabled ? ' disabled aria-disabled="true"' : '';
+  const safeOn = (onclick || '').replace(/"/g, '&quot;');
+  const t = esc(title || ariaLabel || '');
+  const al = esc(ariaLabel || title || '');
+  return `<button class="btn btn-sm btn-${v} btn-action" onclick="${safeOn}" title="${t}" aria-label="${al}"${dis}>${icon}</button>`;
+}
+function actionGroup(buttons) {
+  const btns = Array.isArray(buttons) ? buttons.filter(Boolean).join('') : (buttons || '');
+  if (!btns) return '';
+  return `<div class="tbl-actions">${btns}</div>`;
+}
+
 // ── Toast ──
 function toast(msg, type = 'success', duration = 3500) {
   const c = document.getElementById('toast-container');

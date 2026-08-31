@@ -265,6 +265,24 @@ async function api(path, opts = {}) {
   return data;
 }
 
+// ── Action buttons (accessible, icon-only) — standard for tables ──
+// Usage: actionBtn({ icon:'✏️', title:'Editar cliente', ariaLabel:'Editar cliente ACME', onclick:"editarCliente('123')", variant:'secondary' })
+// variant: 'secondary' | 'primary' | 'danger' | 'success'  → maps to btn-secondary etc.
+// Returns HTML string for a 32x32 icon-only button with title + aria-label (required for a11y)
+function actionBtn({ icon, title, ariaLabel, onclick, variant = 'secondary', disabled = false }) {
+  const v = ['secondary','primary','danger','success','outline'].includes(variant) ? variant : 'secondary';
+  const dis = disabled ? ' disabled aria-disabled="true"' : '';
+  const safeOn = (onclick || '').replace(/"/g, '&quot;');
+  const t = esc(title || ariaLabel || '');
+  const al = esc(ariaLabel || title || '');
+  return `<button class="btn btn-sm btn-${v} btn-action" onclick="${safeOn}" title="${t}" aria-label="${al}"${dis}>${icon}</button>`;
+}
+function actionGroup(buttons) {
+  const btns = Array.isArray(buttons) ? buttons.filter(Boolean).join('') : (buttons || '');
+  if (!btns) return '';
+  return `<div class="tbl-actions">${btns}</div>`;
+}
+
 // ── Escaping ──
 function esc(s) {
   if (!s) return '';

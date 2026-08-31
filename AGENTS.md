@@ -796,6 +796,7 @@ documento.
 - **selectBuscador()**: Soporta objetos sin campo `email`. El `initSelectBuscador()` dispara `change` event automáticamente.
 - **toggleAll()**: Soportar firma `(tipo, checked)` y `(source)` para compatibilidad entre framework.js y app.js.
 - **trapFocus()**: Escape cierra el contenedor que tiene el trap (no siempre `modal-overlay`). Verificar `container.id` antes de cerrar.
+- **Botones de acción en tablas (accesibles)**: Usar **icono solo + `title` + `aria-label`** con clase `btn-action` (32×32) y contenedor `tbl-actions`. Helper del framework: `actionBtn({icon,title,ariaLabel,onclick,variant})` y `actionGroup([...])`. Ejemplo: `actionBtn({icon:'✏️',title:'Editar lead',ariaLabel:'Editar lead ACME',onclick:"editarLead('123')",variant:'secondary'})`. Nunca usar texto dentro del botón de acción. Ver `framework/framework.js:actionBtn` y `framework/components.css:.btn-action/.tbl-actions`.
 
 ---
 

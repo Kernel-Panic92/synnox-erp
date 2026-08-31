@@ -15,6 +15,10 @@ button, .btn {
 .btn-outline:hover { color: var(--text); border-color: var(--accent); }
 .btn-sm { padding: 7px 14px; font-size: 13px; }
 .btn-icon { width: 36px; height: 36px; padding: 0; justify-content: center; border-radius: 8px; }
+.btn-action { width: 32px; height: 32px; padding: 0; justify-content: center; align-items: center; display: inline-flex; line-height: 1; vertical-align: middle; border-radius: 8px; }
+
+/* ── Table actions group (icon-only, accessible) ── */
+.tbl-actions { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
 
 /* ── Logout button ── */
 .btn-logout {
