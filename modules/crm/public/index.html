@@ -654,8 +654,8 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Cliente *</label>
-        <select id="oportunidad-cliente" onchange="onClienteOportunidadChange()" required></select>
+        <label>Cliente <small style="font-weight:400;color:var(--muted)">— o Lead</small></label>
+        <select id="oportunidad-cliente" onchange="onClienteOportunidadChange()"></select>
       </div>
       <div class="form-group">
         <label>Contacto</label>
@@ -666,6 +666,7 @@
       <label>Cliente Potencial (Lead) <small style="font-weight:400;color:var(--muted)">— alternativo a cliente</small></label>
       <select id="oportunidad-lead" onchange="onLeadOportunidadChange()"></select>
     </div>
+    <p style="font-size:11px;color:var(--muted);margin-top:4px">* Requerido: cliente <strong>o</strong> lead (uno de los dos).</p>
     <div class="form-row">
       <div class="form-group">
         <label>Monto esperado</label>
