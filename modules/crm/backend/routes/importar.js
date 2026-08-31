@@ -9,6 +9,24 @@ import { auditarEvento } from '../../../../framework/audit.js';
 const router = express.Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 50 * 1024 * 1024 } });
 
+// ── Parseo de precios en formato colombiano ($2.300, $2.300,50) ──
+function parsePrecio(valor) {
+  if (valor === null || valor === undefined) return 0;
+  let s = String(valor).trim().replace(/[^0-9.,-]/g, '');
+  if (!s) return 0;
+  if (s.includes(',')) {
+    // Formato CO: 1.234.567,89 -> quitar puntos, coma -> punto
+    s = s.replace(/\./g, '').replace(',', '.');
+  } else if (s.includes('.')) {
+    // Sin coma: si todos los grupos son de 3 digitos, es separador de miles (2.300 -> 2300)
+    const parts = s.split('.');
+    if (parts.length > 1 && parts.every(p => /^\d+$/.test(p)) && parts.slice(1).every(p => p.length === 3)) {
+      s = s.replace(/\./g, '');
+    }
+  }
+  return parseFloat(s) || 0;
+}
+
 // ── Normalizar headers ──
 function normalizeHeader(h) {
   return h.toLowerCase()
@@ -379,8 +397,8 @@ async function importarItems(rows) {
       const nombre = (r.descripcion || r.desc_item || r.nombre || '').trim();
       if (!referencia && !nombre) { fallidos++; errores.push(`Fila ${i+1}: sin referencia ni nombre`); continue; }
 
-      const precio = parseFloat(String(r.vr_unitario || r.precio || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
-      const tasa = parseFloat(String(r.tasa_impositiva_por_defecto || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
+      const precio = parsePrecio(r.vr_unitario || r.precio || '0');
+      const tasa = parsePrecio(r.tasa_impositiva_por_defecto || '0');
       const estadoItem = (r.estado_item || r.estado || '').toLowerCase();
       const activo = !estadoItem.includes('inactivo');
 
@@ -443,10 +461,10 @@ async function importarInventario(rows, onProgress) {
 
       if (!prod) { fallidos++; errores.push(`Fila ${i+1}: producto ${codigoRaw || referenciaRaw} no encontrado`); continue; }
 
-      const precio = parseFloat(String(r.precio || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
-      const disponibilidad = parseFloat(String(r.disponibilidad || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
-      const existencia = parseFloat(String(r.existencia || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
-      const comprometida = parseFloat(String(r.comprometida || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
+      const precio = parsePrecio(r.precio || '0');
+      const disponibilidad = parsePrecio(r.disponibilidad || '0');
+      const existencia = parsePrecio(r.existencia || '0');
+      const comprometida = parsePrecio(r.comprometida || '0');
 
       const existing = await pool.query(`SELECT id FROM crm.inventario WHERE producto_id = $1 AND bodega = $2`, [prod.id, bodega]);
       if (existing.rows.length) {
@@ -538,8 +556,7 @@ async function importarPrecios(rows, onProgress) {
       const r = rows[i];
       const referencia = (r.referencia || '').trim();
       const listaCodigo = (r.lista || '').trim();
-      const precioStr = (r.precio || '0').replace(/[^0-9.,]/g, '').replace(',', '.');
-      const precio = parseFloat(precioStr) || 0;
+      const precio = parsePrecio(r.precio || '0');
       if (!referencia || !listaCodigo) { fallidos++; errores.push(`Fila ${i+1}: sin referencia o lista`); continue; }
 
       // Buscar producto

@@ -144,8 +144,8 @@ router.post('/importar', requirePermiso('crear_cotizacion', 'crm'), upload.singl
         if (!row.codigo) { fallidos++; errores.push(`Fila ${i + 1}: sin codigo`); continue; }
         if (!row.nombre) { fallidos++; errores.push(`Fila ${i + 1}: sin nombre`); continue; }
 
-        const precio = parseFloat(String(row.precio_unitario || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
-        const tasa = parseFloat(String(row.tasa_impuesto || '0').replace(/[^0-9.,]/g, '').replace(',', '.')) || 0;
+        const precio = (() => { let s=String(row.precio_unitario||'0').replace(/[^0-9.,-]/g,''); if(s.includes(',')) s=s.replace(/\./g,'').replace(',','.'); else if(s.includes('.') && s.split('.').slice(1).every(p=>p.length===3)) s=s.replace(/\./g,''); return parseFloat(s)||0; })();
+        const tasa = (() => { let s=String(row.tasa_impuesto||'0').replace(/[^0-9.,-]/g,''); if(s.includes(',')) s=s.replace(/\./g,'').replace(',','.'); else if(s.includes('.') && s.split('.').slice(1).every(p=>p.length===3)) s=s.replace(/\./g,''); return parseFloat(s)||0; })();
 
         const existing = await pool.query(`SELECT id FROM crm.productos WHERE codigo = $1`, [row.codigo]);
         if (existing.rows.length) {
