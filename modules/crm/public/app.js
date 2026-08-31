@@ -1511,8 +1511,14 @@ async function cargarCotizaciones() {
     const tbody = document.getElementById('tbody-cotizaciones');
     const data = r.data.data || [];
     const erpColors = { '': 'info', 'borrador': 'info', 'enviada': 'warning', 'aprobada': 'success', 'rechazada': 'danger', 'vencida': 'muted', 'convertida': 'success' };
-    tbody.innerHTML = data.map(c => `
-      <tr>
+    tbody.innerHTML = data.map(c => {
+      const sinCPV = !c.documento_erp;
+      const estadoErpHtml = sinCPV
+        ? '<span class="badge badge-danger">No enviado</span>'
+        : `<span class="badge badge-info">${esc(c.estado_erp)}</span>`;
+      const docErpHtml = sinCPV ? '<span style="color:var(--muted)">—</span>' : esc(c.documento_erp);
+      return `
+      <tr class="${sinCPV ? 'row-no-erp' : ''}">
         <td><input type="checkbox" class="row-check cb-cotizacion" value="${c.id}" onchange="updateBulkBar()"></td>
         <td><a href="#" onclick="verCotizacion('${c.id}');return false" style="color:var(--accent);text-decoration:underline">${esc(c.numero)}</a></td>
         <td>${esc(c.cliente_nombre || '—')}</td>
@@ -1520,16 +1526,17 @@ async function cargarCotizaciones() {
         <td>${c.total_items || 0}</td>
         <td><strong>$${formatMoney(c.valor_total || 0)}</strong></td>
         <td>${formatDate(c.vencimiento)}</td>
-        <td>${esc(c.estado_erp || '—')}</td>
-        <td>${esc(c.documento_erp || '—')}</td>
+        <td>${estadoErpHtml}</td>
+        <td>${docErpHtml}</td>
         <td>
           <button class="btn btn-sm btn-secondary" onclick="editarCotizacion('${c.id}')" title="Editar cotizacion" aria-label="Editar cotizacion ${esc(c.numero)}">✏️</button>
           ${c.estado === 'borrador' ? `<button class="btn btn-sm btn-danger" onclick="eliminarCotizacion('${c.id}')" title="Eliminar cotizacion" aria-label="Eliminar cotizacion ${esc(c.numero)}">🗑️</button>` : ''}
           ${c.estado === 'borrador' ? `<button class="btn btn-sm btn-primary" onclick="cambiarEstadoCotizacion('${c.id}','enviada')" title="Enviar cotizacion" aria-label="Enviar cotizacion ${esc(c.numero)}">📤</button>` : ''}
           ${c.estado === 'enviada' ? `<button class="btn btn-sm btn-primary" onclick="cambiarEstadoCotizacion('${c.id}','aprobada')" title="Aprobar cotizacion" aria-label="Aprobar cotizacion ${esc(c.numero)}">✅</button>` : ''}
+          ${sinCPV ? `<button class="btn btn-sm btn-primary" onclick="enviarCotizacionERP('${c.id}','${esc(c.numero)}')" title="Enviar al ERP" aria-label="Enviar cotizacion ${esc(c.numero)} al ERP">🚀 Enviar al ERP</button>` : ''}
         </td>
       </tr>
-    `).join('');
+    `}).join('');
 
     renderPagination('pag-cotizaciones', r.data.total, _cotizacionesPage, _limit, (p) => { _cotizacionesPage = p; cargarCotizaciones(); });
     cargarStatsCotizaciones();
@@ -1840,6 +1847,15 @@ async function cambiarEstadoCotizacion(id, estado) {
   if (!r.ok) return toast(r.data?.error || 'Error al cambiar estado', 'error');
   toast('Estado actualizado a ' + estado, 'success');
   cargarCotizaciones();
+}
+
+async function enviarCotizacionERP(id, numero) {
+  confirmar({ titulo: 'Enviar al ERP', mensaje: `¿Enviar cotización ${numero} al ERP?`, icono: '🚀', onConfirm: async () => {
+    const r = await apiFetch('/cotizaciones/' + id + '/enviar-erp', { method: 'POST' });
+    if (!r.ok) return toast(r.data?.error || 'Error al enviar al ERP', 'error');
+    toast(r.data?.message || 'Cotización enviada al ERP', 'success');
+    cargarCotizaciones();
+  }});
 }
 
 // ── Descuentos ──

@@ -46,6 +46,9 @@ button, .btn {
 .tbl td:last-child { white-space: nowrap; }
 .tbl td:last-child .btn { display: inline-flex; width: 32px; height: 32px; padding: 0; justify-content: center; align-items: center; line-height: 1; vertical-align: middle; }
 .tbl tr:hover { background: rgba(255,255,255,.02); }
+.row-no-erp { background: rgba(220,38,38,0.07); }
+.row-no-erp:hover { background: rgba(220,38,38,0.11); }
+.row-no-erp td:first-child { border-left: 3px solid var(--danger); }
 
 /* Tablas scrollables con header fijo y responsive */
 .tbl-scrollable { max-height: 420px; overflow-y: auto; overflow-x: hidden; container-type: inline-size; container-name: tbl-responsive; }

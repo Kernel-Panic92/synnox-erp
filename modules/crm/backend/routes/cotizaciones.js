@@ -447,6 +447,30 @@ router.put('/erp-update', async (req, res) => {
   }
 });
 
+// POST /api/cotizaciones/:id/enviar-erp — Marcar para envio al ERP (cuando no tiene CPV)
+router.post('/:id/enviar-erp', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const existing = await pool.query(`SELECT id, numero, documento_erp, estado FROM crm.cotizaciones WHERE id = $1`, [id]);
+    if (!existing.rows.length) return res.status(404).json({ error: 'Cotizacion no encontrada' });
+    if (existing.rows[0].documento_erp) return res.status(400).json({ error: 'Esta cotizacion ya tiene CPV del ERP' });
+
+    // TODO: cuando SIESA Hub este disponible, aqui se hara el POST al ERP
+    // Por ahora solo marcamos como enviada y auditoria
+    const result = await pool.query(`
+      UPDATE crm.cotizaciones SET enviado_erp = TRUE, estado_erp = 'enviado', actualizado_en = NOW()
+      WHERE id = $1 RETURNING *
+    `, [id]);
+
+    await auditarEvento({ accion: 'enviar_erp', entidad: 'cotizacion', entidad_id: id, usuario_id: req.user.id, metadata: { numero: existing.rows[0].numero } });
+
+    res.json({ ok: true, data: result.rows[0], message: 'Cotizacion marcada para envio al ERP. Se completara cuando SIESA Hub este disponible.' });
+  } catch (err) {
+    console.error('[CRM] Error enviar al ERP:', err);
+    res.status(500).json({ error: 'Error al enviar al ERP' });
+  }
+});
+
 // PUT /api/cotizaciones/:id/estado — Cambiar estado
 router.put('/:id/estado', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
   try {
