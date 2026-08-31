@@ -209,10 +209,10 @@ async function abrirModalOportunidad(oportunidad = null) {
   document.getElementById('oportunidad-id').value = oportunidad?.id || '';
   document.getElementById('btn-eliminar-oportunidad').style.display = oportunidad?.id ? '' : 'none';
   document.getElementById('oportunidad-nombre').value = oportunidad?.nombre || '';
-  document.getElementById('oportunidad-monto').value = oportunidad?.monto_esperado || '';
-  document.getElementById('oportunidad-probabilidad').value = oportunidad?.probabilidad || 10;
+  document.getElementById('oportunidad-monto').value = oportunidad?.monto_esperado ?? '';
+  document.getElementById('oportunidad-probabilidad').value = oportunidad?.probabilidad ?? 10;
   document.getElementById('oportunidad-etapa').value = oportunidad?.etapa || 'lead';
-  document.getElementById('oportunidad-fecha').value = oportunidad?.fecha_cierre_estimada || '';
+  document.getElementById('oportunidad-fecha').value = oportunidad?.fecha_cierre_estimada ? String(oportunidad.fecha_cierre_estimada).split('T')[0] : '';
   document.getElementById('oportunidad-motivo-perdida').value = oportunidad?.motivo_perdida || '';
   document.getElementById('oportunidad-etapa').onchange = function() {
     document.getElementById('grupo-motivo-perdida').style.display = this.value === 'perdida' ? 'block' : 'none';
