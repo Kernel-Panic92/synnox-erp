@@ -106,22 +106,35 @@ router.get('/pipeline', requirePermiso('ver_pipeline', 'crm'), async (req, res) 
   }
 });
 
-// GET /api/oportunidades/stats — Estadisticas
+// GET /api/oportunidades/stats — Estadisticas (respeta filtro vendedor)
 router.get('/stats', requirePermiso('ver_pipeline', 'crm'), async (req, res) => {
   try {
-    const [total, porEtapa, montoTotal, recientes] = await Promise.all([
-      pool.query(`SELECT COUNT(*) FROM crm.oportunidades`),
-      pool.query(`SELECT etapa, COUNT(*) AS total, COALESCE(SUM(monto_esperado), 0) AS monto FROM crm.oportunidades GROUP BY etapa ORDER BY CASE etapa WHEN 'lead' THEN 1 WHEN 'calificado' THEN 2 WHEN 'propuesta' THEN 3 WHEN 'negociacion' THEN 4 WHEN 'ganada' THEN 5 WHEN 'perdida' THEN 6 END`),
-      pool.query(`SELECT COALESCE(SUM(monto_esperado), 0) AS total FROM crm.oportunidades WHERE etapa NOT IN ('ganada', 'perdida')`),
-      pool.query(`SELECT o.*, e.nombre AS cliente_nombre FROM crm.oportunidades o LEFT JOIN crm.clientes e ON e.id = o.cliente_id ORDER BY o.creado_en DESC LIMIT 5`)
+    const { vendedor } = req.query;
+    const cond = vendedor ? 'WHERE o.vendedor_id = $1' : '';
+    const condAnd = vendedor ? 'AND o.vendedor_id = $1' : '';
+    const p = vendedor ? [parseInt(vendedor)] : [];
+    const pPipeline = vendedor ? [parseInt(vendedor)] : [];
+
+    const [total, porEtapa, montoTotal, forecast, porEtapaCounts] = await Promise.all([
+      pool.query(`SELECT COUNT(*) FROM crm.oportunidades o ${cond}`, p),
+      pool.query(`SELECT etapa, COUNT(*) AS total, COALESCE(SUM(monto_esperado), 0) AS monto FROM crm.oportunidades o ${cond} GROUP BY etapa ORDER BY CASE etapa WHEN 'lead' THEN 1 WHEN 'calificado' THEN 2 WHEN 'propuesta' THEN 3 WHEN 'negociacion' THEN 4 WHEN 'ganada' THEN 5 WHEN 'perdida' THEN 6 END`, p),
+      pool.query(`SELECT COALESCE(SUM(monto_esperado), 0) AS total FROM crm.oportunidades o ${cond ? cond + ` AND o.etapa NOT IN ('ganada','perdida')` : `WHERE o.etapa NOT IN ('ganada','perdida')`}`, p),
+      pool.query(`SELECT COALESCE(SUM(monto_esperado * COALESCE(probabilidad,0) / 100.0),0) AS total FROM crm.oportunidades o ${cond ? cond + ` AND o.etapa NOT IN ('ganada','perdida')` : `WHERE o.etapa NOT IN ('ganada','perdida')`}`, p),
+      pool.query(`SELECT etapa, COUNT(*) AS total FROM crm.oportunidades o ${cond} GROUP BY etapa`, p)
     ]);
+
+    const ganada = parseInt(porEtapaCounts.rows.find(r=>r.etapa==='ganada')?.total || 0);
+    const perdida = parseInt(porEtapaCounts.rows.find(r=>r.etapa==='perdida')?.total || 0);
+    const winRate = (ganada + perdida) > 0 ? (ganada / (ganada + perdida) * 100) : 0;
 
     res.json({
       ok: true,
       total: parseInt(total.rows[0].count),
       por_etapa: porEtapa.rows,
       monto_pipeline: parseFloat(montoTotal.rows[0].total),
-      recientes: recientes.rows
+      forecast_ponderado: parseFloat(forecast.rows[0].total),
+      win_rate: Math.round(winRate * 10) / 10,
+      ganada, perdida
     });
   } catch (err) {
     console.error('[CRM] Error stats oportunidades:', err);

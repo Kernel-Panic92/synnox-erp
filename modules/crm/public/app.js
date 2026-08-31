@@ -134,9 +134,21 @@ async function cargarPipeline() {
     const vendedor = document.getElementById('filtro-pipeline-vendedor')?.value || '';
     const params = new URLSearchParams();
     if (vendedor) params.set('vendedor', vendedor);
-    const r = await apiFetch('/oportunidades/pipeline?' + params);
+    const [r, s] = await Promise.all([
+      apiFetch('/oportunidades/pipeline?' + params),
+      apiFetch('/oportunidades/stats?' + params)
+    ]);
     if (!r.ok) return;
     const { pipeline, stats } = r.data;
+    if (s.ok) {
+      const d = s.data;
+      document.getElementById('stats-pipeline').innerHTML = `
+        <div class="stat-card"><div class="stat-value">${d.total || 0}</div><div class="stat-label">Oportunidades</div></div>
+        <div class="stat-card"><div class="stat-value">$${formatMoney(d.monto_pipeline || 0)}</div><div class="stat-label">Pipeline abierto</div></div>
+        <div class="stat-card"><div class="stat-value">$${formatMoney(d.forecast_ponderado || 0)}</div><div class="stat-label">Forecast ponderado</div><div class="stat-sub">monto × probabilidad</div></div>
+        <div class="stat-card"><div class="stat-value">${d.win_rate || 0}%</div><div class="stat-label">Win rate</div><div class="stat-sub">${d.ganada||0} ganada · ${d.perdida||0} perdida</div></div>
+      `;
+    }
     const kanban = document.getElementById('pipeline-kanban');
     kanban.innerHTML = ETAPAS.map(etapa => `
       <div class="kanban-col" data-etapa="${etapa.id}" ondragover="allowDrop(event)" ondrop="dropOportunidad(event, '${etapa.id}')" ondragleave="dragLeave(event)">
