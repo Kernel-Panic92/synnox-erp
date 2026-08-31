@@ -1538,7 +1538,13 @@ async function cargarCotizaciones() {
 
 async function cargarStatsCotizaciones() {
   try {
-    const r = await apiFetch('/cotizaciones/stats');
+    const params = new URLSearchParams();
+    const search = document.getElementById('filtro-cotizacion-search')?.value;
+    const estado = document.getElementById('filtro-cotizacion-estado')?.value;
+    if (search) params.set('search', search);
+    if (estado) params.set('estado', estado);
+
+    const r = await apiFetch('/cotizaciones/stats?' + params);
     if (!r.ok) return;
     const d = r.data;
     document.getElementById('stats-cotizaciones').innerHTML = `

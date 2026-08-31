@@ -45,30 +45,38 @@ async function recalcularTotales(client, cotizacionId) {
   return { subtotal, descuento, iva, total };
 }
 
+function buildCotizacionesWhere(req) {
+  const { cliente_id, estado, search } = req.query;
+  const conditions = [];
+  const params = [];
+  let paramIdx = 1;
+
+  if (cliente_id) {
+    conditions.push(`c.cliente_id = $${paramIdx++}`);
+    params.push(cliente_id);
+  }
+  if (estado) {
+    conditions.push(`c.estado = $${paramIdx++}`);
+    params.push(estado);
+  }
+  if (search) {
+    conditions.push(`(c.numero ILIKE $${paramIdx} OR cl.nombre ILIKE $${paramIdx})`);
+    params.push(`%${search}%`);
+    paramIdx++;
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  return { where, params };
+}
+
 // GET /api/cotizaciones — Listar con filtros
 router.get('/', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
   try {
-    const { cliente_id, estado, search, page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20 } = req.query;
     const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
-    const conditions = [];
-    const params = [];
-    let paramIdx = 1;
+    const { where, params } = buildCotizacionesWhere(req);
+    let paramIdx = params.length + 1;
 
-    if (cliente_id) {
-      conditions.push(`c.cliente_id = $${paramIdx++}`);
-      params.push(cliente_id);
-    }
-    if (estado) {
-      conditions.push(`c.estado = $${paramIdx++}`);
-      params.push(estado);
-    }
-    if (search) {
-      conditions.push(`(c.numero ILIKE $${paramIdx} OR cl.nombre ILIKE $${paramIdx})`);
-      params.push(`%${search}%`);
-      paramIdx++;
-    }
-
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const countResult = await pool.query(`
       SELECT COUNT(*) FROM crm.cotizaciones c
       LEFT JOIN crm.clientes cl ON cl.id = c.cliente_id
@@ -93,13 +101,17 @@ router.get('/', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
   }
 });
 
-// GET /api/cotizaciones/stats — Estadisticas
+// GET /api/cotizaciones/stats — Estadisticas (respetan filtros activos)
 router.get('/stats', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
   try {
+    const { where, params } = buildCotizacionesWhere(req);
+    // where references aliases c and cl, so subqueries join accordingly; for monto keep estado filter
+    const montoWhere = where ? `${where} AND c.estado NOT IN ('rechazada','vencida')` : `WHERE c.estado NOT IN ('rechazada','vencida')`;
+
     const [total, porEstado, montoTotal, pendientes] = await Promise.all([
-      pool.query(`SELECT COUNT(*) FROM crm.cotizaciones`),
-      pool.query(`SELECT estado, COUNT(*) AS total, COALESCE(SUM(valor_total), 0) AS monto FROM crm.cotizaciones GROUP BY estado`),
-      pool.query(`SELECT COALESCE(SUM(valor_total), 0) AS total FROM crm.cotizaciones WHERE estado NOT IN ('rechazada','vencida')`),
+      pool.query(`SELECT COUNT(*) FROM crm.cotizaciones c LEFT JOIN crm.clientes cl ON cl.id = c.cliente_id ${where}`, params),
+      pool.query(`SELECT c.estado, COUNT(*) AS total, COALESCE(SUM(c.valor_total), 0) AS monto FROM crm.cotizaciones c LEFT JOIN crm.clientes cl ON cl.id = c.cliente_id ${where} GROUP BY c.estado`, params),
+      pool.query(`SELECT COALESCE(SUM(c.valor_total), 0) AS total FROM crm.cotizaciones c LEFT JOIN crm.clientes cl ON cl.id = c.cliente_id ${montoWhere}`, params),
       pool.query(`SELECT COUNT(*) FROM crm.descuentos_solicitud WHERE estado = 'pendiente'`)
     ]);
 
