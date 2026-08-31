@@ -142,7 +142,7 @@ router.get('/stats', requirePermiso('ver_pipeline', 'crm'), async (req, res) => 
   }
 });
 
-// GET /api/oportunidades/:id — Detalle con historial
+// GET /api/oportunidades/:id — Detalle con historial y productos
 router.get('/:id', requirePermiso('ver_pipeline', 'crm'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -159,11 +159,74 @@ router.get('/:id', requirePermiso('ver_pipeline', 'crm'), async (req, res) => {
       `SELECT * FROM crm.oportunidad_historial WHERE oportunidad_id = $1 ORDER BY fecha DESC`,
       [id]
     );
+    const productos = await pool.query(`
+      SELECT op.*, p.codigo, p.nombre AS producto_nombre, p.unidad_medida, p.categoria
+      FROM crm.oportunidad_productos op
+      JOIN crm.productos p ON p.id = op.producto_id
+      WHERE op.oportunidad_id = $1
+      ORDER BY p.codigo
+    `, [id]);
 
-    res.json({ ok: true, data: { ...result.rows[0], historial: historial.rows } });
+    res.json({ ok: true, data: { ...result.rows[0], historial: historial.rows, productos: productos.rows } });
   } catch (err) {
     console.error('[CRM] Error obtener oportunidad:', err);
     res.status(500).json({ error: 'Error al obtener oportunidad' });
+  }
+});
+
+// GET /api/oportunidades/:id/productos — Listar productos de la oportunidad
+router.get('/:id/productos', requirePermiso('ver_pipeline', 'crm'), async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT op.*, p.codigo, p.nombre AS producto_nombre, p.unidad_medida, p.categoria, p.precio_unitario AS precio_maestro
+      FROM crm.oportunidad_productos op
+      JOIN crm.productos p ON p.id = op.producto_id
+      WHERE op.oportunidad_id = $1
+      ORDER BY p.codigo
+    `, [req.params.id]);
+    res.json({ ok: true, data: result.rows });
+  } catch (err) {
+    console.error('[CRM] Error listar productos oportunidad:', err);
+    res.status(500).json({ error: 'Error al listar productos' });
+  }
+});
+
+// POST /api/oportunidades/:id/productos — Agregar producto
+router.post('/:id/productos', requirePermiso('editar_pipeline', 'crm'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { producto_id, cantidad = 1, precio_unitario } = req.body;
+    if (!producto_id) return res.status(400).json({ error: 'producto_id requerido' });
+    const prod = await pool.query(`SELECT precio_unitario FROM crm.productos WHERE id = $1`, [producto_id]);
+    if (!prod.rows.length) return res.status(404).json({ error: 'Producto no encontrado' });
+    const precio = precio_unitario !== undefined ? precio_unitario : prod.rows[0].precio_unitario;
+    const result = await pool.query(`
+      INSERT INTO crm.oportunidad_productos (oportunidad_id, producto_id, cantidad, precio_unitario)
+      VALUES ($1,$2,$3,$4)
+      ON CONFLICT (oportunidad_id, producto_id) DO UPDATE SET cantidad = EXCLUDED.cantidad, precio_unitario = EXCLUDED.precio_unitario
+      RETURNING *
+    `, [id, producto_id, cantidad, precio]);
+    // Opcional: recalcular monto_esperado como suma
+    const sum = await pool.query(`SELECT COALESCE(SUM(cantidad * precio_unitario),0) AS total FROM crm.oportunidad_productos WHERE oportunidad_id = $1`, [id]);
+    await pool.query(`UPDATE crm.oportunidades SET monto_esperado = $1 WHERE id = $2`, [sum.rows[0].total, id]);
+    res.status(201).json({ ok: true, data: result.rows[0] });
+  } catch (err) {
+    console.error('[CRM] Error agregar producto oportunidad:', err);
+    res.status(500).json({ error: 'Error al agregar producto' });
+  }
+});
+
+// DELETE /api/oportunidades/:id/productos/:productoId — Quitar producto
+router.delete('/:id/productos/:productoId', requirePermiso('editar_pipeline', 'crm'), async (req, res) => {
+  try {
+    const { id, productoId } = req.params;
+    await pool.query(`DELETE FROM crm.oportunidad_productos WHERE oportunidad_id = $1 AND producto_id = $2`, [id, productoId]);
+    const sum = await pool.query(`SELECT COALESCE(SUM(cantidad * precio_unitario),0) AS total FROM crm.oportunidad_productos WHERE oportunidad_id = $1`, [id]);
+    await pool.query(`UPDATE crm.oportunidades SET monto_esperado = $1 WHERE id = $2`, [sum.rows[0].total, id]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[CRM] Error quitar producto oportunidad:', err);
+    res.status(500).json({ error: 'Error al quitar producto' });
   }
 });
 

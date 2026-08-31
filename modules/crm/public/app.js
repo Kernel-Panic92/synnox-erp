@@ -201,6 +201,9 @@ async function dropOportunidad(ev, etapa) {
   cargarPipeline();
 }
 
+let _oportunidadProductos = [];
+let _oportunidadProdTimer = null;
+
 async function abrirModalOportunidad(oportunidad = null) {
   document.getElementById('modal-oportunidad-title').textContent = oportunidad ? 'Editar Oportunidad' : 'Nueva Oportunidad';
   document.getElementById('oportunidad-id').value = oportunidad?.id || '';
@@ -218,7 +221,64 @@ async function abrirModalOportunidad(oportunidad = null) {
   await cargarClientesSelect('oportunidad-cliente', oportunidad?.cliente_id);
   await cargarContactosOportunidad(oportunidad?.contacto_id);
   await cargarVendedoresSelect('oportunidad-vendedor', oportunidad?.vendedor_id);
+  // Productos
+  _oportunidadProductos = [];
+  document.getElementById('buscar-oportunidad-producto').value = '';
+  document.getElementById('oportunidad-producto-resultados').innerHTML = '<p style="color:var(--muted);font-size:12px">Busca un producto del maestro para agregarlo.</p>';
+  if (oportunidad?.id) {
+    const pr = await apiFetch('/oportunidades/' + oportunidad.id + '/productos');
+    if (pr.ok) _oportunidadProductos = pr.data.data || [];
+    // si ya tenía productos, total viene de la suma de ellos (backend ya recalculó), pero mantenemos monto manual si no hay productos
+    if (_oportunidadProductos.length) {
+      const total = _oportunidadProductos.reduce((s,p)=>s+parseFloat(p.cantidad)*parseFloat(p.precio_unitario||p.precio_maestro||0),0);
+      document.getElementById('oportunidad-monto').value = total.toFixed(2);
+    }
+  }
+  renderOportunidadProductos();
   showModal('modal-oportunidad');
+}
+
+async function buscarOportunidadProducto() {
+  clearTimeout(_oportunidadProdTimer);
+  _oportunidadProdTimer = setTimeout(async () => {
+    const q = document.getElementById('buscar-oportunidad-producto')?.value;
+    if (!q || q.length < 2) { document.getElementById('oportunidad-producto-resultados').innerHTML = '<p style="color:var(--muted);font-size:12px">Escribe al menos 2 caracteres.</p>'; return; }
+    const r = await apiFetch('/productos/buscar?q=' + encodeURIComponent(q));
+    if (!r.ok) return;
+    const data = r.data.data || [];
+    if (!data.length) { document.getElementById('oportunidad-producto-resultados').innerHTML = '<p style="color:var(--muted);font-size:12px">No hay resultados.</p>'; return; }
+    document.getElementById('oportunidad-producto-resultados').innerHTML = data.map(p => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--surface)">
+        <div><strong>${esc(p.codigo)}</strong> — ${esc(p.nombre)}<br><span style="font-size:11px;color:var(--muted)">${esc(p.unidad_medida||'UND')} · $${formatMoney(p.precio_unitario||0)}</span></div>
+        <button class="btn btn-sm btn-primary btn-action" onclick='agregarProductoOportunidad(${JSON.stringify(p).replace(/"/g,"&quot;")})' title="Agregar" aria-label="Agregar producto ${esc(p.nombre)}">＋</button>
+      </div>`).join('');
+  }, 300);
+}
+
+function agregarProductoOportunidad(p) {
+  if (_oportunidadProductos.find(x=>x.producto_id===p.id || x.codigo===p.codigo)) return toast('Producto ya agregado','warning');
+  _oportunidadProductos.push({ producto_id: p.id, codigo: p.codigo, producto_nombre: p.nombre, unidad_medida: p.unidad_medida, precio_unitario: p.precio_unitario||0, cantidad: 1 });
+  renderOportunidadProductos();
+}
+function quitarProductoOportunidad(pid) {
+  _oportunidadProductos = _oportunidadProductos.filter(x=> (x.producto_id||x.id) !== pid && x.codigo !== pid);
+  renderOportunidadProductos();
+}
+function renderOportunidadProductos() {
+  const cont = document.getElementById('oportunidad-productos-lista');
+  if (!_oportunidadProductos.length) { cont.innerHTML = '<p style="color:var(--muted);font-size:12px">Sin productos. Agrega desde el buscador.</p>'; document.getElementById('oportunidad-productos-total').textContent=''; return; }
+  const total = _oportunidadProductos.reduce((s,p)=>s+parseFloat(p.cantidad||1)*parseFloat(p.precio_unitario||0),0);
+  document.getElementById('oportunidad-productos-total').textContent = `${_oportunidadProductos.length} prod · $${formatMoney(total)}`;
+  document.getElementById('oportunidad-monto').value = total.toFixed(2);
+  cont.innerHTML = _oportunidadProductos.map(p => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--surface)">
+      <div style="flex:1"><strong>${esc(p.codigo||'')}</strong> — ${esc(p.producto_nombre||p.nombre||'')}<br><span style="font-size:11px;color:var(--muted)">Cant: <input type="number" value="${p.cantidad||1}" min="1" step="1" style="width:60px;padding:2px 6px" onchange="actualizarCantOportunidad('${p.producto_id||p.codigo}', this.value)"> · $${formatMoney(p.precio_unitario||0)}</span></div>
+      <button class="btn btn-sm btn-danger btn-action" onclick="quitarProductoOportunidad('${p.producto_id||p.codigo}')" title="Quitar" aria-label="Quitar ${esc(p.producto_nombre||p.nombre)}">✕</button>
+    </div>`).join('');
+}
+function actualizarCantOportunidad(pid, val) {
+  const it = _oportunidadProductos.find(x=> (x.producto_id||x.codigo)===pid);
+  if (it) { it.cantidad = parseFloat(val)||1; renderOportunidadProductos(); }
 }
 
 async function editarOportunidad(id) {
@@ -255,6 +315,29 @@ async function guardarOportunidad() {
     ? await apiFetch('/oportunidades/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
     : await apiFetch('/oportunidades', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
   if (!r.ok) return toast(r.data?.error || 'Error al guardar', 'error');
+  const savedId = id || r.data.data.id;
+  // Sincronizar productos (maestro) si hay
+  try {
+    if (_oportunidadProductos.length) {
+      for (const p of _oportunidadProductos) {
+        const pid = p.producto_id || p.id;
+        if (!pid) continue;
+        await apiFetch('/oportunidades/' + savedId + '/productos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ producto_id: pid, cantidad: parseFloat(p.cantidad)||1, precio_unitario: parseFloat(p.precio_unitario)||0 }) });
+      }
+    }
+    // Eliminar productos quitados (solo en edición)
+    if (id) {
+      const cur = await apiFetch('/oportunidades/' + savedId + '/productos');
+      if (cur.ok) {
+        const keep = new Set(_oportunidadProductos.map(x=> String(x.producto_id||x.codigo)));
+        for (const cp of cur.data.data) {
+          if (!keep.has(String(cp.producto_id)) && !keep.has(String(cp.codigo))) {
+            await apiFetch('/oportunidades/' + savedId + '/productos/' + cp.producto_id, { method: 'DELETE' });
+          }
+        }
+      }
+    }
+  } catch(e){ console.warn('sync productos oportunidad', e.message); }
   toast(id ? 'Oportunidad actualizada' : 'Oportunidad creada', 'success');
   hideModal('modal-oportunidad');
   cargarPipeline();
