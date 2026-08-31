@@ -3008,20 +3008,44 @@ async function cargarAprobadoresChecklist(containerId, seleccionados){
   if(!cont) return;
   cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Cargando...</span>';
   try {
-    // Reusar lista de usuarios del launcher
-    const r = await apiFetch('/perfiles-venta/' + (document.getElementById('perfil-venta-id').value || '0') + '/usuarios');
     let usuarios = [];
-    if(r.ok) usuarios = r.data.usuarios || [];
-    else {
-      const r2 = await fetch(HF.API.replace(/\/crm\/api.*/, '/api/admin/usuarios'), { headers: { 'Authorization':'Bearer '+HF.TOKEN }}).then(x=>x.json()).catch(()=>null);
-      if(r2 && Array.isArray(r2)) usuarios = r2;
+    try{
+      const r = await apiFetch('/perfiles-venta/usuarios-all', { cache: 'no-store' });
+      if(r.ok) usuarios = r.data.data || r.data || [];
+    }catch{}
+    if(!usuarios.length){
+      try{
+        const r = await apiFetch('/perfiles-venta/' + (document.getElementById('perfil-venta-id').value || '0') + '/usuarios', { cache: 'no-store' });
+        if(r.ok) usuarios = r.data.usuarios || [];
+      }catch{}
     }
-    // Fallback: _perfilVentaUsuariosCache o lista genérica
-    if(!usuarios.length && Array.isArray(_perfilVentaUsuariosCache)) usuarios = _perfilVentaUsuariosCache;
+    if(!usuarios.length && Array.isArray(_perfilVentaUsuariosCache) && _perfilVentaUsuariosCache.length) usuarios = _perfilVentaUsuariosCache;
     if(!usuarios.length){ cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Sin usuarios</span>'; return; }
-    const selSet = new Set((seleccionados||[]).map(String));
-    cont.innerHTML = usuarios.map(u=>`<label style="display:flex;gap:6px;align-items:center;font-size:12px;margin-bottom:4px"><input type="checkbox" value="${u.id}" ${selSet.has(String(u.id))?'checked':''}> ${esc(u.nombre)} <small style="color:var(--muted)">${esc(u.email||'')}</small></label>`).join('');
-  } catch(e){ console.error('cargarMaestro/Aprobadores', e); cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Error: '+esc(e.message)+'</span>'; }
+    window._maestroCache = window._maestroCache || {};
+    window._maestroSelected = window._maestroSelected || {};
+    const data = usuarios.map(u=>({ codigo: String(u.id), nombre: u.nombre + (u.email? ' — '+u.email : '') }));
+    window._maestroCache[containerId] = data;
+    window._maestroSelected[containerId] = new Set((seleccionados||[]).map(String));
+    cont.innerHTML = `
+      <div class="multi-combo" id="${containerId}-combo" onclick="abrirMaestroCombo('${containerId}');document.getElementById('${containerId}-input')?.focus()">
+        <div class="multi-combo-tags" id="${containerId}-tags"></div>
+        <input type="text" placeholder="Buscar usuario..." class="multi-combo-input" id="${containerId}-input" oninput="filtrarMaestroCombo('usuario','${containerId}', this.value)" onfocus="abrirMaestroCombo('${containerId}')" autocomplete="off">
+        <div class="multi-combo-dropdown" id="${containerId}-dropdown" style="display:none"></div>
+      </div>`;
+    renderMaestroTags(containerId, window._maestroSelected[containerId]);
+    renderMaestroDropdown(containerId, '', data, window._maestroSelected[containerId]);
+    setTimeout(()=>{
+      const combo = document.getElementById(containerId+'-combo');
+      const dd = document.getElementById(containerId+'-dropdown');
+      if(!combo || combo._outsideHandler) return;
+      const handler = (e)=>{ if(!combo.contains(e.target)) dd.style.display='none'; };
+      combo._outsideHandler = handler;
+      document.addEventListener('click', handler);
+      const modal = document.getElementById('modal-perfil-venta')?.querySelector('.modal');
+      if(modal) modal.addEventListener('scroll', ()=> dd.style.display='none');
+      window.addEventListener('scroll', ()=> dd.style.display='none', true);
+    }, 100);
+  } catch(e){ console.error('cargarAprobadores', containerId, e); cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Error: '+esc(e.message)+'</span>'; }
 }
 
 function getCheckedValues(containerId){

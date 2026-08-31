@@ -32,6 +32,16 @@ export function requireVentasPerfil(permiso) {
   };
 }
 
+// GET /api/perfiles-venta/usuarios-all — todos los usuarios activos (para aprobadores, sin necesidad de perfil)
+router.get('/usuarios-all', requirePermiso('configurar', 'crm'), async (req, res) => {
+  try {
+    const ldb = getLauncherDb();
+    const usuarios = ldb.prepare(`SELECT id,nombre,email,rol FROM usuarios WHERE activo=1 ORDER BY nombre`).all();
+    ldb.close();
+    res.json({ ok: true, data: usuarios });
+  } catch (err){ res.status(500).json({error:err.message}); }
+});
+
 // GET /api/perfiles-venta — listar perfiles con conteo usuarios
 router.get('/', requirePermiso('configurar', 'crm'), async (req, res) => {
   try {
