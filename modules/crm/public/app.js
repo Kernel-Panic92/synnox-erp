@@ -2934,7 +2934,7 @@ async function cargarMaestroChecklist(tipo, containerId, seleccionados){
       combo._outsideHandler = handler;
       document.addEventListener('click', handler);
     }, 100);
-  } catch { cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Error</span>'; }
+  } catch(e){ console.error('cargarMaestro/Aprobadores', e); cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Error: '+esc(e.message)+'</span>'; }
 }
 function renderMaestroTags(containerId, selSet){
   const tagsCont = document.getElementById(containerId+'-tags');
@@ -3012,7 +3012,7 @@ async function cargarAprobadoresChecklist(containerId, seleccionados){
     if(!usuarios.length){ cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Sin usuarios</span>'; return; }
     const selSet = new Set((seleccionados||[]).map(String));
     cont.innerHTML = usuarios.map(u=>`<label style="display:flex;gap:6px;align-items:center;font-size:12px;margin-bottom:4px"><input type="checkbox" value="${u.id}" ${selSet.has(String(u.id))?'checked':''}> ${esc(u.nombre)} <small style="color:var(--muted)">${esc(u.email||'')}</small></label>`).join('');
-  } catch { cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Error</span>'; }
+  } catch(e){ console.error('cargarMaestro/Aprobadores', e); cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Error: '+esc(e.message)+'</span>'; }
 }
 
 function getCheckedValues(containerId){
