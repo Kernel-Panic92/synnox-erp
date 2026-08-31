@@ -1615,6 +1615,8 @@ async function abrirModalCotizacion(cotizacion = null) {
     }
   }
   await cargarOportunidadesSelect('cotizacion-oportunidad', cotizacion?.oportunidad_id);
+  await cargarCentrosCotizacion(cotizacion?.centro_operacion || null);
+  await cargarBodegasCotizacion(cotizacion?.bodega || null);
 
   _cotizacionItems = [];
   if (cotizacion?.id) {
@@ -1673,6 +1675,56 @@ async function cargarContactosCotizacion(clienteId, selectedId = null) {
   if (!r.ok) return;
   const data = r.data.data || [];
   sel.innerHTML = '<option value="">Sin contacto</option>' + data.map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${esc(c.nombre)}${c.cargo ? ' — '+esc(c.cargo):''}</option>`).join('');
+}
+
+async function cargarCentrosCotizacion(selected) {
+  const sel = document.getElementById('cotizacion-centro-op');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Seleccione centro de operación</option>';
+  try {
+    const r = await apiFetch('/centros');
+    const centros = r.ok ? (r.data || r.data?.data || []) : [];
+    // Fallback: la respuesta puede ser array directo o {ok,data}
+    const lista = Array.isArray(centros) ? centros : (centros.data || []);
+    // Si endpoint devuelve {ok:true,data:[...]} adaptamos
+    const items = Array.isArray(r.data) ? r.data : (Array.isArray(r.data?.data) ? r.data.data : lista);
+    // Si sigue vacío, intentar fetch directo a /api/centros (launcher) via HF.API
+    let final = items;
+    if (!final.length) {
+      try { const rr = await fetch(HF.API.replace(/\/crm\/api.*/, '/api/centros'), { credentials:'include' }).then(x=>x.json()); if (Array.isArray(rr)) final = rr; else if (Array.isArray(rr.data)) final = rr.data; } catch {}
+    }
+    if (!final.length) {
+      sel.innerHTML = '<option value="">Sin centros configurados</option>';
+      if (selected) sel.innerHTML += `<option value="${esc(selected)}" selected>${esc(selected)}</option>`;
+      return;
+    }
+    sel.innerHTML = '<option value="">Seleccione centro de operación</option>' + final.map(c => {
+      const nombre = c.nombre || c.descripcion || c.codigo || c;
+      const val = c.codigo || c.nombre || c;
+      return `<option value="${esc(val)}" ${val === selected ? 'selected' : ''}>${esc(nombre)}</option>`;
+    }).join('');
+    if (selected && !final.find(c => (c.codigo||c.nombre||c) === selected)) {
+      sel.innerHTML += `<option value="${esc(selected)}" selected>${esc(selected)} (actual)</option>`;
+    }
+  } catch { sel.innerHTML = '<option value="">Error cargando centros</option>'; }
+}
+
+async function cargarBodegasCotizacion(selected) {
+  const sel = document.getElementById('cotizacion-bodega');
+  if (!sel) return;
+  sel.innerHTML = '<option value="">Seleccione bodega</option>';
+  try {
+    const r = await apiFetch('/inventario/bodegas');
+    const data = r.ok ? (r.data.data || []) : [];
+    if (!data.length) {
+      if (selected) sel.innerHTML += `<option value="${esc(selected)}" selected>${esc(selected)}</option>`;
+      return;
+    }
+    sel.innerHTML = '<option value="">Seleccione bodega</option>' + data.map(b => `<option value="${esc(b.bodega)}" ${b.bodega === selected ? 'selected' : ''}>${esc(b.bodega)}</option>`).join('');
+    if (selected && !data.find(b => b.bodega === selected)) {
+      sel.innerHTML += `<option value="${esc(selected)}" selected>${esc(selected)} (actual)</option>`;
+    }
+  } catch { sel.innerHTML = '<option value="">Error cargando bodegas</option>'; }
 }
 
 let _buscarProductoTimer = null;
