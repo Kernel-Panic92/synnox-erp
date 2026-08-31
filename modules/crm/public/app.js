@@ -2947,6 +2947,7 @@ function renderMaestroTags(containerId, selSet){
 function renderMaestroDropdown(containerId, filter, data, selSet){
   const dd = document.getElementById(containerId+'-dropdown');
   if(!dd) return;
+  const set = selSet || window._maestroSelected[containerId] || new Set();
   const q = (filter||'').toLowerCase();
   const filtered = q ? data.filter(it=> String(it.codigo).toLowerCase().includes(q) || String(it.nombre).toLowerCase().includes(q)) : data;
   if(!filtered.length){ dd.innerHTML = '<div style="padding:8px;color:var(--muted);font-size:12px">Sin resultados</div>'; return; }
