@@ -2,7 +2,7 @@
 
 ## Estado (29 Ago 2026 — sesión 50)
 
-### Cambios Sesión 50 — CRM: UX accesible en Leads y Sucursales
+### Cambios Sesión 50 — CRM: UX accesible en Leads, Cotizaciones y Sucursales
 
 Sesión corta de pulido en `feat/crm-module` enfocada en accesibilidad y
 responsividad del CRM.
@@ -14,6 +14,13 @@ responsividad del CRM.
   que incluyen el nombre del lead (ej: "Convertir lead ACME").
 - La columna de acciones usa `inline-flex` para mantener la alineación de
   los renglones de la tabla.
+
+#### Cotizaciones — Botones de acción
+- Botones de la tabla de cotizaciones ahora son **icono solo**
+  (✏️ 🗑️ 📤 ✅), alineados horizontalmente y con el mismo tamaño que los
+  demás botones de acción del CRM.
+- Atributos ARIA en todas las acciones: `title` + `aria-label` descriptivos
+  que incluyen el número de la cotización (ej: "Aprobar cotización COT-0012").
 
 #### Clientes — Tabla de sucursales responsive
 - Modal de detalle cliente: lista de sucursales ahora es **scrollable**
@@ -30,6 +37,7 @@ responsividad del CRM.
 - `225c238` — `feat(crm): botones de acciones de leads en icono con aria-label y alineación horizontal`
 - `f498bdd` — `feat(crm): tabla de sucursales scrollable con header fijo y aria en acciones`
 - `c948ac3` — `feat(crm): tabla de sucursales responsive sin scroll horizontal`
+- `04a1c20` — `feat(crm): botones de acciones de cotizaciones en icono con aria-label`
 
 ## Estado (28 Ago 2026 — sesión 49)
 
