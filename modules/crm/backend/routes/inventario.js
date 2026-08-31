@@ -7,28 +7,10 @@ const router = express.Router();
 // GET /api/inventario — Listar inventario con filtros
 router.get('/', requirePermiso('ver', 'crm'), async (req, res) => {
   try {
-    const { search, bodega, stock, page = 1, limit = 50 } = req.query;
+    const { page = 1, limit = 50 } = req.query;
     const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
-    const conditions = [];
-    const params = [];
-    let paramIdx = 1;
-
-    if (search) {
-      conditions.push(`(p.codigo ILIKE $${paramIdx} OR p.nombre ILIKE $${paramIdx})`);
-      params.push(`%${search}%`);
-      paramIdx++;
-    }
-    if (bodega) {
-      conditions.push(`i.bodega = $${paramIdx++}`);
-      params.push(bodega);
-    }
-    if (stock === 'con_stock') {
-      conditions.push(`i.existencia > 0`);
-    } else if (stock === 'sin_stock') {
-      conditions.push(`i.existencia = 0`);
-    }
-
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+    const { where, params } = buildInventarioWhere(req);
+    let paramIdx = params.length + 1;
 
     const countResult = await pool.query(`
       SELECT COUNT(*) FROM crm.inventario i
@@ -53,14 +35,42 @@ router.get('/', requirePermiso('ver', 'crm'), async (req, res) => {
   }
 });
 
-// GET /api/inventario/stats — Estadisticas
+function buildInventarioWhere(req) {
+  const { search, bodega, stock } = req.query;
+  const conditions = [];
+  const params = [];
+  let paramIdx = 1;
+
+  if (search) {
+    conditions.push(`(p.codigo ILIKE $${paramIdx} OR p.nombre ILIKE $${paramIdx})`);
+    params.push(`%${search}%`);
+    paramIdx++;
+  }
+  if (bodega) {
+    conditions.push(`i.bodega = $${paramIdx++}`);
+    params.push(bodega);
+  }
+  if (stock === 'con_stock') {
+    conditions.push(`i.existencia > 0`);
+  } else if (stock === 'sin_stock') {
+    conditions.push(`i.existencia = 0`);
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  return { where, params };
+}
+
+// GET /api/inventario/stats — Estadisticas (respetan filtros activos)
 router.get('/stats', requirePermiso('ver', 'crm'), async (req, res) => {
   try {
+    const { where, params } = buildInventarioWhere(req);
+    const stockWhere = where ? `${where} AND i.existencia > 0` : 'WHERE i.existencia > 0';
+
     const [totalRegistros, bodegas, productosConStock, totalExistencia] = await Promise.all([
-      pool.query(`SELECT COUNT(*) FROM crm.inventario`),
-      pool.query(`SELECT COUNT(DISTINCT bodega) FROM crm.inventario`),
-      pool.query(`SELECT COUNT(DISTINCT producto_id) FROM crm.inventario WHERE existencia > 0`),
-      pool.query(`SELECT COALESCE(SUM(existencia), 0) AS total FROM crm.inventario`)
+      pool.query(`SELECT COUNT(*) FROM crm.inventario i INNER JOIN crm.productos p ON p.id = i.producto_id ${where}`, params),
+      pool.query(`SELECT COUNT(DISTINCT i.bodega) FROM crm.inventario i INNER JOIN crm.productos p ON p.id = i.producto_id ${where}`, params),
+      pool.query(`SELECT COUNT(DISTINCT i.producto_id) FROM crm.inventario i INNER JOIN crm.productos p ON p.id = i.producto_id ${stockWhere}`, params),
+      pool.query(`SELECT COALESCE(SUM(i.existencia), 0) AS total FROM crm.inventario i INNER JOIN crm.productos p ON p.id = i.producto_id ${where}`, params)
     ]);
 
     res.json({

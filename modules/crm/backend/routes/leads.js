@@ -5,23 +5,31 @@ import { auditarEvento } from '../../../../framework/audit.js';
 
 const router = express.Router();
 
+function buildLeadsWhere(req) {
+  const { estado, asesor, search } = req.query;
+  const conditions = [];
+  const params = [];
+  let paramIdx = 1;
+
+  if (estado) { conditions.push(`l.estado = $${paramIdx++}`); params.push(estado); }
+  if (asesor) { conditions.push(`l.asesor_comercial ILIKE $${paramIdx++}`); params.push(`%${asesor}%`); }
+  if (search) {
+    conditions.push(`(l.raison_social ILIKE $${paramIdx} OR l.numero_identificacion ILIKE $${paramIdx} OR l.email ILIKE $${paramIdx})`);
+    params.push(`%${search}%`); paramIdx++;
+  }
+
+  const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
+  return { where, params };
+}
+
 // GET /api/leads — Listar leads
 router.get('/', requirePermiso('ver', 'crm'), async (req, res) => {
   try {
-    const { estado, asesor, search, page = 1, limit = 20 } = req.query;
+    const { page = 1, limit = 20 } = req.query;
     const offset = (Math.max(1, parseInt(page)) - 1) * parseInt(limit);
-    const conditions = [];
-    const params = [];
-    let paramIdx = 1;
+    const { where, params } = buildLeadsWhere(req);
+    let paramIdx = params.length + 1;
 
-    if (estado) { conditions.push(`l.estado = $${paramIdx++}`); params.push(estado); }
-    if (asesor) { conditions.push(`l.asesor_comercial ILIKE $${paramIdx++}`); params.push(`%${asesor}%`); }
-    if (search) {
-      conditions.push(`(l.raison_social ILIKE $${paramIdx} OR l.numero_identificacion ILIKE $${paramIdx} OR l.email ILIKE $${paramIdx})`);
-      params.push(`%${search}%`); paramIdx++;
-    }
-
-    const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
     const countResult = await pool.query(`SELECT COUNT(*) FROM crm.leads l ${where}`, params);
     const total = parseInt(countResult.rows[0].count);
 
@@ -41,13 +49,16 @@ router.get('/', requirePermiso('ver', 'crm'), async (req, res) => {
   }
 });
 
-// GET /api/leads/stats
+// GET /api/leads/stats — Estadisticas (respetan filtros activos)
 router.get('/stats', requirePermiso('ver', 'crm'), async (req, res) => {
   try {
+    const { where, params } = buildLeadsWhere(req);
+    const convertidosWhere = where ? `${where} AND l.cliente_convertido = TRUE` : 'WHERE l.cliente_convertido = TRUE';
+
     const [total, porEstado, convertidos] = await Promise.all([
-      pool.query(`SELECT COUNT(*) FROM crm.leads`),
-      pool.query(`SELECT estado, COUNT(*) AS total FROM crm.leads GROUP BY estado`),
-      pool.query(`SELECT COUNT(*) FROM crm.leads WHERE cliente_convertido = TRUE`)
+      pool.query(`SELECT COUNT(*) FROM crm.leads l ${where}`, params),
+      pool.query(`SELECT l.estado, COUNT(*) AS total FROM crm.leads l ${where} GROUP BY l.estado`, params),
+      pool.query(`SELECT COUNT(*) FROM crm.leads l ${convertidosWhere}`, params)
     ]);
     res.json({
       ok: true,

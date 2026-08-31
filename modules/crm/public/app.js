@@ -663,7 +663,13 @@ async function cargarLeads() {
 
 async function cargarStatsLeads() {
   try {
-    const r = await apiFetch('/leads/stats');
+    const params = new URLSearchParams();
+    const search = document.getElementById('filtro-lead-search')?.value;
+    const estado = document.getElementById('filtro-lead-estado')?.value;
+    if (search) params.set('search', search);
+    if (estado) params.set('estado', estado);
+
+    const r = await apiFetch('/leads/stats?' + params);
     if (!r.ok) return;
     const d = r.data;
     document.getElementById('stats-leads').innerHTML = `
@@ -2119,7 +2125,15 @@ async function cargarBodegasSelect() {
 
 async function cargarStatsInventario() {
   try {
-    const r = await apiFetch('/inventario/stats');
+    const params = new URLSearchParams();
+    const search = document.getElementById('filtro-inv-search')?.value;
+    const bodega = document.getElementById('filtro-inv-bodega')?.value;
+    const stock = document.getElementById('filtro-inv-stock')?.value;
+    if (search) params.set('search', search);
+    if (bodega) params.set('bodega', bodega);
+    if (stock) params.set('stock', stock);
+
+    const r = await apiFetch('/inventario/stats?' + params);
     if (!r.ok) return;
     const d = r.data;
     document.getElementById('stats-inventario').innerHTML = `
