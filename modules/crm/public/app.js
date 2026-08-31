@@ -1529,11 +1529,11 @@ async function cargarCotizaciones() {
         <td>${estadoErpHtml}</td>
         <td>${docErpHtml}</td>
         <td>
-          <button class="btn btn-sm btn-secondary" onclick="editarCotizacion('${c.id}')" title="Editar cotizacion" aria-label="Editar cotizacion ${esc(c.numero)}">✏️</button>
-          ${c.estado === 'borrador' ? `<button class="btn btn-sm btn-danger" onclick="eliminarCotizacion('${c.id}')" title="Eliminar cotizacion" aria-label="Eliminar cotizacion ${esc(c.numero)}">🗑️</button>` : ''}
-          ${c.estado === 'borrador' ? `<button class="btn btn-sm btn-primary" onclick="cambiarEstadoCotizacion('${c.id}','enviada')" title="Enviar cotizacion" aria-label="Enviar cotizacion ${esc(c.numero)}">📤</button>` : ''}
-          ${c.estado === 'enviada' ? `<button class="btn btn-sm btn-primary" onclick="cambiarEstadoCotizacion('${c.id}','aprobada')" title="Aprobar cotizacion" aria-label="Aprobar cotizacion ${esc(c.numero)}">✅</button>` : ''}
-          ${sinCPV ? `<button class="btn btn-sm btn-primary" onclick="enviarCotizacionERP('${c.id}','${esc(c.numero)}')" title="Enviar al ERP" aria-label="Enviar cotizacion ${esc(c.numero)} al ERP">🚀 Enviar al ERP</button>` : ''}
+          <button class="btn btn-sm btn-secondary btn-action" onclick="editarCotizacion('${c.id}')" title="Editar cotizacion" aria-label="Editar cotizacion ${esc(c.numero)}">✏️</button>
+          ${c.estado === 'borrador' ? `<button class="btn btn-sm btn-danger btn-action" onclick="eliminarCotizacion('${c.id}')" title="Eliminar cotizacion" aria-label="Eliminar cotizacion ${esc(c.numero)}">🗑️</button>` : ''}
+          ${c.estado === 'borrador' ? `<button class="btn btn-sm btn-primary btn-action" onclick="cambiarEstadoCotizacion('${c.id}','enviada')" title="Enviar cotizacion" aria-label="Enviar cotizacion ${esc(c.numero)}">📤</button>` : ''}
+          ${c.estado === 'enviada' ? `<button class="btn btn-sm btn-primary btn-action" onclick="cambiarEstadoCotizacion('${c.id}','aprobada')" title="Aprobar cotizacion" aria-label="Aprobar cotizacion ${esc(c.numero)}">✅</button>` : ''}
+          ${sinCPV ? `<button class="btn btn-sm btn-primary btn-action" onclick="enviarCotizacionERP('${c.id}','${esc(c.numero)}')" title="Enviar al ERP" aria-label="Enviar cotizacion ${esc(c.numero)} al ERP">🚀</button>` : ''}
         </td>
       </tr>
     `}).join('');
