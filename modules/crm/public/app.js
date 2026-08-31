@@ -2746,7 +2746,7 @@ function closeSidebar() { document.getElementById('sidebar').classList.remove('o
 function toggleSidebarCollapse() { document.getElementById('sidebar').classList.toggle('collapsed'); }
 
 // ── Admin Perfiles Venta ──
-const CRM_PERMISOS = ['ver','crear_contacto','editar_contacto','eliminar_contacto','ver_pipeline','editar_pipeline','crear_oportunidad','registrar_visita','ver_visitas','ver_mis_visitas','crear_cotizacion','aprobar_descuento','campanas','reportes','configurar','siesa_sync'];
+const CRM_PERMISOS = ['crear_cotizacion','aprobar_descuento','configurar','siesa_sync','ver_pipeline','editar_pipeline'];
 let _perfilesVentaCache=[];
 
 async function cargarAdmin(){
