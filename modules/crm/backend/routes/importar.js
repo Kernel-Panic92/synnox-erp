@@ -77,7 +77,22 @@ function parseFile(buffer, filename) {
       return norm;
     });
   }
-  throw new Error('Formato no soportado. Use CSV o XLSX.');
+  if (ext === 'xml') {
+    const text = buffer.toString('utf-8').includes('�') ? buffer.toString('latin1') : buffer.toString('utf-8');
+    // Crystal Reports Motivos: extrae motivo, descmotivo, estado
+    const rows = [];
+    const groupRegex = /FieldName="\{Motivos_ttx\.motivo\}"[\s\S]*?<Value>(.*?)<\/Value>[\s\S]*?FieldName="\{Motivos_ttx\.descmotivo\}"[\s\S]*?<Value>(.*?)<\/Value>[\s\S]*?FieldName="\{@Estado\}"[\s\S]*?<Value>(.*?)<\/Value>/g;
+    let m;
+    while ((m = groupRegex.exec(text)) !== null) {
+      rows.push({ motivo: m[1].trim(), descmotivo: m[2].trim(), estado: m[3].trim() });
+    }
+    return rows.map(r => {
+      const norm = {};
+      for (const [k, v] of Object.entries(r)) norm[normalizeHeader(k)] = v;
+      return norm;
+    });
+  }
+  throw new Error('Formato no soportado. Use CSV, XLSX o XML.');
 }
 
 // ── Parsers por tipo ──
@@ -615,21 +630,24 @@ async function importarVendedores(rows, onProgress) {
   return { insertados, actualizados, fallidos, total: rows.length, errores: errores.slice(0, 50) };
 }
 
-async function importarMaestroGenerico(rows, table, onProgress) {
+async function importarMaestroGenerico(rows, table, onProgress, opts = {}) {
+  const { codigoKeys = ['codigo','c_digo'], nombreKeys = ['descripcion','descripci_n','nombre'], estadoKey = 'estado', activoValues = ['activo','si'] } = opts;
   let insertados = 0, actualizados = 0, fallidos = 0;
   const errores = [];
   for (let i = 0; i < rows.length; i++) {
     try {
       const r = rows[i];
-      const codigo = (r.codigo || r.c_digo || '').trim();
-      const nombre = (r.descripcion || r.descripci_n || r.nombre || '').trim();
+      const codigo = findCol(r, codigoKeys).trim();
+      const nombre = findCol(r, nombreKeys).trim();
+      const estadoVal = estadoKey ? findCol(r, [estadoKey]).toLowerCase() : '';
+      const activo = !estadoVal || activoValues.some(v => estadoVal.includes(v)) || estadoVal === '';
       if (!codigo || !nombre) { fallidos++; errores.push(`Fila ${i+1}: sin código o nombre`); continue; }
       const existing = await pool.query(`SELECT codigo FROM ${table} WHERE codigo = $1`, [codigo]);
       if (existing.rows.length) {
-        await pool.query(`UPDATE ${table} SET nombre = $1 WHERE codigo = $2`, [nombre, codigo]);
+        await pool.query(`UPDATE ${table} SET nombre = $1, activo = $2 WHERE codigo = $3`, [nombre, activo, codigo]);
         actualizados++;
       } else {
-        await pool.query(`INSERT INTO ${table} (codigo, nombre) VALUES ($1,$2)`, [codigo, nombre]);
+        await pool.query(`INSERT INTO ${table} (codigo, nombre, activo) VALUES ($1,$2,$3)`, [codigo, nombre, activo]);
         insertados++;
       }
       if (onProgress && i % 10 === 0) onProgress(i + 1, rows.length);
@@ -638,10 +656,31 @@ async function importarMaestroGenerico(rows, table, onProgress) {
   if (onProgress) onProgress(rows.length, rows.length);
   return { insertados, actualizados, fallidos, total: rows.length, errores: errores.slice(0, 50) };
 }
-async function importarMotivos(rows, onProgress) { return importarMaestroGenerico(rows, 'crm.motivos_venta', onProgress); }
-async function importarTiposDocumento(rows, onProgress) { return importarMaestroGenerico(rows, 'crm.tipos_documento', onProgress); }
-async function importarCentrosCosto(rows, onProgress) { return importarMaestroGenerico(rows, 'crm.centros_costo', onProgress); }
-async function importarUnidadesNegocio(rows, onProgress) { return importarMaestroGenerico(rows, 'crm.unidades_negocio', onProgress); }
+async function importarMotivos(rows, onProgress) {
+  // XML rows vienen como {motivo, descmotivo, estado}
+  return importarMaestroGenerico(rows, 'crm.motivos_venta', onProgress, { codigoKeys: ['motivo','codigo','c_digo'], nombreKeys: ['descmotivo','descripcion','nombre'], estadoKey: 'estado' });
+}
+async function importarTiposDocumento(rows, onProgress) {
+  // CSV: C.O., Tipo docto (ej "CPV - PEDIDO DE VENTA CRM") -> codigo = CPV, nombre = PEDIDO DE VENTA CRM, filtrar solo CRM relevantes pero importamos todos y marcamos activo
+  // Para SIESA CRM solo CPE/CPV/CPR son relevantes, pero importamos todos; el perfil filtrará
+  const mapped = rows.map(r => {
+    const tipoFull = findCol(r, ['tipo_docto','tipo_de_documento','tipo']) || '';
+    const codigo = tipoFull.split('-')[0].trim().split(' ')[0] || tipoFull.trim();
+    const nombre = tipoFull.trim();
+    const activo = true; // todos activos, el perfil decide
+    return { codigo, nombre, estado: activo ? 'Activo' : 'Inactivo', c_o: findCol(r, ['c_o','centro','codigo']) };
+  }).filter(r => r.codigo);
+  // Deduplicar por codigo (varios C.O. tienen mismo tipo)
+  const uniq = new Map();
+  for (const m of mapped) if (!uniq.has(m.codigo)) uniq.set(m.codigo, m);
+  return importarMaestroGenerico([...uniq.values()], 'crm.tipos_documento', onProgress, { codigoKeys: ['codigo'], nombreKeys: ['nombre'], estadoKey: 'estado' });
+}
+async function importarCentrosCosto(rows, onProgress) {
+  return importarMaestroGenerico(rows, 'crm.centros_costo', onProgress, { codigoKeys: ['centro_de_costo','codigo','c_digo','centro'], nombreKeys: ['descripcion_del_centro_de_costo','descripcion','nombre'], estadoKey: 'estado' });
+}
+async function importarUnidadesNegocio(rows, onProgress) {
+  return importarMaestroGenerico(rows, 'crm.unidades_negocio', onProgress, { codigoKeys: ['un','codigo','c_digo'], nombreKeys: ['descripcion','nombre'], estadoKey: 'activa' });
+}
 
 // ── Endpoint principal ──
 const PARSERS = {
@@ -719,9 +758,9 @@ router.get('/tipos', requirePermiso('crear_contacto', 'crm'), (req, res) => {
       { id: 'bodegas', nombre: 'Bodegas', extensiones: 'csv', descripcion: 'Almacenes con código, nombre y ubicación' },
       { id: 'precios', nombre: 'Precios por Item', extensiones: 'csv', descripcion: 'Precios de productos por lista de precio' },
       { id: 'vendedores', nombre: 'Vendedores', extensiones: 'csv', descripcion: 'Asesores comerciales con código y nombre' },
-      { id: 'motivos_venta', nombre: 'Motivos de Venta', extensiones: 'csv', descripcion: 'Motivos SIESA para cotizaciones (VENTAS, etc.)' },
-      { id: 'tipos_documento', nombre: 'Tipos de Documento', extensiones: 'csv', descripcion: 'Tipos SIESA (PEDIDO DE VENTA CRM, etc.)' },
-      { id: 'centros_costo', nombre: 'Centros de Costo', extensiones: 'csv', descripcion: 'Centros de costo SIESA' },
+      { id: 'motivos_venta', nombre: 'Motivos de Venta', extensiones: 'csv,xml', descripcion: 'Motivos SIESA para cotizaciones (VENTAS, etc.) — CSV o XML Crystal' },
+      { id: 'tipos_documento', nombre: 'Tipos de Documento', extensiones: 'csv', descripcion: 'Tipos SIESA (PEDIDO DE VENTA CRM, CPE/CPV/CPR, etc.)' },
+      { id: 'centros_costo', nombre: 'Centros de Costo', extensiones: 'csv', descripcion: 'Centros de costo SIESA (con C.O. y U.N.)' },
       { id: 'unidades_negocio', nombre: 'Unidades de Negocio', extensiones: 'csv', descripcion: 'Unidades SIESA (PRODUCCION CRUDOS, etc.)' }
     ]
   });
