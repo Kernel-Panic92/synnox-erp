@@ -2918,7 +2918,7 @@ async function cargarMaestroChecklist(tipo, containerId, seleccionados){
     window._maestroSelected = window._maestroSelected || {};
     window._maestroSelected[containerId] = new Set((seleccionados||[]).map(String));
     cont.innerHTML = `
-      <div class="multi-combo" id="${containerId}-combo" onclick="document.getElementById('${containerId}-input')?.focus()">
+      <div class="multi-combo" id="${containerId}-combo" onclick="abrirMaestroCombo('${containerId}');document.getElementById('${containerId}-input')?.focus()">
         <div class="multi-combo-tags" id="${containerId}-tags"></div>
         <input type="text" placeholder="Buscar y seleccionar..." class="multi-combo-input" id="${containerId}-input" oninput="filtrarMaestroCombo('${tipo}','${containerId}', this.value)" onfocus="abrirMaestroCombo('${containerId}')" autocomplete="off">
         <div class="multi-combo-dropdown" id="${containerId}-dropdown" style="display:none"></div>
@@ -2954,7 +2954,12 @@ function renderMaestroDropdown(containerId, filter, data, selSet){
 }
 function abrirMaestroCombo(containerId){
   const dd = document.getElementById(containerId+'-dropdown');
-  if(dd) dd.style.display = dd.style.display==='none' ? 'block' : 'block';
+  if(!dd) return;
+  const data = (window._maestroCache && window._maestroCache[containerId]) || [];
+  const set = window._maestroSelected[containerId] || new Set();
+  const input = document.getElementById(containerId+'-input');
+  renderMaestroDropdown(containerId, input ? input.value : '', data, set);
+  dd.style.display = 'block';
 }
 function filtrarMaestroCombo(tipo, containerId, q){
   const data = (window._maestroCache && window._maestroCache[containerId]) || [];
