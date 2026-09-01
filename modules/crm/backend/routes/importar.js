@@ -103,6 +103,7 @@ const REQUIRED_COLUMNS = {
   contactos: [['nombre_completo', 'nombre'], ['correo_electronico', 'email']],
   leads: [['razon_social', 'raz_n_social'], ['numero_de_identificacion', 'numero_de_identificaci_n']],
   cotizaciones: [['nombre'], ['consecutivo_interno']],
+  pedidos_erp: [['nro_documento'], ['c_o']],
   items: [['referencia'], ['item'], ['descripcion', 'desc_item', 'desc__item']],
   inventario: [['codigo', 'c_digo'], ['referencia'], ['bodega']],
   codigos_barra: [['codigo', 'c_digo'], ['referencia']],
@@ -537,6 +538,59 @@ async function importarCotizaciones(rows) {
   return { insertados, actualizados, fallidos, total: rows.length, errores: errores.slice(0, 50) };
 }
 
+// ── Pedidos del ERP (Pedidos mes corriente.csv) — vincula CPV a cotizaciones por COT-xxxxx ──
+async function importarPedidosERP(buffer, onProgress) {
+  let vinculados = 0, sinCot = 0, errores = [];
+  const cotCache = new Map(); // numero -> id
+  try {
+    // Parsear como arrays (el CSV tiene una columna extra "COT-xxxxx" sin header)
+    let text;
+    try { text = buffer.toString('utf-8'); if (text.includes('\ufffd')) throw new Error('l'); } catch { text = buffer.toString('latin1'); }
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    if (!lines.length) return { vinculados: 0, sin_cotizacion: 0, total: 0, errores: ['Archivo vacío'] };
+    const header = lines[0];
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      // dividir respetando comillas
+      const vals = lines[i].match(/("[^"]*"|[^,]+)/g)?.map(v => v.replace(/^"|"$/g, '').trim()) || [];
+      rows.push(vals);
+    }
+    for (let i = 0; i < rows.length; i++) {
+      try {
+        const vals = rows[i];
+        const cpv = (vals[1] || '').trim();
+        if (!cpv) continue;
+        // COT-xxxxx está en la columna extra (más allá del header)
+        let cotNum = null;
+        for (const v of vals) {
+          const m = String(v || '').match(/COT-(\d+)/);
+          if (m) { cotNum = m[1]; break; }
+        }
+        if (!cotNum) continue; // pedido directo sin cotización CRM
+        const numero = `COT-${cotNum}`;
+        let cotId = cotCache.get(numero);
+        if (cotId === undefined) {
+          const c = await pool.query(`SELECT id FROM crm.cotizaciones WHERE numero = $1 OR consecutive_siesa = $2`, [numero, cotNum]);
+          cotId = c.rows.length ? c.rows[0].id : null;
+          cotCache.set(numero, cotId);
+        }
+        if (!cotId) { sinCot++; continue; }
+        // Estado ERP: buscar columna "Estado" (índice 3 en header)
+        const estadoErp = (vals[3] || '').trim();
+        await pool.query(`UPDATE crm.cotizaciones SET documento_erp = $1, estado_erp = $2, enviado_erp = TRUE, actualizado_en = NOW() WHERE id = $3`,
+          [cpv, estadoErp || 'enviado', cotId]);
+        vinculados++;
+        if (onProgress && i % 25 === 0) onProgress(i + 1, rows.length);
+      } catch (e) { errores.push(`Fila ${i+1}: ${e.message}`); }
+    }
+    if (onProgress) onProgress(rows.length, rows.length);
+    return { vinculados, sin_cotizacion: sinCot, total: rows.length, errores: errores.slice(0, 50) };
+  } catch (err) {
+    console.error('[CRM] Error importar pedidos ERP:', err);
+    throw new Error('No se pudo leer el archivo de pedidos del ERP');
+  }
+}
+
 async function importarItems(rows) {
   let insertados = 0, actualizados = 0, fallidos = 0;
   const errores = [];
@@ -933,6 +987,7 @@ const PARSERS = {
   contactos: importarContactos,
   leads: importarLeads,
   cotizaciones: importarCotizaciones,
+  pedidos_erp: importarPedidosERP,
   items: importarItems,
   inventario: importarInventario,
   codigos_barra: importarCodigosBarra,
@@ -952,11 +1007,12 @@ router.post('/', requirePermiso('crear_contacto', 'crm'), upload.single('archivo
     if (!tipo || !PARSERS[tipo]) return res.status(400).json({ error: `Tipo inválido. Opciones: ${Object.keys(PARSERS).join(', ')}` });
     if (!req.file) return res.status(400).json({ error: 'No se envió archivo' });
 
-    // eans_gs1 necesita el buffer completo (parsea hojas con header en fila 6)
+    // eans_gs1 y pedidos_erp necesitan el buffer completo (parseo especial)
     let rows = null;
-    if (tipo === 'eans_gs1') {
-      // validar que sea xlsx
-      if (!/\.(xlsx|xls)$/i.test(req.file.originalname)) return res.status(400).json({ error: 'El archivo debe ser XLSX (reporte GS1 exportado)' });
+    if (tipo === 'eans_gs1' || tipo === 'pedidos_erp') {
+      // validar extensión
+      const okExt = tipo === 'eans_gs1' ? /\.(xlsx|xls)$/i.test(req.file.originalname) : /\.(csv|txt)$/i.test(req.file.originalname);
+      if (!okExt) return res.status(400).json({ error: tipo === 'eans_gs1' ? 'El archivo debe ser XLSX (reporte GS1)' : 'El archivo debe ser CSV (pedidos del ERP)' });
     } else {
       rows = parseFile(req.file.buffer, req.file.originalname);
       if (!rows.length) return res.status(400).json({ error: 'El archivo está vacío' });
@@ -979,7 +1035,9 @@ router.post('/', requirePermiso('crear_contacto', 'crm'), upload.single('archivo
 
     const resultado = tipo === 'eans_gs1'
       ? await importarEANGS1(req.file.buffer, onProgress)
-      : await PARSERS[tipo](rows, onProgress);
+      : tipo === 'pedidos_erp'
+        ? await importarPedidosERP(req.file.buffer, onProgress)
+        : await PARSERS[tipo](rows, onProgress);
 
     await auditarEvento({
       accion: 'importar',
@@ -1007,6 +1065,7 @@ router.get('/tipos', requirePermiso('crear_contacto', 'crm'), (req, res) => {
       { id: 'contactos', nombre: 'Contactos CRM', extensiones: 'xlsx', descripcion: 'Contactos vinculados a clientes' },
       { id: 'leads', nombre: 'Leads CRM', extensiones: 'xlsx', descripcion: 'Clientes potenciales con asesor, segmento, lista de precios' },
       { id: 'cotizaciones', nombre: 'Cotizaciones CRM', extensiones: 'xlsx', descripcion: 'Cotizaciones con estados, bodega, centro de operación' },
+      { id: 'pedidos_erp', nombre: 'Pedidos ERP (vincula CPV a cotizaciones)', extensiones: 'csv', descripcion: 'Pedidos mes corriente del ERP: asigna documento_erp (CPV) a las cotizaciones por su número COT' },
       { id: 'items', nombre: 'Items / Productos', extensiones: 'xlsx,csv', descripcion: 'Productos con referencia, precio, impuesto, categoría' },
       { id: 'inventario', nombre: 'Inventario por Bodega', extensiones: 'xlsx', descripcion: 'Stock por bodega con precio, disponibilidad, existencia' },
       { id: 'codigos_barra', nombre: 'Códigos de Barras (EAN)', extensiones: 'csv', descripcion: 'Códigos GS1 vinculados a productos por referencia' },
