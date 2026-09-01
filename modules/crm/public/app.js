@@ -38,6 +38,10 @@ async function init() {
     document.getElementById('user-role').textContent = usuario.rol || '';
     document.getElementById('sidebar-user-name').textContent = usuario.nombre || '';
     document.getElementById('sidebar-user-role').textContent = usuario.rol || '';
+    // Clientes ERP son solo lectura para no-admin/gerente: terceros se gestionan en el ERP SIESA
+    const esAdminOrGerente = usuario.rol === 'admin' || usuario.rol === 'gerente';
+    const btnNuevoCliente = document.getElementById('btn-nuevo-cliente');
+    if (btnNuevoCliente) btnNuevoCliente.style.display = esAdminOrGerente ? '' : 'none';
     try {
       const v = await fetch(HF.API.replace('/api', '') + '/api/version');
       const vd = await v.json();
@@ -439,10 +443,13 @@ async function cargarClientes() {
   if (!r.ok) return;
   const tbody = document.getElementById('tbody-clientes');
   const data = r.data.data || [];
-  tbody.innerHTML = data.map(e => `
+  tbody.innerHTML = data.map(e => {
+      const esSiesa = e.origen === 'siesa';
+      const editable = !esSiesa || (usuario?.rol === 'admin' || usuario?.rol === 'gerente');
+      return `
       <tr>
         <td><input type="checkbox" class="row-check cb-cliente" value="${e.id}" onchange="updateBulkBar()"></td>
-        <td><a href="#" onclick="verCliente('${e.id}');return false" style="color:var(--accent)">${esc(e.nombre)}</a></td>
+        <td><a href="#" onclick="verCliente('${e.id}');return false" style="color:var(--accent)">${esc(e.nombre)}</a>${esSiesa ? ' <span class="badge badge-muted" title="Gestionado en el ERP SIESA">🔒 ERP</span>' : ''}</td>
         <td>${esc(e.nit || '—')}</td>
 <td><span class="badge badge-${esc(e.tipo)}">${tipoClienteLabel(e.tipo)}</span></td>
         <td>${esc(e.canal || '—')}</td>
@@ -450,11 +457,11 @@ async function cargarClientes() {
         <td>${e.total_contactos || 0}</td>
         <td>${formatDate(e.creado_en)}</td>
         <td>
-          <button class="btn btn-sm btn-secondary" onclick="editarCliente('${e.id}')" title="Editar cliente" aria-label="Editar cliente ${esc(e.nombre)}">✏️</button>
-          <button class="btn btn-sm btn-danger" onclick="eliminarCliente('${e.id}')" title="Eliminar cliente" aria-label="Eliminar cliente ${esc(e.nombre)}">🗑️</button>
+          ${editable ? `<button class="btn btn-sm btn-secondary" onclick="editarCliente('${e.id}')" title="Editar cliente" aria-label="Editar cliente ${esc(e.nombre)}">✏️</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarCliente('${e.id}')" title="Eliminar cliente" aria-label="Eliminar cliente ${esc(e.nombre)}">🗑️</button>` : '<span style="color:var(--muted);font-size:11px" title="Cliente gestionado en el ERP">Solo lectura</span>'}
         </td>
       </tr>
-    `).join('');
+    `;}).join('');
   renderPagination('pag-clientes', r.data.total, _clientesPage, clientesLimit, (p) => { _clientesPage = p; cargarClientes(); });
   // Cargar ciudades para filtro
   const ciudades = [...new Set(data.map(e => e.ciudad).filter(Boolean))];
@@ -526,6 +533,9 @@ async function verCliente(id) {
   const cotizaciones = cotR.ok ? (cotR.data.data || []) : [];
 
   document.getElementById('detalle-cliente-title').textContent = e.nombre;
+  const esSiesaCliente = e.origen === 'siesa';
+  const editableSuc = !esSiesaCliente || (usuario?.rol === 'admin' || usuario?.rol === 'gerente');
+  document.getElementById('detalle-cliente-title').innerHTML = `${esc(e.nombre)}${esSiesaCliente ? ' <span class="badge badge-muted" title="Gestionado en el ERP SIESA">🔒 ERP</span>' : ''}`;
   document.getElementById('detalle-cliente-content').innerHTML = `
     <div style="display:flex;gap:12px;border-bottom:1px solid var(--border);margin-bottom:16px;flex-wrap:wrap">
       <button class="tab-btn active" onclick="cambiarTabCliente('datos',this)">Datos Basicos</button>
@@ -599,12 +609,12 @@ async function verCliente(id) {
           <td>${esc(s.codigo_ean || '—')}</td>
           <td>${s.es_principal ? '<span class="badge badge-aprobada">Principal</span>' : ''}</td>
           <td onclick="event.stopPropagation()">
-            <button class="btn btn-sm btn-secondary btn-action" onclick="editarSucursal('${s.id}','${id}')" title="Editar sucursal" aria-label="Editar sucursal ${esc(s.nombre)}">✏️</button>
-            <button class="btn btn-sm btn-danger btn-action" onclick="eliminarSucursal('${s.id}','${id}')" title="Eliminar sucursal" aria-label="Eliminar sucursal ${esc(s.nombre)}">🗑️</button>
+            ${editableSuc ? `<button class="btn btn-sm btn-secondary btn-action" onclick="editarSucursal('${s.id}','${id}')" title="Editar sucursal" aria-label="Editar sucursal ${esc(s.nombre)}">✏️</button>
+            <button class="btn btn-sm btn-danger btn-action" onclick="eliminarSucursal('${s.id}','${id}')" title="Eliminar sucursal" aria-label="Eliminar sucursal ${esc(s.nombre)}">🗑️</button>` : '<span style="color:var(--muted);font-size:11px">Solo lectura</span>'}
           </td>
         </tr>`).join('')}
       </tbody></table></div>` : '<p style="color:var(--muted)">Sin sucursales</p>'}
-      <button class="btn btn-sm btn-primary" onclick="abrirModalSucursal('${id}')" style="margin-top:8px">+ Nueva Sucursal</button>
+      ${editableSuc ? `<button class="btn btn-sm btn-primary" onclick="abrirModalSucursal('${id}')" style="margin-top:8px">+ Nueva Sucursal</button>` : ''}
     </div>
 
     <div id="tab-cliente-contactos" style="display:none">

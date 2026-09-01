@@ -2,6 +2,7 @@ import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
 import { auditarEvento } from '../../../../framework/audit.js';
+import { requireClienteEditable } from '../utils/siesaReadOnly.js';
 
 const router = express.Router();
 
@@ -161,7 +162,7 @@ router.post('/', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
 });
 
 // PUT /api/clientes/:id — Editar cliente
-router.put('/:id', requirePermiso('editar_contacto', 'crm'), async (req, res) => {
+router.put('/:id', requirePermiso('editar_contacto', 'crm'), requireClienteEditable, async (req, res) => {
   try {
     const { id } = req.params;
     const existing = await pool.query(`SELECT id FROM crm.clientes WHERE id = $1`, [id]);
@@ -199,7 +200,10 @@ router.delete('/seleccionados', requirePermiso('eliminar_contacto', 'crm'), asyn
   try {
     const { ids } = req.body;
     if (!ids?.length) return res.status(400).json({ error: 'Sin IDs' });
-
+    if (req.user?.rol !== 'admin' && req.user?.rol !== 'gerente') {
+      const siesa = await pool.query(`SELECT COUNT(*) AS c FROM crm.clientes WHERE id = ANY($1) AND origen = 'siesa'`, [ids]);
+      if (parseInt(siesa.rows[0].c) > 0) return res.status(403).json({ error: 'No se pueden eliminar clientes del ERP SIESA (solo lectura). Gestiona los terceros en el ERP.' });
+    }
     const result = await pool.query(`UPDATE crm.clientes SET activo = FALSE WHERE id = ANY($1) RETURNING id`, [ids]);
 
     await auditarEvento({ accion: 'eliminar', entidad: 'cliente', usuario_id: req.user.id, metadata: { count: result.rowCount } });
@@ -214,6 +218,9 @@ router.delete('/seleccionados', requirePermiso('eliminar_contacto', 'crm'), asyn
 // DELETE /api/clientes/todos — Delete ALL clients (testing only, BEFORE /:id)
 router.delete('/todos', requirePermiso('eliminar_contacto', 'crm'), async (req, res) => {
   try {
+    if (req.user?.rol !== 'admin' && req.user?.rol !== 'gerente') {
+      return res.status(403).json({ error: 'Solo admin/gerente pueden eliminar todos los clientes' });
+    }
     const result = await pool.query(`UPDATE crm.clientes SET activo = FALSE WHERE activo = TRUE RETURNING id`);
     await auditarEvento({ accion: 'eliminar', entidad: 'cliente', usuario_id: req.user.id, metadata: { count: result.rowCount, tipo: 'todos' } });
     res.json({ ok: true, eliminados: result.rowCount });
@@ -224,7 +231,7 @@ router.delete('/todos', requirePermiso('eliminar_contacto', 'crm'), async (req, 
 });
 
 // DELETE /api/clientes/:id — Soft delete (AFTER /seleccionados and /todos)
-router.delete('/:id', requirePermiso('eliminar_contacto', 'crm'), async (req, res) => {
+router.delete('/:id', requirePermiso('eliminar_contacto', 'crm'), requireClienteEditable, async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(`UPDATE crm.clientes SET activo = FALSE WHERE id = $1 RETURNING id, nombre`, [id]);

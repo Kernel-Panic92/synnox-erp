@@ -2,6 +2,7 @@ import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
 import { auditarEvento } from '../../../../framework/audit.js';
+import { requireSucursalEditable } from '../utils/siesaReadOnly.js';
 
 const router = express.Router();
 
@@ -60,7 +61,7 @@ router.post('/:clienteId/sucursales', requirePermiso('editar_contacto', 'crm'), 
 });
 
 // PUT /api/sucursales/:id — Editar sucursal
-router.put('/:id', requirePermiso('editar_contacto', 'crm'), async (req, res) => {
+router.put('/:id', requirePermiso('editar_contacto', 'crm'), requireSucursalEditable, async (req, res) => {
   try {
     const { id } = req.params;
     const fields = ['codigo', 'nombre', 'direccion', 'ciudad', 'departamento', 'telefono', 'email', 'contacto_nombre', 'es_principal', 'notas'];
@@ -98,7 +99,7 @@ router.put('/:id', requirePermiso('editar_contacto', 'crm'), async (req, res) =>
 });
 
 // DELETE /api/sucursales/:id — Eliminar sucursal
-router.delete('/:id', requirePermiso('editar_contacto', 'crm'), async (req, res) => {
+router.delete('/:id', requirePermiso('editar_contacto', 'crm'), requireSucursalEditable, async (req, res) => {
   try {
     const result = await pool.query(`UPDATE crm.sucursales SET activa = FALSE WHERE id = $1 RETURNING id`, [req.params.id]);
     if (!result.rows.length) return res.status(404).json({ error: 'Sucursal no encontrada' });
