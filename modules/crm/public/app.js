@@ -513,8 +513,9 @@ async function verCliente(id) {
 
   document.getElementById('detalle-cliente-title').textContent = e.nombre;
   document.getElementById('detalle-cliente-content').innerHTML = `
-    <div style="display:flex;gap:16px;border-bottom:1px solid var(--border);margin-bottom:16px">
+    <div style="display:flex;gap:12px;border-bottom:1px solid var(--border);margin-bottom:16px;flex-wrap:wrap">
       <button class="tab-btn active" onclick="cambiarTabCliente('datos',this)">Datos Basicos</button>
+      <button class="tab-btn" onclick="cambiarTabCliente('erp',this)">Datos ERP</button>
       <button class="tab-btn" onclick="cambiarTabCliente('sucursales',this)">Sucursales (${sucursales.length})</button>
       <button class="tab-btn" onclick="cambiarTabCliente('contactos',this)">Contactos (${(e.contactos || []).length})</button>
       <button class="tab-btn" onclick="cambiarTabCliente('cotizaciones',this)">Cotizaciones (${cotizaciones.length})</button>
@@ -539,6 +540,28 @@ async function verCliente(id) {
         </div>
       </div>
       ${e.direccion ? `<div style="margin-top:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Direccion</div><div>${esc(e.direccion)}</div></div>` : ''}
+    </div>
+
+    <div id="tab-cliente-erp" style="display:none">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+        <div>
+          <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Código / NIT</div><div>${esc(e.nit || e.codigo_siesa || '—')} ${e.sucursal ? `<small style="color:var(--muted)">· Sucursal ${esc(e.sucursal)}</small>` : ''}</div></div>
+          <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Tipo tercero / Región</div><div>${esc(e.tipo || '—')} ${e.sector ? `· ${esc(e.sector)}` : ''} ${e.region ? `· ${esc(e.region)}` : ''}</div></div>
+          <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Lista de precio</div><div>${esc(e.lista_precio_codigo || '—')} ${e.lista_precios ? `<span style="color:var(--muted)">— ${esc(e.lista_precios)}</span>` : ''}</div></div>
+          <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Vendedor / Cobrador</div><div>${esc(e.vendedor_codigo || e.vendedor_asignado || '—')} ${e.cobrador ? `· Cobrador ${esc(e.cobrador)}` : ''} ${e.asesor_comercial ? `· Asesor ${esc(e.asesor_comercial)}` : ''}</div></div>
+          <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Medio de pago</div><div>${esc(e.medio_pago || '—')} ${e.medio_pago_desc ? `<span style="color:var(--muted)">— ${esc(e.medio_pago_desc)}</span>` : ''} ${e.iva ? `· IVA: ${esc(e.iva)}` : ''}</div></div>
+          <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Frecuencia / Fecha ingreso</div><div>${esc(e.frecuencia_entrega || '—')} ${e.fecha_ingreso ? `· ${formatDate(e.fecha_ingreso)}` : ''}</div></div>
+        </div>
+        <div>
+          <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Celular / Teléfono</div><div>${esc(e.celular || e.telefono || '—')}</div></div>
+          <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Punto envío / C.O. factura</div><div>${esc(e.punto_envio_desc || '—')} ${e.c_o_factura_desc ? `<span style="color:var(--muted)">· ${esc(e.c_o_factura_desc)}</span>` : ''}</div></div>
+          <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Cartera / Antigüedad</div><div>${esc(e.cartera_pendiente || '—')} ${e.antiguedad ? `· ${esc(e.antiguedad)}` : ''}</div></div>
+          <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Motivo bloqueo</div><div>${esc(e.motivo_bloqueo_desc || '—')}</div></div>
+          <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Rutas</div><div>${esc(e.ruta_vehiculos || '—')} ${e.ruta_motos ? `· Motos: ${esc(e.ruta_motos)}` : ''}</div></div>
+          <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Sucursal corporativa / EAN</div><div>${esc(e.sucursal_corporativa || '—')} ${e.codigo_ean ? `· EAN ${esc(e.codigo_ean)}` : ''}</div></div>
+        </div>
+      </div>
+      ${e.extra_data && Object.keys(e.extra_data).length ? `<details style="margin-top:16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px"><summary style="cursor:pointer;font-size:12px;color:var(--muted)">Ver JSON completo (extra_data)</summary><pre style="font-size:11px;white-space:pre-wrap;word-break:break-all;margin-top:8px">${esc(JSON.stringify(e.extra_data, null, 2))}</pre></details>` : ''}
     </div>
 
     <div id="tab-cliente-sucursales" style="display:none">
