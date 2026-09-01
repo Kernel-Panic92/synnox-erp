@@ -565,17 +565,22 @@ async function verCliente(id) {
     </div>
 
     <div id="tab-cliente-sucursales" style="display:none">
-      ${sucursales.length ? `<div class="tbl-wrap tbl-scrollable"><table class="tbl"><thead><tr><th>Codigo</th><th>Nombre</th><th>Direccion</th><th>Ciudad</th><th>Telefono</th><th>Principal</th><th></th></tr></thead><tbody>
-        ${sucursales.map(s => `<tr>
+      ${sucursales.length ? `
+        <div style="display:flex;gap:8px;margin-bottom:10px">
+          <input type="text" id="filtro-sucursal-search" placeholder="Buscar sucursal por codigo, nombre, ciudad o telefono..." style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px" oninput="filtrarSucursales()">
+          <span id="sucursal-count" style="font-size:12px;color:var(--muted);align-self:center">${sucursales.length} sucursales</span>
+        </div>
+        <div class="tbl-wrap tbl-scrollable"><table class="tbl" id="tbl-sucursales-cliente"><thead><tr><th>Codigo</th><th>Nombre</th><th>Direccion</th><th>Ciudad</th><th>Telefono</th><th>Principal</th><th></th></tr></thead><tbody>
+        ${sucursales.map(s => `<tr style="cursor:pointer" onclick="verSucursal('${s.id}')" data-search="${esc(String(s.codigo||'')+' '+String(s.nombre||'')+' '+String(s.ciudad||'')+' '+String(s.telefono||'')).toLowerCase()}">
           <td><strong>${esc(s.codigo || '—')}</strong></td>
           <td>${esc(s.nombre)}</td>
           <td>${esc(s.direccion || '—')}</td>
           <td>${esc(s.ciudad || '—')}</td>
           <td>${esc(s.telefono || '—')}</td>
           <td>${s.es_principal ? '<span class="badge badge-aprobada">Principal</span>' : ''}</td>
-          <td>
-            <button class="btn btn-sm btn-secondary" onclick="editarSucursal('${s.id}','${id}')" title="Editar sucursal" aria-label="Editar sucursal ${esc(s.nombre)}">✏️</button>
-            <button class="btn btn-sm btn-danger" onclick="eliminarSucursal('${s.id}','${id}')" title="Eliminar sucursal" aria-label="Eliminar sucursal ${esc(s.nombre)}">🗑️</button>
+          <td onclick="event.stopPropagation()">
+            <button class="btn btn-sm btn-secondary btn-action" onclick="editarSucursal('${s.id}','${id}')" title="Editar sucursal" aria-label="Editar sucursal ${esc(s.nombre)}">✏️</button>
+            <button class="btn btn-sm btn-danger btn-action" onclick="eliminarSucursal('${s.id}','${id}')" title="Eliminar sucursal" aria-label="Eliminar sucursal ${esc(s.nombre)}">🗑️</button>
           </td>
         </tr>`).join('')}
       </tbody></table></div>` : '<p style="color:var(--muted)">Sin sucursales</p>'}
@@ -623,6 +628,44 @@ function cambiarTabCliente(tab, btn) {
 }
 
 // ── Sucursales ──
+function filtrarSucursales() {
+  const q = (document.getElementById('filtro-sucursal-search')?.value || '').toLowerCase().trim();
+  const tbody = document.querySelector('#tbl-sucursales-cliente tbody');
+  if (!tbody) return;
+  let visible = 0;
+  tbody.querySelectorAll('tr').forEach(tr => {
+    const show = !q || (tr.dataset.search || '').includes(q);
+    tr.style.display = show ? '' : 'none';
+    if (show) visible++;
+  });
+  const count = document.getElementById('sucursal-count');
+  if (count) count.textContent = `${visible} / ${tbody.querySelectorAll('tr').length} sucursales`;
+}
+
+async function verSucursal(id) {
+  const r = await apiFetch('/sucursales/' + id);
+  if (!r.ok) return toast(r.data?.error || 'Error al cargar sucursal', 'error');
+  const s = r.data.data;
+  document.getElementById('detalle-sucursal-title').textContent = `Sucursal ${s.codigo || ''}`.trim();
+  document.getElementById('detalle-sucursal-content').innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+      <div>
+        <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Codigo</div><div><strong>${esc(s.codigo || '—')}</strong></div></div>
+        <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Nombre</div><div>${esc(s.nombre || '—')}</div></div>
+        <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Direccion</div><div>${esc(s.direccion || '—')}</div></div>
+        <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Ciudad / Departamento</div><div>${esc(s.ciudad || '—')} ${s.departamento ? `· ${esc(s.departamento)}` : ''}</div></div>
+      </div>
+      <div>
+        <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Telefono</div><div>${esc(s.telefono || '—')}</div></div>
+        <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Email</div><div>${esc(s.email || '—')}</div></div>
+        <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Contacto</div><div>${esc(s.contacto_nombre || '—')}</div></div>
+        <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Principal</div><div>${s.es_principal ? '<span class="badge badge-aprobada">Principal</span>' : 'No'}</div></div>
+      </div>
+    </div>
+  `;
+  showModal('modal-detalle-sucursal');
+}
+
 function abrirModalSucursal(clienteId, sucursal = null) {
   document.getElementById('modal-sucursal-title').textContent = sucursal ? 'Editar Sucursal' : 'Nueva Sucursal';
   document.getElementById('sucursal-id').value = sucursal?.id || '';
