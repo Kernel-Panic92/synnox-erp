@@ -188,7 +188,7 @@ async function importarClientes(rows, onProgress) {
            esPrincipal, r.codigo_ean || '', extraData, codigo]);
         actualizados++;
       } else {
-        const tipoTercero = (r.tipo_tercero || '').toLowerCase().includes('natural') ? 'potencial' : 'real';
+        const tipoTercero = 'real';
         const extraDataIns = JSON.stringify(Object.fromEntries(Object.entries(r).filter(([k,v]) => v !== '' && v !== null && v !== undefined)));
         const ins = await pool.query(`INSERT INTO crm.clientes (codigo_siesa, nit, nombre, canal, activo, direccion, ciudad, tipo_negocio, email, tipo, ruta_vehiculos, ruta_motos, sector, departamento, cobrador, correo_fe, asesor_comercial, lista_precios, lista_precio_codigo, vendedor_codigo, medio_pago, medio_pago_desc, iva, frecuencia_entrega, fecha_ingreso, sucursal, cartera_pendiente, antiguedad, punto_envio_desc, motivo_bloqueo_desc, c_o_factura_desc, celular, codigo_ean, sucursal_corporativa, razon_social, extra_data)
           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36) RETURNING id`,
@@ -289,8 +289,7 @@ async function importarTerceros(rows, onProgress) {
       const nombre = nombreEstablecimiento || razonSocial;
       if (!codigo || !razonSocial) { fallidos++; errores.push(`Fila ${i+1}: sin codigo o razon social`); continue; }
 
-      const tipoTercero = (r.tipo_de_tercero || r.tipo_tercero || '').toLowerCase();
-      const tipo = tipoTercero.includes('natural') ? 'potencial' : 'real';
+      const tipo = 'real';
       const activo = (r.estado || '').toLowerCase() !== 'inactivo';
       const extraData = JSON.stringify(Object.fromEntries(Object.entries(r).filter(([k,v]) => v !== '' && v !== null && v !== undefined && k !== 'razon_social' && k !== 'raz_n_social')));
 
