@@ -452,8 +452,8 @@
         <div style="background:#fff3cd;border:1px solid #ffc107;border-radius:8px;padding:12px 16px;margin-bottom:16px;font-size:13px">
           <strong>⚠️ Orden de importación para saldos iniciales:</strong><br>
           Si es la primera vez que importas, sigue este orden:<br>
-          <code>1. Bodegas → 2. Items → 3. Códigos barras → 4. Precios → 5. Inventario → 6. Clientes → 7. Vendedores</code><br>
-          <span style="color:var(--muted)">Los items necesitan existir antes de importar inventario y precios. Las bodegas antes del inventario.</span>
+          <code>1. Bodegas → 2. Items → 3. Códigos barras → 4. Precios → 5. Inventario → 6. Terceros → 7. Clientes (ERP) → 8. Vendedores</code><br>
+          <span style="color:var(--muted)">Los items necesitan existir antes de importar inventario y precios. Las bodegas antes del inventario. <strong>Terceros</strong> (maestro por NIT) va antes de <strong>Clientes ERP</strong> (que solo agrega sucursales + EAN).</span>
         </div>
         <div class="stats-row" id="stats-importar"></div>
         <div id="importar-tipos-container"></div>

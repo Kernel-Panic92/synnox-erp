@@ -2701,8 +2701,9 @@ function cambiarTipoImportacion() {
     items: '← Después: Precios, Inventario, Códigos barras',
     codigos_barra: '← Después: Precios',
     precios: '← Después: Inventario',
-    inventario: '← Después: Clientes',
-    clientes: '← Después: Vendedores',
+    inventario: '← Después: Terceros, Clientes (sucursales)',
+    terceros: 'Maestro por NIT (razón social, contacto, dirección) ← Después: Clientes ERP para sucursales + EAN',
+    clientes: 'Clientes ERP por sucursal (EAN solo desde sucursal 001 para el tercero) ← Después: Vendedores',
     vendedores: 'Último'
   };
   if (orderMap[tipo]) {
