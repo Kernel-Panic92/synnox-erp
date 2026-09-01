@@ -174,15 +174,17 @@ async function importarClientes(rows, onProgress) {
           punto_envio_desc = COALESCE(NULLIF($20,''), punto_envio_desc),
           motivo_bloqueo_desc = COALESCE(NULLIF($21,''), motivo_bloqueo_desc),
           c_o_factura_desc = COALESCE(NULLIF($22,''), c_o_factura_desc),
-          extra_data = COALESCE(extra_data,'{}'::jsonb) || $23::jsonb,
+          codigo_ean = CASE WHEN $23::boolean THEN COALESCE(NULLIF($24,''), codigo_ean) ELSE codigo_ean END,
+          extra_data = COALESCE(extra_data,'{}'::jsonb) || $25::jsonb,
           activo = TRUE,
           actualizado_en = NOW()
-          WHERE codigo_siesa = $24`,
+          WHERE codigo_siesa = $26`,
           [nombreParaUpdate, codigo, r.canal || '', r.direccion_1 || r.direccion || '', r.ciudad || '', r.tipo_negocio || '', r.email || '',
            r.celular || '', r.desc__lista_de_precio || r.desc_lista_de_precio || '', listaPrecioCodigo, vendedorCodigo,
            r.medio_de_pago || r.medio_pago || '', r.desc__medio_de_pago || r.desc_medio_de_pago || '', r.iva || '', r.frecuencia_entrega || '',
            fechaIngreso, r.sucursal || '', r.cartera_pendiente || '', r.antiguedad || '', r.desc__punto_envio || r.desc_punto_envio || '',
-           r.desc__motivo_bloqueo || r.desc_motivo_bloqueo || '', r.desc__c_o_factura || r.desc_c_o_factura || '', extraData, codigo]);
+           r.desc__motivo_bloqueo || r.desc_motivo_bloqueo || '', r.desc__c_o_factura || r.desc_c_o_factura || '',
+           esPrincipal, r.codigo_ean || '', extraData, codigo]);
         actualizados++;
       } else {
         const tipoTercero = (r.tipo_tercero || '').toLowerCase().includes('natural') ? 'potencial' : 'real';
@@ -194,9 +196,9 @@ async function importarClientes(rows, onProgress) {
            r.depto_estado || r.deptoestado || '', r.cobrador || '', r.correo_f_e || r.correo_fe || '', r.asesor_comercial || '',
            r.desc__lista_de_precio || r.desc_lista_de_precio || '', listaPrecioCodigo, vendedorCodigo,
            r.medio_de_pago || r.medio_pago || '', r.desc__medio_de_pago || r.desc_medio_de_pago || '', r.iva || '', r.frecuencia_entrega || '',
-           fechaIngreso, r.sucursal || '', r.cartera_pendiente || '', r.antiguedad || '',
-           r.desc__punto_envio || r.desc_punto_envio || '', r.desc__motivo_bloqueo || r.desc_motivo_bloqueo || '', r.desc__c_o_factura || r.desc_c_o_factura || '',
-           r.celular || '', r.codigo_ean || '', r.sucursal_corporativa || '', r.razon_social || '', extraDataIns]);
+fechaIngreso, r.sucursal || '', r.cartera_pendiente || '', r.antiguedad || '',
+            r.desc__punto_envio || r.desc_punto_envio || '', r.desc__motivo_bloqueo || r.desc_motivo_bloqueo || '', r.desc__c_o_factura || r.desc_c_o_factura || '',
+            r.celular || '', esPrincipal ? (r.codigo_ean || '') : null, r.sucursal_corporativa || '', r.razon_social || '', extraDataIns]);
         clienteId = ins.rows[0].id;
         insertados++;
       }
