@@ -221,27 +221,9 @@ router.put('/:id', requirePermiso('crear_cotizacion', 'crm'), async (req, res) =
   }
 });
 
-// POST /api/productos — Crear producto
+// POST /api/productos — Crear producto (BLOQUEADO: los productos se gestionan en el ERP SIESA y se importan/sincronizan)
 router.post('/', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
-  try {
-    const { codigo, nombre, descripcion, unidad_medida, precio_unitario, tasa_impuesto, categoria, bodega } = req.body;
-    if (!codigo || !nombre) return res.status(400).json({ error: 'Codigo y nombre son obligatorios' });
-
-    const existing = await pool.query(`SELECT id FROM crm.productos WHERE codigo = $1`, [codigo]);
-    if (existing.rows.length) return res.status(400).json({ error: 'Ya existe un producto con ese codigo' });
-
-    const result = await pool.query(`
-      INSERT INTO crm.productos (codigo, nombre, descripcion, unidad_medida, precio_unitario, tasa_impuesto, categoria, bodega)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      RETURNING *
-    `, [codigo, nombre, descripcion || null, unidad_medida || 'UND', precio_unitario || 0, tasa_impuesto || 0, categoria || null, bodega || null]);
-
-    await auditarEvento({ accion: 'crear', entidad: 'producto', entidad_id: result.rows[0].id, usuario_id: req.user.id, metadata: { codigo, nombre } });
-    res.status(201).json({ ok: true, data: result.rows[0] });
-  } catch (err) {
-    console.error('[CRM] Error crear producto:', err);
-    res.status(500).json({ error: 'Error al crear producto' });
-  }
+  return res.status(403).json({ error: 'Los productos se gestionan en el ERP SIESA y se importan/sincronizan al CRM. Usa Importar SIESA → Items para cargarlos.' });
 });
 
 // DELETE /api/productos/seleccionados — Bulk delete
