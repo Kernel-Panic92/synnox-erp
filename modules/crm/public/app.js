@@ -901,7 +901,7 @@ async function cargarLeads() {
         <td><a href="#" onclick="verLead('${l.id}');return false" style="color:var(--accent)">${esc(l.raison_social)}</a></td>
         <td>${esc(l.numero_identificacion || '—')}</td>
         <td>${esc(l.ciudad || '—')}</td>
-        <td><span class="badge badge-${estadoColors[l.estado] || 'info'}">${esc(l.estado)}</span></td>
+        <td><span class="badge badge-${estadoColors[l.estado] || 'info'}">${esc(l.estado)}</span>${l.estado === 'convertido' && l.cliente_id ? ` <a href="#" onclick="verCliente('${l.cliente_id}');return false" title="Ver cliente convertido" style="font-size:11px;color:var(--accent);text-decoration:underline">✓ ${esc(l.cliente_nombre || 'ver cliente')}</a>` : ''}</td>
         <td>${esc(l.asesor_comercial || '—')}</td>
         <td>${esc(l.telefono || '—')}</td>
         <td>${esc(l.email || '—')}</td>

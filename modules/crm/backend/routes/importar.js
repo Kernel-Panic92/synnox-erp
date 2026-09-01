@@ -190,16 +190,16 @@ async function importarClientes(rows, onProgress) {
       } else {
         const tipoTercero = 'real';
         const extraDataIns = JSON.stringify(Object.fromEntries(Object.entries(r).filter(([k,v]) => v !== '' && v !== null && v !== undefined)));
-        const ins = await pool.query(`INSERT INTO crm.clientes (codigo_siesa, nit, nombre, canal, activo, direccion, ciudad, tipo_negocio, email, tipo, ruta_vehiculos, ruta_motos, sector, departamento, cobrador, correo_fe, asesor_comercial, lista_precios, lista_precio_codigo, vendedor_codigo, medio_pago, medio_pago_desc, iva, frecuencia_entrega, fecha_ingreso, sucursal, cartera_pendiente, antiguedad, punto_envio_desc, motivo_bloqueo_desc, c_o_factura_desc, celular, codigo_ean, sucursal_corporativa, razon_social, extra_data)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36) RETURNING id`,
+const ins = await pool.query(`INSERT INTO crm.clientes (codigo_siesa, nit, nombre, canal, activo, direccion, ciudad, tipo_negocio, email, tipo, ruta_vehiculos, ruta_motos, sector, departamento, cobrador, correo_fe, asesor_comercial, lista_precios, lista_precio_codigo, vendedor_codigo, medio_pago, medio_pago_desc, iva, frecuencia_entrega, fecha_ingreso, sucursal, cartera_pendiente, antiguedad, punto_envio_desc, motivo_bloqueo_desc, c_o_factura_desc, celular, codigo_ean, sucursal_corporativa, razon_social, extra_data, origen)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35,$36,$37) RETURNING id`,
           [codigo, codigo, nombreTercero, r.canal || '', r.estado === 'Activo', r.direccion_1 || r.direccion || '', r.ciudad || '',
            r.tipo_negocio || '', r.email || '', tipoTercero, r.rutas_vehiculos || '', r.rutas_motos || '', r.region || '',
            r.depto_estado || r.deptoestado || '', r.cobrador || '', r.correo_f_e || r.correo_fe || '', r.asesor_comercial || '',
            r.desc__lista_de_precio || r.desc_lista_de_precio || '', listaPrecioCodigo, vendedorCodigo,
            r.medio_de_pago || r.medio_pago || '', r.desc__medio_de_pago || r.desc_medio_de_pago || '', r.iva || '', r.frecuencia_entrega || '',
-fechaIngreso, r.sucursal || '', r.cartera_pendiente || '', r.antiguedad || '',
+ fechaIngreso, r.sucursal || '', r.cartera_pendiente || '', r.antiguedad || '',
             r.desc__punto_envio || r.desc_punto_envio || '', r.desc__motivo_bloqueo || r.desc_motivo_bloqueo || '', r.desc__c_o_factura || r.desc_c_o_factura || '',
-            r.celular || '', esPrincipal ? (r.codigo_ean || '') : null, r.sucursal_corporativa || '', r.razon_social || '', extraDataIns]);
+            r.celular || '', esPrincipal ? (r.codigo_ean || '') : null, r.sucursal_corporativa || '', r.razon_social || '', extraDataIns, 'siesa']);
         clienteId = ins.rows[0].id;
         insertados++;
       }
