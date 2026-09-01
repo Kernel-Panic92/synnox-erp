@@ -568,7 +568,8 @@ async function verCliente(id) {
           <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Cartera / Antigüedad</div><div>${esc(e.cartera_pendiente || '—')} ${e.antiguedad ? `· ${esc(e.antiguedad)}` : ''}</div></div>
           <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Motivo bloqueo</div><div>${esc(e.motivo_bloqueo_desc || '—')}</div></div>
           <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Rutas</div><div>${esc(e.ruta_vehiculos || '—')} ${e.ruta_motos ? `· Motos: ${esc(e.ruta_motos)}` : ''}</div></div>
-          <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Sucursal corporativa / EAN</div><div>${esc(e.sucursal_corporativa || '—')} ${e.codigo_ean ? `· EAN ${esc(e.codigo_ean)}` : ''}</div></div>
+          <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Sucursal corporativa</div><div>${esc(e.sucursal_corporativa || '—')}</div></div>
+          ${erpExtra('codigo_ean','Código EAN', e)}
           ${erpExtra('correo_f_e','Correo F.E.', e)}
           ${erpExtra('estado','Estado', e)}
         </div>
@@ -663,6 +664,7 @@ async function verSucursal(id) {
       <div>
         <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Codigo</div><div><strong>${esc(s.codigo || '—')}</strong></div></div>
         <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Nombre</div><div>${esc(s.nombre || '—')}</div></div>
+        <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Código EAN</div><div>${esc(s.codigo_ean || '—')}</div></div>
         <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Direccion</div><div>${esc(s.direccion || '—')}</div></div>
         <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Ciudad / Departamento</div><div>${esc(s.ciudad || '—')} ${s.departamento ? `· ${esc(s.departamento)}` : ''}</div></div>
       </div>

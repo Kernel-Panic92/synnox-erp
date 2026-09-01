@@ -223,9 +223,9 @@ async function importarClientes(rows, onProgress) {
           if (esPrincipal) {
             await pool.query(`UPDATE crm.sucursales SET es_principal = FALSE WHERE cliente_id = $1`, [clienteId]);
           }
-          await pool.query(`INSERT INTO crm.sucursales (cliente_id, codigo, nombre, direccion, ciudad, departamento, es_principal)
-            VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-            [clienteId, sucursalCodigo, `${nombre}/${sucursalCodigo}`, r.direccion_1 || r.direccion || '', r.ciudad || '', r.depto_estado || r.deptoestado || '', esPrincipal]);
+          await pool.query(`INSERT INTO crm.sucursales (cliente_id, codigo, nombre, direccion, ciudad, departamento, es_principal, codigo_ean)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
+            [clienteId, sucursalCodigo, `${nombre}/${sucursalCodigo}`, r.direccion_1 || r.direccion || '', r.ciudad || '', r.depto_estado || r.deptoestado || '', esPrincipal, r.codigo_ean || r.c_digo_ean || null]);
           sucursalesCreadas++;
         } else if (sucursalCodigo === '001') {
           await pool.query(`UPDATE crm.sucursales SET es_principal = TRUE WHERE id = $1`, [sucExist.rows[0].id]);
