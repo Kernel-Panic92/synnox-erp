@@ -38,10 +38,7 @@ async function init() {
     document.getElementById('user-role').textContent = usuario.rol || '';
     document.getElementById('sidebar-user-name').textContent = usuario.nombre || '';
     document.getElementById('sidebar-user-role').textContent = usuario.rol || '';
-    // Clientes ERP son solo lectura para no-admin/gerente: terceros se gestionan en el ERP SIESA
-    const esAdminOrGerente = usuario.rol === 'admin' || usuario.rol === 'gerente';
-    const btnNuevoCliente = document.getElementById('btn-nuevo-cliente');
-    if (btnNuevoCliente) btnNuevoCliente.style.display = esAdminOrGerente ? '' : 'none';
+    // Terceros/cliente se gestionan en el ERP SIESA y se sincronizan. El CRM no los crea (ni admin).
     try {
       const v = await fetch(HF.API.replace('/api', '') + '/api/version');
       const vd = await v.json();

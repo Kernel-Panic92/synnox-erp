@@ -40,3 +40,18 @@ export async function requireSucursalEditable(req, res, next) {
     next();
   }
 }
+
+// Bloquea CREAR sucursales en clientes del ERP SIESA (todos los roles; las sucursales vienen del sync)
+export async function requireClienteSiesaNoCreate(req, res, next) {
+  try {
+    const { clienteId } = req.params;
+    if (!clienteId) return next();
+    const r = await pool.query(`SELECT origen FROM crm.clientes WHERE id = $1`, [clienteId]);
+    if (r.rows.length && r.rows[0].origen === 'siesa') {
+      return res.status(403).json({ error: 'Sucursales de clientes ERP SIESA se gestionan en el ERP y se sincronizan. No se crean en el CRM.' });
+    }
+    next();
+  } catch {
+    next();
+  }
+}

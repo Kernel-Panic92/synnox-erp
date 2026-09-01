@@ -208,7 +208,10 @@
         <div class="page-header">
           <h3>Clientes</h3>
           <div class="page-actions">
-            <button class="btn btn-sm btn-primary" id="btn-nuevo-cliente" onclick="abrirModalCliente()">+ Nueva Cliente</button>
+            <button class="btn btn-sm btn-primary" id="btn-nuevo-cliente" onclick="abrirModalCliente()" style="display:none" title="Los terceros se gestionan en el ERP SIESA">+ Nueva Cliente</button>
+          </div>
+          <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-size:12px;color:var(--muted);margin-bottom:12px">
+            <strong>Flujo de terceros:</strong> Vendedor crea <strong>Lead</strong> (prospecto) → lo envía al ERP → Contabilidad crea el tercero en SIESA → se sincroniza al CRM. Los clientes del ERP son <strong>solo lectura</strong>.
           </div>
         </div>
         <div class="filters">

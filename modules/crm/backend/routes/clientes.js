@@ -138,27 +138,11 @@ router.get('/:id/facturas', requirePermiso('ver', 'crm'), async (req, res) => {
   }
 });
 
-// POST /api/clientes — Crear cliente
+// POST /api/clientes — Crear cliente (BLOQUEADO: terceros se gestionan en el ERP SIESA y se sincronizan)
 router.post('/', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
-  try {
-    const { nombre, nit, tipo, sector, direccion, ciudad, latitud, longitud, telefono, email, website, codigo_siesa, vendedor_asignado, notas, origen } = req.body;
-    if (!nombre) return res.status(400).json({ error: 'El nombre es obligatorio' });
-
-    const result = await pool.query(`
-      INSERT INTO crm.clientes (nombre, nit, tipo, sector, direccion, ciudad, latitud, longitud, telefono, email, website, codigo_siesa, vendedor_asignado, notas, origen)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-      RETURNING *
-    `, [nombre, nit || null, tipo || 'potencial', sector || null, direccion || null, ciudad || null,
-        latitud || null, longitud || null, telefono || null, email || null, website || null,
-        codigo_siesa || null, vendedor_asignado || null, notas || null, origen || 'manual']);
-
-    await auditarEvento({ accion: 'crear', entidad: 'cliente', entidad_id: result.rows[0].id, usuario_id: req.user.id, metadata: { nombre } });
-
-    res.status(201).json({ ok: true, data: result.rows[0] });
-  } catch (err) {
-    console.error('[CRM] Error crear cliente:', err);
-    res.status(500).json({ error: 'Error al crear cliente' });
-  }
+  // Flujo oficial: Vendedor crea LEAD -> envia al ERP -> contabilidad crea el tercero -> se sincroniza.
+  // El CRM nunca crea terceros/clientes directamente (ni admin). Solo import/sync (rutas internas).
+  return res.status(403).json({ error: 'Los clientes/terceros se gestionan en el ERP SIESA y se sincronizan. Crea un Lead (prospecto) y envíalo al ERP; contabilidad crea el tercero.' });
 });
 
 // PUT /api/clientes/:id — Editar cliente

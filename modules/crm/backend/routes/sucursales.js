@@ -2,7 +2,7 @@ import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
 import { auditarEvento } from '../../../../framework/audit.js';
-import { requireSucursalEditable } from '../utils/siesaReadOnly.js';
+import { requireSucursalEditable, requireClienteSiesaNoCreate } from '../utils/siesaReadOnly.js';
 
 const router = express.Router();
 
@@ -34,7 +34,7 @@ router.get('/:id', requirePermiso('ver', 'crm'), async (req, res) => {
 });
 
 // POST /api/clientes/:clienteId/sucursales — Crear sucursal
-router.post('/:clienteId/sucursales', requirePermiso('editar_contacto', 'crm'), async (req, res) => {
+router.post('/:clienteId/sucursales', requirePermiso('editar_contacto', 'crm'), requireClienteSiesaNoCreate, async (req, res) => {
   try {
     const { clienteId } = req.params;
     const { codigo, nombre, direccion, ciudad, departamento, telefono, email, contacto_nombre, es_principal, notas } = req.body;
