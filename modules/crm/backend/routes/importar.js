@@ -137,6 +137,12 @@ async function importarClientes(rows, onProgress) {
       if (!codigo && !nombre) { fallidos++; errores.push(`Fila ${i+1}: sin código ni nombre`); continue; }
 
       let clienteId;
+      // Parse fecha_ingreso DD/MM/YYYY -> YYYY-MM-DD
+      const fechaIngRaw = (r.fecha_ingreso || '').trim();
+      let fechaIngreso = null;
+      if (fechaIngRaw && fechaIngRaw.includes('/')) { const [d,m,y]=fechaIngRaw.split('/'); if(d&&m&&y) fechaIngreso = `${y.padStart(4,'0')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+      const listaPrecioCodigo = (r.lista_de_precio || '').trim();
+      const vendedorCodigo = (r.vendedor || '').trim();
       const existing = await pool.query(`SELECT id FROM crm.clientes WHERE codigo_siesa = $1`, [codigo]);
       if (existing.rows.length) {
         clienteId = existing.rows[0].id;
@@ -148,19 +154,42 @@ async function importarClientes(rows, onProgress) {
           ciudad = COALESCE(NULLIF($5,''), ciudad),
           tipo_negocio = COALESCE(NULLIF($6,''), tipo_negocio),
           email = COALESCE(NULLIF($7,''), email),
+          celular = COALESCE(NULLIF($8,''), celular),
+          lista_precios = COALESCE(NULLIF($9,''), lista_precios),
+          lista_precio_codigo = COALESCE(NULLIF($10,''), lista_precio_codigo),
+          vendedor_codigo = COALESCE(NULLIF($11,''), vendedor_codigo),
+          medio_pago = COALESCE(NULLIF($12,''), medio_pago),
+          medio_pago_desc = COALESCE(NULLIF($13,''), medio_pago_desc),
+          iva = COALESCE(NULLIF($14,''), iva),
+          frecuencia_entrega = COALESCE(NULLIF($15,''), frecuencia_entrega),
+          fecha_ingreso = COALESCE($16::date, fecha_ingreso),
+          sucursal = COALESCE(NULLIF($17,''), sucursal),
+          cartera_pendiente = COALESCE(NULLIF($18,''), cartera_pendiente),
+          antiguedad = COALESCE(NULLIF($19,''), antiguedad),
+          punto_envio_desc = COALESCE(NULLIF($20,''), punto_envio_desc),
+          motivo_bloqueo_desc = COALESCE(NULLIF($21,''), motivo_bloqueo_desc),
+          c_o_factura_desc = COALESCE(NULLIF($22,''), c_o_factura_desc),
           activo = TRUE,
           actualizado_en = NOW()
-          WHERE codigo_siesa = $8`,
-          [nombre, codigo, r.canal || '', r.direccion_1 || r.direccion || '', r.ciudad || '', r.tipo_negocio || '', r.email || '', codigo]);
+          WHERE codigo_siesa = $23`,
+          [nombre, codigo, r.canal || '', r.direccion_1 || r.direccion || '', r.ciudad || '', r.tipo_negocio || '', r.email || '',
+           r.celular || '', r.desc__lista_de_precio || r.desc_lista_de_precio || '', listaPrecioCodigo, vendedorCodigo,
+           r.medio_de_pago || r.medio_pago || '', r.desc__medio_de_pago || r.desc_medio_de_pago || '', r.iva || '', r.frecuencia_entrega || '',
+           fechaIngreso, r.sucursal || '', r.cartera_pendiente || '', r.antiguedad || '', r.desc__punto_envio || r.desc_punto_envio || '',
+           r.desc__motivo_bloqueo || r.desc_motivo_bloqueo || '', r.desc__c_o_factura || r.desc_c_o_factura || '', codigo]);
         actualizados++;
       } else {
         const tipoTercero = (r.tipo_tercero || '').toLowerCase().includes('natural') ? 'potencial' : 'real';
-        const ins = await pool.query(`INSERT INTO crm.clientes (codigo_siesa, nit, nombre, canal, activo, direccion, ciudad, tipo_negocio, email, tipo, ruta_vehiculos, ruta_motos, sector, departamento, cobrador, correo_fe, asesor_comercial, lista_precios, codigo_ean, sucursal_corporativa, razon_social)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21) RETURNING id`,
+        const ins = await pool.query(`INSERT INTO crm.clientes (codigo_siesa, nit, nombre, canal, activo, direccion, ciudad, tipo_negocio, email, tipo, ruta_vehiculos, ruta_motos, sector, departamento, cobrador, correo_fe, asesor_comercial, lista_precios, lista_precio_codigo, vendedor_codigo, medio_pago, medio_pago_desc, iva, frecuencia_entrega, fecha_ingreso, sucursal, cartera_pendiente, antiguedad, punto_envio_desc, motivo_bloqueo_desc, c_o_factura_desc, celular, codigo_ean, sucursal_corporativa, razon_social)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31,$32,$33,$34,$35) RETURNING id`,
           [codigo, codigo, nombre, r.canal || '', r.estado === 'Activo', r.direccion_1 || r.direccion || '', r.ciudad || '',
            r.tipo_negocio || '', r.email || '', tipoTercero, r.rutas_vehiculos || '', r.rutas_motos || '', r.region || '',
            r.depto_estado || r.deptoestado || '', r.cobrador || '', r.correo_f_e || r.correo_fe || '', r.asesor_comercial || '',
-           r.desc__lista_de_precio || r.desc_lista_de_precio || '', r.codigo_ean || '', r.sucursal_corporativa || '', r.razon_social || '']);
+           r.desc__lista_de_precio || r.desc_lista_de_precio || '', listaPrecioCodigo, vendedorCodigo,
+           r.medio_de_pago || r.medio_pago || '', r.desc__medio_de_pago || r.desc_medio_de_pago || '', r.iva || '', r.frecuencia_entrega || '',
+           fechaIngreso, r.sucursal || '', r.cartera_pendiente || '', r.antiguedad || '',
+           r.desc__punto_envio || r.desc_punto_envio || '', r.desc__motivo_bloqueo || r.desc_motivo_bloqueo || '', r.desc__c_o_factura || r.desc_c_o_factura || '',
+           r.celular || '', r.codigo_ean || '', r.sucursal_corporativa || '', r.razon_social || '']);
         clienteId = ins.rows[0].id;
         insertados++;
       }
