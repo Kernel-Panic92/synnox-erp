@@ -2538,15 +2538,24 @@ async function verProducto(id) {
     <!-- Tab Codigos de Barras -->
     <div id="tab-producto-ean" style="display:none">
       ${eans.length ? `<div class="tbl-wrap"><table class="tbl"><thead><tr>
-        <th>GTIN</th><th>Descripcion</th><th>U.M.</th><th>Principal</th>
+        <th>GTIN</th><th>Descripcion</th><th>Marca</th><th>U.M.</th><th>Principal</th>
       </tr></thead><tbody>
         ${eans.map(e => `<tr>
           <td><strong>${esc(e.gtin)}</strong></td>
-          <td>${esc(e.descripcion || '—')}</td>
+          <td>${esc(e.descripcion || e.gs1_descripcion || '—')}${e.gs1_vinculado ? ' <span class="badge badge-aprobada" title="Verificado en catálogo GS1">GS1 ✓</span>' : ''}</td>
+          <td>${esc(e.gs1_marca || '—')}</td>
           <td>${esc(e.unidad_medida || '—')}</td>
           <td>${e.es_principal ? '<span class="badge badge-aprobada">Principal</span>' : ''}</td>
         </tr>`).join('')}
       </tbody></table></div>` : '<p style="color:var(--muted)">Sin codigos de barras registrados</p>'}
+      ${eans.some(e => e.gs1_foto) ? `<div style="margin-top:16px;display:flex;gap:12px;flex-wrap:wrap">${eans.filter(e => e.gs1_foto).slice(0,4).map(e => `<img src="${esc(e.gs1_foto)}" alt="EAN ${esc(e.gtin)}" title="EAN ${esc(e.gtin)}${e.gs1_marca ? ' · ' + esc(e.gs1_marca) : ''}" style="max-width:140px;border-radius:8px;border:1px solid var(--border)">`).join('')}</div>` : ''}
+      <div style="margin-top:14px;border-top:1px solid var(--border);padding-top:12px">
+        <label style="font-size:12px;font-weight:600;color:var(--muted)">Vincular EAN del catálogo GS1</label>
+        <div style="display:flex;gap:8px;margin-top:6px">
+          <input type="text" id="gs1-catalogo-search" placeholder="Buscar por GTIN, descripcion o marca..." style="flex:1;padding:7px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px" oninput="buscarCatalogoGS1('${p.id}')">
+        </div>
+        <div id="gs1-catalogo-resultados" style="max-height:160px;overflow-y:auto;margin-top:8px"></div>
+      </div>
     </div>
 
     ${p.foto_url ? `<div style="margin-top:16px"><img src="${esc(p.foto_url)}" style="max-width:200px;border-radius:8px;border:1px solid var(--border)"></div>` : ''}
@@ -2559,6 +2568,37 @@ function cambiarTabProducto(tab, btn) {
   document.querySelectorAll('#modal-detalle-producto .tab-btn').forEach(b => b.classList.remove('active'));
   document.getElementById('tab-producto-' + tab).style.display = '';
   btn.classList.add('active');
+}
+
+let _gs1CatalogoTimer = null;
+async function buscarCatalogoGS1(productoId) {
+  clearTimeout(_gs1CatalogoTimer);
+  _gs1CatalogoTimer = setTimeout(async () => {
+    const q = document.getElementById('gs1-catalogo-search')?.value;
+    const cont = document.getElementById('gs1-catalogo-resultados');
+    if (!cont) return;
+    if (!q || q.length < 2) { cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Escribe al menos 2 caracteres para buscar en el catálogo GS1.</span>'; return; }
+    const r = await apiFetch('/productos/gs1/catalogo/buscar?q=' + encodeURIComponent(q));
+    if (!r.ok) return;
+    const data = r.data.data || [];
+    if (!data.length) { cont.innerHTML = '<span style="color:var(--muted);font-size:12px">Sin resultados en el catálogo GS1.</span>'; return; }
+    cont.innerHTML = data.map(g => `
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 8px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--surface)">
+        <div style="flex:1;min-width:0">
+          <div><strong>${esc(g.gtin)}</strong> ${g.vinculado ? '<span class="badge badge-aprobada" title="Ya vinculado a un producto">GS1 ✓</span>' : ''}</div>
+          <div style="font-size:12px;overflow-wrap:break-word">${esc(g.descripcion || '—')}</div>
+          <div style="font-size:11px;color:var(--muted)">${esc(g.marca || '')}${g.categoria_gpc ? ' · ' + esc(g.categoria_gpc) : ''}</div>
+        </div>
+        ${g.vinculado ? '' : `<button class="btn btn-sm btn-primary btn-action" onclick="vincularGS1('${productoId}','${esc(g.gtin)}')" title="Vincular a este producto" aria-label="Vincular EAN ${esc(g.gtin)} a este producto">＋</button>`}
+      </div>`).join('');
+  }, 300);
+}
+
+async function vincularGS1(productoId, gtin) {
+  const r = await apiFetch('/productos/' + productoId + '/gs1/vincular', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ gtin }) });
+  if (!r.ok) return toast(r.data?.error || 'Error al vincular', 'error');
+  toast('EAN vinculado al producto', 'success');
+  verProducto(productoId);
 }
 
 async function bulkDeleteProductos() {

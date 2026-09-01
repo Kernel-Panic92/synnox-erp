@@ -5,11 +5,16 @@ import { lookupByGTIN } from '../utils/gs1Client.js';
 
 const router = express.Router();
 
-// GET /api/productos/:id/ean — Listar EANs de un producto
+// GET /api/productos/:id/ean — Listar EANs de un producto (con metadata GS1)
 router.get('/:id/ean', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
   try {
     const result = await pool.query(
-      `SELECT * FROM crm.productos_ean WHERE producto_id = $1 AND activo = TRUE ORDER BY es_principal DESC, gtin`,
+      `SELECT e.*, g.marca AS gs1_marca, g.url_imagen AS gs1_foto, g.descripcion AS gs1_descripcion,
+              g.categoria_gpc AS gs1_categoria, g.estado_producto AS gs1_estado, g.vinculado AS gs1_vinculado
+       FROM crm.productos_ean e
+       LEFT JOIN crm.gs1_catalogo g ON g.gtin = e.gtin
+       WHERE e.producto_id = $1 AND e.activo = TRUE
+       ORDER BY e.es_principal DESC, e.gtin`,
       [req.params.id]
     );
     res.json({ ok: true, data: result.rows });
@@ -148,6 +153,45 @@ router.post('/gs1/lookup', requirePermiso('crear_cotizacion', 'crm'), async (req
   } catch (err) {
     console.error('[CRM] Error GS1 lookup:', err);
     res.status(500).json({ error: 'Error al consultar GS1' });
+  }
+});
+
+// GET /api/productos/gs1/catalogo/buscar — Buscar en catálogo GS1 por GTIN o descripción (sin vincular)
+router.get('/gs1/catalogo/buscar', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+  try {
+    const { q, limit = 20 } = req.query;
+    if (!q || q.length < 2) return res.json({ ok: true, data: [] });
+    const result = await pool.query(`
+      SELECT g.* FROM crm.gs1_catalogo g
+      WHERE g.gtin ILIKE $1 OR g.descripcion ILIKE $1 OR g.marca ILIKE $1
+      ORDER BY g.descripcion LIMIT $2
+    `, [`%${q}%`, parseInt(limit)]);
+    res.json({ ok: true, data: result.rows });
+  } catch (err) {
+    console.error('[CRM] Error buscar catálogo GS1:', err);
+    res.status(500).json({ error: 'Error al buscar catálogo GS1' });
+  }
+});
+
+// POST /api/productos/:id/gs1/vincular — Vincular un EAN del catálogo GS1 a este producto
+router.post('/:id/gs1/vincular', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { gtin } = req.body;
+    if (!gtin) return res.status(400).json({ error: 'gtin requerido' });
+    const g = await pool.query(`SELECT * FROM crm.gs1_catalogo WHERE gtin = $1`, [gtin]);
+    if (!g.rows.length) return res.status(404).json({ error: 'GTIN no encontrado en catálogo GS1' });
+    // Insertar en productos_ean si no existe
+    const ex = await pool.query(`SELECT 1 FROM crm.productos_ean WHERE producto_id=$1 AND gtin=$2`, [id, gtin]);
+    if (!ex.rows.length) {
+      await pool.query(`INSERT INTO crm.productos_ean (producto_id, gtin, descripcion, unidad_medida) VALUES ($1,$2,$3,$4)`,
+        [id, gtin, g.rows[0].descripcion, g.rows[0].unidad_cantidad]);
+    }
+    await pool.query(`UPDATE crm.gs1_catalogo SET producto_id=$1, vinculado=TRUE, actualizado_en=NOW() WHERE gtin=$2`, [id, gtin]);
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('[CRM] Error vincular GS1:', err);
+    res.status(500).json({ error: 'Error al vincular GS1' });
   }
 });
 
