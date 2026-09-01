@@ -14,5 +14,6 @@ ALTER TABLE crm.clientes ADD COLUMN IF NOT EXISTS punto_envio_desc VARCHAR(255);
 ALTER TABLE crm.clientes ADD COLUMN IF NOT EXISTS motivo_bloqueo_desc VARCHAR(255);
 ALTER TABLE crm.clientes ADD COLUMN IF NOT EXISTS c_o_factura_desc VARCHAR(255);
 ALTER TABLE crm.clientes ADD COLUMN IF NOT EXISTS extra_data JSONB DEFAULT '{}';
+ALTER TABLE crm.clientes ADD COLUMN IF NOT EXISTS contacto VARCHAR(255);
 CREATE INDEX IF NOT EXISTS idx_clientes_lista_precio_codigo ON crm.clientes(lista_precio_codigo);
 CREATE INDEX IF NOT EXISTS idx_clientes_vendedor_codigo ON crm.clientes(vendedor_codigo);

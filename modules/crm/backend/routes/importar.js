@@ -99,6 +99,7 @@ function parseFile(buffer, filename) {
 
 const REQUIRED_COLUMNS = {
   clientes: [['codigo', 'c_digo', 'rut'], ['razon_social', 'raz_n_social']],
+  terceros: [['codigo', 'c_digo'], ['razon_social', 'raz_n_social'], ['numero_de_identificacion', 'numero_identificacion']],
   contactos: [['nombre_completo', 'nombre'], ['correo_electronico', 'email']],
   leads: [['razon_social', 'raz_n_social'], ['numero_de_identificacion', 'numero_de_identificaci_n']],
   cotizaciones: [['nombre'], ['consecutivo_interno']],
@@ -269,6 +270,63 @@ fechaIngreso, r.sucursal || '', r.cartera_pendiente || '', r.antiguedad || '',
   } catch {}
 
   return { insertados, actualizados, fallidos, total: rows.length, sucursales: sucursalesCreadas, contactos: contactosCreados, listas: listasCreadas, errores: errores.slice(0, 50) };
+}
+
+// ── Terceros (maestro SIESA: una fila por NIT, sin sucursales) ──
+async function importarTerceros(rows, onProgress) {
+  let insertados = 0, actualizados = 0, fallidos = 0;
+  const errores = [];
+  for (let i = 0; i < rows.length; i++) {
+    try {
+      const r = rows[i];
+      // Solo terceros marcados como Cliente=Si
+      const esCliente = String(r.cliente || '').trim().toLowerCase();
+      if (esCliente && esCliente !== 'si' && esCliente !== 's' && esCliente !== 'true') { continue; }
+
+      const codigo = (r.codigo || r.c_digo || r.numero_de_identificacion || r.numero_identificacion || '').trim().replace(/-0$/, '');
+      const razonSocial = (r.razon_social || r.raz_n_social || '').trim();
+      const nombreEstablecimiento = (r.nombre_establecimiento || '').trim();
+      const nombre = nombreEstablecimiento || razonSocial;
+      if (!codigo || !razonSocial) { fallidos++; errores.push(`Fila ${i+1}: sin codigo o razon social`); continue; }
+
+      const tipoTercero = (r.tipo_de_tercero || r.tipo_tercero || '').toLowerCase();
+      const tipo = tipoTercero.includes('natural') ? 'potencial' : 'real';
+      const activo = (r.estado || '').toLowerCase() !== 'inactivo';
+      const extraData = JSON.stringify(Object.fromEntries(Object.entries(r).filter(([k,v]) => v !== '' && v !== null && v !== undefined && k !== 'razon_social' && k !== 'raz_n_social')));
+
+      const existing = await pool.query(`SELECT id FROM crm.clientes WHERE codigo_siesa = $1`, [codigo]);
+      if (existing.rows.length) {
+        await pool.query(`UPDATE crm.clientes SET
+          nombre = COALESCE(NULLIF($1,''), nombre),
+          razon_social = COALESCE(NULLIF($2,''), razon_social),
+          nit = COALESCE(NULLIF($3,''), nit),
+          tipo = COALESCE($4, tipo),
+          direccion = COALESCE(NULLIF($5,''), direccion),
+          ciudad = COALESCE(NULLIF($6,''), ciudad),
+          departamento = COALESCE(NULLIF($7,''), departamento),
+          telefono = COALESCE(NULLIF($8,''), telefono),
+          celular = COALESCE(NULLIF($9,''), celular),
+          email = COALESCE(NULLIF($10,''), email),
+          contacto = COALESCE(NULLIF($11,''), contacto),
+          activo = $12,
+          extra_data = COALESCE(extra_data,'{}'::jsonb) || $13::jsonb,
+          actualizado_en = NOW()
+          WHERE id = $14`,
+          [nombre, razonSocial, codigo, tipo, r.direccion_1 || r.direccion || '', r.ciudad || '', r.depto_estado || r.departamento || '',
+           r.telefono || '', r.celular || '', r.email || '', r.contacto || '', activo, extraData, existing.rows[0].id]);
+        actualizados++;
+      } else {
+        await pool.query(`INSERT INTO crm.clientes (codigo_siesa, nit, nombre, razon_social, tipo, direccion, ciudad, departamento, telefono, celular, email, contacto, activo, origen, extra_data)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,'siesa',$14)`,
+          [codigo, codigo, nombre, razonSocial, tipo, r.direccion_1 || r.direccion || '', r.ciudad || '', r.depto_estado || r.departamento || '',
+           r.telefono || '', r.celular || '', r.email || '', r.contacto || '', activo, extraData]);
+        insertados++;
+      }
+      if (onProgress && i % 10 === 0) onProgress(i + 1, rows.length);
+    } catch (e) { fallidos++; errores.push(`Fila ${i+1}: ${e.message}`); }
+  }
+  if (onProgress) onProgress(rows.length, rows.length);
+  return { insertados, actualizados, fallidos, total: rows.length, errores: errores.slice(0, 50) };
 }
 
 async function importarContactos(rows) {
@@ -723,6 +781,7 @@ async function importarUnidadesNegocio(rows, onProgress) {
 // ── Endpoint principal ──
 const PARSERS = {
   clientes: importarClientes,
+  terceros: importarTerceros,
   contactos: importarContactos,
   leads: importarLeads,
   cotizaciones: importarCotizaciones,
@@ -787,6 +846,7 @@ router.get('/tipos', requirePermiso('crear_contacto', 'crm'), (req, res) => {
     ok: true,
     data: [
       { id: 'clientes', nombre: 'Clientes Siesa ERP', extensiones: 'csv', descripcion: 'Clientes del ERP con código, nombre, canal, dirección' },
+      { id: 'terceros', nombre: 'Terceros (maestro SIESA)', extensiones: 'csv', descripcion: 'Terceros por NIT: razón social, tipo, contacto, dirección, teléfono' },
       { id: 'contactos', nombre: 'Contactos CRM', extensiones: 'xlsx', descripcion: 'Contactos vinculados a clientes' },
       { id: 'leads', nombre: 'Leads CRM', extensiones: 'xlsx', descripcion: 'Clientes potenciales con asesor, segmento, lista de precios' },
       { id: 'cotizaciones', nombre: 'Cotizaciones CRM', extensiones: 'xlsx', descripcion: 'Cotizaciones con estados, bodega, centro de operación' },
