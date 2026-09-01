@@ -104,6 +104,7 @@ const REQUIRED_COLUMNS = {
   leads: [['razon_social', 'raz_n_social'], ['numero_de_identificacion', 'numero_de_identificaci_n']],
   cotizaciones: [['nombre'], ['consecutivo_interno']],
   pedidos_erp: [['nro_documento'], ['c_o']],
+  pedidos_items: [['nro_documento'], ['item_resumen']],
   items: [['referencia'], ['item'], ['descripcion', 'desc_item', 'desc__item']],
   inventario: [['codigo', 'c_digo'], ['referencia'], ['bodega']],
   codigos_barra: [['codigo', 'c_digo'], ['referencia']],
@@ -591,6 +592,96 @@ async function importarPedidosERP(buffer, onProgress) {
   }
 }
 
+// Recalcula totales de una cotización (subtotal, IVA, total) tras importar items
+async function recalcularTotalesFromImport(cotizacionId) {
+  try {
+    const items = await pool.query(`SELECT cantidad, precio_unitario, descuento_pct FROM crm.cotizacion_items WHERE cotizacion_id = $1`, [cotizacionId]);
+    let subtotal = 0;
+    for (const it of items.rows) {
+      const base = parseFloat(it.cantidad) * parseFloat(it.precio_unitario);
+      subtotal += base * (1 - (parseFloat(it.descuento_pct || 0) / 100));
+    }
+    const cfg = await pool.query(`SELECT valor FROM crm.configuracion WHERE clave = 'iva_porcentaje'`);
+    const ivaPct = parseFloat(cfg.rows[0]?.valor || '19');
+    const iva = subtotal * (ivaPct / 100);
+    const total = subtotal + iva;
+    await pool.query(`UPDATE crm.cotizaciones SET valor_subtotal=$1, valor_iva=$2, valor_total=$3, actualizado_en=NOW() WHERE id=$4`,
+      [subtotal, iva, total, cotizacionId]);
+  } catch {}
+}
+
+// ── Pedidos por item.csv — líneas de cada CPV (completa los items de las cotizaciones) ──
+async function importarPedidosItems(buffer, onProgress) {
+  let itemsAgregados = 0, cpvs = 0, sinCot = 0, errores = [];
+  const cotCache = new Map(); // documento_erp -> cotizacion_id
+  const prodCache = new Map(); // codigo -> {id, precio}
+  try {
+    let text;
+    try { text = buffer.toString('utf-8'); if (text.includes('\ufffd')) throw new Error('l'); } catch { text = buffer.toString('latin1'); }
+    const lines = text.split(/\r?\n/).filter(l => l.trim());
+    const rows = [];
+    for (let i = 1; i < lines.length; i++) {
+      const vals = lines[i].match(/("[^"]*"|[^,]+)/g)?.map(v => v.replace(/^"|"$/g, '').trim()) || [];
+      rows.push(vals);
+    }
+    for (let i = 0; i < rows.length; i++) {
+      try {
+        const vals = rows[i];
+        const cpv = (vals[1] || '').trim();
+        if (!cpv) continue;
+        // Item resumen en [5]: código del producto al inicio (ej "0422 SUBPRODUCTO...")
+        const itemResumen = (vals[5] || '').trim();
+        const m = itemResumen.match(/^(\d{3,6})\s+(.*)$/);
+        const cant = parseFloat(vals[7]) || 0;
+        if (!m || cant <= 0) continue;
+        const codigo = m[1];
+        const descripcion = m[2].trim();
+
+        // Cotización por documento_erp
+        let cotId = cotCache.get(cpv);
+        if (cotId === undefined) {
+          const c = await pool.query(`SELECT id FROM crm.cotizaciones WHERE documento_erp = $1`, [cpv]);
+          cotId = c.rows.length ? c.rows[0].id : null;
+          cotCache.set(cpv, cotId);
+        }
+        if (!cotId) { sinCot++; continue; }
+
+        // Producto por código
+        let prod = prodCache.get(codigo);
+        if (prod === undefined) {
+          const p = await pool.query(`SELECT id, precio_unitario FROM crm.productos WHERE codigo = $1 AND activo = TRUE`, [codigo]);
+          prod = p.rows.length ? { id: p.rows[0].id, precio: parseFloat(p.rows[0].precio_unitario) || 0 } : null;
+          prodCache.set(codigo, prod);
+        }
+
+        // Insertar item (si no existe mismo referencia+descripcion para esa cotización)
+        const ex = await pool.query(`SELECT 1 FROM crm.cotizacion_items WHERE cotizacion_id=$1 AND referencia=$2 AND descripcion=$3`, [cotId, codigo, descripcion]);
+        if (!ex.rows.length) {
+          const precio = prod ? prod.precio : 0;
+          const subtotal = cant * precio;
+          await pool.query(`INSERT INTO crm.cotizacion_items (cotizacion_id, descripcion, referencia, unidad_medida, cantidad, precio_unitario, subtotal, estado_item)
+            VALUES ($1,$2,$3,'UND',$4,$5,$6,$7)`, [cotId, descripcion, codigo, cant, precio, subtotal, 'importado']);
+          itemsAgregados++;
+        }
+      } catch (e) { errores.push(`Fila ${i+1}: ${e.message}`); }
+      if (onProgress && i % 50 === 0) onProgress(i + 1, rows.length);
+    }
+    // Recalcular totales SOLO si hay precios reales (productos con precio_unitario > 0)
+    for (const [cpv, cotId] of cotCache) {
+      if (!cotId) continue;
+      try {
+        const hayPrecio = await pool.query(`SELECT 1 FROM crm.cotizacion_items WHERE cotizacion_id=$1 AND precio_unitario > 0 LIMIT 1`, [cotId]);
+        if (hayPrecio.rows.length) await recalcularTotalesFromImport(cotId);
+      } catch {}
+    }
+    if (onProgress) onProgress(rows.length, rows.length);
+    return { items_agregados: itemsAgregados, cpvs: cpvs, sin_cotizacion: sinCot, total: rows.length, errores: errores.slice(0, 50) };
+  } catch (err) {
+    console.error('[CRM] Error importar pedidos por item:', err);
+    throw new Error('No se pudo leer el archivo de pedidos por item del ERP');
+  }
+}
+
 async function importarItems(rows) {
   let insertados = 0, actualizados = 0, fallidos = 0;
   const errores = [];
@@ -988,6 +1079,7 @@ const PARSERS = {
   leads: importarLeads,
   cotizaciones: importarCotizaciones,
   pedidos_erp: importarPedidosERP,
+  pedidos_items: importarPedidosItems,
   items: importarItems,
   inventario: importarInventario,
   codigos_barra: importarCodigosBarra,
@@ -1009,7 +1101,7 @@ router.post('/', requirePermiso('crear_contacto', 'crm'), upload.single('archivo
 
     // eans_gs1 y pedidos_erp necesitan el buffer completo (parseo especial)
     let rows = null;
-    if (tipo === 'eans_gs1' || tipo === 'pedidos_erp') {
+    if (tipo === 'eans_gs1' || tipo === 'pedidos_erp' || tipo === 'pedidos_items') {
       // validar extensión
       const okExt = tipo === 'eans_gs1' ? /\.(xlsx|xls)$/i.test(req.file.originalname) : /\.(csv|txt)$/i.test(req.file.originalname);
       if (!okExt) return res.status(400).json({ error: tipo === 'eans_gs1' ? 'El archivo debe ser XLSX (reporte GS1)' : 'El archivo debe ser CSV (pedidos del ERP)' });
@@ -1037,7 +1129,9 @@ router.post('/', requirePermiso('crear_contacto', 'crm'), upload.single('archivo
       ? await importarEANGS1(req.file.buffer, onProgress)
       : tipo === 'pedidos_erp'
         ? await importarPedidosERP(req.file.buffer, onProgress)
-        : await PARSERS[tipo](rows, onProgress);
+        : tipo === 'pedidos_items'
+          ? await importarPedidosItems(req.file.buffer, onProgress)
+          : await PARSERS[tipo](rows, onProgress);
 
     await auditarEvento({
       accion: 'importar',
@@ -1066,6 +1160,7 @@ router.get('/tipos', requirePermiso('crear_contacto', 'crm'), (req, res) => {
       { id: 'leads', nombre: 'Leads CRM', extensiones: 'xlsx', descripcion: 'Clientes potenciales con asesor, segmento, lista de precios' },
       { id: 'cotizaciones', nombre: 'Cotizaciones CRM', extensiones: 'xlsx', descripcion: 'Cotizaciones con estados, bodega, centro de operación' },
       { id: 'pedidos_erp', nombre: 'Pedidos ERP (vincula CPV a cotizaciones)', extensiones: 'csv', descripcion: 'Pedidos mes corriente del ERP: asigna documento_erp (CPV) a las cotizaciones por su número COT' },
+      { id: 'pedidos_items', nombre: 'Pedidos por item ERP (completa items)', extensiones: 'csv', descripcion: 'Líneas de cada CPV: agrega los productos (items) a las cotizaciones ya vinculadas' },
       { id: 'items', nombre: 'Items / Productos', extensiones: 'xlsx,csv', descripcion: 'Productos con referencia, precio, impuesto, categoría' },
       { id: 'inventario', nombre: 'Inventario por Bodega', extensiones: 'xlsx', descripcion: 'Stock por bodega con precio, disponibilidad, existencia' },
       { id: 'codigos_barra', nombre: 'Códigos de Barras (EAN)', extensiones: 'csv', descripcion: 'Códigos GS1 vinculados a productos por referencia' },
