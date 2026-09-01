@@ -39,11 +39,11 @@ function buildClientesWhere(req) {
     conditions.push(`e.ciudad ILIKE $${paramIdx++}`);
     params.push(`%${col_ciudad}%`);
   }
-  if (search) {
-    conditions.push(`(e.nombre ILIKE $${paramIdx} OR e.nit ILIKE $${paramIdx} OR e.sector ILIKE $${paramIdx})`);
-    params.push(`%${search}%`);
-    paramIdx++;
-  }
+    if (search) {
+      conditions.push(`(e.nombre ILIKE $${paramIdx} OR e.nit ILIKE $${paramIdx} OR e.sector ILIKE $${paramIdx} OR e.razon_social ILIKE $${paramIdx} OR e.codigo_siesa ILIKE $${paramIdx})`);
+      params.push(`%${search}%`);
+      paramIdx++;
+    }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   return { where, params };
