@@ -633,6 +633,115 @@ async function importarCodigosBarra(rows, onProgress) {
   return { insertados, fallidos, total: rows.length, errores: errores.slice(0, 50) };
 }
 
+// ── EANGS1.xlsx — catálogo GS1 de la compañía (header en fila 6, 3 hojas) ──
+async function importarEANGS1(buffer, onProgress) {
+  let insertados = 0, actualizados = 0, fallidos = 0, vinculados = 0;
+  const errores = [];
+  try {
+    const wb = XLSX.read(buffer, { type: 'buffer', cellDates: false });
+    const filas = [];
+    for (const sheetName of wb.SheetNames) {
+      const ws = wb.Sheets[sheetName];
+      const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '', raw: false });
+      if (rows.length < 7) continue;
+      const header = rows[5] || [];
+      const normHeader = header.map(h => normalizeHeader(String(h||'')));
+      const idx = {
+        gtin: normHeader.indexOf('id'),
+        tipo: normHeader.findIndex(h => h.includes('tipo_producto')),
+        estado: normHeader.indexOf('estado'),
+        fecha: normHeader.findIndex(h => h.includes('fecha_de_creacion')),
+        url: normHeader.findIndex(h => h.includes('url_imagen')),
+        desc: normHeader.findIndex(h => h.includes('descripcion')),
+        marca: normHeader.findIndex(h => h.includes('marca')),
+        cantidad: normHeader.findIndex(h => h.includes('cantidad_contenida')),
+        gpc: normHeader.findIndex(h => h.includes('categoria_gpc')),
+        mercado: normHeader.findIndex(h => h.includes('mercado_objetivo')),
+        estadoProd: normHeader.findIndex(h => h.includes('estado_del_producto')),
+        unidad: normHeader.findIndex(h => h.includes('unidad_de_cantidad')),
+      };
+      for (let i = 6; i < rows.length; i++) {
+        const r = rows[i];
+        const gtin = r[idx.gtin] !== undefined ? String(r[idx.gtin]).trim() : '';
+        if (!gtin || !/^\d{8,14}$/.test(gtin)) continue;
+        filas.push({
+          gtin,
+          tipo_producto: idx.tipo >= 0 ? String(r[idx.tipo]||'').trim() : '',
+          estado: idx.estado >= 0 ? String(r[idx.estado]||'').trim() : '',
+          fecha_creacion: idx.fecha >= 0 ? String(r[idx.fecha]||'').trim() : '',
+          url_imagen: idx.url >= 0 ? String(r[idx.url]||'').trim() : '',
+          descripcion: idx.desc >= 0 ? String(r[idx.desc]||'').trim() : '',
+          marca: idx.marca >= 0 ? String(r[idx.marca]||'').trim() : '',
+          cantidad: idx.cantidad >= 0 ? String(r[idx.cantidad]||'').trim() : '',
+          categoria_gpc: idx.gpc >= 0 ? String(r[idx.gpc]||'').trim() : '',
+          mercado: idx.mercado >= 0 ? String(r[idx.mercado]||'').trim() : '',
+          estado_producto: idx.estadoProd >= 0 ? String(r[idx.estadoProd]||'').trim() : '',
+          unidad_cantidad: idx.unidad >= 0 ? String(r[idx.unidad]||'').trim() : ''
+        });
+      }
+    }
+
+    for (let i = 0; i < filas.length; i++) {
+      try {
+        const f = filas[i];
+        // Fecha DD/MM/YYYY -> YYYY-MM-DD
+        let fecha = null;
+        if (f.fecha_creacion && f.fecha_creacion.includes('/')) {
+          const [d, m, y] = f.fecha_creacion.split('/');
+          if (d && m && y) fecha = `${y.padStart(4,'0')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`;
+        }
+        const activo = f.estado_producto ? !f.estado_producto.toLowerCase().includes('inactivo') : true;
+
+        // Buscar en catálogo
+        const existing = await pool.query(`SELECT id FROM crm.gs1_catalogo WHERE gtin = $1`, [f.gtin]);
+        if (existing.rows.length) {
+          await pool.query(`UPDATE crm.gs1_catalogo SET descripcion = COALESCE(NULLIF($1,''), descripcion),
+            marca = COALESCE(NULLIF($2,''), marca), url_imagen = COALESCE(NULLIF($3,''), url_imagen),
+            estado = $4, estado_producto = $5, actualizado_en = NOW() WHERE gtin = $6`,
+            [f.descripcion, f.marca, f.url_imagen, f.estado, f.estado_producto, f.gtin]);
+          actualizados++;
+        } else {
+          await pool.query(`INSERT INTO crm.gs1_catalogo (gtin, tipo_producto, estado, fecha_creacion, url_imagen, descripcion, marca, cantidad, categoria_gpc, mercado, estado_producto, unidad_cantidad)
+            VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+            [f.gtin, f.tipo_producto, f.estado, fecha, f.url_imagen, f.descripcion, f.marca, f.cantidad, f.categoria_gpc, f.mercado, f.estado_producto, f.unidad_cantidad]);
+          insertados++;
+        }
+
+        // Vincular con producto: 1) EAN ya registrado en productos_ean, 2) descripción que contiene código del producto
+        if (!existing.rows.length || !(await pool.query(`SELECT 1 FROM crm.gs1_catalogo WHERE gtin=$1 AND vinculado`, [f.gtin])).rows.length) {
+          let prod = null;
+          const porEan = await pool.query(`SELECT pe.producto_id FROM crm.productos_ean pe WHERE pe.gtin = $1 AND pe.activo = TRUE LIMIT 1`, [f.gtin]);
+          if (porEan.rows.length) prod = porEan.rows[0].producto_id;
+          if (!prod) {
+            // Buscar por código del producto en la descripción GS1 (ej: "BONDIOLA... PT 6002")
+            const m = f.descripcion.match(/(?:^|\s)(\d{4,6})(?:\s|$)/);
+            if (m) {
+              const p = await pool.query(`SELECT id FROM crm.productos WHERE codigo = $1 AND activo = TRUE LIMIT 1`, [m[1]]);
+              if (p.rows.length) prod = p.rows[0].id;
+            }
+          }
+          if (prod) {
+            await pool.query(`UPDATE crm.gs1_catalogo SET producto_id = $1, vinculado = TRUE, actualizado_en = NOW() WHERE gtin = $2`, [prod, f.gtin]);
+            // Insertar en productos_ean si no existe
+            const eanEx = await pool.query(`SELECT 1 FROM crm.productos_ean WHERE producto_id=$1 AND gtin=$2`, [prod, f.gtin]);
+            if (!eanEx.rows.length) {
+              await pool.query(`INSERT INTO crm.productos_ean (producto_id, gtin, descripcion, unidad_medida, es_principal) VALUES ($1,$2,$3,$4,FALSE)`,
+                [prod, f.gtin, f.descripcion, f.unidad_cantidad]);
+            }
+            vinculados++;
+          }
+        }
+      } catch (e) { fallidos++; errores.push(`GTIN ${filas[i].gtin}: ${e.message}`); }
+      if (onProgress && i % 25 === 0) onProgress(i + 1, filas.length);
+    }
+    if (onProgress) onProgress(filas.length, filas.length);
+    return { insertados, actualizados, fallidos, total: filas.length, vinculados, errores: errores.slice(0, 50) };
+  } catch (err) {
+    console.error('[CRM] Error importar EAN GS1:', err);
+    throw new Error('No se pudo leer el archivo EANGS1.xlsx. Asegúrate que es el reporte GS1 exportado.');
+  }
+}
+
 async function importarBodegas(rows, onProgress) {
   let insertados = 0, actualizados = 0, fallidos = 0;
   const errores = [];
@@ -793,7 +902,8 @@ const PARSERS = {
   motivos_venta: importarMotivos,
   tipos_documento: importarTiposDocumento,
   centros_costo: importarCentrosCosto,
-  unidades_negocio: importarUnidadesNegocio
+  unidades_negocio: importarUnidadesNegocio,
+  eans_gs1: importarEANGS1
 };
 
 router.post('/', requirePermiso('crear_contacto', 'crm'), upload.single('archivo'), async (req, res) => {
@@ -802,13 +912,19 @@ router.post('/', requirePermiso('crear_contacto', 'crm'), upload.single('archivo
     if (!tipo || !PARSERS[tipo]) return res.status(400).json({ error: `Tipo inválido. Opciones: ${Object.keys(PARSERS).join(', ')}` });
     if (!req.file) return res.status(400).json({ error: 'No se envió archivo' });
 
-    const rows = parseFile(req.file.buffer, req.file.originalname);
-    if (!rows.length) return res.status(400).json({ error: 'El archivo está vacío' });
+    // eans_gs1 necesita el buffer completo (parsea hojas con header en fila 6)
+    let rows = null;
+    if (tipo === 'eans_gs1') {
+      // validar que sea xlsx
+      if (!/\.(xlsx|xls)$/i.test(req.file.originalname)) return res.status(400).json({ error: 'El archivo debe ser XLSX (reporte GS1 exportado)' });
+    } else {
+      rows = parseFile(req.file.buffer, req.file.originalname);
+      if (!rows.length) return res.status(400).json({ error: 'El archivo está vacío' });
+      const validationError = validateColumns(rows, tipo);
+      if (validationError) return res.status(400).json({ error: validationError });
+    }
 
-    const validationError = validateColumns(rows, tipo);
-    if (validationError) return res.status(400).json({ error: validationError });
-
-    console.log(`[CRM] Importando ${tipo}: ${rows.length} filas de ${req.file.originalname}`);
+    console.log(`[CRM] Importando ${tipo}: ${req.file.originalname}`);
 
     // SSE streaming for progress
     res.setHeader('Content-Type', 'text/event-stream');
@@ -821,7 +937,9 @@ router.post('/', requirePermiso('crear_contacto', 'crm'), upload.single('archivo
       res.write(`data: ${JSON.stringify({ type: 'progress', current, total })}\n\n`);
     };
 
-    const resultado = await PARSERS[tipo](rows, onProgress);
+    const resultado = tipo === 'eans_gs1'
+      ? await importarEANGS1(req.file.buffer, onProgress)
+      : await PARSERS[tipo](rows, onProgress);
 
     await auditarEvento({
       accion: 'importar',
@@ -852,6 +970,7 @@ router.get('/tipos', requirePermiso('crear_contacto', 'crm'), (req, res) => {
       { id: 'items', nombre: 'Items / Productos', extensiones: 'xlsx,csv', descripcion: 'Productos con referencia, precio, impuesto, categoría' },
       { id: 'inventario', nombre: 'Inventario por Bodega', extensiones: 'xlsx', descripcion: 'Stock por bodega con precio, disponibilidad, existencia' },
       { id: 'codigos_barra', nombre: 'Códigos de Barras (EAN)', extensiones: 'csv', descripcion: 'Códigos GS1 vinculados a productos por referencia' },
+      { id: 'eans_gs1', nombre: 'Catálogo GS1 (EANGS1.xlsx)', extensiones: 'xlsx', descripcion: 'Reporte GS1 de la compañía: GTIN, descripción, marca, foto. Vincula por GTIN o código en la descripción' },
       { id: 'bodegas', nombre: 'Bodegas', extensiones: 'csv', descripcion: 'Almacenes con código, nombre y ubicación' },
       { id: 'precios', nombre: 'Precios por Item', extensiones: 'csv', descripcion: 'Precios de productos por lista de precio' },
       { id: 'vendedores', nombre: 'Vendedores', extensiones: 'csv', descripcion: 'Asesores comerciales con código y nombre' },
