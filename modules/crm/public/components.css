@@ -65,19 +65,21 @@ button, .btn {
 
 /* Anchos de columnas para tabla de sucursales */
 .tbl-scrollable .tbl th:nth-child(1),
-.tbl-scrollable .tbl td:nth-child(1) { width: 56px; }
+.tbl-scrollable .tbl td:nth-child(1) { width: 52px; }
 .tbl-scrollable .tbl th:nth-child(2),
-.tbl-scrollable .tbl td:nth-child(2) { width: 22%; }
+.tbl-scrollable .tbl td:nth-child(2) { width: 20%; }
 .tbl-scrollable .tbl th:nth-child(3),
-.tbl-scrollable .tbl td:nth-child(3) { width: 28%; }
+.tbl-scrollable .tbl td:nth-child(3) { width: 24%; }
 .tbl-scrollable .tbl th:nth-child(4),
-.tbl-scrollable .tbl td:nth-child(4) { width: 14%; }
+.tbl-scrollable .tbl td:nth-child(4) { width: 12%; }
 .tbl-scrollable .tbl th:nth-child(5),
-.tbl-scrollable .tbl td:nth-child(5) { width: 14%; }
+.tbl-scrollable .tbl td:nth-child(5) { width: 12%; }
 .tbl-scrollable .tbl th:nth-child(6),
-.tbl-scrollable .tbl td:nth-child(6) { width: 12%; }
+.tbl-scrollable .tbl td:nth-child(6) { width: 13%; }
 .tbl-scrollable .tbl th:nth-child(7),
-.tbl-scrollable .tbl td:nth-child(7) { width: 76px; }
+.tbl-scrollable .tbl td:nth-child(7) { width: 10%; }
+.tbl-scrollable .tbl th:nth-child(8),
+.tbl-scrollable .tbl td:nth-child(8) { width: 76px; }
 
 @container tbl-responsive (max-width: 680px) {
   .tbl-scrollable .tbl th:nth-child(5),

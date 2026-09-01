@@ -582,13 +582,14 @@ async function verCliente(id) {
           <input type="text" id="filtro-sucursal-search" placeholder="Buscar sucursal por codigo, nombre, ciudad o telefono..." style="flex:1;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px" oninput="filtrarSucursales()">
           <span id="sucursal-count" style="font-size:12px;color:var(--muted);align-self:center">${sucursales.length} sucursales</span>
         </div>
-        <div class="tbl-wrap tbl-scrollable"><table class="tbl" id="tbl-sucursales-cliente"><thead><tr><th>Codigo</th><th>Nombre</th><th>Direccion</th><th>Ciudad</th><th>Telefono</th><th>Principal</th><th></th></tr></thead><tbody>
+        <div class="tbl-wrap tbl-scrollable"><table class="tbl" id="tbl-sucursales-cliente"><thead><tr><th>Codigo</th><th>Nombre</th><th>Direccion</th><th>Ciudad</th><th>Telefono</th><th>EAN</th><th>Principal</th><th></th></tr></thead><tbody>
         ${sucursales.map(s => `<tr style="cursor:pointer" onclick="verSucursal('${s.id}')" data-search="${esc(String(s.codigo||'')+' '+String(s.nombre||'')+' '+String(s.ciudad||'')+' '+String(s.telefono||'')).toLowerCase()}">
           <td><strong>${esc(s.codigo || '—')}</strong></td>
           <td>${esc(s.nombre)}</td>
           <td>${esc(s.direccion || '—')}</td>
           <td>${esc(s.ciudad || '—')}</td>
           <td>${esc(s.telefono || '—')}</td>
+          <td>${esc(s.codigo_ean || '—')}</td>
           <td>${s.es_principal ? '<span class="badge badge-aprobada">Principal</span>' : ''}</td>
           <td onclick="event.stopPropagation()">
             <button class="btn btn-sm btn-secondary btn-action" onclick="editarSucursal('${s.id}','${id}')" title="Editar sucursal" aria-label="Editar sucursal ${esc(s.nombre)}">✏️</button>
