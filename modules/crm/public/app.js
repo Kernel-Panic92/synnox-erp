@@ -112,7 +112,7 @@ async function cargarDashboard() {
       document.getElementById('clientes-recientes').innerHTML = `
         <h4 style="margin-bottom:12px">Clientes Recientes</h4>
         <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nombre</th><th>Tipo</th><th>Ciudad</th><th>Creado</th></tr></thead><tbody>
-          ${recientes.map(e => `<tr><td>${esc(e.nombre)}</td><td><span class="badge badge-${esc(e.tipo)}">${esc(e.tipo)}</span></td><td>${esc(e.ciudad || '—')}</td><td>${formatDate(e.creado_en)}</td></tr>`).join('')}
+          ${recientes.map(e => `<tr><td>${esc(e.nombre)}</td><td><span class="badge badge-${esc(e.tipo)}">${tipoClienteLabel(e.tipo)}</span></td><td>${esc(e.ciudad || '—')}</td><td>${formatDate(e.creado_en)}</td></tr>`).join('')}
         </tbody></table></div>
       `;
     }
@@ -412,6 +412,13 @@ function erpExtra(key, label, e) {
   if (v === null || v === undefined || v === '') return '';
   return `<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">${esc(label)}</div><div>${esc(String(v))}</div></div>`;
 }
+
+// Etiqueta legible para el tipo de cliente (badge)
+function tipoClienteLabel(t) {
+  if (t === 'real') return 'Cliente ERP';
+  if (t === 'siesa') return 'SIESA';
+  return t || '—';
+}
 async function cargarClientes() {
   const search = document.getElementById('filtro-cliente-search')?.value || '';
   const tipo = document.getElementById('filtro-cliente-tipo')?.value || '';
@@ -437,7 +444,7 @@ async function cargarClientes() {
         <td><input type="checkbox" class="row-check cb-cliente" value="${e.id}" onchange="updateBulkBar()"></td>
         <td><a href="#" onclick="verCliente('${e.id}');return false" style="color:var(--accent)">${esc(e.nombre)}</a></td>
         <td>${esc(e.nit || '—')}</td>
-        <td><span class="badge badge-${esc(e.tipo)}">${esc(e.tipo)}</span></td>
+<td><span class="badge badge-${esc(e.tipo)}">${tipoClienteLabel(e.tipo)}</span></td>
         <td>${esc(e.canal || '—')}</td>
         <td>${esc(e.ciudad || '—')}</td>
         <td>${e.total_contactos || 0}</td>
@@ -543,7 +550,7 @@ async function verCliente(id) {
           <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Telefono</div><div>${esc(e.telefono || '—')}</div></div>
           <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Pagina Web</div><div>${esc(e.website || '—')}</div></div>
           <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Tipo Negocio</div><div>${esc(e.tipo_negocio || '—')}</div></div>
-          <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Tipo Cliente</div><div>${esc(e.tipo || '—')}</div></div>
+          <div style="margin-bottom:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Tipo Cliente</div><div>${tipoClienteLabel(e.tipo)}</div></div>
         </div>
       </div>
       ${e.direccion ? `<div style="margin-top:12px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:2px">Direccion</div><div>${esc(e.direccion)}</div></div>` : ''}
@@ -553,7 +560,7 @@ async function verCliente(id) {
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
         <div>
           <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Código / NIT</div><div>${esc(e.nit || e.codigo_siesa || '—')} ${e.sucursal ? `<small style="color:var(--muted)">· Sucursal ${esc(e.sucursal)}</small>` : ''}</div></div>
-          <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Tipo tercero / Región</div><div>${esc(e.tipo || '—')} ${e.sector ? `· ${esc(e.sector)}` : ''} ${e.region ? `· ${esc(e.region)}` : ''}</div></div>
+          <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Tipo tercero / Región</div><div>${tipoClienteLabel(e.tipo)} ${e.sector ? `· ${esc(e.sector)}` : ''} ${e.region ? `· ${esc(e.region)}` : ''}</div></div>
           <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Lista de precio</div><div>${esc(e.lista_precio_codigo || '—')} ${e.lista_precios ? `<span style="color:var(--muted)">— ${esc(e.lista_precios)}</span>` : ''}</div></div>
           <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Vendedor / Cobrador</div><div>${esc(e.vendedor_codigo || e.vendedor_asignado || '—')} ${e.cobrador ? `· Cobrador ${esc(e.cobrador)}` : ''} ${e.asesor_comercial ? `· Asesor ${esc(e.asesor_comercial)}` : ''}</div></div>
           <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Medio de pago</div><div>${esc(e.medio_pago || '—')} ${e.medio_pago_desc ? `<span style="color:var(--muted)">— ${esc(e.medio_pago_desc)}</span>` : ''} ${e.iva ? `· IVA: ${esc(e.iva)}` : ''}</div></div>
