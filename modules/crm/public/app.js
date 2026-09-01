@@ -405,6 +405,13 @@ async function cargarVendedoresSelect(selectId, selectedId) {
 function formatMoney(n) {
   return Number(n).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
+
+// Lee un campo del extra_data (JSONB del maestro ERP) y lo muestra legible, saltando vacíos
+function erpExtra(key, label, e) {
+  const v = (e.extra_data && e.extra_data[key]) || e[key];
+  if (v === null || v === undefined || v === '') return '';
+  return `<div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">${esc(label)}</div><div>${esc(String(v))}</div></div>`;
+}
 async function cargarClientes() {
   const search = document.getElementById('filtro-cliente-search')?.value || '';
   const tipo = document.getElementById('filtro-cliente-tipo')?.value || '';
@@ -551,6 +558,9 @@ async function verCliente(id) {
           <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Vendedor / Cobrador</div><div>${esc(e.vendedor_codigo || e.vendedor_asignado || '—')} ${e.cobrador ? `· Cobrador ${esc(e.cobrador)}` : ''} ${e.asesor_comercial ? `· Asesor ${esc(e.asesor_comercial)}` : ''}</div></div>
           <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Medio de pago</div><div>${esc(e.medio_pago || '—')} ${e.medio_pago_desc ? `<span style="color:var(--muted)">— ${esc(e.medio_pago_desc)}</span>` : ''} ${e.iva ? `· IVA: ${esc(e.iva)}` : ''}</div></div>
           <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Frecuencia / Fecha ingreso</div><div>${esc(e.frecuencia_entrega || '—')} ${e.fecha_ingreso ? `· ${formatDate(e.fecha_ingreso)}` : ''}</div></div>
+          ${erpExtra('nombre_establecimiento','Nombre establecimiento', e)}
+          ${erpExtra('contacto','Contacto', e)}
+          ${erpExtra('razon_social_vendedor','Razón social vendedor', e)}
         </div>
         <div>
           <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Celular / Teléfono</div><div>${esc(e.celular || e.telefono || '—')}</div></div>
@@ -559,9 +569,10 @@ async function verCliente(id) {
           <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Motivo bloqueo</div><div>${esc(e.motivo_bloqueo_desc || '—')}</div></div>
           <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Rutas</div><div>${esc(e.ruta_vehiculos || '—')} ${e.ruta_motos ? `· Motos: ${esc(e.ruta_motos)}` : ''}</div></div>
           <div style="margin-bottom:10px"><div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">Sucursal corporativa / EAN</div><div>${esc(e.sucursal_corporativa || '—')} ${e.codigo_ean ? `· EAN ${esc(e.codigo_ean)}` : ''}</div></div>
+          ${erpExtra('correo_f_e','Correo F.E.', e)}
+          ${erpExtra('estado','Estado', e)}
         </div>
       </div>
-      ${e.extra_data && Object.keys(e.extra_data).length ? `<details style="margin-top:16px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px"><summary style="cursor:pointer;font-size:12px;color:var(--muted)">Ver JSON completo (extra_data)</summary><pre style="font-size:11px;white-space:pre-wrap;word-break:break-all;margin-top:8px">${esc(JSON.stringify(e.extra_data, null, 2))}</pre></details>` : ''}
     </div>
 
     <div id="tab-cliente-sucursales" style="display:none">
