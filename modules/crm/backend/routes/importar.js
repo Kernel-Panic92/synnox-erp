@@ -423,6 +423,11 @@ async function importarLeads(rows) {
 async function importarCotizaciones(rows) {
   let insertados = 0, actualizados = 0, fallidos = 0;
   const errores = [];
+  // Cachés para evitar queries repetidos
+  const centroCache = new Map(); // nombre -> codigo
+  const bodegaCache = new Map(); // nombre -> codigo
+  const listaCache = new Map(); // nombre -> codigo
+
   for (let i = 0; i < rows.length; i++) {
     try {
       const r = rows[i];
@@ -430,20 +435,59 @@ async function importarCotizaciones(rows) {
       const consecutivo = (r.consecutivo_interno || '').trim();
       if (!nombre && !consecutivo) { fallidos++; errores.push(`Fila ${i+1}: sin nombre ni consecutivo`); continue; }
 
-      // Buscar cliente
+      // Buscar cliente por nombre (quita sufijo de sucursal "/XXX")
       let clienteId = null;
       const clienteNombre = (r.facturar_a || r.despachar_a || '').trim();
       if (clienteNombre) {
-        const cl = await pool.query(`SELECT id FROM crm.clientes WHERE nombre ILIKE $1 LIMIT 1`, [`%${clienteNombre}%`]);
+        const base = clienteNombre.split('/')[0].trim();
+        const cl = await pool.query(`SELECT id FROM crm.clientes WHERE nombre ILIKE $1 AND activo = TRUE LIMIT 1`, [`%${base}%`]);
         if (cl.rows.length) clienteId = cl.rows[0].id;
       }
+
+      // Centro de operación: nombre -> codigo
+      let centroCodigo = (r.centro_de_operacion || '').trim();
+      if (centroCodigo && !centroCache.has(centroCodigo)) {
+        const cc = await pool.query(`SELECT codigo FROM crm.centros_operacion WHERE nombre = $1 LIMIT 1`, [centroCodigo]);
+        centroCache.set(centroCodigo, cc.rows.length ? cc.rows[0].codigo : centroCodigo);
+      }
+      if (centroCodigo) centroCodigo = centroCache.get(centroCodigo) || centroCodigo;
+
+      // Bodega: nombre -> codigo
+      let bodegaCodigo = (r.bodega || '').trim();
+      if (bodegaCodigo && !bodegaCache.has(bodegaCodigo)) {
+        const bc = await pool.query(`SELECT codigo FROM crm.bodegas WHERE nombre = $1 LIMIT 1`, [bodegaCodigo]);
+        bodegaCache.set(bodegaCodigo, bc.rows.length ? bc.rows[0].codigo : bodegaCodigo);
+      }
+      if (bodegaCodigo) bodegaCodigo = bodegaCache.get(bodegaCodigo) || bodegaCodigo;
+
+      // Lista de precios: nombre -> codigo
+      let listaCodigo = (r.lista_precios || '').trim();
+      if (listaCodigo && !listaCache.has(listaCodigo)) {
+        const lc = await pool.query(`SELECT codigo FROM crm.listas_precio WHERE nombre = $1 OR codigo = $1 LIMIT 1`, [listaCodigo]);
+        listaCache.set(listaCodigo, lc.rows.length ? lc.rows[0].codigo : listaCodigo);
+      }
+      if (listaCodigo) listaCodigo = listaCache.get(listaCodigo) || listaCodigo;
 
       const numero = nombre || `COT-${consecutivo}`;
       const existing = await pool.query(`SELECT id FROM crm.cotizaciones WHERE numero = $1 OR consecutive_siesa = $2`, [numero, consecutivo || '']);
 
       const estadoCrm = (r.estado_crm || 'borrador').toLowerCase().replace(/\s+/g, '_');
-      const estadoMap = { aprobada: 'aprobada', borrador: 'borrador', enviada: 'enviada', rechazada: 'rechazada' };
+      const estadoMap = { aprobada: 'aprobada', borrador: 'borrador', enviada: 'enviada', rechazada: 'rechazada', cumplida: 'aprobada', cancelada: 'rechazada' };
       const estado = estadoMap[estadoCrm] || 'borrador';
+      const vendedor = (r.propietario || r.vendedor || r.vendedor_nombre || '').trim();
+
+      // Valores numéricos (vienen como número o string "196000.0")
+      const valorTotal = parseFloat(r.valor_total) || 0;
+      const valorSubtotal = parseFloat(r.valor_subtotal) || 0;
+      const valorBruto = parseFloat(r.valor_bruto) || 0;
+      const impuestos = parseFloat(r.impuestos) || 0;
+      const descuentos = parseFloat(r.descuentos) || 0;
+
+      // Referencia del cliente en notas cuando no se puede vincular (tercero aún no creado en CRM)
+      let notas = (r.notas_pedido || '').trim();
+      if (!clienteId && clienteNombre) {
+        notas = (notas ? notas + ' | ' : '') + `Cliente: ${clienteNombre}`;
+      }
 
       if (existing.rows.length) {
         await pool.query(`UPDATE crm.cotizaciones SET
@@ -459,37 +503,33 @@ async function importarCotizaciones(rows) {
           condicion_pago = COALESCE(NULLIF($10,''), condicion_pago),
           lista_precios = COALESCE(NULLIF($11,''), lista_precios),
           orden_compra = COALESCE(NULLIF($12,''), orden_compra),
-          documento_erp = COALESCE(NULLIF($13,''), documento_erp),
-          estado_erp = COALESCE(NULLIF($14,''), estado_erp),
-          vendedor_nombre = COALESCE(NULLIF($15,''), vendedor_nombre),
-          motivo = COALESCE(NULLIF($16,''), motivo),
-          unidad_negocio = COALESCE(NULLIF($17,''), unidad_negocio),
-          aprobado = COALESCE($18, aprobado),
-          enviado_erp = COALESCE($19, enviado_erp),
-          descuento_global_pct = COALESCE($20, descuento_global_pct),
+          vendedor_nombre = COALESCE(NULLIF($13,''), vendedor_nombre),
+          motivo = COALESCE(NULLIF($14,''), motivo),
+          unidad_negocio = COALESCE(NULLIF($15,''), unidad_negocio),
+          aprobado = COALESCE($16, aprobado),
+          estado = COALESCE(NULLIF($17,''), estado),
           actualizado_en = NOW()
-          WHERE id = $21`,
-          [clienteId, r.valor_total || null, r.valor_subtotal || null, r.valor_bruto || null,
-           r.impuestos || null, r.descuentos || null, r.notas_pedido || '',
-           r.centro_de_operacion || '', r.bodega || '', r.condicion_de_pago || '',
-           r.lista_precios || '', r.orden_de_compra || '', r.documento_erp || '',
-           r.estado_erp || '', r.vendedor || '', r.motivo || '', r.unidad_de_negocio || '',
-           r.aprobado === 'True' || r.aprobado === true, r.enviado_al_erp === 'True',
-           r.descuento_global__ || null, existing.rows[0].id]);
+          WHERE id = $18`,
+          [clienteId, valorTotal || null, valorSubtotal || null, valorBruto || null,
+           impuestos || null, descuentos || null, notas,
+           centroCodigo || '', bodegaCodigo || '', r.condicion_de_pago || r.condici_n_de_pago || '',
+           listaCodigo || '', r.orden_de_compra || '', vendedor,
+           r.motivo || '', r.unidad_de_negocio || '',
+           r.aprobado === 'True' || r.aprobado === true, estado, existing.rows[0].id]);
         actualizados++;
       } else {
         await pool.query(`INSERT INTO crm.cotizaciones (numero, cliente_id, estado, valor_total, valor_subtotal,
           valor_bruto, valor_iva, valor_descuento, notas, centro_operacion, bodega, condicion_pago,
-          lista_precios, orden_compra, documento_erp, estado_erp, vendedor_nombre, motivo,
-          unidad_negocio, aprobado, enviado_erp, consecutive_siesa, descuento_global_pct, creado_por)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23, NULL)`,
-          [numero, clienteId, estado, r.valor_total || 0, r.valor_subtotal || 0,
-           r.valor_bruto || 0, r.impuestos || 0, r.descuentos || 0, r.notas_pedido || '',
-           r.centro_de_operacion || '', r.bodega || '', r.condicion_de_pago || '',
-           r.lista_precios || '', r.orden_de_compra || '', r.documento_erp || '',
-           r.estado_erp || '', r.vendedor || '', r.motivo || '', r.unidad_de_negocio || '',
-           r.aprobado === 'True' || r.aprobado === true, r.enviado_al_erp === 'True',
-           consecutivo || null, r.descuento_global__ || 0]);
+          lista_precios, orden_compra, vendedor_nombre, motivo,
+          unidad_negocio, aprobado, enviado_erp, consecutive_siesa, creado_por)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20, NULL)`,
+          [numero, clienteId, estado, valorTotal, valorSubtotal,
+           valorBruto, impuestos, descuentos, notas,
+           centroCodigo || '', bodegaCodigo || '', r.condicion_de_pago || r.condici_n_de_pago || '',
+           listaCodigo || '', r.orden_de_compra || '', vendedor,
+           r.motivo || '', r.unidad_de_negocio || '',
+           r.aprobado === 'True' || r.aprobado === true, false,
+           consecutivo || null]);
         insertados++;
       }
     } catch (e) { fallidos++; errores.push(`Fila ${i+1}: ${e.message}`); }

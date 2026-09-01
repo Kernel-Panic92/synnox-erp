@@ -47,3 +47,12 @@ INSERT INTO crm.unidades_negocio (codigo, nombre) VALUES
   ('PROD_PROCESADOS','PRODUCCION PROCESADOS(PESCADOS-MARISCOS)'),
   ('PROD_CARNICOS','PRODUCCION PRODUCTOS CARNICOS')
 ON CONFLICT DO NOTHING;
+
+-- Espejo de centros de operación (fuente: launcher) para conversión nombre->código en importaciones
+CREATE TABLE IF NOT EXISTS crm.centros_operacion (
+  id SERIAL PRIMARY KEY,
+  codigo VARCHAR(20) NOT NULL,
+  nombre VARCHAR(255) NOT NULL,
+  activo BOOLEAN DEFAULT TRUE
+);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_crm_centros_operacion_codigo ON crm.centros_operacion(codigo);

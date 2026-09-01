@@ -161,6 +161,17 @@ async function runMigrations() {
   } catch (err) {
     console.error('[crm] Error en migraciones:', err.message);
   }
+
+  // Sync centros de operación del launcher (fuente única) al espejo CRM
+  try {
+    const centros = globalThis.__centrosCache || [];
+    if (centros.length) {
+      for (const c of centros) {
+        await pool.query(`INSERT INTO crm.centros_operacion (codigo, nombre, activo) VALUES ($1,$2,TRUE)
+          ON CONFLICT (codigo) DO UPDATE SET nombre = EXCLUDED.nombre, activo = TRUE`, [c.codigo || String(c.id), c.nombre]);
+      }
+    }
+  } catch (e) { console.error('[crm] Error sync centros:', e.message); }
 }
 runMigrations();
 
