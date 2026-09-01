@@ -1014,11 +1014,7 @@ async function eliminarLead(id) {
 async function enviarLeadERP(id, nombre) {
   confirmar({ titulo: 'Convertir a tercero', mensaje: `Enviar "${nombre}" al ERP para crear tercero?`, icono: '🔄', onConfirm: async () => {
     const r = await apiFetch('/leads/' + id + '/convertir', { method: 'POST' });
-    if (r.status === 503) {
-      toast('API de SIESA no disponible. Solicita a contabilidad la creación del tercero.', 'error');
-      return;
-    }
-    if (!r.ok) return toast(r.data?.error || 'Error al enviar', 'error');
+    if (!r.ok) return toast(r.data?.error || 'Error al enviar al ERP', 'error');
     toast('Lead enviado a ERP', 'success');
     cargarLeads();
   }});
