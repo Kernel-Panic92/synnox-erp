@@ -6,12 +6,19 @@ import { auditarEvento } from '../../../../framework/audit.js';
 
 const router = express.Router();
 
-// Helper: generar numero de cotizacion
+// Helper: generar numero de cotizacion (respeta último consecutivo importado/manual)
 async function generarNumero(client) {
   const cfg = await client.query(`SELECT valor FROM crm.configuracion WHERE clave = 'numero_cotizacion_prefijo'`);
   const con = await client.query(`SELECT valor FROM crm.configuracion WHERE clave = 'numero_cotizacion_consecutivo'`);
   const prefijo = cfg.rows[0]?.valor || 'COT';
-  const num = parseInt(con.rows[0]?.valor || '1');
+  let num = parseInt(con.rows[0]?.valor || '1');
+
+  // Máximo consecutivo ya existente (importado via consecutive_siesa o numero COT-XXXXX)
+  const maxConsec = await client.query(`SELECT MAX(consecutive_siesa::int) AS m FROM crm.cotizaciones WHERE consecutive_siesa ~ '^[0-9]+$'`);
+  const maxNum = await client.query(`SELECT MAX((regexp_match(numero, '-(\\d+)$'))[1]::int) AS m FROM crm.cotizaciones WHERE numero ~ '^${prefijo}-\\d+$'`);
+  const maxExist = Math.max(parseInt(maxConsec.rows[0]?.m || '0'), parseInt(maxNum.rows[0]?.m || '0'), 0);
+  if (maxExist >= num) num = maxExist + 1;
+
   const numero = `${prefijo}-${String(num).padStart(5, '0')}`;
   await client.query(`UPDATE crm.configuracion SET valor = $1, actualizado_en = NOW() WHERE clave = 'numero_cotizacion_consecutivo'`, [String(num + 1)]);
   return numero;
@@ -45,13 +52,17 @@ async function recalcularTotales(client, cotizacionId) {
   return { subtotal, descuento, iva, total };
 }
 
-// GET /api/cotizaciones/proximo-numero — preview sin consumir consecutivo
+// GET /api/cotizaciones/proximo-numero — preview sin consumir consecutivo (respeta importados)
 router.get('/proximo-numero', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
   try {
     const cfg = await pool.query(`SELECT valor FROM crm.configuracion WHERE clave = 'numero_cotizacion_prefijo'`);
     const con = await pool.query(`SELECT valor FROM crm.configuracion WHERE clave = 'numero_cotizacion_consecutivo'`);
     const prefijo = cfg.rows[0]?.valor || 'COT';
-    const num = parseInt(con.rows[0]?.valor || '1');
+    let num = parseInt(con.rows[0]?.valor || '1');
+    const maxConsec = await pool.query(`SELECT MAX(consecutive_siesa::int) AS m FROM crm.cotizaciones WHERE consecutive_siesa ~ '^[0-9]+$'`);
+    const maxNum = await pool.query(`SELECT MAX((regexp_match(numero, '-(\\d+)$'))[1]::int) AS m FROM crm.cotizaciones WHERE numero ~ '^${prefijo}-\\d+$'`);
+    const maxExist = Math.max(parseInt(maxConsec.rows[0]?.m || '0'), parseInt(maxNum.rows[0]?.m || '0'), 0);
+    if (maxExist >= num) num = maxExist + 1;
     const numero = `${prefijo}-${String(num).padStart(5, '0')}`;
     res.json({ ok: true, numero });
   } catch (err) {
