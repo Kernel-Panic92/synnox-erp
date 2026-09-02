@@ -166,8 +166,15 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil(
     await client.query('BEGIN');
     const { cliente_id, oportunidad_id, validez_dias, notas, items, descuento_pct,
             orden_compra, centro_operacion, bodega, condicion_pago, fecha_entrega,
-            unidad_negocio, punto_envio, motivo, vendedor_nombre, facturar_a, despachar_a, lista_precios } = req.body;
+            unidad_negocio, punto_envio, motivo, facturar_a, despachar_a, lista_precios } = req.body;
     if (!cliente_id) return res.status(400).json({ error: 'El cliente es obligatorio' });
+
+    // Vendedor asignado al cliente tiene prioridad: la venta queda a nombre de él
+    const cliInfo = await client.query(`SELECT vendedor_codigo, razon_social_vendedor, vendedor_asignado, lista_precio_codigo, lista_precios FROM crm.clientes WHERE id=$1`, [cliente_id]);
+    if (!cliInfo.rows.length) return res.status(404).json({ error: 'Cliente no encontrado' });
+    const vendedorAsignado = cliInfo.rows[0].razon_social_vendedor?.trim() || (cliInfo.rows[0].vendedor_codigo ? `Vendedor ${cliInfo.rows[0].vendedor_codigo}` : null) || req.user.nombre || null;
+    const vendedor_nombre = vendedorAsignado;
+    const finalListaPrecios = lista_precios || cliInfo.rows[0].lista_precio_codigo || cliInfo.rows[0].lista_precios || '200';
 
     const numero = await generarNumero(client);
     const vencimiento = new Date();
@@ -183,7 +190,7 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil(
         notas || null, req.user.id,
         orden_compra || null, centro_operacion || null, bodega || null, condicion_pago || null,
         fecha_entrega || null, unidad_negocio || null, punto_envio || null, motivo || 'VENTAS',
-        vendedor_nombre || null, req.user.nombre || null, facturar_a || null, despachar_a || null, lista_precios || null]);
+        vendedor_nombre || null, req.user.nombre || null, facturar_a || null, despachar_a || null, finalListaPrecios]);
 
     const cotizacionId = cot.rows[0].id;
 

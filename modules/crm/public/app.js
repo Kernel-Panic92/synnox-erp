@@ -1801,6 +1801,7 @@ async function abrirModalCotizacion(cotizacion = null) {
   document.getElementById('cotizacion-cliente').innerHTML = '';
   document.getElementById('cotizacion-cliente-selected').style.display = 'none';
   document.getElementById('cotizacion-cliente-selected').textContent = '';
+  document.getElementById('cotizacion-vendedor-info').style.display = 'none';
   document.getElementById('cotizacion-contacto').innerHTML = '<option value="">Sin contacto</option>';
   document.getElementById('cotizacion-facturar-a').innerHTML = '<option value="">Seleccione sucursal</option>';
   document.getElementById('cotizacion-despachar-a').innerHTML = '<option value="">Seleccione sucursal</option>';
@@ -1814,7 +1815,7 @@ async function abrirModalCotizacion(cotizacion = null) {
       const sd = document.getElementById('cotizacion-cliente-selected');
       sd.textContent = '✓ ' + c.nombre + ' — ' + (c.nit || '') + '  ✕';
       sd.style.display = ''; sd.style.cursor = 'pointer';
-      sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; document.getElementById('cotizacion-cliente-search').value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-condicion-pago').value=''; };
+      sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; document.getElementById('cotizacion-cliente-search').value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-vendedor-info').style.display='none'; document.getElementById('cotizacion-condicion-pago').value=''; };
       await cargarContactosCotizacion(c.id, cotizacion?.contacto_id || null);
       await cargarSucursalesCotizacion(c.id, cotizacion?.facturar_a || null, cotizacion?.despachar_a || null);
       // defaults del cliente
@@ -1832,6 +1833,11 @@ async function abrirModalCotizacion(cotizacion = null) {
         const lpLabel = lpDesc ? `${lp} — ${lpDesc}` : lp;
         document.getElementById('cotizacion-lista-precios').value = lpLabel;
         window._cotizacionListaPrecio = lp;
+      }
+      {
+        const vend = c.razon_social_vendedor || (c.vendedor_codigo ? `Vendedor ${c.vendedor_codigo}` : '');
+        const vInfo = document.getElementById('cotizacion-vendedor-info');
+        if (vend) { vInfo.textContent = `Vendedor asignado: ${vend} — la venta quedará a su nombre`; vInfo.style.display = ''; }
       }
     }
   }
@@ -1888,7 +1894,7 @@ async function filtrarCotizacionClientes(q) {
       sd.textContent = '✓ ' + opt.textContent + '  ✕';
       sd.style.display = ''; sd.style.cursor = 'pointer';
       sd.title = 'Click para quitar';
-      sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; sel.style.display='none'; document.getElementById('cotizacion-cliente-search').value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; };
+      sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; sel.style.display='none'; document.getElementById('cotizacion-cliente-search').value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-vendedor-info').style.display='none'; document.getElementById('cotizacion-lista-precios').value='200 — GENERAL HORECA'; window._cotizacionListaPrecio='200'; };
       sel.style.display = 'none';
       document.getElementById('cotizacion-cliente-search').value = '';
       await cargarContactosCotizacion(opt.value);
@@ -1904,6 +1910,10 @@ async function filtrarCotizacionClientes(q) {
           const lpLabel = lpDesc ? `${lp} — ${lpDesc}` : lp;
           document.getElementById('cotizacion-lista-precios').value = lpLabel;
           window._cotizacionListaPrecio = lp;
+          const vend = c.razon_social_vendedor || (c.vendedor_codigo ? `Vendedor ${c.vendedor_codigo}` : '');
+          const vInfo = document.getElementById('cotizacion-vendedor-info');
+          if (vend) { vInfo.textContent = `Vendedor asignado: ${vend} — la venta quedará a su nombre`; vInfo.style.display = ''; }
+          else { vInfo.style.display = 'none'; }
         }
       } catch {}
     };
@@ -2399,7 +2409,7 @@ async function setClienteCotizacion(clienteId) {
   sd.textContent = '✓ ' + c.nombre + ' — ' + (c.nit || '') + '  ✕';
   sd.style.display = ''; sd.style.cursor = 'pointer';
   sd.title = 'Click para quitar';
-  sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; search.value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; };
+  sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; search.value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-vendedor-info').style.display='none'; };
   sel.style.display = 'none';
   search.value = '';
   await cargarContactosCotizacion(c.id);
@@ -2410,6 +2420,11 @@ async function setClienteCotizacion(clienteId) {
     const lpDesc = c.lista_precios && c.lista_precios !== lp ? c.lista_precios : (lp === '200' ? 'GENERAL HORECA' : '');
     document.getElementById('cotizacion-lista-precios').value = lpDesc ? `${lp} — ${lpDesc}` : lp;
     window._cotizacionListaPrecio = lp;
+  }
+  {
+    const vend = c.razon_social_vendedor || (c.vendedor_codigo ? `Vendedor ${c.vendedor_codigo}` : '');
+    const vInfo = document.getElementById('cotizacion-vendedor-info');
+    if (vend) { vInfo.textContent = `Vendedor asignado: ${vend} — la venta quedará a su nombre`; vInfo.style.display = ''; }
   }
   toast('Cliente cargado desde oportunidad', 'success');
 }
