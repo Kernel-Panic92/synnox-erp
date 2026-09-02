@@ -465,7 +465,11 @@ async function importarCotizaciones(rows) {
       // Lista de precios: nombre -> codigo
       let listaCodigo = (r.lista_precios || '').trim();
       if (listaCodigo && !listaCache.has(listaCodigo)) {
-        const lc = await pool.query(`SELECT codigo FROM crm.listas_precio WHERE nombre = $1 OR codigo = $1 LIMIT 1`, [listaCodigo]);
+        const lc = await pool.query(`SELECT codigo FROM crm.listas_precio
+          WHERE lower(regexp_replace(nombre, '[^a-z0-9]', '', 'gi')) = lower(regexp_replace($1, '[^a-z0-9]', '', 'gi'))
+             OR codigo = $1
+          ORDER BY codigo ~ '^[0-9]+$' DESC
+          LIMIT 1`, [listaCodigo]);
         listaCache.set(listaCodigo, lc.rows.length ? lc.rows[0].codigo : listaCodigo);
       }
       if (listaCodigo) listaCodigo = listaCache.get(listaCodigo) || listaCodigo;
@@ -640,8 +644,8 @@ async function importarPedidosItems(buffer, onProgress) {
         // Cotización por documento_erp
         let cotId = cotCache.get(cpv);
         if (cotId === undefined) {
-          const c = await pool.query(`SELECT id FROM crm.cotizaciones WHERE documento_erp = $1`, [cpv]);
-          cotId = c.rows.length ? c.rows[0].id : null;
+          const c = await pool.query(`SELECT id, lista_precios FROM crm.cotizaciones WHERE documento_erp = $1`, [cpv]);
+          cotId = c.rows.length ? { id: c.rows[0].id, lista: c.rows[0].lista_precios || null } : null;
           cotCache.set(cpv, cotId);
         }
         if (!cotId) { sinCot++; continue; }
@@ -654,13 +658,24 @@ async function importarPedidosItems(buffer, onProgress) {
           prodCache.set(codigo, prod);
         }
 
+        // Precio: 1) lista de precio de la cotización, 2) precio unitario del maestro, 3) 0
+        let precio = 0;
+        if (prod) {
+          precio = prod.precio;
+          if (cotId.lista) {
+            const lp = await pool.query(`SELECT lpi.precio FROM crm.lista_precio_items lpi
+              JOIN crm.listas_precio lp ON lp.id = lpi.lista_id
+              WHERE (lp.codigo = $1 OR lp.nombre = $1) AND lpi.producto_id = $2 LIMIT 1`, [cotId.lista, prod.id]);
+            if (lp.rows.length) precio = parseFloat(lp.rows[0].precio) || 0;
+          }
+        }
+
         // Insertar item (si no existe mismo referencia+descripcion para esa cotización)
-        const ex = await pool.query(`SELECT 1 FROM crm.cotizacion_items WHERE cotizacion_id=$1 AND referencia=$2 AND descripcion=$3`, [cotId, codigo, descripcion]);
+        const ex = await pool.query(`SELECT 1 FROM crm.cotizacion_items WHERE cotizacion_id=$1 AND referencia=$2 AND descripcion=$3`, [cotId.id, codigo, descripcion]);
         if (!ex.rows.length) {
-          const precio = prod ? prod.precio : 0;
           const subtotal = cant * precio;
           await pool.query(`INSERT INTO crm.cotizacion_items (cotizacion_id, descripcion, referencia, unidad_medida, cantidad, precio_unitario, subtotal, estado_item)
-            VALUES ($1,$2,$3,'UND',$4,$5,$6,$7)`, [cotId, descripcion, codigo, cant, precio, subtotal, 'importado']);
+            VALUES ($1,$2,$3,'UND',$4,$5,$6,$7)`, [cotId.id, descripcion, codigo, cant, precio, subtotal, 'importado']);
           itemsAgregados++;
         }
       } catch (e) { errores.push(`Fila ${i+1}: ${e.message}`); }
@@ -670,8 +685,8 @@ async function importarPedidosItems(buffer, onProgress) {
     for (const [cpv, cotId] of cotCache) {
       if (!cotId) continue;
       try {
-        const hayPrecio = await pool.query(`SELECT 1 FROM crm.cotizacion_items WHERE cotizacion_id=$1 AND precio_unitario > 0 LIMIT 1`, [cotId]);
-        if (hayPrecio.rows.length) await recalcularTotalesFromImport(cotId);
+        const hayPrecio = await pool.query(`SELECT 1 FROM crm.cotizacion_items WHERE cotizacion_id=$1 AND precio_unitario > 0 LIMIT 1`, [cotId.id]);
+        if (hayPrecio.rows.length) await recalcularTotalesFromImport(cotId.id);
       } catch {}
     }
     if (onProgress) onProgress(rows.length, rows.length);
