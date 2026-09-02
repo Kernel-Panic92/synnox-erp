@@ -1065,6 +1065,20 @@
       </div>
       <div class="form-row">
         <div class="form-group">
+          <label>Facturar a * <small style="font-weight:400;color:var(--muted)">— busca sucursal</small></label>
+          <input type="text" id="cotizacion-facturar-a-search" placeholder="Buscar sucursal..." autocomplete="off" oninput="filtrarSucursalCotizacion('facturar', this.value)">
+          <select id="cotizacion-facturar-a" required size="5" style="width:100%;margin-top:6px;display:none;max-height:120px"></select>
+          <div id="cotizacion-facturar-a-selected" style="margin-top:6px;font-size:13px;color:var(--accent);display:none"></div>
+        </div>
+        <div class="form-group">
+          <label>Despachar a * <small style="font-weight:400;color:var(--muted)">— busca sucursal</small></label>
+          <input type="text" id="cotizacion-despachar-a-search" placeholder="Buscar sucursal..." autocomplete="off" oninput="filtrarSucursalCotizacion('despachar', this.value)">
+          <select id="cotizacion-despachar-a" required size="5" style="width:100%;margin-top:6px;display:none;max-height:120px"></select>
+          <div id="cotizacion-despachar-a-selected" style="margin-top:6px;font-size:13px;color:var(--accent);display:none"></div>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
           <label>Oportunidad</label>
           <select id="cotizacion-oportunidad"></select>
         </div>
@@ -1079,8 +1093,8 @@
           <select id="cotizacion-centro-op" required></select>
         </div>
         <div class="form-group">
-          <label>Bodega</label>
-          <select id="cotizacion-bodega"></select>
+          <label></label>
+          <small style="color:var(--muted)">Centro del ERP (código)</small>
         </div>
       </div>
       <div class="form-row">
@@ -1131,6 +1145,16 @@
 
     <!-- Tab Carrito (items) -->
     <div id="tab-cotizacion-carrito" style="display:none">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Bodega <small style="font-weight:400;color:var(--muted)">— donde se despachan los productos</small></label>
+          <select id="cotizacion-bodega"></select>
+        </div>
+        <div class="form-group">
+          <label></label>
+          <small style="color:var(--muted)">Bodega seleccionada para todos los items del carrito</small>
+        </div>
+      </div>
       <div id="cotizacion-items-list"></div>
       <button class="btn btn-sm btn-secondary" onclick="agregarItemCotizacion()" style="margin:8px 0">+ Agregar Item</button>
 
