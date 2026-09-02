@@ -1825,13 +1825,23 @@ async function abrirModalCotizacion(cotizacion = null) {
         const opt = [...centroSel.options].find(o => o.textContent.includes(c.c_o_factura_desc));
         if (opt) centroSel.value = opt.value;
       }
-      // lista de precios asignada al cliente (info)
-      if (c.lista_precio_codigo || c.lista_precios) {
-        const lp = c.lista_precio_codigo || c.lista_precios;
-        const bodegaSel = document.getElementById('cotizacion-notas');
-        // hint visual ya que no hay campo dedicado
+      // lista de precios asignada al cliente (visible)
+      {
+        const lp = cotizacion?.lista_precios || c.lista_precio_codigo || c.lista_precios || '200';
+        const lpDesc = c.lista_precios && c.lista_precios !== lp ? c.lista_precios : (lp === '200' ? 'GENERAL HORECA' : '');
+        const lpLabel = lpDesc ? `${lp} — ${lpDesc}` : lp;
+        document.getElementById('cotizacion-lista-precios').value = lpLabel;
+        window._cotizacionListaPrecio = lp;
       }
     }
+  }
+  // si no hay cliente, default lista HORECA 200 (perfil sugerido)
+  if (!cotizacion?.cliente_id && !cotizacion?.lista_precios) {
+    document.getElementById('cotizacion-lista-precios').value = '200 — GENERAL HORECA';
+    window._cotizacionListaPrecio = '200';
+  } else if (cotizacion?.lista_precios && !document.getElementById('cotizacion-lista-precios').value) {
+    document.getElementById('cotizacion-lista-precios').value = cotizacion.lista_precios;
+    window._cotizacionListaPrecio = cotizacion.lista_precios;
   }
   await cargarOportunidadesSelect('cotizacion-oportunidad', cotizacion?.oportunidad_id);
   await cargarCentrosCotizacion(cotizacion?.centro_operacion || null);
@@ -1889,12 +1899,11 @@ async function filtrarCotizacionClientes(q) {
         if (cr.ok) {
           const c = cr.data.data;
           if (c.medio_pago && !document.getElementById('cotizacion-condicion-pago').value) document.getElementById('cotizacion-condicion-pago').value = c.medio_pago + (c.medio_pago_desc ? ' — ' + c.medio_pago_desc : '');
-          // lista de precios asignada (info)
-          if (c.lista_precio_codigo || c.lista_precios) {
-            const lp = c.lista_precio_codigo || c.lista_precios;
-            // guarda para uso en catalogo
-            window._cotizacionListaPrecio = lp;
-          }
+          const lp = c.lista_precio_codigo || c.lista_precios || '200';
+          const lpDesc = c.lista_precios && c.lista_precios !== lp ? c.lista_precios : (lp === '200' ? 'GENERAL HORECA' : '');
+          const lpLabel = lpDesc ? `${lp} — ${lpDesc}` : lp;
+          document.getElementById('cotizacion-lista-precios').value = lpLabel;
+          window._cotizacionListaPrecio = lp;
         }
       } catch {}
     };
@@ -2133,7 +2142,7 @@ async function guardarCotizacion() {
     bodega: document.getElementById('cotizacion-bodega').value || null,
     condicion_pago: document.getElementById('cotizacion-condicion-pago').value || null,
     fecha_entrega: document.getElementById('cotizacion-fecha-entrega').value || null,
-    lista_precios: window._cotizacionListaPrecio || null,
+    lista_precios: (document.getElementById('cotizacion-lista-precios').value.split(' — ')[0].trim() || window._cotizacionListaPrecio || '200'),
     items: _cotizacionItems.filter(it => it.descripcion?.trim())
   };
 
@@ -2396,7 +2405,12 @@ async function setClienteCotizacion(clienteId) {
   await cargarContactosCotizacion(c.id);
   await cargarSucursalesCotizacion(c.id);
   if (c.medio_pago && !document.getElementById('cotizacion-condicion-pago').value) document.getElementById('cotizacion-condicion-pago').value = c.medio_pago + (c.medio_pago_desc ? ' — ' + c.medio_pago_desc : '');
-  if (c.lista_precio_codigo || c.lista_precios) window._cotizacionListaPrecio = c.lista_precio_codigo || c.lista_precios;
+  {
+    const lp = c.lista_precio_codigo || c.lista_precios || '200';
+    const lpDesc = c.lista_precios && c.lista_precios !== lp ? c.lista_precios : (lp === '200' ? 'GENERAL HORECA' : '');
+    document.getElementById('cotizacion-lista-precios').value = lpDesc ? `${lp} — ${lpDesc}` : lp;
+    window._cotizacionListaPrecio = lp;
+  }
   toast('Cliente cargado desde oportunidad', 'success');
 }
 
