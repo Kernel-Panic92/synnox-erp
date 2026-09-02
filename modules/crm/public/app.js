@@ -1804,13 +1804,7 @@ async function abrirModalCotizacion(cotizacion = null) {
   document.getElementById('cotizacion-vendedor-info').style.display = 'none';
   document.getElementById('cotizacion-contacto').innerHTML = '<option value="">Sin contacto</option>';
   document.getElementById('cotizacion-facturar-a').innerHTML = '<option value="">Seleccione sucursal</option>';
-  document.getElementById('cotizacion-facturar-a').style.display = 'none';
   document.getElementById('cotizacion-despachar-a').innerHTML = '<option value="">Seleccione sucursal</option>';
-  document.getElementById('cotizacion-despachar-a').style.display = 'none';
-  document.getElementById('cotizacion-facturar-a-search').value = '';
-  document.getElementById('cotizacion-despachar-a-search').value = '';
-  document.getElementById('cotizacion-facturar-a-selected').style.display = 'none';
-  document.getElementById('cotizacion-despachar-a-selected').style.display = 'none';
   if (cotizacion?.cliente_id) {
     const rc = await apiFetch('/clientes/' + cotizacion.cliente_id);
     if (rc.ok) {
@@ -1821,7 +1815,7 @@ async function abrirModalCotizacion(cotizacion = null) {
       const sd = document.getElementById('cotizacion-cliente-selected');
       sd.textContent = '✓ ' + c.nombre + ' — ' + (c.nit || '') + '  ✕';
       sd.style.display = ''; sd.style.cursor = 'pointer';
-      sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; document.getElementById('cotizacion-cliente-search').value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-facturar-a').style.display='none'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').style.display='none'; document.getElementById('cotizacion-facturar-a-search').value=''; document.getElementById('cotizacion-despachar-a-search').value=''; document.getElementById('cotizacion-facturar-a-selected').style.display='none'; document.getElementById('cotizacion-despachar-a-selected').style.display='none'; document.getElementById('cotizacion-vendedor-info').style.display='none'; document.getElementById('cotizacion-condicion-pago').value=''; };
+      sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; document.getElementById('cotizacion-cliente-search').value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-vendedor-info').style.display='none'; document.getElementById('cotizacion-condicion-pago').value=''; };
       await cargarContactosCotizacion(c.id, cotizacion?.contacto_id || null);
       await cargarSucursalesCotizacion(c.id, cotizacion?.facturar_a || null, cotizacion?.despachar_a || null);
       // defaults del cliente
@@ -1903,7 +1897,7 @@ async function filtrarCotizacionClientes(q) {
       sd.textContent = '✓ ' + opt.textContent + '  ✕';
       sd.style.display = ''; sd.style.cursor = 'pointer';
       sd.title = 'Click para quitar';
-      sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; sel.style.display='none'; document.getElementById('cotizacion-cliente-search').value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-facturar-a').style.display='none'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').style.display='none'; document.getElementById('cotizacion-facturar-a-search').value=''; document.getElementById('cotizacion-despachar-a-search').value=''; document.getElementById('cotizacion-facturar-a-selected').style.display='none'; document.getElementById('cotizacion-despachar-a-selected').style.display='none'; document.getElementById('cotizacion-vendedor-info').style.display='none'; document.getElementById('cotizacion-lista-precios').value='200 — GENERAL HORECA'; window._cotizacionListaPrecio='200'; };
+      sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; sel.style.display='none'; document.getElementById('cotizacion-cliente-search').value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-vendedor-info').style.display='none'; (async()=>{const d=await getPerfilListaDefault(); document.getElementById('cotizacion-lista-precios').value=d+' — GENERAL HORECA'; window._cotizacionListaPrecio=d;})(); };
       sel.style.display = 'none';
       document.getElementById('cotizacion-cliente-search').value = '';
       await cargarContactosCotizacion(opt.value);
@@ -1952,88 +1946,26 @@ async function cargarContactosCotizacion(clienteId, selectedId = null) {
 async function cargarSucursalesCotizacion(clienteId, facturarVal = null, despacharVal = null) {
   const fSel = document.getElementById('cotizacion-facturar-a');
   const dSel = document.getElementById('cotizacion-despachar-a');
-  const fSearch = document.getElementById('cotizacion-facturar-a-search');
-  const dSearch = document.getElementById('cotizacion-despachar-a-search');
-  const fSelected = document.getElementById('cotizacion-facturar-a-selected');
-  const dSelected = document.getElementById('cotizacion-despachar-a-selected');
   if (!fSel || !dSel) return;
-  // reset
-  fSel.style.display = 'none'; dSel.style.display = 'none';
-  fSel.innerHTML = ''; dSel.innerHTML = '';
-  if (fSelected) fSelected.style.display = 'none';
-  if (dSelected) dSelected.style.display = 'none';
-  if (fSearch) fSearch.value = '';
-  if (dSearch) dSearch.value = '';
+  fSel.innerHTML = '<option value="">Seleccione sucursal</option>';
+  dSel.innerHTML = '<option value="">Seleccione sucursal</option>';
   if (!clienteId) return;
   const r = await apiFetch('/clientes/' + clienteId + '/sucursales');
   if (!r.ok) return;
   const data = r.data.data || [];
-  window._cotizacionSucursales = data;
-  // helper to show selected
-  const showSelected = (tipo, codigo) => {
-    const sel = tipo === 'facturar' ? fSel : dSel;
-    const sDiv = tipo === 'facturar' ? fSelected : dSelected;
-    const input = tipo === 'facturar' ? fSearch : dSearch;
-    const s = data.find(x => x.codigo === codigo);
-    if (!s) return;
-    sel.value = s.codigo;
-    sel.innerHTML = `<option value="${esc(s.codigo)}" selected>${esc(s.codigo)} — ${esc(s.nombre)}</option>`;
-    sel.style.display = 'none';
-    if (input) input.value = '';
-    if (sDiv) {
-      sDiv.textContent = `✓ ${s.codigo} — ${s.nombre}  ✕`;
-      sDiv.style.display = ''; sDiv.style.cursor = 'pointer';
-      sDiv.title = 'Click para cambiar';
-      sDiv.onclick = () => {
-        sDiv.style.display = 'none';
-        sel.value = ''; sel.innerHTML = '';
-        sel.style.display = 'none';
-        if (input) input.value = '';
-      };
-    }
-  };
-  // default a principal o valores guardados
+  const opts = data.map(s => {
+    const label = `${esc(s.codigo)} — ${esc(s.nombre)}${s.es_principal ? ' ★ Principal' : ''} · ${esc(s.ciudad || '')}`;
+    return `<option value="${esc(s.codigo)}" data-id="${s.id}">${label}</option>`;
+  }).join('');
+  fSel.innerHTML = '<option value="">Seleccione sucursal</option>' + opts;
+  dSel.innerHTML = '<option value="">Seleccione sucursal</option>' + opts;
   const principal = data.find(s => s.es_principal);
-  const fVal = facturarVal || (principal ? principal.codigo : (data[0]?.codigo || null));
-  const dVal = despacharVal || (principal ? principal.codigo : (data[0]?.codigo || null));
-  if (fVal) showSelected('facturar', fVal);
-  if (dVal) showSelected('despachar', dVal);
-}
-
-let _sucursalCotTimer = null;
-async function filtrarSucursalCotizacion(tipo, q) {
-  const selId = tipo === 'facturar' ? 'cotizacion-facturar-a' : 'cotizacion-despachar-a';
-  const inputId = tipo === 'facturar' ? 'cotizacion-facturar-a-search' : 'cotizacion-despachar-a-search';
-  const selectedId = tipo === 'facturar' ? 'cotizacion-facturar-a-selected' : 'cotizacion-despachar-a-selected';
-  const sel = document.getElementById(selId);
-  const sDiv = document.getElementById(selectedId);
-  // si ya hay seleccionado, ignorar hasta que se quite
-  if (sel.value && sDiv && sDiv.style.display !== 'none') return;
-  const qq = (q || '').trim().toLowerCase();
-  if (!qq || qq.length < 1) { sel.style.display = 'none'; sel.innerHTML = ''; return; }
-  clearTimeout(_sucursalCotTimer);
-  _sucursalCotTimer = setTimeout(() => {
-    const data = window._cotizacionSucursales || [];
-    const filtered = data.filter(s => (`${s.codigo} ${s.nombre} ${s.ciudad} ${s.direccion}`.toLowerCase().includes(qq)));
-    if (!filtered.length) { sel.innerHTML = '<option>No hay resultados</option>'; sel.style.display = ''; return; }
-    sel.innerHTML = filtered.map(s => `<option value="${esc(s.codigo)}">${esc(s.codigo)} — ${esc(s.nombre)}${s.es_principal?' ★':''} · ${esc(s.ciudad||'')}</option>`).join('');
-    sel.style.display = '';
-    sel.onchange = () => {
-      const opt = sel.options[sel.selectedIndex];
-      if (!opt || !opt.value || opt.textContent === 'No hay resultados') return;
-      const codigo = opt.value;
-      const s = data.find(x => x.codigo === codigo);
-      if (!s) return;
-      sel.value = s.codigo;
-      sel.style.display = 'none';
-      document.getElementById(inputId).value = '';
-      if (sDiv) {
-        sDiv.textContent = `✓ ${s.codigo} — ${s.nombre}  ✕`;
-        sDiv.style.display = ''; sDiv.style.cursor = 'pointer';
-        sDiv.onclick = () => { sDiv.style.display='none'; sel.value=''; sel.innerHTML=''; sel.style.display='none'; document.getElementById(inputId).value=''; };
-      }
-    };
-  }, 200);
+  if (principal) {
+    if (!facturarVal) fSel.value = principal.codigo;
+    if (!despacharVal) dSel.value = principal.codigo;
+  }
+  if (facturarVal) fSel.value = facturarVal;
+  if (despacharVal) dSel.value = despacharVal;
 }
 
 let _perfilListaDefaultCache = null;
@@ -2503,7 +2435,7 @@ async function setClienteCotizacion(clienteId) {
   sd.textContent = '✓ ' + c.nombre + ' — ' + (c.nit || '') + '  ✕';
   sd.style.display = ''; sd.style.cursor = 'pointer';
   sd.title = 'Click para quitar';
-  sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; search.value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-facturar-a').style.display='none'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').style.display='none'; document.getElementById('cotizacion-facturar-a-search').value=''; document.getElementById('cotizacion-despachar-a-search').value=''; document.getElementById('cotizacion-facturar-a-selected').style.display='none'; document.getElementById('cotizacion-despachar-a-selected').style.display='none'; document.getElementById('cotizacion-vendedor-info').style.display='none'; };
+  sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; search.value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-vendedor-info').style.display='none'; };
   sel.style.display = 'none';
   search.value = '';
   await cargarContactosCotizacion(c.id);
