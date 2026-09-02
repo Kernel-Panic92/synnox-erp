@@ -356,12 +356,12 @@
             <thead>
               <tr>
                 <th><input type="checkbox" id="select-all-cotizacion" onchange="toggleAll('cotizacion', this.checked)"></th>
-                <th>Numero</th>
-                <th>Cliente</th>
-                <th>Estado</th>
+                <th class="sortable" onclick="sortCotizaciones('numero')">Numero <span class="sort-indicator" id="sort-cot-numero"></span></th>
+                <th class="sortable" onclick="sortCotizaciones('cliente')">Cliente <span class="sort-indicator" id="sort-cot-cliente"></span></th>
+                <th class="sortable" onclick="sortCotizaciones('estado')">Estado <span class="sort-indicator" id="sort-cot-estado"></span></th>
                 <th>Items</th>
-                <th>Total</th>
-                <th>Vencimiento</th>
+                <th class="sortable" onclick="sortCotizaciones('total')">Total <span class="sort-indicator" id="sort-cot-total"></span></th>
+                <th class="sortable" onclick="sortCotizaciones('vencimiento')">Vencimiento <span class="sort-indicator" id="sort-cot-vencimiento"></span></th>
                 <th>Estado ERP</th>
                 <th>Doc. ERP</th>
                 <th>Acciones</th>

@@ -1708,6 +1708,8 @@ function formatDateTime(iso) {
 // ── Cotizaciones ──
 let _cotizacionesPage = 1;
 let _cotizacionItems = [];
+let _cotSort = 'creado_en';
+let _cotOrder = 'desc';
 
 async function cargarCotizaciones() {
   try {
@@ -1716,6 +1718,8 @@ async function cargarCotizaciones() {
     const estado = document.getElementById('filtro-cotizacion-estado')?.value;
     if (search) params.set('search', search);
     if (estado) params.set('estado', estado);
+    params.set('sort', _cotSort);
+    params.set('order', _cotOrder);
     params.set('page', _cotizacionesPage);
     params.set('limit', _limit);
 
@@ -1776,10 +1780,22 @@ async function cargarStatsCotizaciones() {
   } catch {}
 }
 
+function sortCotizaciones(col) {
+  if (_cotSort === col) _cotOrder = _cotOrder === 'asc' ? 'desc' : 'asc';
+  else { _cotSort = col; _cotOrder = 'asc'; }
+  // actualizar indicadores
+  document.querySelectorAll('[id^="sort-cot-"]').forEach(el => el.textContent = '');
+  const ind = document.getElementById('sort-cot-' + col);
+  if (ind) ind.textContent = _cotOrder === 'asc' ? '▲' : '▼';
+  cargarCotizaciones();
+}
+
 function limpiarFiltrosCotizaciones() {
   document.getElementById('filtro-cotizacion-search').value = '';
   document.getElementById('filtro-cotizacion-estado').value = '';
   _cotizacionesPage = 1;
+  _cotSort = 'creado_en'; _cotOrder = 'desc';
+  document.querySelectorAll('[id^="sort-cot-"]').forEach(el => el.textContent = '');
   cargarCotizaciones();
 }
 

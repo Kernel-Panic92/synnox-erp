@@ -109,13 +109,18 @@ router.get('/', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
     `, params);
     const total = parseInt(countResult.rows[0].count);
 
+    const { sort = 'creado_en', order = 'desc' } = req.query;
+    const allowedSort = { numero: 'c.numero', cliente: 'cl.nombre', estado: 'c.estado', items: 'total_items', total: 'c.valor_total', vencimiento: 'c.vencimiento', estado_erp: 'c.estado_erp', documento_erp: 'c.documento_erp', creado_en: 'c.creado_en' };
+    const sortCol = allowedSort[sort] || 'c.creado_en';
+    const sortOrder = order.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
+
     const result = await pool.query(`
       SELECT c.*, cl.nombre AS cliente_nombre,
         (SELECT COUNT(*) FROM crm.cotizacion_items ci WHERE ci.cotizacion_id = c.id) AS total_items
       FROM crm.cotizaciones c
       LEFT JOIN crm.clientes cl ON cl.id = c.cliente_id
       ${where}
-      ORDER BY c.creado_en DESC
+      ORDER BY ${sortCol} ${sortOrder}
       LIMIT $${paramIdx++} OFFSET $${paramIdx++}
     `, [...params, parseInt(limit), offset]);
 
