@@ -2089,13 +2089,13 @@ async function guardarCotizacion() {
 async function editarCotizacion(id) {
   const r = await apiFetch('/cotizaciones/' + id);
   if (!r.ok) return toast('Error al cargar', 'error');
-  abrirModalCotizacion(r.data);
+  abrirModalCotizacion(r.data.data);
 }
 
 async function verCotizacion(id) {
   const r = await apiFetch('/cotizaciones/' + id);
   if (!r.ok) return toast('Error al cargar', 'error');
-  const c = r.data;
+  const c = r.data.data;
 
   let itemsHtml = '';
   if (c.items?.length) {
