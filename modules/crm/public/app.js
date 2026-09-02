@@ -1786,6 +1786,20 @@ function limpiarFiltrosCotizaciones() {
 async function abrirModalCotizacion(cotizacion = null) {
   document.getElementById('modal-cotizacion-title').textContent = cotizacion ? 'Editar Cotizacion' : 'Nueva Cotizacion';
   document.getElementById('cotizacion-id').value = cotizacion?.id || '';
+  // Consecutivo preview
+  const preview = document.getElementById('cotizacion-numero-preview');
+  if (cotizacion?.numero) {
+    preview.textContent = `Consecutivo: ${cotizacion.numero}`;
+    preview.style.display = '';
+  } else {
+    preview.textContent = 'Generando consecutivo...';
+    preview.style.display = '';
+    try {
+      const r = await apiFetch('/cotizaciones/proximo-numero');
+      if (r.ok) preview.textContent = `Consecutivo: ${r.data.numero} (se asignará al guardar)`;
+      else preview.style.display = 'none';
+    } catch { preview.style.display = 'none'; }
+  }
   document.getElementById('cotizacion-validez').value = cotizacion?.validez_dias || 30;
   document.getElementById('cotizacion-descuento').value = 0;
   document.getElementById('cotizacion-notas').value = cotizacion?.notas || '';

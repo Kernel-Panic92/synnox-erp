@@ -45,6 +45,20 @@ async function recalcularTotales(client, cotizacionId) {
   return { subtotal, descuento, iva, total };
 }
 
+// GET /api/cotizaciones/proximo-numero — preview sin consumir consecutivo
+router.get('/proximo-numero', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+  try {
+    const cfg = await pool.query(`SELECT valor FROM crm.configuracion WHERE clave = 'numero_cotizacion_prefijo'`);
+    const con = await pool.query(`SELECT valor FROM crm.configuracion WHERE clave = 'numero_cotizacion_consecutivo'`);
+    const prefijo = cfg.rows[0]?.valor || 'COT';
+    const num = parseInt(con.rows[0]?.valor || '1');
+    const numero = `${prefijo}-${String(num).padStart(5, '0')}`;
+    res.json({ ok: true, numero });
+  } catch (err) {
+    res.status(500).json({ error: 'Error al obtener consecutivo' });
+  }
+});
+
 function buildCotizacionesWhere(req) {
   const { cliente_id, estado, search } = req.query;
   const conditions = [];
