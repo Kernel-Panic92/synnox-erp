@@ -166,7 +166,7 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil(
     await client.query('BEGIN');
     const { cliente_id, oportunidad_id, validez_dias, notas, items, descuento_pct,
             orden_compra, centro_operacion, bodega, condicion_pago, fecha_entrega,
-            unidad_negocio, punto_envio, motivo, vendedor_nombre } = req.body;
+            unidad_negocio, punto_envio, motivo, vendedor_nombre, facturar_a, despachar_a, lista_precios } = req.body;
     if (!cliente_id) return res.status(400).json({ error: 'El cliente es obligatorio' });
 
     const numero = await generarNumero(client);
@@ -176,14 +176,14 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil(
     const cot = await client.query(`
       INSERT INTO crm.cotizaciones (numero, cliente_id, oportunidad_id, validez_dias, vencimiento, notas, creado_por,
         orden_compra, centro_operacion, bodega, condicion_pago, fecha_entrega,
-        unidad_negocio, punto_envio, motivo, vendedor_nombre, propietario)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)
+        unidad_negocio, punto_envio, motivo, vendedor_nombre, propietario, facturar_a, despachar_a, lista_precios)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
       RETURNING *
     `, [numero, cliente_id, oportunidad_id || null, validez_dias || 30, vencimiento.toISOString().split('T')[0],
         notas || null, req.user.id,
         orden_compra || null, centro_operacion || null, bodega || null, condicion_pago || null,
         fecha_entrega || null, unidad_negocio || null, punto_envio || null, motivo || 'VENTAS',
-        vendedor_nombre || null, req.user.nombre || null]);
+        vendedor_nombre || null, req.user.nombre || null, facturar_a || null, despachar_a || null, lista_precios || null]);
 
     const cotizacionId = cot.rows[0].id;
 
@@ -234,7 +234,7 @@ router.put('/:id', requirePermiso('crear_cotizacion', 'crm'), async (req, res) =
 
     const fields = ['cliente_id', 'oportunidad_id', 'validez_dias', 'notas', 'moneda',
                     'orden_compra', 'centro_operacion', 'bodega', 'condicion_pago', 'fecha_entrega',
-                    'unidad_negocio', 'punto_envio', 'motivo', 'vendedor_nombre'];
+                    'unidad_negocio', 'punto_envio', 'motivo', 'vendedor_nombre', 'facturar_a', 'despachar_a', 'lista_precios'];
     const updates = [];
     const params = [];
     let paramIdx = 1;

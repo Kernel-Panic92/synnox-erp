@@ -1795,13 +1795,15 @@ async function abrirModalCotizacion(cotizacion = null) {
   document.getElementById('cotizacion-condicion-pago').value = cotizacion?.condicion_pago || '';
   document.getElementById('cotizacion-fecha-entrega').value = cotizacion?.fecha_entrega ? cotizacion.fecha_entrega.split('T')[0] : '';
 
-  // Reset cliente searchable
+  // Reset cliente searchable y sucursales
   document.getElementById('cotizacion-cliente-search').value = '';
   document.getElementById('cotizacion-cliente').style.display = 'none';
   document.getElementById('cotizacion-cliente').innerHTML = '';
   document.getElementById('cotizacion-cliente-selected').style.display = 'none';
   document.getElementById('cotizacion-cliente-selected').textContent = '';
   document.getElementById('cotizacion-contacto').innerHTML = '<option value="">Sin contacto</option>';
+  document.getElementById('cotizacion-facturar-a').innerHTML = '<option value="">Seleccione sucursal</option>';
+  document.getElementById('cotizacion-despachar-a').innerHTML = '<option value="">Seleccione sucursal</option>';
   if (cotizacion?.cliente_id) {
     const rc = await apiFetch('/clientes/' + cotizacion.cliente_id);
     if (rc.ok) {
@@ -1812,8 +1814,23 @@ async function abrirModalCotizacion(cotizacion = null) {
       const sd = document.getElementById('cotizacion-cliente-selected');
       sd.textContent = '✓ ' + c.nombre + ' — ' + (c.nit || '') + '  ✕';
       sd.style.display = ''; sd.style.cursor = 'pointer';
-      sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; document.getElementById('cotizacion-cliente-search').value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; };
+      sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; document.getElementById('cotizacion-cliente-search').value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-condicion-pago').value=''; };
       await cargarContactosCotizacion(c.id, cotizacion?.contacto_id || null);
+      await cargarSucursalesCotizacion(c.id, cotizacion?.facturar_a || null, cotizacion?.despachar_a || null);
+      // defaults del cliente
+      if (!cotizacion?.condicion_pago && c.medio_pago) document.getElementById('cotizacion-condicion-pago').value = c.medio_pago + (c.medio_pago_desc ? ' — ' + c.medio_pago_desc : '');
+      if (!cotizacion?.centro_operacion && c.c_o_factura_desc) {
+        // intenta mapear centro por nombre
+        const centroSel = document.getElementById('cotizacion-centro-op');
+        const opt = [...centroSel.options].find(o => o.textContent.includes(c.c_o_factura_desc));
+        if (opt) centroSel.value = opt.value;
+      }
+      // lista de precios asignada al cliente (info)
+      if (c.lista_precio_codigo || c.lista_precios) {
+        const lp = c.lista_precio_codigo || c.lista_precios;
+        const bodegaSel = document.getElementById('cotizacion-notas');
+        // hint visual ya que no hay campo dedicado
+      }
     }
   }
   await cargarOportunidadesSelect('cotizacion-oportunidad', cotizacion?.oportunidad_id);
@@ -1861,10 +1878,25 @@ async function filtrarCotizacionClientes(q) {
       sd.textContent = '✓ ' + opt.textContent + '  ✕';
       sd.style.display = ''; sd.style.cursor = 'pointer';
       sd.title = 'Click para quitar';
-      sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; sel.style.display='none'; document.getElementById('cotizacion-cliente-search').value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; };
+      sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; sel.style.display='none'; document.getElementById('cotizacion-cliente-search').value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; };
       sel.style.display = 'none';
       document.getElementById('cotizacion-cliente-search').value = '';
       await cargarContactosCotizacion(opt.value);
+      await cargarSucursalesCotizacion(opt.value);
+      // trae defaults del cliente: condicion pago y lista precios
+      try {
+        const cr = await apiFetch('/clientes/' + opt.value);
+        if (cr.ok) {
+          const c = cr.data.data;
+          if (c.medio_pago && !document.getElementById('cotizacion-condicion-pago').value) document.getElementById('cotizacion-condicion-pago').value = c.medio_pago + (c.medio_pago_desc ? ' — ' + c.medio_pago_desc : '');
+          // lista de precios asignada (info)
+          if (c.lista_precio_codigo || c.lista_precios) {
+            const lp = c.lista_precio_codigo || c.lista_precios;
+            // guarda para uso en catalogo
+            window._cotizacionListaPrecio = lp;
+          }
+        }
+      } catch {}
     };
   }, 300);
 }
@@ -1877,6 +1909,32 @@ async function cargarContactosCotizacion(clienteId, selectedId = null) {
   if (!r.ok) return;
   const data = r.data.data || [];
   sel.innerHTML = '<option value="">Sin contacto</option>' + data.map(c => `<option value="${c.id}" ${c.id === selectedId ? 'selected' : ''}>${esc(c.nombre)}${c.cargo ? ' — '+esc(c.cargo):''}</option>`).join('');
+}
+
+async function cargarSucursalesCotizacion(clienteId, facturarVal = null, despacharVal = null) {
+  const fSel = document.getElementById('cotizacion-facturar-a');
+  const dSel = document.getElementById('cotizacion-despachar-a');
+  if (!fSel || !dSel) return;
+  fSel.innerHTML = '<option value="">Seleccione sucursal</option>';
+  dSel.innerHTML = '<option value="">Seleccione sucursal</option>';
+  if (!clienteId) return;
+  const r = await apiFetch('/clientes/' + clienteId + '/sucursales');
+  if (!r.ok) return;
+  const data = r.data.data || [];
+  const opts = data.map(s => {
+    const label = `${esc(s.codigo)} — ${esc(s.nombre)}${s.es_principal ? ' ★ Principal' : ''} · ${esc(s.ciudad || '')}`;
+    return `<option value="${esc(s.codigo)}" data-id="${s.id}">${label}</option>`;
+  }).join('');
+  fSel.innerHTML = '<option value="">Seleccione sucursal</option>' + opts;
+  dSel.innerHTML = '<option value="">Seleccione sucursal</option>' + opts;
+  // default a principal
+  const principal = data.find(s => s.es_principal);
+  if (principal) {
+    if (!facturarVal) fSel.value = principal.codigo;
+    if (!despacharVal) dSel.value = principal.codigo;
+  }
+  if (facturarVal) fSel.value = facturarVal;
+  if (despacharVal) dSel.value = despacharVal;
 }
 
 async function cargarCentrosCotizacion(selected) {
@@ -2059,8 +2117,13 @@ function actualizarTotalesCotizacion() {
 
 async function guardarCotizacion() {
   const id = document.getElementById('cotizacion-id').value;
+  const facturarA = document.getElementById('cotizacion-facturar-a').value || null;
+  const despacharA = document.getElementById('cotizacion-despachar-a').value || null;
+  if (!facturarA || !despacharA) return toast('Seleccione Facturar a y Despachar a (sucursal)', 'error');
   const body = {
     cliente_id: document.getElementById('cotizacion-cliente').value,
+    facturar_a: facturarA,
+    despachar_a: despacharA,
     oportunidad_id: document.getElementById('cotizacion-oportunidad').value || null,
     validez_dias: parseInt(document.getElementById('cotizacion-validez').value) || 30,
     notas: document.getElementById('cotizacion-notas').value,
@@ -2070,6 +2133,7 @@ async function guardarCotizacion() {
     bodega: document.getElementById('cotizacion-bodega').value || null,
     condicion_pago: document.getElementById('cotizacion-condicion-pago').value || null,
     fecha_entrega: document.getElementById('cotizacion-fecha-entrega').value || null,
+    lista_precios: window._cotizacionListaPrecio || null,
     items: _cotizacionItems.filter(it => it.descripcion?.trim())
   };
 
@@ -2326,10 +2390,13 @@ async function setClienteCotizacion(clienteId) {
   sd.textContent = '✓ ' + c.nombre + ' — ' + (c.nit || '') + '  ✕';
   sd.style.display = ''; sd.style.cursor = 'pointer';
   sd.title = 'Click para quitar';
-  sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; search.value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; };
+  sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; search.value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; };
   sel.style.display = 'none';
   search.value = '';
   await cargarContactosCotizacion(c.id);
+  await cargarSucursalesCotizacion(c.id);
+  if (c.medio_pago && !document.getElementById('cotizacion-condicion-pago').value) document.getElementById('cotizacion-condicion-pago').value = c.medio_pago + (c.medio_pago_desc ? ' — ' + c.medio_pago_desc : '');
+  if (c.lista_precio_codigo || c.lista_precios) window._cotizacionListaPrecio = c.lista_precio_codigo || c.lista_precios;
   toast('Cliente cargado desde oportunidad', 'success');
 }
 
