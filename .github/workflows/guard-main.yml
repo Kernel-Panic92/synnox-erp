@@ -1,0 +1,26 @@
+name: Guard main
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Block direct push to main by non-owners
+        run: |
+          ACTOR="${{ github.actor }}"
+          echo "Push to main detected by: $ACTOR"
+          echo "Event: ${{ github.event_name }}"
+          # Solo Kernel-Panic92 puede pushear/mergear a main.
+          # La auxiliar debe usar PR: fork:fix/* -> origin:main
+          # En Free private no hay branch protection nativa (403),
+          # este guard es soft-enforcement: falla el check y deja traza.
+          if [ "$ACTOR" != "Kernel-Panic92" ]; then
+            echo "::error::Direct push to main blocked. Use a PR and wait for @Kernel-Panic92 approval."
+            echo "Actor $ACTOR is not allowed to push directly to main."
+            echo "Flujo correcto: git checkout incidentes -b fix/inc-XXX -> push -> PR a main"
+            exit 1
+          fi
+          echo "Push authorized: $ACTOR is owner."

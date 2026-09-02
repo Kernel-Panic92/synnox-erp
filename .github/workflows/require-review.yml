@@ -1,0 +1,38 @@
+name: Require owner review
+
+on:
+  pull_request:
+    branches: [main]
+  pull_request_review:
+    types: [submitted, dismissed]
+
+jobs:
+  require-owner-approval:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check for approval from CODEOWNER
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          PR="${{ github.event.pull_request.number || github.event.pull_request.number }}"
+          # Cuando el evento es pull_request_review, el número viene igual
+          if [ -z "$PR" ]; then
+            PR="${{ github.event.pull_request.number }}"
+          fi
+          # fallback: extraer de payload review
+          if [ -z "$PR" ] || [ "$PR" = "null" ]; then
+            PR=$(jq -r '.pull_request.number // .pull_request_number // empty' "$GITHUB_EVENT_PATH" 2>/dev/null || echo "")
+          fi
+          if [ -z "$PR" ] || [ "$PR" = "null" ]; then
+            echo "No PR number found, skipping check (event: ${{ github.event_name }})"
+            exit 0
+          fi
+          echo "Checking approvals for PR #$PR"
+          # Busca review APROVADO de Kernel-Panic92
+          APPROVED=$(gh api repos/${{ github.repository }}/pulls/$PR/reviews --paginate | jq '[.[] | select(.state=="APPROVED" and .author_association!="NONE")] | map(.user.login) | any(.=="Kernel-Panic92")')
+          echo "Approved by owner: $APPROVED"
+          if [ "$APPROVED" != "true" ]; then
+            echo "::error::PR #$PR requires approval from @Kernel-Panic92 (CODEOWNERS). Pide review al owner antes de mergear."
+            exit 1
+          fi
+          echo "Owner approval present."
