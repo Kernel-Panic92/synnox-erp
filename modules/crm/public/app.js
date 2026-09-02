@@ -1834,8 +1834,10 @@ async function abrirModalCotizacion(cotizacion = null) {
       }
       // lista de precios asignada al cliente (visible)
       {
-        const lp = cotizacion?.lista_precios || c.lista_precio_codigo || c.lista_precios || '200';
-        const lpDesc = c.lista_precios && c.lista_precios !== lp ? c.lista_precios : (lp === '200' ? 'GENERAL HORECA' : '');
+        let lp = cotizacion?.lista_precios || c.lista_precio_codigo || c.lista_precios;
+        if (!lp) lp = await getPerfilListaDefault();
+        const def = await getPerfilListaDefault();
+        const lpDesc = c.lista_precios && c.lista_precios !== lp ? c.lista_precios : (lp === def ? 'GENERAL HORECA' : '');
         const lpLabel = lpDesc ? `${lp} — ${lpDesc}` : lp;
         document.getElementById('cotizacion-lista-precios').value = lpLabel;
         window._cotizacionListaPrecio = lp;
@@ -1847,10 +1849,11 @@ async function abrirModalCotizacion(cotizacion = null) {
       }
     }
   }
-  // si no hay cliente, default lista HORECA 200 (perfil sugerido)
+  // si no hay cliente, default lista del perfil (o 200)
+  const defLista = await getPerfilListaDefault();
   if (!cotizacion?.cliente_id && !cotizacion?.lista_precios) {
-    document.getElementById('cotizacion-lista-precios').value = '200 — GENERAL HORECA';
-    window._cotizacionListaPrecio = '200';
+    document.getElementById('cotizacion-lista-precios').value = defLista + ' — GENERAL HORECA';
+    window._cotizacionListaPrecio = defLista;
   } else if (cotizacion?.lista_precios && !document.getElementById('cotizacion-lista-precios').value) {
     document.getElementById('cotizacion-lista-precios').value = cotizacion.lista_precios;
     window._cotizacionListaPrecio = cotizacion.lista_precios;
@@ -1911,9 +1914,19 @@ async function filtrarCotizacionClientes(q) {
         if (cr.ok) {
           const c = cr.data.data;
           if (c.medio_pago && !document.getElementById('cotizacion-condicion-pago').value) document.getElementById('cotizacion-condicion-pago').value = c.medio_pago + (c.medio_pago_desc ? ' — ' + c.medio_pago_desc : '');
-          const lp = c.lista_precio_codigo || c.lista_precios || '200';
-          const lpDesc = c.lista_precios && c.lista_precios !== lp ? c.lista_precios : (lp === '200' ? 'GENERAL HORECA' : '');
-          const lpLabel = lpDesc ? `${lp} — ${lpDesc}` : lp;
+          let lp = c.lista_precio_codigo || c.lista_precios;
+          if (!lp) lp = await getPerfilListaDefault();
+          const lpDesc = c.lista_precios && c.lista_precios !== lp ? c.lista_precios : (lp === (await getPerfilListaDefault()) ? 'GENERAL HORECA' : '');
+          // fallback to resolve name if needed
+          let lpLabel = lpDesc ? `${lp} — ${lpDesc}` : lp;
+          // try to resolve name from maestro cache if desc is just code
+          if (!lpDesc || lpDesc === lp) {
+            try {
+              const cache = window._maestroCache?.['perfil-maestro-lista_precio'];
+              const found = cache?.find(x=> String(x.codigo)===String(lp));
+              if (found) lpLabel = `${lp} — ${found.nombre}`;
+            } catch {}
+          }
           document.getElementById('cotizacion-lista-precios').value = lpLabel;
           window._cotizacionListaPrecio = lp;
           const vend = c.razon_social_vendedor || (c.vendedor_codigo ? `Vendedor ${c.vendedor_codigo}` : '');
@@ -2021,6 +2034,20 @@ async function filtrarSucursalCotizacion(tipo, q) {
       }
     };
   }, 200);
+}
+
+let _perfilListaDefaultCache = null;
+async function getPerfilListaDefault() {
+  if (_perfilListaDefaultCache) return _perfilListaDefaultCache;
+  try {
+    const r = await apiFetch('/perfiles-venta/me/config', { cache: 'no-store' });
+    if (r.ok && r.data.config?.lista_por_defecto) {
+      _perfilListaDefaultCache = String(r.data.config.lista_por_defecto);
+      return _perfilListaDefaultCache;
+    }
+  } catch {}
+  _perfilListaDefaultCache = '200';
+  return _perfilListaDefaultCache;
 }
 
 async function cargarCentrosCotizacion(selected) {
@@ -2219,7 +2246,7 @@ async function guardarCotizacion() {
     bodega: document.getElementById('cotizacion-bodega').value || null,
     condicion_pago: document.getElementById('cotizacion-condicion-pago').value || null,
     fecha_entrega: document.getElementById('cotizacion-fecha-entrega').value || null,
-    lista_precios: (document.getElementById('cotizacion-lista-precios').value.split(' — ')[0].trim() || window._cotizacionListaPrecio || '200'),
+    lista_precios: (document.getElementById('cotizacion-lista-precios').value.split(' — ')[0].trim() || window._cotizacionListaPrecio || await getPerfilListaDefault()),
     items: _cotizacionItems.filter(it => it.descripcion?.trim())
   };
 
@@ -2483,8 +2510,10 @@ async function setClienteCotizacion(clienteId) {
   await cargarSucursalesCotizacion(c.id);
   if (c.medio_pago && !document.getElementById('cotizacion-condicion-pago').value) document.getElementById('cotizacion-condicion-pago').value = c.medio_pago + (c.medio_pago_desc ? ' — ' + c.medio_pago_desc : '');
   {
-    const lp = c.lista_precio_codigo || c.lista_precios || '200';
-    const lpDesc = c.lista_precios && c.lista_precios !== lp ? c.lista_precios : (lp === '200' ? 'GENERAL HORECA' : '');
+    let lp = c.lista_precio_codigo || c.lista_precios;
+    if (!lp) lp = await getPerfilListaDefault();
+    const def = await getPerfilListaDefault();
+    const lpDesc = c.lista_precios && c.lista_precios !== lp ? c.lista_precios : (lp === def ? 'GENERAL HORECA' : '');
     document.getElementById('cotizacion-lista-precios').value = lpDesc ? `${lp} — ${lpDesc}` : lp;
     window._cotizacionListaPrecio = lp;
   }
@@ -3164,6 +3193,17 @@ async function abrirModalPerfilVenta(id){
     cargarMaestroChecklist('centro_costo','perfil-maestro-centro_costo', cfg.centros_costo||cfg.centro_costo||[]),
     cargarMaestroChecklist('unidad_negocio','perfil-maestro-unidad_negocio', cfg.unidades_negocio||cfg.unidad_negocio||[]),
   ]);
+  // Lista por defecto
+  try {
+    const listaData = window._maestroCache['perfil-maestro-lista_precio'] || [];
+    const selDefault = document.getElementById('perfil-lista-default');
+    if (selDefault) {
+      selDefault.innerHTML = '<option value="">Sin lista por defecto (usa 200 — GENERAL HORECA)</option>' + listaData.map(it=>`<option value="${esc(it.codigo)}" ${String(cfg.lista_por_defecto||'')===String(it.codigo)?'selected':''}>${esc(it.codigo)} — ${esc(it.nombre)}</option>`).join('');
+      if (cfg.lista_por_defecto && !listaData.find(x=> String(x.codigo)===String(cfg.lista_por_defecto))) {
+        selDefault.innerHTML += `<option value="${esc(cfg.lista_por_defecto)}" selected>${esc(cfg.lista_por_defecto)} (actual)</option>`;
+      }
+    }
+  } catch {}
   // Descuentos
   const d = cfg.descuentos || {};
   document.getElementById('perfil-desc-modalidad').value = d.modalidad || 'CRM';
@@ -3357,6 +3397,7 @@ async function guardarPerfilVenta(){
   if(!nombre) return toast('Nombre requerido','error');
   const config = {
     listas_precio: getCheckedValues('perfil-maestro-lista_precio'),
+    lista_por_defecto: document.getElementById('perfil-lista-default')?.value || null,
     motivo_venta: getCheckedValues('perfil-maestro-motivo_venta'),
     tipo_documento: getCheckedValues('perfil-maestro-tipo_documento'),
     bodega: getCheckedValues('perfil-maestro-bodega'),
