@@ -47,7 +47,48 @@ button, .btn {
 .tbl th.sortable:hover { color: var(--text); }
 .tbl th .sort-indicator { font-size: 10px; margin-left: 2px; }
 .tbl td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; }
+.tbl td:last-child { white-space: nowrap; }
+.tbl td:last-child .btn { display: inline-flex; width: 32px; height: 32px; padding: 0; justify-content: center; align-items: center; line-height: 1; vertical-align: middle; }
 .tbl tr:hover { background: rgba(255,255,255,.02); }
+.row-no-erp { background: rgba(220,38,38,0.07); }
+.row-no-erp:hover { background: rgba(220,38,38,0.11); }
+.row-no-erp td:first-child { border-left: 3px solid var(--danger); }
+
+/* Tablas scrollables con header fijo y responsive */
+.tbl-scrollable { max-height: 420px; overflow-y: auto; overflow-x: hidden; container-type: inline-size; container-name: tbl-responsive; }
+.tbl-scrollable .tbl { width: 100%; table-layout: fixed; }
+.tbl-scrollable .tbl thead th { position: sticky; top: 0; background: var(--surface2); z-index: 1; }
+.tbl-scrollable .tbl th,
+.tbl-scrollable .tbl td { overflow-wrap: break-word; word-break: break-word; }
+.tbl-scrollable .tbl td:last-child { white-space: nowrap; text-align: right; }
+.tbl-scrollable .tbl td:last-child .btn { width: 28px; height: 28px; }
+
+/* Anchos de columnas para tabla de sucursales */
+.tbl-scrollable .tbl th:nth-child(1),
+.tbl-scrollable .tbl td:nth-child(1) { width: 52px; }
+.tbl-scrollable .tbl th:nth-child(2),
+.tbl-scrollable .tbl td:nth-child(2) { width: 20%; }
+.tbl-scrollable .tbl th:nth-child(3),
+.tbl-scrollable .tbl td:nth-child(3) { width: 24%; }
+.tbl-scrollable .tbl th:nth-child(4),
+.tbl-scrollable .tbl td:nth-child(4) { width: 12%; }
+.tbl-scrollable .tbl th:nth-child(5),
+.tbl-scrollable .tbl td:nth-child(5) { width: 12%; }
+.tbl-scrollable .tbl th:nth-child(6),
+.tbl-scrollable .tbl td:nth-child(6) { width: 13%; }
+.tbl-scrollable .tbl th:nth-child(7),
+.tbl-scrollable .tbl td:nth-child(7) { width: 10%; }
+.tbl-scrollable .tbl th:nth-child(8),
+.tbl-scrollable .tbl td:nth-child(8) { width: 76px; }
+
+@container tbl-responsive (max-width: 680px) {
+  .tbl-scrollable .tbl th:nth-child(5),
+  .tbl-scrollable .tbl td:nth-child(5) { display: none; }
+}
+@container tbl-responsive (max-width: 560px) {
+  .tbl-scrollable .tbl th:nth-child(4),
+  .tbl-scrollable .tbl td:nth-child(4) { display: none; }
+}
 
 /* ── Forms ── */
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }

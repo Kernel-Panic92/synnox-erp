@@ -640,6 +640,7 @@ const modules = [
   { id: 'nomina', nombre: 'Nómina', descripcion: 'Sistema de control de novedades y horas extra', url: `http://localhost:${PORT}`, icon: '👥', orden: 2, proxy_prefix: '/nomina/', tipo: 'interno', dashboard_endpoint: '/nomina/api/dashboard/resumen' },
   { id: 'logistica', nombre: 'Logística', descripcion: 'Optimización de rutas y pedidos', url: `http://localhost:${PORT}`, icon: '🚚', orden: 3, proxy_prefix: '/logistica/', tipo: 'interno', dashboard_endpoint: '/logistica/api/dashboard/resumen' },
   { id: 'proyectos', nombre: 'Proyectos', descripcion: 'Gestión de proyectos y tareas', url: `http://localhost:${PORT}`, icon: '📋', orden: 4, proxy_prefix: '/proyectos/', tipo: 'interno', dashboard_endpoint: '/proyectos/api/dashboard' },
+  { id: 'crm', nombre: 'CRM', descripcion: 'Contactos, pipeline y visitas GPS', url: `http://localhost:${PORT}`, icon: '💼', orden: 5, proxy_prefix: '/crm/', tipo: 'interno', dashboard_endpoint: '/crm/api/dashboard' },
 ];
 const insModule = db.prepare(`INSERT OR IGNORE INTO modulos_plataforma (id, nombre, descripcion, url, public_url, icon, mcp_enabled, activo, orden, proxy_prefix, tipo, dashboard_endpoint)
     VALUES (?, ?, ?, ?, '', ?, 1, 1, ?, ?, ?, ?)`);
@@ -836,6 +837,24 @@ const defaultPermisosConfig = {
     ['comentar', 'Añadir comentarios'],
     ['configurar', 'Configurar módulo'],
     ['ver_reportes', 'Ver reportes y métricas']
+  ],
+  crm: [
+    ['ver', 'Ver dashboard y listados'],
+    ['crear_contacto', 'Crear contactos y empresas'],
+    ['editar_contacto', 'Editar contactos y empresas'],
+    ['eliminar_contacto', 'Eliminar contactos y empresas'],
+    ['ver_pipeline', 'Ver pipeline de oportunidades'],
+    ['editar_pipeline', 'Mover oportunidades entre etapas'],
+    ['crear_oportunidad', 'Crear oportunidades'],
+    ['registrar_visita', 'Check-in/out GPS'],
+    ['ver_visitas', 'Ver visitas de todos'],
+    ['ver_mis_visitas', 'Ver solo propias'],
+    ['crear_cotizacion', 'Crear cotizaciones'],
+    ['aprobar_descuento', 'Aprobar solicitudes de descuento'],
+    ['campanas', 'Gestionar campañas email'],
+    ['reportes', 'Ver reportes y métricas'],
+    ['configurar', 'Configurar módulo'],
+    ['siesa_sync', 'Sincronizar datos con SIESA']
   ]
 };
 
@@ -2173,7 +2192,7 @@ app.put('/api/admin/modulos/:id', verificarToken, soloAdmin, (req, res) => {
 
 app.delete('/api/admin/modulos/:id', verificarToken, soloAdmin, (req, res) => {
   const { id } = req.params;
-  const builtin = ['proveedores', 'nomina', 'logistica', 'proyectos'];
+  const builtin = ['proveedores', 'nomina', 'logistica', 'proyectos', 'crm'];
   if (builtin.includes(id)) return res.status(400).json({ error: 'No se pueden eliminar módulos del sistema' });
   db.prepare('DELETE FROM modulos_plataforma WHERE id = ?').run(id);
   db.prepare('DELETE FROM user_modulos WHERE modulo_id = ?').run(id);
