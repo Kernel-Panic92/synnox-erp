@@ -21,10 +21,13 @@ CREATE TABLE IF NOT EXISTS crm.usuario_perfil_venta (
   UNIQUE(usuario_id, perfil_venta_id)
 );
 
--- Seed 3 perfiles clonando launcher.perfiles 2882-2884 si existen (plantillas sin asignar)
--- Nota: se ejecuta en cada arranque vía run.js (IDEMPOTENTE por nombre UNIQUE)
-INSERT INTO crm.perfiles_venta (nombre, descripcion) VALUES
+-- Seed 3 perfiles solo si la tabla está vacía (respeta borrados manuales)
+-- Se ejecuta en cada arranque vía run.js, pero no recrea perfiles borrados por el admin
+INSERT INTO crm.perfiles_venta (nombre, descripcion)
+SELECT nombre, descripcion FROM (VALUES
   ('CRM - Gerencia', 'Perfil gerencial que ve todo (mapeo SIESA Gerencia) - gestionado en CRM Admin'),
   ('CRM - Comercial', 'Rol para los comerciales (SIESA Comercial): sin borrado ni aprobación descuentos'),
   ('CRM - Aprobador Descuentos', 'Solo aprueba cotizaciones que superen rango (Flujo Notificación Jacques)')
+) AS v(nombre, descripcion)
+WHERE NOT EXISTS (SELECT 1 FROM crm.perfiles_venta)
 ON CONFLICT (nombre) DO NOTHING;

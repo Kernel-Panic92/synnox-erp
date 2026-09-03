@@ -3430,7 +3430,7 @@ async function abrirModalPerfilVentaUsuarios(id){
   const r=await apiFetch('/perfiles-venta/'+id+'/usuarios'); if(!r.ok) return toast(r.data?.error||'Error','error');
   _perfilVentaUsuariosCache=r.data.usuarios||[];
   const asignados=new Set(r.data.asignados||[]);
-  document.getElementById('perfil-venta-usuarios-lista').innerHTML=_perfilVentaUsuariosCache.map(u=>`<label style="display:flex;gap:8px;align-items:center;padding:6px;border-bottom:1px solid var(--border)"><input type="checkbox" value="${u.id}" ${asignados.has(u.id)?'checked':''}> <span style="flex:1"><strong>${esc(u.nombre)}</strong> <span style="color:var(--muted)">${esc(u.email||'')}</span></span><span style="font-size:11px;color:var(--muted)">${esc(u.rol||'')}</span></label>`).join('');
+   document.getElementById('perfil-venta-usuarios-lista').innerHTML=_perfilVentaUsuariosCache.map(u=>`<label style="display:flex;gap:10px;align-items:flex-start;padding:8px 6px;border-bottom:1px solid var(--border);cursor:pointer"><input type="checkbox" value="${u.id}" ${asignados.has(u.id)?'checked':''} style="margin-top:3px;flex-shrink:0"> <span style="flex:1;min-width:0"><strong style="display:block;line-height:1.2">${esc(u.nombre)}</strong> <span style="color:var(--muted);font-size:12px;word-break:break-all">${esc(u.email||'')}</span></span><span style="font-size:11px;color:var(--muted);flex-shrink:0;align-self:center">${esc(u.rol||'')}</span></label>`).join('');
   document.getElementById('perfil-venta-usuarios-filtro').value='';
   showModal('modal-perfil-venta-usuarios');
 }
