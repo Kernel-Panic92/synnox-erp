@@ -32,6 +32,41 @@ export function requireVentasPerfil(permiso) {
   };
 }
 
+// GET /api/perfiles-venta/me/config — config del perfil asignado (lista por defecto, etc.)
+router.get('/me/config', async (req, res) => {
+  try {
+    if (!req.user) return res.status(401).json({error:'No autenticado'});
+    const r = await pool.query(`
+      SELECT pv.config FROM crm.perfiles_venta pv
+      JOIN crm.usuario_perfil_venta up ON up.perfil_venta_id = pv.id
+      WHERE up.usuario_id = $1
+      ORDER BY pv.id LIMIT 1
+    `, [req.user.id]);
+    // admin sin perfil asignado -> usa primer perfil gerencia como fallback
+    let cfg = r.rows[0]?.config || null;
+    if (!cfg && req.user?.rol === 'admin') {
+      const fb = await pool.query(`SELECT config FROM crm.perfiles_venta WHERE nombre ILIKE '%gerencia%' LIMIT 1`);
+      cfg = fb.rows[0]?.config || {};
+    }
+    res.json({ ok:true, config: cfg || {} });
+  } catch (err){ res.status(500).json({error:err.message}); }
+});
+
+// GET /api/perfiles-venta/me — mis perfiles y permisos efectivos (para frontend)
+router.get('/me/mis-permisos', async (req, res) => {
+  try {
+    // Este endpoint no requiere configurar, solo auth
+    if (!req.user) return res.status(401).json({error:'No autenticado'});
+    const r = await pool.query(`
+      SELECT DISTINCT pvp.permiso
+      FROM crm.usuario_perfil_venta up
+      JOIN crm.perfil_venta_permisos pvp ON pvp.perfil_id = up.perfil_venta_id
+      WHERE up.usuario_id=$1
+    `, [req.user.id]);
+    res.json({ ok:true, permisos: r.rows.map(x=>x.permiso) });
+  } catch (err){ res.status(500).json({error:err.message}); }
+});
+
 // GET /api/perfiles-venta/usuarios-all — todos los usuarios activos (para aprobadores, sin necesidad de perfil)
 router.get('/usuarios-all', requirePermiso('configurar', 'crm'), async (req, res) => {
   try {
@@ -129,43 +164,8 @@ router.put('/:id/usuarios', requirePermiso('configurar', 'crm'), async (req, res
     for (const uid of usuario_ids) await client.query(ins, [parseInt(uid), perfilId]);
     await client.query('COMMIT');
     res.json({ ok:true, count: usuario_ids.length });
-  } catch (err){ await pool.query('ROLLBACK').catch(()=>{}); res.status(500).json({error:err.message}); }
+  } catch (err){ await client.query('ROLLBACK').catch(()=>{}); res.status(500).json({error:err.message}); }
   finally { client.release(); }
-});
-
-// GET /api/perfiles-venta/me/config — config del perfil asignado (lista por defecto, etc.)
-router.get('/me/config', async (req, res) => {
-  try {
-    if (!req.user) return res.status(401).json({error:'No autenticado'});
-    const r = await pool.query(`
-      SELECT pv.config FROM crm.perfiles_venta pv
-      JOIN crm.usuario_perfil_venta up ON up.perfil_venta_id = pv.id
-      WHERE up.usuario_id = $1
-      ORDER BY pv.id LIMIT 1
-    `, [req.user.id]);
-    // admin sin perfil asignado -> usa primer perfil gerencia como fallback
-    let cfg = r.rows[0]?.config || null;
-    if (!cfg && req.user?.rol === 'admin') {
-      const fb = await pool.query(`SELECT config FROM crm.perfiles_venta WHERE nombre ILIKE '%gerencia%' LIMIT 1`);
-      cfg = fb.rows[0]?.config || {};
-    }
-    res.json({ ok:true, config: cfg || {} });
-  } catch (err){ res.status(500).json({error:err.message}); }
-});
-
-// GET /api/perfiles-venta/me — mis perfiles y permisos efectivos (para frontend)
-router.get('/me/mis-permisos', async (req, res) => {
-  try {
-    // Este endpoint no requiere configurar, solo auth
-    if (!req.user) return res.status(401).json({error:'No autenticado'});
-    const r = await pool.query(`
-      SELECT DISTINCT pvp.permiso
-      FROM crm.usuario_perfil_venta up
-      JOIN crm.perfil_venta_permisos pvp ON pvp.perfil_id = up.perfil_venta_id
-      WHERE up.usuario_id=$1
-    `, [req.user.id]);
-    res.json({ ok:true, permisos: r.rows.map(x=>x.permiso) });
-  } catch (err){ res.status(500).json({error:err.message}); }
 });
 
 export default router;
