@@ -260,6 +260,21 @@ async function login() {
   }
 }
 
+document.addEventListener('keydown', function (e) {
+  if (e.key !== 'Enter') return;
+  const t = e.target;
+  if (!t || !t.id) return;
+  if (t.id === 'login-user' || t.id === 'login-pass') {
+    login();
+  } else if (t.id === 'reanudar-email' || t.id === 'reanudar-pass') {
+    reanudarSesion();
+  } else if (t.id === 'forgot-email') {
+    sendResetToken();
+  } else if (t.id === 'reset-password' || t.id === 'reset-password2') {
+    submitReset();
+  }
+});
+
 let launcherVersion = '';
 let launcherCommit = '';
 
