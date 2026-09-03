@@ -2102,7 +2102,8 @@ async function buscarProductosCatalogo() {
   _buscarProductoTimer = setTimeout(async () => {
     const q = document.getElementById('buscar-producto-input')?.value;
     if (!q || q.length < 2) { document.getElementById('catalogo-resultados').innerHTML = '<p style="color:var(--muted);font-size:12px">Escribe al menos 2 caracteres para buscar.</p>'; return; }
-    const r = await apiFetch('/productos/buscar?q=' + encodeURIComponent(q));
+    const lista = (document.getElementById('cotizacion-lista-precios')?.value||'').split(' — ')[0].trim() || window._cotizacionListaPrecio || await getPerfilListaDefault();
+    const r = await apiFetch('/productos/buscar?q=' + encodeURIComponent(q) + '&lista=' + encodeURIComponent(lista));
     if (!r.ok) return;
     const data = r.data.data || [];
     if (!data.length) { document.getElementById('catalogo-resultados').innerHTML = '<p style="color:var(--muted);font-size:12px">No se encontraron productos.</p>'; return; }
@@ -2173,7 +2174,8 @@ async function onReferenciaChange(idx, codigo) {
   _cotizacionItems[idx].referencia = val;
   if (!val || val.length < 2) { renderItemsCotizacion(); return; }
   try {
-    const r = await apiFetch('/productos/buscar?q=' + encodeURIComponent(val));
+    const lista = (document.getElementById('cotizacion-lista-precios')?.value||'').split(' — ')[0].trim() || window._cotizacionListaPrecio || await getPerfilListaDefault();
+    const r = await apiFetch('/productos/buscar?q=' + encodeURIComponent(val) + '&lista=' + encodeURIComponent(lista));
     if (!r.ok || !r.data.data.length) { renderItemsCotizacion(); return; }
     const exact = r.data.data.find(p => String(p.codigo).toLowerCase() === val.toLowerCase()) || r.data.data[0];
     if (exact) {

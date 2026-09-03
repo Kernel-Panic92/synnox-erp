@@ -77,19 +77,37 @@ router.get('/stats', requirePermiso('crear_cotizacion', 'crm'), async (req, res)
   }
 });
 
-// GET /api/productos/buscar — Buscar para autocompletado
+// GET /api/productos/buscar — Buscar para catálogo (usa precio de la lista si se especifica)
 router.get('/buscar', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
   try {
-    const { q, limit = 20 } = req.query;
+    const { q, limit = 20, lista } = req.query;
     if (!q || q.length < 2) return res.json({ ok: true, data: [] });
 
-    const result = await pool.query(`
-      SELECT id, codigo, nombre, unidad_medida, precio_unitario, tasa_impuesto, bodega
-      FROM crm.productos
-      WHERE activo = TRUE AND (codigo ILIKE $1 OR nombre ILIKE $1)
-      ORDER BY codigo
-      LIMIT $2
-    `, [`%${q}%`, parseInt(limit)]);
+    let listaId = null;
+    if (lista) {
+      const lr = await pool.query(`SELECT id FROM crm.listas_precio WHERE codigo = $1 LIMIT 1`, [String(lista).split(' — ')[0].trim()]);
+      if (lr.rows[0]) listaId = lr.rows[0].id;
+    }
+
+    let result;
+    if (listaId) {
+      result = await pool.query(`
+        SELECT p.id, p.codigo, p.nombre, p.unidad_medida, COALESCE(li.precio, p.precio_unitario) AS precio_unitario, p.tasa_impuesto, p.bodega
+        FROM crm.productos p
+        LEFT JOIN crm.lista_precio_items li ON li.producto_id = p.id AND li.lista_id = $3
+        WHERE p.activo = TRUE AND (p.codigo ILIKE $1 OR p.nombre ILIKE $1)
+        ORDER BY p.codigo
+        LIMIT $2
+      `, [`%${q}%`, parseInt(limit), listaId]);
+    } else {
+      result = await pool.query(`
+        SELECT id, codigo, nombre, unidad_medida, precio_unitario, tasa_impuesto, bodega
+        FROM crm.productos
+        WHERE activo = TRUE AND (codigo ILIKE $1 OR nombre ILIKE $1)
+        ORDER BY codigo
+        LIMIT $2
+      `, [`%${q}%`, parseInt(limit)]);
+    }
 
     res.json({ ok: true, data: result.rows });
   } catch (err) {
