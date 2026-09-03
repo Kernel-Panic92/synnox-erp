@@ -16,7 +16,7 @@ WHERE NOT EXISTS (SELECT 1 FROM crm.hub_config);
 -- Cola / log de envíos al Hub (para retry y auditoría)
 CREATE TABLE IF NOT EXISTS crm.hub_envios (
   id SERIAL PRIMARY KEY,
-  cotizacion_id INTEGER REFERENCES crm.cotizaciones(id) ON DELETE SET NULL,
+  cotizacion_id UUID REFERENCES crm.cotizaciones(id) ON DELETE SET NULL,
   numero VARCHAR(50) NOT NULL,
   payload JSONB,
   respuesta JSONB,

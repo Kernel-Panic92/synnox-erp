@@ -513,7 +513,7 @@ router.post('/:id/enviar-erp', requirePermiso('crear_cotizacion', 'crm'), requir
     const existing = await pool.query(`SELECT id, numero, documento_erp FROM crm.cotizaciones WHERE id = $1`, [id]);
     if (!existing.rows.length) return res.status(404).json({ error: 'Cotizacion no encontrada' });
     if (existing.rows[0].documento_erp) return res.status(400).json({ error: 'Esta cotizacion ya tiene CPV del ERP' });
-    const result = await enviarPedidoAlHub({ cotizacionId: parseInt(id) });
+    const result = await enviarPedidoAlHub({ cotizacionId: id });
     await auditarEvento({ accion: 'enviar_erp', entidad: 'cotizacion', entidad_id: id, usuario_id: req.user.id, metadata: { numero: existing.rows[0].numero, documento_erp: result.documento_erp, mock: result.mock } });
     res.json({ ok: true, documento_erp: result.documento_erp, estado_erp: result.estado_erp, mock: result.mock, message: result.mock ? `Mock Hub: ${result.documento_erp} asignado` : 'Enviado al Hub' });
   } catch (err) {

@@ -49,7 +49,7 @@ router.post('/sync', requirePermiso('configurar', 'crm'), async (req, res) => {
 // POST /api/hub/enviar/:cotizacionId — disparar envío vía Hub (mock o real)
 router.post('/enviar/:cotizacionId', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
   try {
-    const id = parseInt(req.params.cotizacionId);
+    const id = req.params.cotizacionId;
     const result = await enviarPedidoAlHub({ cotizacionId: id });
     res.json({ ok: true, ...result });
   } catch (err) { res.status(400).json({ error: err.message }); }
@@ -58,7 +58,7 @@ router.post('/enviar/:cotizacionId', requirePermiso('crear_cotizacion', 'crm'), 
 // GET /api/hub/payload/:cotizacionId — preview payload que se enviaría al Hub (sin enviar)
 router.get('/payload/:cotizacionId', requirePermiso('ver', 'crm'), async (req, res) => {
   try {
-    const id = parseInt(req.params.cotizacionId);
+    const id = req.params.cotizacionId;
     const cotR = await pool.query(`SELECT * FROM crm.cotizaciones WHERE id = $1`, [id]);
     if (!cotR.rows.length) return res.status(404).json({ error: 'No encontrada' });
     const cot = cotR.rows[0];
