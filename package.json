@@ -1,6 +1,6 @@
 {
   "name": "synnoxerp",
-  "version": "2.5.1",
+  "version": "2.5.2",
   "private": true,
   "description": "SynnoxERP — Plataforma de orquestación de módulos ERP",
   "main": "server.js",
