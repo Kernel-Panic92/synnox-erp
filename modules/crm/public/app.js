@@ -1997,15 +1997,28 @@ async function cargarSucursalesCotizacion(clienteId, facturarVal = null, despach
 }
 
 let _perfilListaDefaultCache = null;
-async function getPerfilListaDefault() {
-  if (_perfilListaDefaultCache) return _perfilListaDefaultCache;
+let _perfilConfigCache = null;
+async function getPerfilConfig(){
+  if(_perfilConfigCache) return _perfilConfigCache;
   try {
     const r = await apiFetch('/perfiles-venta/me/config', { cache: 'no-store' });
-    if (r.ok && r.data.config?.lista_por_defecto) {
-      _perfilListaDefaultCache = String(r.data.config.lista_por_defecto);
-      return _perfilListaDefaultCache;
-    }
+    if(r.ok) { _perfilConfigCache = r.data.config || {}; return _perfilConfigCache; }
   } catch {}
+  _perfilConfigCache = {};
+  return _perfilConfigCache;
+}
+function _filtrarPorPerfil(lista, key, getCodigo){
+  const cfg = _perfilConfigCache;
+  if(!cfg) return lista;
+  const permitidos = cfg[key];
+  if(!Array.isArray(permitidos) || !permitidos.length) return lista;
+  const set=new Set(permitidos.map(String));
+  return lista.filter(it=> set.has(String(getCodigo(it))));
+}
+async function getPerfilListaDefault() {
+  if (_perfilListaDefaultCache) return _perfilListaDefaultCache;
+  const cfg = await getPerfilConfig();
+  if(cfg.lista_por_defecto){ _perfilListaDefaultCache = String(cfg.lista_por_defecto); return _perfilListaDefaultCache; }
   _perfilListaDefaultCache = '200';
   return _perfilListaDefaultCache;
 }
@@ -2015,6 +2028,7 @@ async function cargarCentrosCotizacion(selected) {
   if (!sel) return;
   sel.innerHTML = '<option value="">Seleccione centro de operación</option>';
   try {
+    await getPerfilConfig();
     const r = await apiFetch('/centros');
     const centros = r.ok ? (r.data || r.data?.data || []) : [];
     // Fallback: la respuesta puede ser array directo o {ok,data}
@@ -2026,6 +2040,8 @@ async function cargarCentrosCotizacion(selected) {
     if (!final.length) {
       try { const rr = await fetch(HF.API.replace(/\/crm\/api.*/, '/api/centros'), { credentials:'include' }).then(x=>x.json()); if (Array.isArray(rr)) final = rr; else if (Array.isArray(rr.data)) final = rr.data; } catch {}
     }
+    // Filtrar por perfil (SIESA Hub): si el perfil restringe centros, mostrar solo permitidos
+    final = _filtrarPorPerfil(final, 'centro_operacion', c=> c.codigo || c.nombre || c);
     if (!final.length) {
       sel.innerHTML = '<option value="">Sin centros configurados</option>';
       if (selected) sel.innerHTML += `<option value="${esc(selected)}" selected>${esc(selected)}</option>`;
@@ -2049,12 +2065,20 @@ async function cargarBodegasCotizacion(selected) {
   if (!sel) return;
   sel.innerHTML = '<option value="">Seleccione bodega</option>';
   try {
+    await getPerfilConfig();
     let data = [];
     const r = await apiFetch('/inventario/bodegas-all');
     if (r.ok) data = r.data.data || [];
     if (!data.length) {
       const r2 = await apiFetch('/inventario/bodegas');
       if (r2.ok) data = (r2.data.data || []).map(b => ({ codigo: b.bodega, nombre: b.bodega_nombre || '', bodega: b.bodega, bodega_nombre: b.bodega_nombre }));
+    }
+    // Filtrar por perfil: bodega (pedido) es el que limita creación; si hay filtro, aplicar
+    const cfg = _perfilConfigCache || {};
+    const permitidas = cfg.bodega?.length ? cfg.bodega : (cfg.bodegas_pedido?.length ? cfg.bodegas_pedido : null);
+    if(Array.isArray(permitidas) && permitidas.length) {
+      const set=new Set(permitidas.map(String));
+      data = data.filter(b=> set.has(String(b.codigo||b.bodega)));
     }
     if (!data.length) {
       if (selected) sel.innerHTML += `<option value="${esc(selected)}" selected>${esc(selected)}</option>`;
@@ -3422,6 +3446,8 @@ async function eliminarPerfilVenta(id){
 }
 let _perfilVentaUsuariosCache=[];
 let _perfilesLauncherCache=[];
+let _vendedoresCache=[];
+let _asignadosVendedorMap={};
 async function abrirModalPerfilVentaUsuarios(id){
   const idEl = document.getElementById('perfil-venta-usuarios-id') || document.getElementById('modal-perfil-venta-usuarios-id');
   if (idEl) idEl.value=id;
@@ -3431,6 +3457,8 @@ async function abrirModalPerfilVentaUsuarios(id){
   const r=await apiFetch('/perfiles-venta/'+id+'/usuarios'); if(!r.ok) return toast(r.data?.error||'Error','error');
   _perfilVentaUsuariosCache=r.data.usuarios||[];
   _perfilesLauncherCache=r.data.perfiles||[];
+  _vendedoresCache=r.data.vendedores||[];
+  _asignadosVendedorMap=r.data.asignadosVendedor||{};
   const sel=document.getElementById('perfil-venta-usuarios-perfil-filtro');
   if(sel){
     const cur=sel.value;
@@ -3439,10 +3467,19 @@ async function abrirModalPerfilVentaUsuarios(id){
     if(![...sel.options].some(o=>o.value===cur)) sel.value='';
   }
   const asignados=new Set(r.data.asignados||[]);
+  const vendOpts = _vendedoresCache.map(v=> `<option value="${esc(v.codigo)}">${esc(v.codigo)} — ${esc(v.nombre)}</option>`).join('');
    document.getElementById('perfil-venta-usuarios-lista').innerHTML=_perfilVentaUsuariosCache.map(u=>{
      const perfilLabel=esc(u.perfil_nombre||u.rol||'');
-     return `<label data-perfil-id="${u.perfil_id||''}" style="display:flex;gap:10px;align-items:flex-start;padding:8px 8px;border-bottom:1px solid var(--border);cursor:pointer"><input type="checkbox" value="${u.id}" ${asignados.has(u.id)?'checked':''} style="margin-top:3px;width:16px;height:16px;flex-shrink:0"> <span style="flex:1;min-width:0;overflow:hidden"><strong style="display:block;line-height:1.2;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.nombre)}</strong><span style="color:var(--muted);font-size:11px;word-break:break-all;display:block;line-height:1.3">${esc(u.email||'')}</span><span title="${perfilLabel}" style="display:inline-block;margin-top:4px;font-size:10px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);padding:1px 7px;border-radius:10px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;vertical-align:middle">${perfilLabel}</span></span></label>`;
+     const vendSel = _asignadosVendedorMap[String(u.id)] || '';
+     const selVend = `<select data-vendedor-for="${u.id}" onclick="event.stopPropagation()" onchange="event.stopPropagation()" style="font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;min-width:132px;max-width:150px;align-self:center;background:var(--surface);color:var(--text)" title="Vendedor SIESA para Hub"><option value="">— Vendedor SIESA —</option>${vendOpts}</select>`;
+     // set selected after innerHTML
+     return `<label data-perfil-id="${u.perfil_id||''}" data-usuario-id="${u.id}" style="display:flex;gap:8px;align-items:center;padding:8px 8px;border-bottom:1px solid var(--border);cursor:pointer"><input type="checkbox" value="${u.id}" ${asignados.has(u.id)?'checked':''} style="width:16px;height:16px;flex-shrink:0"> <span style="flex:1;min-width:0;overflow:hidden"><strong style="display:block;line-height:1.2;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.nombre)}</strong><span style="color:var(--muted);font-size:11px;word-break:break-all;display:block;line-height:1.3">${esc(u.email||'')}</span><span title="${perfilLabel}" style="display:inline-block;margin-top:3px;font-size:10px;color:var(--muted);background:var(--surface2);border:1px solid var(--border);padding:1px 7px;border-radius:10px;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${perfilLabel}</span></span>${selVend}</label>`;
    }).join('');
+  // aplicar selección vendedor
+  for(const u of _perfilVentaUsuariosCache){
+    const s=document.querySelector(`select[data-vendedor-for="${u.id}"]`);
+    if(s && _asignadosVendedorMap[String(u.id)]) s.value=_asignadosVendedorMap[String(u.id)];
+  }
   document.getElementById('perfil-venta-usuarios-filtro').value='';
   if(sel) sel.value='';
   showModal('modal-perfil-venta-usuarios');
@@ -3464,8 +3501,16 @@ function perfilVentaSelTodos(v){
 }
 async function guardarPerfilVentaUsuarios(){
   const id=(document.getElementById('perfil-venta-usuarios-id') || document.getElementById('modal-perfil-venta-usuarios-id'))?.value;
-  const usuario_ids=[...document.querySelectorAll('#perfil-venta-usuarios-lista input:checked')].map(i=>parseInt(i.value));
-  const r=await apiFetch('/perfiles-venta/'+id+'/usuarios',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({usuario_ids})});
+  const checks=[...document.querySelectorAll('#perfil-venta-usuarios-lista input:checked')];
+  const asignaciones=checks.map(cb=>{
+    const uid=parseInt(cb.value);
+    const sel=document.querySelector(`select[data-vendedor-for="${uid}"]`);
+    const codigo_vendedor= sel?.value ? sel.value.trim() : null;
+    return { usuario_id: uid, codigo_vendedor };
+  });
+  const usuario_ids=asignaciones.map(a=>a.usuario_id);
+  const vendedoresMap={}; for(const a of asignaciones) if(a.codigo_vendedor) vendedoresMap[a.usuario_id]=a.codigo_vendedor;
+  const r=await apiFetch('/perfiles-venta/'+id+'/usuarios',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({usuario_ids, asignaciones, vendedoresMap})});
   if(!r.ok) return toast(r.data?.error||'Error','error');
   toast('Asignaciones guardadas','success'); hideModal('modal-perfil-venta-usuarios'); cargarPerfilesVenta();
 }

@@ -1030,18 +1030,23 @@ async function importarVendedores(rows, onProgress) {
       const codigo = (r.codigo || r.c_digo || '').trim();
       const nombre = (r.nombre || '').trim();
       if (!codigo || !nombre) { fallidos++; errores.push(`Fila ${i+1}: sin código o nombre`); continue; }
-
-      // Guardar en configuracion como JSON
-      const key = `vendedor_${codigo}`;
-      const existing = await pool.query(`SELECT clave FROM crm.configuracion WHERE clave = $1`, [key]);
-      const data = JSON.stringify({ codigo, nombre, cobrador: r.cobrador === 'Si', vendedor: r.vendedor === 'Si' });
+      const cobrador = r.cobrador === 'Si';
+      const esVendedor = r.vendedor === 'Si' || r.vendedor === undefined || r.vendedor === '';
+      // Upsert en tabla dedicada (Hub-ready) + mantener espejo en configuracion para compatibilidad
+      const existing = await pool.query(`SELECT codigo FROM crm.vendedores WHERE codigo = $1`, [codigo]);
       if (existing.rows.length) {
-        await pool.query(`UPDATE crm.configuracion SET valor = $1 WHERE clave = $2`, [data, key]);
+        await pool.query(`UPDATE crm.vendedores SET nombre = $1, cobrador = $2, es_vendedor = $3 WHERE codigo = $4`, [nombre, cobrador, esVendedor, codigo]);
         actualizados++;
       } else {
-        await pool.query(`INSERT INTO crm.configuracion (clave, valor, descripcion) VALUES ($1, $2, $3)`, [key, data, `Vendedor: ${nombre}`]);
+        await pool.query(`INSERT INTO crm.vendedores (codigo, nombre, cobrador, es_vendedor) VALUES ($1,$2,$3,$4)`, [codigo, nombre, cobrador, esVendedor]);
         insertados++;
       }
+      // Espejo legacy en configuracion
+      const key = `vendedor_${codigo}`;
+      const data = JSON.stringify({ codigo, nombre, cobrador, vendedor: esVendedor });
+      const cfgExisting = await pool.query(`SELECT clave FROM crm.configuracion WHERE clave = $1`, [key]);
+      if (cfgExisting.rows.length) await pool.query(`UPDATE crm.configuracion SET valor = $1 WHERE clave = $2`, [data, key]);
+      else await pool.query(`INSERT INTO crm.configuracion (clave, valor, descripcion) VALUES ($1,$2,$3)`, [key, data, `Vendedor: ${nombre}`]);
       if (onProgress && i % 10 === 0) onProgress(i + 1, rows.length);
     } catch (e) { fallidos++; errores.push(`Fila ${i+1}: ${e.message}`); }
   }

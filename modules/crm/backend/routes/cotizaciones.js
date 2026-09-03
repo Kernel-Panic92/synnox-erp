@@ -1,7 +1,7 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
-import { requireVentasPerfil } from './perfilesVenta.js';
+import { requireVentasPerfil, getPerfilConfigForUser, isMaestroPermitido } from './perfilesVenta.js';
 import { auditarEvento } from '../../../../framework/audit.js';
 
 const router = express.Router();
@@ -206,6 +206,27 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil(
     const vendedor_nombre = vendedorAsignado;
     const finalListaPrecios = lista_precios || cliInfo.rows[0].lista_precio_codigo || cliInfo.rows[0].lista_precios || '200';
 
+    // Validación por perfil de ventas (preparación SIESA Hub): si el perfil restringe maestras, bloquear valores fuera de lista
+    const perfilCfg = await getPerfilConfigForUser(req.user.id, req.user.rol);
+    if (perfilCfg) {
+      if (!isMaestroPermitido(perfilCfg, 'centro_operacion', centro_operacion)) return res.status(403).json({ error: `Centro de operación no permitido por tu perfil de ventas` });
+      if (!isMaestroPermitido(perfilCfg, 'bodega', bodega)) return res.status(403).json({ error: `Bodega no permitida por tu perfil de ventas` });
+      if (!isMaestroPermitido(perfilCfg, 'listas_precio', finalListaPrecios)) return res.status(403).json({ error: `Lista de precios no permitida por tu perfil de ventas` });
+      if (!isMaestroPermitido(perfilCfg, 'motivo_venta', motivo || 'VENTAS')) return res.status(403).json({ error: `Motivo de venta no permitido por tu perfil de ventas` });
+      if (unidad_negocio && !isMaestroPermitido(perfilCfg, 'unidad_negocio', unidad_negocio)) return res.status(403).json({ error: `Unidad de negocio no permitida por tu perfil de ventas` });
+      if (centro_operacion === undefined && perfilCfg.centro_operacion?.length) { /* si no manda centro pero perfil lo exige, no bloquear creación: se elige primero de lista */ }
+    }
+    // Hub-ready: vendedor SIESA mapeado por usuario/perfil (si existe, priorizar para despacho Hub)
+    let vendedorHub = null;
+    try {
+      const vm = await client.query(`SELECT codigo_vendedor FROM crm.usuario_perfil_venta WHERE usuario_id = $1 AND codigo_vendedor IS NOT NULL ORDER BY perfil_venta_id LIMIT 1`, [req.user.id]);
+      if (vm.rows[0]?.codigo_vendedor) {
+        const vend = await client.query(`SELECT codigo,nombre FROM crm.vendedores WHERE codigo = $1`, [vm.rows[0].codigo_vendedor]);
+        if (vend.rows[0]) vendedorHub = vend.rows[0];
+        else vendedorHub = { codigo: vm.rows[0].codigo_vendedor, nombre: vm.rows[0].codigo_vendedor };
+      }
+    } catch {}
+
     const numero = await generarNumero(client);
     const vencimiento = new Date();
     vencimiento.setDate(vencimiento.getDate() + (validez_dias || 30));
@@ -246,7 +267,7 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil(
 
     const totales = await recalcularTotales(client, cotizacionId);
 
-    await auditarEvento({ accion: 'crear', entidad: 'cotizacion', entidad_id: cotizacionId, usuario_id: req.user.id, metadata: { numero, cliente_id } });
+    await auditarEvento({ accion: 'crear', entidad: 'cotizacion', entidad_id: cotizacionId, usuario_id: req.user.id, metadata: { numero, cliente_id, centro_operacion, bodega, lista_precios: finalListaPrecios, vendedor_hub: vendedorHub, vendedor_cliente: vendedor_nombre } });
 
     await client.query('COMMIT');
     res.status(201).json({ ok: true, data: { ...cot.rows[0], ...totales } });
@@ -259,8 +280,8 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil(
   }
 });
 
-// PUT /api/cotizaciones/:id — Editar cabecera
-router.put('/:id', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+// PUT /api/cotizaciones/:id — Editar cabecera (respeta perfil ventas)
+router.put('/:id', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil('crear_cotizacion'), async (req, res) => {
   try {
     const { id } = req.params;
     const existing = await pool.query(`SELECT id, estado FROM crm.cotizaciones WHERE id = $1`, [id]);
@@ -299,7 +320,7 @@ router.put('/:id', requirePermiso('crear_cotizacion', 'crm'), async (req, res) =
 });
 
 // DELETE /api/cotizaciones/seleccionados — Bulk delete (solo borradores)
-router.delete('/seleccionados', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+router.delete('/seleccionados', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil('crear_cotizacion'), async (req, res) => {
   try {
     const { ids } = req.body;
     if (!ids?.length) return res.status(400).json({ error: 'Sin IDs' });
@@ -316,7 +337,7 @@ router.delete('/seleccionados', requirePermiso('crear_cotizacion', 'crm'), async
 });
 
 // DELETE /api/cotizaciones/:id — Eliminar (solo borradores, AFTER /seleccionados)
-router.delete('/:id', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+router.delete('/:id', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil('crear_cotizacion'), async (req, res) => {
   try {
     const { id } = req.params;
     const existing = await pool.query(`SELECT id, estado, numero FROM crm.cotizaciones WHERE id = $1`, [id]);
@@ -339,7 +360,7 @@ router.delete('/:id', requirePermiso('crear_cotizacion', 'crm'), async (req, res
 // ── Items ──
 
 // POST /api/cotizaciones/:id/items — Agregar item
-router.post('/:id/items', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+router.post('/:id/items', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil('crear_cotizacion'), async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -375,7 +396,7 @@ router.post('/:id/items', requirePermiso('crear_cotizacion', 'crm'), async (req,
 });
 
 // PUT /api/cotizaciones/:id/items/:itemId — Editar item
-router.put('/:id/items/:itemId', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+router.put('/:id/items/:itemId', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil('crear_cotizacion'), async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -417,7 +438,7 @@ router.put('/:id/items/:itemId', requirePermiso('crear_cotizacion', 'crm'), asyn
 });
 
 // DELETE /api/cotizaciones/:id/items/:itemId — Eliminar item
-router.delete('/:id/items/:itemId', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+router.delete('/:id/items/:itemId', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil('crear_cotizacion'), async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -485,7 +506,7 @@ router.put('/erp-update', async (req, res) => {
 });
 
 // POST /api/cotizaciones/:id/enviar-erp — Enviar al ERP (cuando no tiene CPV)
-router.post('/:id/enviar-erp', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+router.post('/:id/enviar-erp', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil('crear_cotizacion'), async (req, res) => {
   try {
     const { id } = req.params;
     const existing = await pool.query(`SELECT id, numero, documento_erp, estado FROM crm.cotizaciones WHERE id = $1`, [id]);
@@ -505,7 +526,7 @@ router.post('/:id/enviar-erp', requirePermiso('crear_cotizacion', 'crm'), async 
 });
 
 // PUT /api/cotizaciones/:id/estado — Cambiar estado
-router.put('/:id/estado', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+router.put('/:id/estado', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil('crear_cotizacion'), async (req, res) => {
   try {
     const { id } = req.params;
     const { estado } = req.body;

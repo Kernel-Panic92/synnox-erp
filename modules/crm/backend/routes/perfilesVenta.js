@@ -11,6 +11,20 @@ function getLauncherDb() {
   return new Database(path.join(__dirname, '..', '..', '..', '..', 'launcher', 'launcher.db'));
 }
 
+// Helper: obtiene config del primer perfil de ventas del usuario (para filtrar maestras / Hub)
+export async function getPerfilConfigForUser(usuarioId, rol) {
+  if (['admin','gerente'].includes(rol)) return null; // bypass: acceso total
+  try {
+    const r = await pool.query(`
+      SELECT pv.config FROM crm.perfiles_venta pv
+      JOIN crm.usuario_perfil_venta up ON up.perfil_venta_id = pv.id
+      WHERE up.usuario_id = $1
+      ORDER BY pv.id LIMIT 1
+    `, [usuarioId]);
+    return r.rows[0]?.config || null;
+  } catch { return null; }
+}
+
 // Helper: verifica si req.user tiene al menos uno de los perms en crm.perfiles_venta
 // Si no tiene perfil_venta asignado => bloquea creación de cotizaciones (lectura sí pasa)
 export function requireVentasPerfil(permiso) {
@@ -26,6 +40,14 @@ export function requireVentasPerfil(permiso) {
       return res.status(403).json({ error: `Sin perfil de ventas: requiere ${permiso}` });
     }).catch(() => res.status(500).json({ error: 'Error verificando perfil de ventas' }));
   };
+}
+
+// Helper: valida valor contra lista permitida del config (vacio/null = sin restriccion)
+export function isMaestroPermitido(config, key, valor) {
+  if (!config || valor == null || valor === '') return true;
+  const lista = config[key];
+  if (!Array.isArray(lista) || !lista.length) return true; // sin restricción
+  return lista.map(String).includes(String(valor));
 }
 
 // GET /api/perfiles-venta/me/config — config del perfil asignado (lista por defecto, etc.)
@@ -60,6 +82,14 @@ router.get('/me/mis-permisos', async (req, res) => {
       WHERE up.usuario_id=$1
     `, [req.user.id]);
     res.json({ ok:true, permisos: r.rows.map(x=>x.permiso) });
+  } catch (err){ res.status(500).json({error:err.message}); }
+});
+
+// GET /api/perfiles-venta/vendedores — catálogo SIESA Hub (desde crm.vendedores)
+router.get('/vendedores', requirePermiso('configurar', 'crm'), async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT codigo, nombre FROM crm.vendedores WHERE activo = TRUE ORDER BY codigo`);
+    res.json({ ok: true, data: r.rows });
   } catch (err){ res.status(500).json({error:err.message}); }
 });
 
@@ -135,30 +165,55 @@ router.delete('/:id', requirePermiso('configurar', 'crm'), async (req, res) => {
   catch (err){ res.status(500).json({error:err.message}); }
 });
 
-// GET /api/perfiles-venta/:id/usuarios — listar usuarios asignados + disponibles (+ perfiles launcher para filtro)
+// GET /api/perfiles-venta/:id/usuarios — listar usuarios asignados + disponibles (+ perfiles launcher para filtro + vendedor SIESA)
 router.get('/:id/usuarios', requirePermiso('configurar', 'crm'), async (req, res) => {
   try {
-    const asignados = await pool.query(`SELECT usuario_id FROM crm.usuario_perfil_venta WHERE perfil_venta_id=$1`, [req.params.id]);
+    const asignados = await pool.query(`SELECT usuario_id, codigo_vendedor FROM crm.usuario_perfil_venta WHERE perfil_venta_id=$1`, [req.params.id]);
     const ids = asignados.rows.map(r=>r.usuario_id);
+    const vendedoresMap = {};
+    for (const row of asignados.rows) if(row.codigo_vendedor) vendedoresMap[row.usuario_id]=row.codigo_vendedor;
     const ldb = getLauncherDb();
     const todos = ldb.prepare(`SELECT u.id,u.nombre,u.email,u.rol,u.perfil_id,p.nombre as perfil_nombre FROM usuarios u LEFT JOIN perfiles p ON p.id=u.perfil_id WHERE u.activo=1 ORDER BY u.nombre`).all();
     const perfiles = ldb.prepare(`SELECT id,nombre FROM perfiles ORDER BY id`).all();
     ldb.close();
-    res.json({ ok: true, asignados: ids, usuarios: todos, perfiles });
+    // ook map vendedores catalogo for frontend (optional)
+    let vendedores = [];
+    try { const r = await pool.query(`SELECT codigo,nombre FROM crm.vendedores WHERE activo=TRUE ORDER BY codigo`); vendedores = r.rows; } catch {}
+    res.json({ ok: true, asignados: ids, asignadosVendedor: vendedoresMap, usuarios: todos, perfiles, vendedores });
   } catch (err){ res.status(500).json({error:err.message}); }
 });
 
-// PUT /api/perfiles-venta/:id/usuarios — reemplazar asignaciones (transacción)
+// PUT /api/perfiles-venta/:id/usuarios — reemplazar asignaciones (transacción) con opcional codigo_vendedor por usuario
 router.put('/:id/usuarios', requirePermiso('configurar', 'crm'), async (req, res) => {
   const client = await pool.connect();
   try {
     const perfilId = parseInt(req.params.id);
-    const { usuario_ids } = req.body;
+    let { usuario_ids, asignaciones } = req.body;
+    // Soporta dos formatos: {usuario_ids:[1,2]} o {asignaciones:[{usuario_id:1,codigo_vendedor:'V001'}]}
+    if (Array.isArray(asignaciones) && !usuario_ids) {
+      usuario_ids = asignaciones.map(a=> a.usuario_id ?? a.id);
+    }
     if (!Array.isArray(usuario_ids)) return res.status(400).json({error:'usuario_ids debe ser array'});
+    // Mapa vendedor por usuario si vino en asignaciones o objeto
+    const vendMap = {};
+    if (Array.isArray(asignaciones)) {
+      for (const a of asignaciones) {
+        const uid = a.usuario_id ?? a.id;
+        if (uid && a.codigo_vendedor) vendMap[String(uid)] = String(a.codigo_vendedor);
+        else if (uid && a.vendedor) vendMap[String(uid)] = String(a.vendedor);
+      }
+    }
+    // También soporta body.vendedoresMap { "12":"V001" }
+    if (req.body.vendedoresMap && typeof req.body.vendedoresMap === 'object') {
+      for (const [k,v] of Object.entries(req.body.vendedoresMap)) vendMap[String(k)] = String(v);
+    }
     await client.query('BEGIN');
     await client.query(`DELETE FROM crm.usuario_perfil_venta WHERE perfil_venta_id=$1`, [perfilId]);
-    const ins = `INSERT INTO crm.usuario_perfil_venta (usuario_id, perfil_venta_id) VALUES ($1,$2) ON CONFLICT DO NOTHING`;
-    for (const uid of usuario_ids) await client.query(ins, [parseInt(uid), perfilId]);
+    const ins = `INSERT INTO crm.usuario_perfil_venta (usuario_id, perfil_venta_id, codigo_vendedor) VALUES ($1,$2,$3) ON CONFLICT (usuario_id, perfil_venta_id) DO UPDATE SET codigo_vendedor = EXCLUDED.codigo_vendedor`;
+    for (const uid of usuario_ids) {
+      const vend = vendMap[String(uid)] || null;
+      await client.query(ins, [parseInt(uid), perfilId, vend]);
+    }
     await client.query('COMMIT');
     res.json({ ok:true, count: usuario_ids.length });
   } catch (err){ await client.query('ROLLBACK').catch(()=>{}); res.status(500).json({error:err.message}); }
