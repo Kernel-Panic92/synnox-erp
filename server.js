@@ -56,11 +56,18 @@ async function start() {
   } catch (e) { console.error('[proyectos] Error:', e.message); }
   app.use('/proyectos', express.static(path.join(__dirname, 'modules', 'proyectos', 'public')));
 
+  try {
+    const modCrm = await import('./modules/crm/backend/server.js');
+    app.use('/crm', modCrm.default);
+    console.log('   CRM: montado en /crm/');
+  } catch (e) { console.error('[crm] Error:', e.message); }
+  app.use('/crm', express.static(path.join(__dirname, 'modules', 'crm', 'public')));
+
   // SPA catch-all — MUST be after all module mounts
   app.get('*', publicLimiter, (req, res) => {
     if (req.path.startsWith('/api/')) return res.status(404).json({ error: 'Not found' });
     // Don't catch module paths — let their static middleware serve files
-    if (req.path.startsWith('/nomina') || req.path.startsWith('/proveedores') || req.path.startsWith('/logistica') || req.path.startsWith('/proyectos')) {
+    if (req.path.startsWith('/nomina') || req.path.startsWith('/proveedores') || req.path.startsWith('/logistica') || req.path.startsWith('/proyectos') || req.path.startsWith('/crm')) {
       return res.status(404).json({ error: 'Not found' });
     }
     const spaPath = path.join(__dirname, 'launcher', 'shell', 'index.html');
@@ -75,6 +82,7 @@ async function start() {
     console.log(`   Logística: http://localhost:${PORT}/logistica/`);
     console.log(`   Nómina:    http://localhost:${PORT}/nomina/`);
     console.log(`   Proyectos: http://localhost:${PORT}/proyectos/`);
+    console.log(`   CRM:       http://localhost:${PORT}/crm/`);
 
     // Warmup: pre-load databases and modules to avoid cold start on first request
     console.log('🔥 Calentando servicios...');
