@@ -14,21 +14,17 @@ function getLauncherDb() {
 // Helper: verifica si req.user tiene al menos uno de los perms en crm.perfiles_venta
 // Si no tiene perfil_venta asignado => bloquea creación de cotizaciones (lectura sí pasa)
 export function requireVentasPerfil(permiso) {
-  return async (req, res, next) => {
-    try {
-      // Admin/gerente del launcher (rol) pasa directo si es admin
-      if (req.user?.rol === 'admin') return next();
-      const r = await pool.query(
-        `SELECT 1 FROM crm.usuario_perfil_venta up
-         JOIN crm.perfil_venta_permisos pvp ON pvp.perfil_id = up.perfil_venta_id
-         WHERE up.usuario_id = $1 AND pvp.permiso = $2 LIMIT 1`,
-        [req.user.id, permiso]
-      );
+  return (req, res, next) => {
+    if (['admin','gerente'].includes(req.user?.rol)) return next();
+    pool.query(
+      `SELECT 1 FROM crm.usuario_perfil_venta up
+       JOIN crm.perfil_venta_permisos pvp ON pvp.perfil_id = up.perfil_venta_id
+       WHERE up.usuario_id = $1 AND pvp.permiso = $2 LIMIT 1`,
+      [req.user.id, permiso]
+    ).then(r => {
       if (r.rows.length) return next();
       return res.status(403).json({ error: `Sin perfil de ventas: requiere ${permiso}` });
-    } catch (e) {
-      return res.status(500).json({ error: 'Error verificando perfil de ventas' });
-    }
+    }).catch(() => res.status(500).json({ error: 'Error verificando perfil de ventas' }));
   };
 }
 

@@ -3422,9 +3422,11 @@ async function eliminarPerfilVenta(id){
 }
 let _perfilVentaUsuariosCache=[];
 async function abrirModalPerfilVentaUsuarios(id){
-  document.getElementById('perfil-venta-usuarios-id').value=id;
+  const idEl = document.getElementById('perfil-venta-usuarios-id') || document.getElementById('modal-perfil-venta-usuarios-id');
+  if (idEl) idEl.value=id;
   const title=_perfilesVentaCache.find(x=>x.id===id)?.nombre||'';
-  document.getElementById('perfil-venta-usuarios-title').textContent='Asignar usuarios — '+title;
+  const titleEl = document.getElementById('perfil-venta-usuarios-title') || document.getElementById('modal-perfil-venta-usuarios-title');
+  if (titleEl) titleEl.textContent='Asignar usuarios — '+title;
   const r=await apiFetch('/perfiles-venta/'+id+'/usuarios'); if(!r.ok) return toast(r.data?.error||'Error','error');
   _perfilVentaUsuariosCache=r.data.usuarios||[];
   const asignados=new Set(r.data.asignados||[]);
@@ -3440,7 +3442,7 @@ function perfilVentaSelTodos(v){
   document.querySelectorAll('#perfil-venta-usuarios-lista input[type=checkbox]').forEach(cb=>{ if(cb.closest('label').style.display!=='none') cb.checked=v; });
 }
 async function guardarPerfilVentaUsuarios(){
-  const id=document.getElementById('perfil-venta-usuarios-id').value;
+  const id=(document.getElementById('perfil-venta-usuarios-id') || document.getElementById('modal-perfil-venta-usuarios-id'))?.value;
   const usuario_ids=[...document.querySelectorAll('#perfil-venta-usuarios-lista input:checked')].map(i=>parseInt(i.value));
   const r=await apiFetch('/perfiles-venta/'+id+'/usuarios',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({usuario_ids})});
   if(!r.ok) return toast(r.data?.error||'Error','error');

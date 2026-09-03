@@ -534,7 +534,7 @@ router.put('/:id/estado', requirePermiso('crear_cotizacion', 'crm'), async (req,
 });
 
 // POST /api/cotizaciones/:id/descuento — Solicitar descuento
-router.post('/:id/descuento', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
+router.post('/:id/descuento', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil('crear_cotizacion'), async (req, res) => {
   try {
     const { id } = req.params;
     const { tipo, valor_descuento, justificacion } = req.body;

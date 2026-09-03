@@ -1,6 +1,7 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
+import { requireVentasPerfil } from './perfilesVenta.js';
 import { auditarEvento } from '../../../../framework/audit.js';
 
 const router = express.Router();
@@ -195,7 +196,7 @@ router.get('/:id/productos', requirePermiso('ver_pipeline', 'crm'), async (req, 
 });
 
 // POST /api/oportunidades/:id/productos — Agregar producto
-router.post('/:id/productos', requirePermiso('editar_pipeline', 'crm'), async (req, res) => {
+router.post('/:id/productos', requirePermiso('editar_pipeline', 'crm'), requireVentasPerfil('editar_pipeline'), async (req, res) => {
   try {
     const { id } = req.params;
     const { producto_id, cantidad = 1, precio_unitario } = req.body;
@@ -220,7 +221,7 @@ router.post('/:id/productos', requirePermiso('editar_pipeline', 'crm'), async (r
 });
 
 // DELETE /api/oportunidades/:id/productos/:productoId — Quitar producto
-router.delete('/:id/productos/:productoId', requirePermiso('editar_pipeline', 'crm'), async (req, res) => {
+router.delete('/:id/productos/:productoId', requirePermiso('editar_pipeline', 'crm'), requireVentasPerfil('editar_pipeline'), async (req, res) => {
   try {
     const { id, productoId } = req.params;
     await pool.query(`DELETE FROM crm.oportunidad_productos WHERE oportunidad_id = $1 AND producto_id = $2`, [id, productoId]);
@@ -234,7 +235,7 @@ router.delete('/:id/productos/:productoId', requirePermiso('editar_pipeline', 'c
 });
 
 // POST /api/oportunidades — Crear oportunidad (cliente o lead)
-router.post('/', requirePermiso('crear_oportunidad', 'crm'), async (req, res) => {
+router.post('/', requirePermiso('crear_oportunidad', 'crm'), requireVentasPerfil('editar_pipeline'), async (req, res) => {
   try {
     const { cliente_id, lead_id, contacto_id, nombre, monto_esperado, probabilidad, etapa, vendedor_id, fecha_cierre_estimada } = req.body;
     if (!nombre) return res.status(400).json({ error: 'El nombre es obligatorio' });
@@ -263,7 +264,7 @@ router.post('/', requirePermiso('crear_oportunidad', 'crm'), async (req, res) =>
 });
 
 // PUT /api/oportunidades/:id — Editar oportunidad
-router.put('/:id', requirePermiso('editar_pipeline', 'crm'), async (req, res) => {
+router.put('/:id', requirePermiso('editar_pipeline', 'crm'), requireVentasPerfil('editar_pipeline'), async (req, res) => {
   try {
     const { id } = req.params;
     const existing = await pool.query(`SELECT * FROM crm.oportunidades WHERE id = $1`, [id]);
@@ -297,7 +298,7 @@ router.put('/:id', requirePermiso('editar_pipeline', 'crm'), async (req, res) =>
 });
 
 // PUT /api/oportunidades/:id/mover — Cambiar etapa (para kanban drag & drop)
-router.put('/:id/mover', requirePermiso('editar_pipeline', 'crm'), async (req, res) => {
+router.put('/:id/mover', requirePermiso('editar_pipeline', 'crm'), requireVentasPerfil('editar_pipeline'), async (req, res) => {
   try {
     const { id } = req.params;
     const { etapa, comentario } = req.body;
@@ -333,7 +334,7 @@ router.put('/:id/mover', requirePermiso('editar_pipeline', 'crm'), async (req, r
 });
 
 // DELETE /api/oportunidades/:id — Eliminar
-router.delete('/:id', requirePermiso('editar_pipeline', 'crm'), async (req, res) => {
+router.delete('/:id', requirePermiso('editar_pipeline', 'crm'), requireVentasPerfil('editar_pipeline'), async (req, res) => {
   try {
     const { id } = req.params;
     const result = await pool.query(`DELETE FROM crm.oportunidades WHERE id = $1 RETURNING id, nombre`, [id]);
