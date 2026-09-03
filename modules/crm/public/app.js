@@ -3145,8 +3145,39 @@ async function adminAbrirSeccion(seccion){
     cont.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">Perfiles de Venta</h3><button class="btn btn-sm btn-primary" onclick="abrirModalPerfilVenta()">+ Nuevo Perfil</button></div><p style="color:var(--muted);font-size:12px">Si un usuario no está asignado a ningún perfil, no podrá crear cotizaciones (solo lectura).</p><div id="perfiles-venta-list" style="display:grid;gap:12px"></div>';
     cargarPerfilesVenta();
   } else if(seccion==='siesa'){
-    cont.innerHTML='<h3 style="margin:0 0 12px">Sincronizar con SIESA Hub</h3><p style="color:var(--muted);font-size:13px">Integración con la API de SIESA Hub en preparación. Por ahora se importa por CSV desde la sección Importar SIESA.</p>';
+    cont.innerHTML='<h3 style="margin:0 0 12px">SIESA Hub — Mock listo</h3><p style="color:var(--muted);font-size:12px">Mock activo: <code>Enviar al ERP</code> genera <code>CPV-MOCK-xxxxx</code> sin credenciales. Cuando SIESA entregue docs, desactiva mock y guarda URL/OAuth.</p><div style="display:grid;gap:12px;max-width:640px"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="hub-mock"> <span>Mock activo (sin Hub real)</span></label><label style="display:block">Base URL Hub<input type="text" id="hub-base-url" placeholder="https://hub.siesa.com/api" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;margin-top:4px"></label><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><label>Client ID<input type="text" id="hub-client-id" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;margin-top:4px"></label><label>Client Secret<input type="password" id="hub-client-secret" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;margin-top:4px"></label></div><div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="guardarHubConfig()">Guardar</button><button class="btn btn-secondary btn-sm" onclick="probarHubSync()">Probar sync</button></div><div id="hub-config-msg" style="font-size:12px;color:var(--muted)"></div><hr style="border:none;border-top:1px solid var(--border)"><h4 style="margin:0">Últimos envíos</h4><div id="hub-envios-list" style="font-size:12px;color:var(--muted)">Cargando...</div></div>';
+    cargarHubConfig();
   }
+}
+async function cargarHubConfig(){
+  try{
+    const r=await apiFetch('/hub/config'); if(!r.ok) return;
+    const cfg=r.data.data||r.data;
+    const mockEl=document.getElementById('hub-mock'); if(mockEl) mockEl.checked=cfg.mock_enabled!==false;
+    const u=document.getElementById('hub-base-url'); if(u) u.value=cfg.base_url||'';
+    const ci=document.getElementById('hub-client-id'); if(ci) ci.value=cfg.client_id||'';
+    // secret no se muestra
+    const list=document.getElementById('hub-envios-list');
+    if(list){
+      const er=await apiFetch('/hub/envios'); if(er.ok){
+        const rows=er.data.data||[];
+        list.innerHTML = rows.length ? rows.slice(0,8).map(e=> `<div style="border:1px solid var(--border);border-radius:8px;padding:8px;margin-bottom:6px"><strong>${esc(e.numero)}</strong> <span style="color:var(--muted)">${esc(e.estado)}</span> ${e.documento_erp?`<span style="color:var(--success)">→ ${esc(e.documento_erp)}</span>`:''} <small style="color:var(--muted)">${new Date(e.creado_en).toLocaleString()}</small>${e.payload?`<details style="margin-top:4px"><summary>payload</summary><pre style="white-space:pre-wrap;font-size:10px;max-height:160px;overflow:auto">${esc(JSON.stringify(e.payload, null, 2).slice(0,1200))}</pre></details>`:''}</div>`).join('') : '<span style="color:var(--muted)">Sin envíos aún — usa 🚀 Enviar al ERP en una cotización</span>';
+      }
+    }
+  }catch{}
+}
+async function guardarHubConfig(){
+  const body={ mock_enabled: document.getElementById('hub-mock')?.checked !== false, base_url: document.getElementById('hub-base-url')?.value.trim()||'', client_id: document.getElementById('hub-client-id')?.value.trim()||'', client_secret: document.getElementById('hub-client-secret')?.value||'' };
+  const r=await apiFetch('/hub/config',{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+  const msg=document.getElementById('hub-config-msg');
+  if(!r.ok){ if(msg) msg.textContent=r.data?.error||'Error'; return toast(r.data?.error||'Error','error'); }
+  if(msg) msg.textContent='Guardado — mock '+(body.mock_enabled?'activo':'desactivado');
+  toast('Hub guardado','success'); cargarHubConfig();
+}
+async function probarHubSync(){
+  const r=await apiFetch('/hub/sync',{method:'POST'});
+  const msg=document.getElementById('hub-config-msg'); if(msg) msg.textContent=r.data?.message||r.data?.error||'OK';
+  if(r.ok) toast(r.data.message||'Sync mock OK','success'); else toast(r.data?.error||'Error','error');
 }
 async function cargarPerfilesVenta(){
   const r=await apiFetch('/perfiles-venta');
