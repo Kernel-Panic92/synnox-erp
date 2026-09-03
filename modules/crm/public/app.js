@@ -2267,6 +2267,24 @@ async function verCotizacion(id) {
     `;
   }
 
+  // Resolver nombres de centro/bodega para mostrar "200 — BOGOTA" en vez de solo "200"
+  let centroLabel = esc(c.centro_operacion || '—');
+  let bodegaLabel = esc(c.bodega || '—');
+  try {
+    if (c.centro_operacion) {
+      const cr = await apiFetch('/centros');
+      const centros = cr.ok ? (Array.isArray(cr.data) ? cr.data : (cr.data.data || [])) : [];
+      const cc = centros.find(x => String(x.codigo) === String(c.centro_operacion) || String(x.nombre) === String(c.centro_operacion));
+      if (cc) centroLabel = `${esc(cc.codigo)} — ${esc(cc.nombre)}`;
+    }
+    if (c.bodega) {
+      const br = await apiFetch('/inventario/bodegas-all');
+      const bodegas = br.ok ? (br.data.data || []) : [];
+      const bb = bodegas.find(x => String(x.codigo) === String(c.bodega));
+      if (bb) bodegaLabel = `${esc(bb.codigo)} — ${esc(bb.nombre)}`;
+    }
+  } catch {}
+
   document.getElementById('detalle-cotizacion-title').textContent = `Cotizacion ${c.numero}`;
   document.getElementById('detalle-cotizacion-content').innerHTML = `
     <div class="form-row" style="margin-bottom:12px">
@@ -2279,14 +2297,14 @@ async function verCotizacion(id) {
     </div>
     <div class="form-row" style="margin-bottom:12px">
       <div><strong>Orden de Compra:</strong> ${esc(c.orden_compra || '—')}</div>
-      <div><strong>Centro Operacion:</strong> ${esc(c.centro_operacion || '—')}</div>
+      <div><strong>Centro Operacion:</strong> ${centroLabel}</div>
     </div>
     <div class="form-row" style="margin-bottom:12px">
       <div><strong>Condicion Pago:</strong> ${esc(c.condicion_pago || '—')}</div>
       <div><strong>Fecha Entrega:</strong> ${formatDate(c.fecha_entrega)}</div>
     </div>
     <div class="form-row" style="margin-bottom:12px">
-      <div><strong>Bodega:</strong> ${esc(c.bodega || '—')}</div>
+      <div><strong>Bodega:</strong> ${bodegaLabel}</div>
       <div><strong>Documento ERP:</strong> ${esc(c.documento_erp || '—')}</div>
     </div>
     ${c.notas ? `<div style="margin-bottom:12px"><strong>Notas:</strong> ${esc(c.notas)}</div>` : ''}
