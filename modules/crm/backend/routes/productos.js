@@ -91,10 +91,16 @@ router.get('/buscar', requirePermiso('crear_cotizacion', 'crm'), async (req, res
 
     let result;
     if (listaId) {
+      // Precio de la lista solicitada → fallback a cualquier lista donde el producto tenga precio → fallback a producto base
       result = await pool.query(`
-        SELECT p.id, p.codigo, p.nombre, p.unidad_medida, COALESCE(li.precio, p.precio_unitario) AS precio_unitario, p.tasa_impuesto, p.bodega
+        SELECT p.id, p.codigo, p.nombre, p.unidad_medida,
+               COALESCE(li.precio, li_any.precio, p.precio_unitario) AS precio_unitario,
+               p.tasa_impuesto, p.bodega
         FROM crm.productos p
         LEFT JOIN crm.lista_precio_items li ON li.producto_id = p.id AND li.lista_id = $3
+        LEFT JOIN LATERAL (
+          SELECT precio FROM crm.lista_precio_items WHERE producto_id = p.id ORDER BY lista_id LIMIT 1
+        ) li_any ON true
         WHERE p.activo = TRUE AND (p.codigo ILIKE $1 OR p.nombre ILIKE $1)
         ORDER BY p.codigo
         LIMIT $2

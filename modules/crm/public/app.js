@@ -1955,6 +1955,10 @@ async function filtrarCotizacionClientes(q) {
           const vInfo = document.getElementById('cotizacion-vendedor-info');
           if (vend) { vInfo.textContent = `Vendedor asignado: ${vend} — la venta quedará a su nombre`; vInfo.style.display = ''; }
           else { vInfo.style.display = 'none'; }
+          // Condición de pago desde el maestro del tercero (medio_pago_desc)
+          const cond = c.medio_pago_desc || c.medio_pago || c.condicion_pago || '';
+          const condEl = document.getElementById('cotizacion-condicion-pago');
+          if (condEl) { condEl.value = cond; condEl.placeholder = cond ? cond : 'Ej: CREDITO 30 DIAS, CONTADO'; }
         }
       } catch {}
     };
