@@ -437,6 +437,19 @@ async function importarCotizaciones(rows) {
       const consecutivo = (r.consecutivo_interno || '').trim();
       if (!nombre && !consecutivo) { fallidos++; errores.push(`Fila ${i+1}: sin nombre ni consecutivo`); continue; }
 
+      // Fechas: Fecha de creación -> vencimiento = +30 días; Fecha de Entrega -> fecha_entrega
+      let vencimiento = null;
+      let fechaEntrega = (r.fecha_de_entrega || '').trim();
+      if (fechaEntrega && fechaEntrega.includes('/')) { const [d,m,y] = fechaEntrega.split('/'); if(d&&m&&y) fechaEntrega = `${y.padStart(4,'0')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+      if (!fechaEntrega) fechaEntrega = null;
+      if (!vencimiento && r.fecha_de_creacion) {
+        let fc = String(r.fecha_de_creacion).trim().split(' ')[0];
+        if (fc && fc.includes('/')) {
+          const [d,m,y] = fc.split('/');
+          if(d&&m&&y) { const dt = new Date(`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`); if(!isNaN(dt)) { dt.setDate(dt.getDate()+30); vencimiento = dt.toISOString().split('T')[0]; } }
+        }
+      }
+
       // Buscar cliente por nombre (quita sufijo de sucursal "/XXX")
       let clienteId = null;
       const clienteNombre = (r.facturar_a || r.despachar_a || '').trim();
@@ -514,28 +527,30 @@ async function importarCotizaciones(rows) {
           unidad_negocio = COALESCE(NULLIF($15,''), unidad_negocio),
           aprobado = COALESCE($16, aprobado),
           estado = COALESCE(NULLIF($17,''), estado),
+          vencimiento = COALESCE($18::date, vencimiento),
+          fecha_entrega = COALESCE($19::date, fecha_entrega),
           actualizado_en = NOW()
-          WHERE id = $18`,
+          WHERE id = $20`,
           [clienteId, valorTotal || null, valorSubtotal || null, valorBruto || null,
            impuestos || null, descuentos || null, notas,
            centroCodigo || '', bodegaCodigo || '', r.condicion_de_pago || r.condici_n_de_pago || '',
            listaCodigo || '', r.orden_de_compra || '', vendedor,
            r.motivo || '', r.unidad_de_negocio || '',
-           r.aprobado === 'True' || r.aprobado === true, estado, existing.rows[0].id]);
+           r.aprobado === 'True' || r.aprobado === true, estado, vencimiento, fechaEntrega, existing.rows[0].id]);
         actualizados++;
       } else {
         await pool.query(`INSERT INTO crm.cotizaciones (numero, cliente_id, estado, valor_total, valor_subtotal,
           valor_bruto, valor_iva, valor_descuento, notas, centro_operacion, bodega, condicion_pago,
           lista_precios, orden_compra, vendedor_nombre, motivo,
-          unidad_negocio, aprobado, enviado_erp, consecutive_siesa, creado_por)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20, NULL)`,
+          unidad_negocio, aprobado, enviado_erp, consecutive_siesa, vencimiento, fecha_entrega, creado_por)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22, NULL)`,
           [numero, clienteId, estado, valorTotal, valorSubtotal,
            valorBruto, impuestos, descuentos, notas,
            centroCodigo || '', bodegaCodigo || '', r.condicion_de_pago || r.condici_n_de_pago || '',
            listaCodigo || '', r.orden_de_compra || '', vendedor,
            r.motivo || '', r.unidad_de_negocio || '',
            r.aprobado === 'True' || r.aprobado === true, false,
-           consecutivo || null]);
+           consecutivo || null, vencimiento, fechaEntrega]);
         insertados++;
       }
     } catch (e) { fallidos++; errores.push(`Fila ${i+1}: ${e.message}`); }
