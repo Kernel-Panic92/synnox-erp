@@ -79,21 +79,34 @@ export async function enviarPedidoAlHub({ cotizacionId }, client = pool) {
   const cliente = cliR.rows[0] || {};
 
   let sucFact = null, sucDesp = null;
-  if (cot.facturar_a) {
-    const s = await client.query(`SELECT * FROM crm.cliente_sucursales WHERE cliente_id = $1 AND codigo = $2 LIMIT 1`, [cot.cliente_id, cot.facturar_a]);
-    sucFact = s.rows[0] || { codigo: cot.facturar_a, nombre: cot.facturar_a };
-  }
-  if (cot.despachar_a) {
-    const s = await client.query(`SELECT * FROM crm.cliente_sucursales WHERE cliente_id = $1 AND codigo = $2 LIMIT 1`, [cot.cliente_id, cot.despachar_a]);
-    sucDesp = s.rows[0] || { codigo: cot.despachar_a, nombre: cot.despachar_a };
-  }
-  // Vendedor Hub (mapping del usuario creador)
+  try {
+    if (cot.facturar_a) {
+      const s = await client.query(`SELECT codigo,nombre,direccion,ciudad FROM crm.sucursales WHERE cliente_id = $1 AND codigo = $2 LIMIT 1`, [cot.cliente_id, cot.facturar_a]);
+      sucFact = s.rows[0] || { codigo: cot.facturar_a, nombre: cot.facturar_a };
+    } else if (cot.cliente_id) {
+      const s = await client.query(`SELECT codigo,nombre,direccion,ciudad FROM crm.sucursales WHERE cliente_id = $1 AND es_principal = TRUE LIMIT 1`, [cot.cliente_id]);
+      if (s.rows[0]) sucFact = s.rows[0];
+    }
+    if (cot.despachar_a) {
+      const s = await client.query(`SELECT codigo,nombre,direccion,ciudad FROM crm.sucursales WHERE cliente_id = $1 AND codigo = $2 LIMIT 1`, [cot.cliente_id, cot.despachar_a]);
+      sucDesp = s.rows[0] || { codigo: cot.despachar_a, nombre: cot.despachar_a };
+    } else if (cot.cliente_id && sucFact) {
+      sucDesp = sucFact;
+    }
+  } catch {}
+  // Vendedor Hub (mapping del usuario creador) → fallback a cliente.vendedor_codigo
   let vendedorHub = null;
   try {
-    const vm = await client.query(`SELECT codigo_vendedor FROM crm.usuario_perfil_venta WHERE usuario_id = $1 AND codigo_vendedor IS NOT NULL LIMIT 1`, [cot.creado_por]);
-    if (vm.rows[0]?.codigo_vendedor) {
-      const v = await client.query(`SELECT codigo,nombre FROM crm.vendedores WHERE codigo = $1`, [vm.rows[0].codigo_vendedor]);
-      vendedorHub = v.rows[0] || { codigo: vm.rows[0].codigo_vendedor, nombre: vm.rows[0].codigo_vendedor };
+    if (cot.creado_por) {
+      const vm = await client.query(`SELECT codigo_vendedor FROM crm.usuario_perfil_venta WHERE usuario_id = $1 AND codigo_vendedor IS NOT NULL LIMIT 1`, [cot.creado_por]);
+      if (vm.rows[0]?.codigo_vendedor) {
+        const v = await client.query(`SELECT codigo,nombre FROM crm.vendedores WHERE codigo = $1`, [vm.rows[0].codigo_vendedor]);
+        vendedorHub = v.rows[0] || { codigo: vm.rows[0].codigo_vendedor, nombre: vm.rows[0].codigo_vendedor };
+      }
+    }
+    if (!vendedorHub && cliente?.vendedor_codigo) {
+      const v = await client.query(`SELECT codigo,nombre FROM crm.vendedores WHERE codigo = $1`, [cliente.vendedor_codigo]);
+      vendedorHub = v.rows[0] || { codigo: cliente.vendedor_codigo, nombre: cliente.asesor_comercial || cliente.vendedor_codigo };
     }
   } catch {}
 
