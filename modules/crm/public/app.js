@@ -1849,7 +1849,6 @@ async function abrirModalCotizacion(cotizacion = null) {
       await cargarContactosCotizacion(c.id, cotizacion?.contacto_id || null);
       await cargarSucursalesCotizacion(c.id, cotizacion?.facturar_a || null, cotizacion?.despachar_a || null);
       // defaults del cliente
-      if (!cotizacion?.condicion_pago && c.medio_pago) document.getElementById('cotizacion-condicion-pago').value = c.medio_pago + (c.medio_pago_desc ? ' — ' + c.medio_pago_desc : '');
       if (!cotizacion?.centro_operacion && c.c_o_factura_desc) {
         // intenta mapear centro por nombre
         const centroSel = document.getElementById('cotizacion-centro-op');
@@ -1937,7 +1936,6 @@ async function filtrarCotizacionClientes(q) {
         const cr = await apiFetch('/clientes/' + opt.value);
         if (cr.ok) {
           const c = cr.data.data;
-          if (c.medio_pago && !document.getElementById('cotizacion-condicion-pago').value) document.getElementById('cotizacion-condicion-pago').value = c.medio_pago + (c.medio_pago_desc ? ' — ' + c.medio_pago_desc : '');
           let lp = c.lista_precio_codigo || c.lista_precios;
           if (!lp) lp = await getPerfilListaDefault();
           const lpDesc = c.lista_precios && c.lista_precios !== lp ? c.lista_precios : (lp === (await getPerfilListaDefault()) ? 'GENERAL HORECA' : '');
@@ -2470,7 +2468,6 @@ async function setClienteCotizacion(clienteId) {
   search.value = '';
   await cargarContactosCotizacion(c.id);
   await cargarSucursalesCotizacion(c.id);
-  if (c.medio_pago && !document.getElementById('cotizacion-condicion-pago').value) document.getElementById('cotizacion-condicion-pago').value = c.medio_pago + (c.medio_pago_desc ? ' — ' + c.medio_pago_desc : '');
   {
     let lp = c.lista_precio_codigo || c.lista_precios;
     if (!lp) lp = await getPerfilListaDefault();
