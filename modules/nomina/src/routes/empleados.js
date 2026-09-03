@@ -1,5 +1,5 @@
 const express = require('express');
-const { validarSede } = require('../utils/launcherDb');
+const { validarSede, validarSedeAsync, refreshFromLauncher } = require('../utils/launcherDb');
 
 function parseCsvLine(line, separador) {
   const cols = []; let cur = '', inQ = false;
@@ -43,10 +43,10 @@ module.exports = function createEmpleadosRouter({ db, uid, upload, middlewares }
     return cedula && typeof cedula === 'string' && cedula.length <= 50;
   }
 
-  router.post('/', adminRrhh, (req, res) => {
+  router.post('/', adminRrhh, async (req, res) => {
     const { nombre, cedula, cargo, departamento, sede, email, telefono, tipo_vinculacion } = req.body;
     if (!validarCedula(cedula)) return res.status(400).json({ error: 'Cédula inválida' });
-    if (!validarSede(sede)) return res.status(400).json({ error: 'Centro de operación inválido' });
+    if (!(await validarSedeAsync(sede))) return res.status(400).json({ error: 'Centro de operación inválido' });
     const id = uid();
     db.prepare('INSERT INTO empleados (id,nombre,cedula,cargo,departamento,sede,email,telefono,tipo_vinculacion) VALUES (?,?,?,?,?,?,?,?,?)').run(
       id, nombre, cedula, cargo, departamento, sede, email||'', telefono||'', tipo_vinculacion || 'vinculado'
@@ -54,10 +54,10 @@ module.exports = function createEmpleadosRouter({ db, uid, upload, middlewares }
     res.json({ id });
   });
 
-  router.put('/:id', adminRrhh, (req, res) => {
+  router.put('/:id', adminRrhh, async (req, res) => {
     const { nombre, cedula, cargo, departamento, sede, email, telefono, tipo_vinculacion, activo } = req.body;
     if (!validarCedula(cedula)) return res.status(400).json({ error: 'Cédula inválida' });
-    if (!validarSede(sede)) return res.status(400).json({ error: 'Centro de operación inválido' });
+    if (!(await validarSedeAsync(sede))) return res.status(400).json({ error: 'Centro de operación inválido' });
     const val = activo !== undefined ? (activo ? 1 : 0) : 1;
     db.prepare('UPDATE empleados SET nombre=?,cedula=?,cargo=?,departamento=?,sede=?,email=?,telefono=?,tipo_vinculacion=?,activo=? WHERE id=?')
       .run(nombre, cedula, cargo, departamento, sede, email||'', telefono||'', tipo_vinculacion || 'vinculado', val, req.params.id);
@@ -70,9 +70,12 @@ module.exports = function createEmpleadosRouter({ db, uid, upload, middlewares }
     res.json({ ok: true });
   });
 
-  router.post('/importar', soloAdmin, upload.single('archivo'), (req, res) => {
+  router.post('/importar', soloAdmin, upload.single('archivo'), async (req, res) => {
     if (!req.file) return res.status(400).json({ error: 'No se recibió ningún archivo' });
     try {
+      // Warm centros cache before loop (single async refresh; loop itself stays sync)
+      await refreshFromLauncher();
+
       let texto = req.file.buffer.toString('utf8');
       if (texto.includes('\uFFFD')) texto = req.file.buffer.toString('latin1');
       texto = texto.replace(/^\uFEFF/, '');

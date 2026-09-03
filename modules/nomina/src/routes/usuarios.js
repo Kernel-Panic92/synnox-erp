@@ -1,5 +1,4 @@
 const express = require('express');
-const { validarSede } = require('../utils/launcherDb');
 
 module.exports = function createUsuariosRouter({
   db, rolTienePermiso, middlewares

@@ -1,13 +1,17 @@
 const express = require('express');
-const { getCentros, validarSede } = require('../utils/launcherDb');
+const { getCentrosAsync } = require('../utils/launcherDb');
 
 module.exports = function createCentrosRouter({ middlewares }) {
   const router = express.Router();
   const { todosRoles, soloAdmin } = middlewares;
 
-  router.get('/', todosRoles, (req, res) => {
-    const rows = getCentros();
-    res.json(rows);
+  router.get('/', todosRoles, async (req, res) => {
+    try {
+      const rows = await getCentrosAsync();
+      res.json(rows);
+    } catch (e) {
+      res.status(500).json({ error: 'Error cargando centros de operación' });
+    }
   });
 
   router.post('/', (req, res) => {
