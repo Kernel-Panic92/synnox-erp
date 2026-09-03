@@ -135,15 +135,16 @@ router.delete('/:id', requirePermiso('configurar', 'crm'), async (req, res) => {
   catch (err){ res.status(500).json({error:err.message}); }
 });
 
-// GET /api/perfiles-venta/:id/usuarios — listar usuarios asignados + disponibles
+// GET /api/perfiles-venta/:id/usuarios — listar usuarios asignados + disponibles (+ perfiles launcher para filtro)
 router.get('/:id/usuarios', requirePermiso('configurar', 'crm'), async (req, res) => {
   try {
     const asignados = await pool.query(`SELECT usuario_id FROM crm.usuario_perfil_venta WHERE perfil_venta_id=$1`, [req.params.id]);
     const ids = asignados.rows.map(r=>r.usuario_id);
     const ldb = getLauncherDb();
-    const todos = ldb.prepare(`SELECT id,nombre,email,rol,perfil_id FROM usuarios WHERE activo=1 ORDER BY nombre`).all();
+    const todos = ldb.prepare(`SELECT u.id,u.nombre,u.email,u.rol,u.perfil_id,p.nombre as perfil_nombre FROM usuarios u LEFT JOIN perfiles p ON p.id=u.perfil_id WHERE u.activo=1 ORDER BY u.nombre`).all();
+    const perfiles = ldb.prepare(`SELECT id,nombre FROM perfiles ORDER BY id`).all();
     ldb.close();
-    res.json({ ok: true, asignados: ids, usuarios: todos });
+    res.json({ ok: true, asignados: ids, usuarios: todos, perfiles });
   } catch (err){ res.status(500).json({error:err.message}); }
 });
 

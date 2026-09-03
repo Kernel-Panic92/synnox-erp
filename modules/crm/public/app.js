@@ -3421,6 +3421,7 @@ async function eliminarPerfilVenta(id){
   }});
 }
 let _perfilVentaUsuariosCache=[];
+let _perfilesLauncherCache=[];
 async function abrirModalPerfilVentaUsuarios(id){
   const idEl = document.getElementById('perfil-venta-usuarios-id') || document.getElementById('modal-perfil-venta-usuarios-id');
   if (idEl) idEl.value=id;
@@ -3429,14 +3430,34 @@ async function abrirModalPerfilVentaUsuarios(id){
   if (titleEl) titleEl.textContent='Asignar usuarios — '+title;
   const r=await apiFetch('/perfiles-venta/'+id+'/usuarios'); if(!r.ok) return toast(r.data?.error||'Error','error');
   _perfilVentaUsuariosCache=r.data.usuarios||[];
+  _perfilesLauncherCache=r.data.perfiles||[];
+  const sel=document.getElementById('perfil-venta-usuarios-perfil-filtro');
+  if(sel){
+    const cur=sel.value;
+    sel.innerHTML='<option value="">Todos los perfiles (Launcher)</option>'+_perfilesLauncherCache.map(p=>`<option value="${p.id}">${esc(p.nombre)}</option>`).join('')+'<option value="__sin">Sin perfil</option>';
+    sel.value=cur;
+    if(![...sel.options].some(o=>o.value===cur)) sel.value='';
+  }
   const asignados=new Set(r.data.asignados||[]);
-   document.getElementById('perfil-venta-usuarios-lista').innerHTML=_perfilVentaUsuariosCache.map(u=>`<label style="display:grid;grid-template-columns:20px 1fr auto;gap:10px;align-items:start;padding:9px 8px;border-bottom:1px solid var(--border);cursor:pointer"><input type="checkbox" value="${u.id}" ${asignados.has(u.id)?'checked':''} style="margin-top:2px;width:16px;height:16px;flex-shrink:0"> <span style="min-width:0;overflow:hidden"><strong style="display:block;line-height:1.2;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.nombre)}</strong> <span style="color:var(--muted);font-size:11px;word-break:break-all;display:block">${esc(u.email||'')}</span></span><span style="font-size:10px;color:var(--muted);background:var(--surface2);padding:2px 7px;border-radius:10px;white-space:nowrap;align-self:center">${esc(u.rol||'')}</span></label>`).join('');
+   document.getElementById('perfil-venta-usuarios-lista').innerHTML=_perfilVentaUsuariosCache.map(u=>{
+     const perfilLabel=esc(u.perfil_nombre||u.rol||'');
+     return `<label data-perfil-id="${u.perfil_id||''}" style="display:grid;grid-template-columns:20px 1fr auto;gap:10px;align-items:start;padding:9px 8px;border-bottom:1px solid var(--border);cursor:pointer"><input type="checkbox" value="${u.id}" ${asignados.has(u.id)?'checked':''} style="margin-top:2px;width:16px;height:16px;flex-shrink:0"> <span style="min-width:0;overflow:hidden"><strong style="display:block;line-height:1.2;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(u.nombre)}</strong> <span style="color:var(--muted);font-size:11px;word-break:break-all;display:block">${esc(u.email||'')}</span></span><span title="${perfilLabel}" style="font-size:10px;color:var(--muted);background:var(--surface2);padding:2px 7px;border-radius:10px;white-space:nowrap;align-self:center;max-width:130px;overflow:hidden;text-overflow:ellipsis">${perfilLabel}</span></label>`;
+   }).join('');
   document.getElementById('perfil-venta-usuarios-filtro').value='';
+  if(sel) sel.value='';
   showModal('modal-perfil-venta-usuarios');
 }
 function filtrarPerfilVentaUsuarios(){
-  const q=document.getElementById('perfil-venta-usuarios-filtro').value.toLowerCase();
-  document.querySelectorAll('#perfil-venta-usuarios-lista label').forEach(l=>{ l.style.display=l.textContent.toLowerCase().includes(q)?'':'none'; });
+  const q=(document.getElementById('perfil-venta-usuarios-filtro')?.value||'').toLowerCase();
+  const pf=document.getElementById('perfil-venta-usuarios-perfil-filtro')?.value||'';
+  document.querySelectorAll('#perfil-venta-usuarios-lista label').forEach(l=>{
+    const txt=l.textContent.toLowerCase().includes(q);
+    const pid=l.getAttribute('data-perfil-id')||'';
+    let perfilOk=true;
+    if(pf==='__sin') perfilOk=!pid;
+    else if(pf) perfilOk=pid===pf;
+    l.style.display=(txt&&perfilOk)?'':'none';
+  });
 }
 function perfilVentaSelTodos(v){
   document.querySelectorAll('#perfil-venta-usuarios-lista input[type=checkbox]').forEach(cb=>{ if(cb.closest('label').style.display!=='none') cb.checked=v; });
