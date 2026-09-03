@@ -1951,7 +1951,15 @@ async function filtrarCotizacionClientes(q) {
           }
           document.getElementById('cotizacion-lista-precios').value = lpLabel;
           window._cotizacionListaPrecio = lp;
-          const vend = c.razon_social_vendedor || (c.vendedor_codigo ? `Vendedor ${c.vendedor_codigo}` : '');
+          let vend = c.razon_social_vendedor || '';
+          if (!vend && c.vendedor_codigo) {
+            try {
+              const vr = await apiFetch('/perfiles-venta/vendedores');
+              const vmap = new Map((vr.ok && vr.data.data || vr.data || []).map(v=>[String(v.codigo), v.nombre]));
+              const vname = vmap.get(String(c.vendedor_codigo));
+              vend = vname ? `${vname} (${c.vendedor_codigo})` : `Vendedor ${c.vendedor_codigo}`;
+            } catch { vend = `Vendedor ${c.vendedor_codigo}`; }
+          }
           const vInfo = document.getElementById('cotizacion-vendedor-info');
           if (vend) { vInfo.textContent = `Vendedor asignado: ${vend} — la venta quedará a su nombre`; vInfo.style.display = ''; }
           else { vInfo.style.display = 'none'; }
