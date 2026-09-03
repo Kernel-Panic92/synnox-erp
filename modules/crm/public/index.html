@@ -1347,11 +1347,11 @@
   </div>
 </div>
 <div class="modal-overlay" id="modal-perfil-venta-usuarios">
-  <div class="modal" style="max-width:520px">
+  <div class="modal" style="max-width:580px">
     <h3 id="modal-perfil-venta-usuarios-title">Asignar usuarios</h3>
     <input type="hidden" id="perfil-venta-usuarios-id">
     <div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" id="perfil-venta-usuarios-filtro" placeholder="Filtrar por nombre o email..." oninput="filtrarPerfilVentaUsuarios()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px"><button class="btn btn-sm btn-secondary" onclick="perfilVentaSelTodos(true)">Todos</button><button class="btn btn-sm btn-secondary" onclick="perfilVentaSelTodos(false)">Ninguno</button></div>
-    <div id="perfil-venta-usuarios-lista" style="max-height:340px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div>
+    <div id="perfil-venta-usuarios-lista" style="max-height:380px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:4px"></div>
     <div class="btn-row"><button class="btn btn-secondary" onclick="hideModal('modal-perfil-venta-usuarios')">Cancelar</button><button class="btn btn-primary" onclick="guardarPerfilVentaUsuarios()">Guardar</button></div>
   </div>
 </div>
