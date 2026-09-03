@@ -3456,7 +3456,7 @@ function filtrarPerfilVentaUsuarios(){
     let perfilOk=true;
     if(pf==='__sin') perfilOk=!pid;
     else if(pf) perfilOk=pid===pf;
-    l.style.display=(txt&&perfilOk)?'':'none';
+    l.style.display=(txt&&perfilOk)?'flex':'none';
   });
 }
 function perfilVentaSelTodos(v){
