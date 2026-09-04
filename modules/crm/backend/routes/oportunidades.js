@@ -164,7 +164,7 @@ router.get('/stats', requirePermiso('ver_pipeline', 'crm'), async (req, res) => 
         const path = (await import('path')).default;
         const { fileURLToPath } = await import('url');
         const __dirname = path.dirname(fileURLToPath(import.meta.url));
-        const ldb = new Database(path.join(__dirname, '..','..','..','launcher','launcher.db'), {readonly:true});
+        const ldb = new Database(path.join(__dirname, '..','..','..','..','launcher','launcher.db'), {readonly:true});
         const row = ldb.prepare('SELECT nombre FROM usuarios WHERE id=?').get(topVendedor.rows[0].vendedor_id);
         if (row) topVendedorNombre = row.nombre;
         ldb.close();
