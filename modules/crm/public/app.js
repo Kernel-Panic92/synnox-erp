@@ -221,7 +221,7 @@ async function cargarVendedoresPipelineFilter(){
     const sel=document.getElementById('filtro-pipeline-vendedor');
     if(!sel) return;
     const cur=sel.value;
-    sel.innerHTML='<option value="">Todos los vendedores</option>'+_pipelineVendedorCache.map(u=> `<option value="${u.id}">${esc(u.nombre)}${u.email?' — '+esc(u.email):''}</option>`).join('');
+    sel.innerHTML='<option value="">Todos los vendedores</option>'+_pipelineVendedorCache.map(u=> `<option value="${u.id}">${esc(u.nombre)}</option>`).join('');
     if(cur) sel.value=cur;
   }catch{}
 }
@@ -236,10 +236,10 @@ function filtrarPipelineVendedor(q){
     if(!qq){
       filtered = _pipelineVendedorCache;
     } else {
-      filtered = _pipelineVendedorCache.filter(u=> (u.nombre&&u.nombre.toLowerCase().includes(qq)) || (u.email&&u.email.toLowerCase().includes(qq)));
+      filtered = _pipelineVendedorCache.filter(u=> u.nombre&&u.nombre.toLowerCase().includes(qq));
     }
     if(!filtered.length){ sel.innerHTML='<option value="">Todos los vendedores</option><option disabled>No hay resultados</option>'; sel.style.display=''; sel.size=3; return; }
-    sel.innerHTML='<option value="">Todos los vendedores</option>'+filtered.map(u=> `<option value="${u.id}">${esc(u.nombre)}${u.email?' — '+esc(u.email):''}</option>`).join('');
+    sel.innerHTML='<option value="">Todos los vendedores</option>'+filtered.map(u=> `<option value="${u.id}">${esc(u.nombre)}</option>`).join('');
     sel.style.display=''; sel.size=Math.min(6, filtered.length+1);
     const inp=document.getElementById('filtro-pipeline-vendedor-search');
     if(inp && inp.dataset.selected) sel.value=inp.dataset.selected;
