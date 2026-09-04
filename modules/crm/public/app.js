@@ -486,44 +486,104 @@ async function cargarListasOportunidad(selected){
   }catch{ sel.innerHTML='<option value="200" selected>200 — GENERAL HORECA</option>'; }
 }
 
+let _vendedorOportunidadTimer=null, _vendedoresOportunidadCache=[];
 async function cargarVendedoresSelect(selectId, selectedId) {
   const sel = document.getElementById(selectId);
   if (!sel) return;
-  sel.innerHTML = '<option value="">Sin asignar</option>';
   const esAdmin = ['admin','gerente'].includes(usuario?.rol);
-  // Admin/gerente: lista completa con perfil de ventas (para pipeline)
-  if (esAdmin) {
-    try {
-      const r = await apiFetch('/perfiles-venta/usuarios-all');
-      if (r.ok) {
-        const lista = r.data.data || r.data || [];
-        for (const u of lista) {
-          const opt = document.createElement('option');
-          opt.value = u.id;
-          opt.textContent = u.nombre + (u.email ? ' ('+u.email+')' : '');
-          if (selectedId && String(u.id)===String(selectedId)) opt.selected = true;
-          else if (!selectedId && String(u.id)===String(usuario?.id)) opt.selected = true;
-          sel.appendChild(opt);
-        }
-        // si el seleccionado no está en lista (ej. lead sin perfil), añadirlo
-        if (selectedId && ![...sel.options].some(o=>String(o.value)===String(selectedId))) {
-          const opt = document.createElement('option');
-          opt.value = selectedId; opt.textContent = 'ID ' + selectedId; opt.selected = true;
-          sel.appendChild(opt);
-        }
-        return;
+  const isOport = selectId==='oportunidad-vendedor';
+  const searchInp = isOport ? document.getElementById('oportunidad-vendedor-search') : null;
+  const disp = isOport ? document.getElementById('oportunidad-vendedor-selected') : null;
+  if (isOport) {
+    sel.style.display='none'; sel.innerHTML='<option value="">Sin asignar</option>';
+    if (searchInp) { searchInp.value=''; searchInp.disabled=false; searchInp.placeholder='Buscar vendedor por nombre o email...'; }
+    if (disp) { disp.style.display='none'; disp.textContent=''; }
+  } else {
+    sel.innerHTML = '<option value="">Sin asignar</option>';
+  }
+  // Vendedor con perfil no-admin: solo sí mismo (combobox deshabilitado)
+  if (!esAdmin) {
+    if (usuario) {
+      const opt = document.createElement('option');
+      opt.value = usuario.id; opt.textContent = usuario.nombre + ' (' + (usuario.email || '') + ')';
+      opt.selected = true; sel.appendChild(opt);
+      sel.value = usuario.id;
+      if (isOport) {
+        if (disp) { disp.textContent='✓ '+opt.textContent+'  ✕'; disp.style.display=''; disp.title='Solo puedes asignarte a ti mismo'; disp.onclick=null; }
+        if (searchInp) { searchInp.value=''; searchInp.disabled=true; searchInp.placeholder='Solo puedes asignarte a ti mismo'; }
+        sel.style.display='none';
+      } else sel.disabled = true;
+    }
+    // precargar seleccionado si es otro (edición admin previa)
+    if (selectedId && String(selectedId)!==String(usuario?.id)) {
+      try{ const r=await apiFetch('/perfiles-venta/usuarios-all'); if(r.ok){ const f=(r.data.data||r.data||[]).find(u=>String(u.id)===String(selectedId)); if(f){ const o=document.createElement('option'); o.value=f.id; o.textContent=f.nombre+' ('+f.email+')'; o.selected=true; sel.appendChild(o); sel.value=f.id; if(isOport && disp){ disp.textContent='✓ '+o.textContent+'  ✕'; disp.style.display=''; } } } }catch{}
+    }
+    return;
+  }
+  // Admin/gerente: lista completa buscable
+  try {
+    const r = await apiFetch('/perfiles-venta/usuarios-all');
+    if (r.ok) {
+      const lista = r.data.data || r.data || [];
+      _vendedoresOportunidadCache = lista;
+      for (const u of lista) {
+        const opt = document.createElement('option');
+        opt.value = u.id; opt.textContent = u.nombre + (u.email ? ' ('+u.email+')' : '');
+        sel.appendChild(opt);
       }
-    } catch {}
+      if (selectedId) {
+        const found = lista.find(u=> String(u.id)===String(selectedId));
+        if (found) {
+          sel.value = selectedId;
+          if (isOport && disp) { disp.textContent='✓ '+found.nombre+' ('+found.email+')  ✕'; disp.style.display=''; disp.onclick=()=>{ sel.value=''; sel.innerHTML='<option value=\"\">Sin asignar</option>'; for(const u of _vendedoresOportunidadCache){ const o=document.createElement('option'); o.value=u.id; o.textContent=u.nombre+(u.email?' ('+u.email+')':''); sel.appendChild(o);} disp.style.display='none'; if(searchInp) searchInp.value=''; }; }
+        } else {
+          const opt = document.createElement('option');
+          opt.value = selectedId; opt.textContent = 'ID ' + selectedId; opt.selected = true; sel.appendChild(opt); sel.value=selectedId;
+          if(isOport && disp){ disp.textContent='✓ ID '+selectedId+'  ✕'; disp.style.display=''; }
+        }
+      } else if (isOport) {
+        // preselecciona al usuario actual para nuevas oportunidades
+        sel.value = usuario?.id || '';
+        if (sel.value && disp) {
+          const me = lista.find(u=> String(u.id)===String(sel.value));
+          if (me) { disp.textContent='✓ '+me.nombre+' ('+me.email+')  ✕'; disp.style.display=''; disp.onclick=()=>{ sel.value=''; disp.style.display='none'; if(searchInp) searchInp.value=''; }; }
+        }
+      }
+      // para admin, el select queda oculto hasta que busque
+      if (isOport && !selectedId) {
+        // mantiene disp si preseleccionado, sino deja buscar
+      }
+    }
+  } catch {}
+}
+function filtrarVendedorOportunidad(q){
+  const sel=document.getElementById('oportunidad-vendedor');
+  const inp=document.getElementById('oportunidad-vendedor-search');
+  const disp=document.getElementById('oportunidad-vendedor-selected');
+  if (!sel) return;
+  const esAdmin=['admin','gerente'].includes(usuario?.rol);
+  if (!esAdmin) return;
+  if (disp && disp.style.display!=='none' && !(q && q.length)) return;
+  const qq=(q||'').trim().toLowerCase();
+  if (!qq || qq.length<2) { sel.style.display='none'; return; }
+  clearTimeout(_vendedorOportunidadTimer);
+  _vendedorOportunidadTimer=setTimeout(()=>{
+    const filtered = _vendedoresOportunidadCache.filter(u=> (u.nombre && u.nombre.toLowerCase().includes(qq)) || (u.email && u.email.toLowerCase().includes(qq)));
+    if (!filtered.length) { sel.innerHTML='<option>No hay resultados</option>'; sel.style.display=''; sel.size=3; return; }
+    sel.innerHTML=filtered.map(u=> `<option value="${u.id}">${esc(u.nombre)}${u.email?' — '+esc(u.email):''}</option>`).join('');
+    sel.style.display=''; sel.size=Math.min(6, filtered.length+1);
+    sel.onchange=()=> onVendedorOportunidadSelect();
+  },200);
+}
+function onVendedorOportunidadSelect(){
+  const sel=document.getElementById('oportunidad-vendedor');
+  const disp=document.getElementById('oportunidad-vendedor-selected');
+  const inp=document.getElementById('oportunidad-vendedor-search');
+  const opt=sel.options[sel.selectedIndex]; if(!opt || !opt.value || opt.textContent==='No hay resultados') return;
+  if(disp){ disp.textContent='✓ '+opt.textContent+'  ✕'; disp.style.display=''; disp.title='Click para quitar';
+    disp.onclick=()=>{ sel.value=''; sel.innerHTML='<option value=\"\">Sin asignar</option>'; for(const u of _vendedoresOportunidadCache){ const o=document.createElement('option'); o.value=u.id; o.textContent=u.nombre+(u.email?' ('+u.email+')':''); sel.appendChild(o);} disp.style.display='none'; if(inp) inp.value=''; };
   }
-  // Vendedor con perfil: solo sí mismo (no puede asignar a otro)
-  if (usuario) {
-    const opt = document.createElement('option');
-    opt.value = usuario.id;
-    opt.textContent = usuario.nombre + ' (' + (usuario.email || '') + ')';
-    opt.selected = true;
-    sel.appendChild(opt);
-    if (!esAdmin) sel.disabled = true;
-  }
+  sel.style.display='none'; if(inp) inp.value='';
 }
 
 function formatMoney(n) {

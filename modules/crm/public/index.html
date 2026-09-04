@@ -740,8 +740,10 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Vendedor asignado</label>
-        <select id="oportunidad-vendedor"></select>
+        <label>Vendedor asignado — combobox buscable</label>
+        <input type="text" id="oportunidad-vendedor-search" placeholder="Buscar vendedor por nombre o email..." oninput="filtrarVendedorOportunidad(this.value)" autocomplete="off">
+        <select id="oportunidad-vendedor" style="display:none;margin-top:4px" size="4" onchange="onVendedorOportunidadSelect()"></select>
+        <div id="oportunidad-vendedor-selected" style="display:none;margin-top:4px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:13px"></div>
       </div>
       <div class="form-group" id="grupo-motivo-perdida" style="display:none">
         <label>Motivo de perdida</label>
