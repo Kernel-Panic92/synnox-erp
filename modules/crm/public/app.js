@@ -253,6 +253,14 @@ function filtrarPipelineVendedor(q){
     dropdown.style.display='block';
   },200);
 }
+document.addEventListener('click', (e)=>{
+  const wrap=document.getElementById('pipeline-vendedor-wrap');
+  const dd=document.getElementById('filtro-pipeline-vendedor-dropdown');
+  if(wrap && dd && dd.style.display!=='none' && !wrap.contains(e.target)) dd.style.display='none';
+  const oWrap=document.getElementById('oportunidad-vendedor-search')?.closest('[style*=\"position:relative\"]') || document.getElementById('oportunidad-vendedor')?.parentElement;
+  const oDd=document.getElementById('oportunidad-vendedor');
+  // multi-combo ya tiene su handler, no duplicar
+});
 function onPipelineVendedorSelect(id, nombre){
   const hidden=document.getElementById('filtro-pipeline-vendedor');
   const dropdown=document.getElementById('filtro-pipeline-vendedor-dropdown');
