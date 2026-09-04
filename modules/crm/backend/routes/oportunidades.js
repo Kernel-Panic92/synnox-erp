@@ -276,18 +276,22 @@ router.delete('/:id/productos/:productoId', requirePermiso('editar_pipeline', 'c
   }
 });
 
-// POST /api/oportunidades — Crear oportunidad (cliente o lead)
+// POST /api/oportunidades — Crear oportunidad (cliente o lead) — vendedor: solo admin asigna a otro
 router.post('/', requirePermiso('crear_oportunidad', 'crm'), requireVentasPerfil('editar_pipeline'), async (req, res) => {
   try {
     const { cliente_id, lead_id, contacto_id, nombre, monto_esperado, probabilidad, etapa, vendedor_id, fecha_cierre_estimada, fuente, prioridad, lista_precios } = req.body;
     if (!nombre) return res.status(400).json({ error: 'El nombre es obligatorio' });
     if (!cliente_id && !lead_id) return res.status(400).json({ error: 'Seleccione un cliente o un lead' });
+    const esAdmin = ['admin','gerente'].includes(req.user?.rol);
+    const vid = vendedor_id ? parseInt(vendedor_id) : null;
+    if (!esAdmin && vid && vid !== req.user.id) return res.status(403).json({ error: 'Solo puedes asignarte oportunidades a ti mismo' });
 
+    const finalVendedor = esAdmin ? (vid || req.user.id) : req.user.id;
     const result = await pool.query(`
       INSERT INTO crm.oportunidades (cliente_id, lead_id, contacto_id, nombre, monto_esperado, probabilidad, etapa, vendedor_id, fecha_cierre_estimada, fuente, prioridad, lista_precios)
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *
-    `, [cliente_id || null, lead_id || null, contacto_id || null, nombre, monto_esperado || 0, probabilidad || 10, etapa || 'lead', vendedor_id || req.user.id, fecha_cierre_estimada || null, fuente || 'otro', prioridad || 'media', lista_precios || '200']);
+    `, [cliente_id || null, lead_id || null, contacto_id || null, nombre, monto_esperado || 0, probabilidad || 10, etapa || 'lead', finalVendedor, fecha_cierre_estimada || null, fuente || 'otro', prioridad || 'media', lista_precios || '200']);
 
     // Registrar en historial
     await pool.query(
@@ -312,7 +316,14 @@ router.put('/:id', requirePermiso('editar_pipeline', 'crm'), requireVentasPerfil
     const existing = await pool.query(`SELECT * FROM crm.oportunidades WHERE id = $1`, [id]);
     if (!existing.rows.length) return res.status(404).json({ error: 'Oportunidad no encontrada' });
 
-    const fields = ['cliente_id', 'lead_id', 'contacto_id', 'nombre', 'monto_esperado', 'probabilidad', 'motivo_perdida', 'vendedor_id', 'fecha_cierre_estimada', 'fuente', 'prioridad', 'lista_precios'];
+    const fields = ['cliente_id', 'lead_id', 'contacto_id', 'nombre', 'monto_esperado', 'probabilidad', 'motivo_perdida', 'fecha_cierre_estimada', 'fuente', 'prioridad', 'lista_precios'];
+    // vendedor_id solo admin puede cambiar a otro
+    if (req.body.vendedor_id !== undefined) {
+      const esAdmin = ['admin','gerente'].includes(req.user?.rol);
+      const vid = parseInt(req.body.vendedor_id);
+      if (!esAdmin && vid !== req.user.id) return res.status(403).json({ error: 'Solo puedes asignarte oportunidades a ti mismo' });
+      fields.push('vendedor_id');
+    }
     const updates = [];
     const params = [];
     let paramIdx = 1;

@@ -487,16 +487,42 @@ async function cargarListasOportunidad(selected){
 }
 
 async function cargarVendedoresSelect(selectId, selectedId) {
-  const r = await apiFetch('/auth/me');
   const sel = document.getElementById(selectId);
+  if (!sel) return;
   sel.innerHTML = '<option value="">Sin asignar</option>';
-  // TODO: endpoint para listar usuarios del launcher
+  const esAdmin = ['admin','gerente'].includes(usuario?.rol);
+  // Admin/gerente: lista completa con perfil de ventas (para pipeline)
+  if (esAdmin) {
+    try {
+      const r = await apiFetch('/perfiles-venta/usuarios-all');
+      if (r.ok) {
+        const lista = r.data.data || r.data || [];
+        for (const u of lista) {
+          const opt = document.createElement('option');
+          opt.value = u.id;
+          opt.textContent = u.nombre + (u.email ? ' ('+u.email+')' : '');
+          if (selectedId && String(u.id)===String(selectedId)) opt.selected = true;
+          else if (!selectedId && String(u.id)===String(usuario?.id)) opt.selected = true;
+          sel.appendChild(opt);
+        }
+        // si el seleccionado no está en lista (ej. lead sin perfil), añadirlo
+        if (selectedId && ![...sel.options].some(o=>String(o.value)===String(selectedId))) {
+          const opt = document.createElement('option');
+          opt.value = selectedId; opt.textContent = 'ID ' + selectedId; opt.selected = true;
+          sel.appendChild(opt);
+        }
+        return;
+      }
+    } catch {}
+  }
+  // Vendedor con perfil: solo sí mismo (no puede asignar a otro)
   if (usuario) {
     const opt = document.createElement('option');
     opt.value = usuario.id;
     opt.textContent = usuario.nombre + ' (' + (usuario.email || '') + ')';
-    if (selectedId == usuario.id || !selectedId) opt.selected = true;
+    opt.selected = true;
     sel.appendChild(opt);
+    if (!esAdmin) sel.disabled = true;
   }
 }
 
