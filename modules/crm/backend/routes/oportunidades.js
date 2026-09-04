@@ -346,7 +346,7 @@ router.put('/:id/mover', requirePermiso('editar_pipeline', 'crm'), requireVentas
     const { etapa, comentario } = req.body;
     if (!etapa || !ETAPAS.includes(etapa)) return res.status(400).json({ error: 'Etapa invalida' });
 
-    const existing = await pool.query(`SELECT * FROM crm.oportunidades WHERE id = $1`, [id]);
+    const existing = await pool.query(`SELECT * FROM crm.oportunidades WHERE id = $1::uuid`, [id]);
     if (!existing.rows.length) return res.status(404).json({ error: 'Oportunidad no encontrada' });
 
     const etapaAnterior = existing.rows[0].etapa;
@@ -355,14 +355,14 @@ router.put('/:id/mover', requirePermiso('editar_pipeline', 'crm'), requireVentas
     const result = await pool.query(
       `UPDATE crm.oportunidades SET etapa = $1, actualizado_en = NOW(),
        motivo_perdida = CASE WHEN $1 = 'perdida' THEN COALESCE($2, motivo_perdida) ELSE motivo_perdida END
-       WHERE id = $3 RETURNING *`,
+       WHERE id = $3::uuid RETURNING *`,
       [etapa, comentario || null, id]
     );
 
     // Registrar en historial
     await pool.query(
       `INSERT INTO crm.oportunidad_historial (oportunidad_id, etapa_anterior, etapa_nueva, cambiado_por, comentario)
-       VALUES ($1, $2, $3, $4, $5)`,
+       VALUES ($1::uuid, $2, $3, $4, $5)`,
       [id, etapaAnterior, etapa, req.user.id, comentario || `Movido de ${etapaAnterior} a ${etapa}`]
     );
 
