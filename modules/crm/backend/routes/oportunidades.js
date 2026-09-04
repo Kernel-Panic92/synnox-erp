@@ -58,18 +58,21 @@ router.get('/', requirePermiso('ver_pipeline', 'crm'), async (req, res) => {
   }
 });
 
-// GET /api/oportunidades/pipeline — Datos para kanban (agrupados por etapa)
+// GET /api/oportunidades/pipeline — Datos para kanban (agrupados por etapa) con filtros globales
 router.get('/pipeline', requirePermiso('ver_pipeline', 'crm'), async (req, res) => {
   try {
-    const { vendedor } = req.query;
+    const { vendedor, etapa, fuente, prioridad, search, desde, hasta } = req.query;
     const conditions = [];
     const params = [];
     let paramIdx = 1;
 
-    if (vendedor) {
-      conditions.push(`o.vendedor_id = $${paramIdx++}`);
-      params.push(parseInt(vendedor));
-    }
+    if (vendedor) { conditions.push(`o.vendedor_id = $${paramIdx++}`); params.push(parseInt(vendedor)); }
+    if (etapa) { conditions.push(`o.etapa = $${paramIdx++}`); params.push(etapa); }
+    if (fuente) { conditions.push(`o.fuente = $${paramIdx++}`); params.push(fuente); }
+    if (prioridad) { conditions.push(`o.prioridad = $${paramIdx++}`); params.push(prioridad); }
+    if (search) { conditions.push(`(o.nombre ILIKE $${paramIdx} OR e.nombre ILIKE $${paramIdx} OR l.raison_social ILIKE $${paramIdx})`); params.push(`%${search}%`); paramIdx++; }
+    if (desde) { conditions.push(`o.fecha_cierre_estimada >= $${paramIdx++}`); params.push(desde); }
+    if (hasta) { conditions.push(`o.fecha_cierre_estimada <= $${paramIdx++}`); params.push(hasta); }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
@@ -109,27 +112,44 @@ router.get('/pipeline', requirePermiso('ver_pipeline', 'crm'), async (req, res) 
   }
 });
 
-// GET /api/oportunidades/stats — Estadisticas (respeta filtro vendedor)
+// GET /api/oportunidades/stats — Estadisticas (respeta filtros globales)
 router.get('/stats', requirePermiso('ver_pipeline', 'crm'), async (req, res) => {
   try {
-    const { vendedor } = req.query;
-    const cond = vendedor ? 'WHERE o.vendedor_id = $1' : '';
-    const condAnd = vendedor ? 'AND o.vendedor_id = $1' : '';
-    const p = vendedor ? [parseInt(vendedor)] : [];
-    const pPipeline = vendedor ? [parseInt(vendedor)] : [];
+    const { vendedor, etapa, fuente, prioridad, search, desde, hasta } = req.query;
+    // Construir where dinámico para stats (reusa condiciones de pipeline)
+    const conds = [];
+    const vals = [];
+    let pi = 1;
+    if (vendedor) { conds.push(`o.vendedor_id = $${pi++}`); vals.push(parseInt(vendedor)); }
+    if (etapa) { conds.push(`o.etapa = $${pi++}`); vals.push(etapa); }
+    if (fuente) { conds.push(`o.fuente = $${pi++}`); vals.push(fuente); }
+    if (prioridad) { conds.push(`o.prioridad = $${pi++}`); vals.push(prioridad); }
+    if (search) { conds.push(`(o.nombre ILIKE $${pi} OR e.nombre ILIKE $${pi} OR l.raison_social ILIKE $${pi})`); vals.push(`%${search}%`); pi++; }
+    if (desde) { conds.push(`o.fecha_cierre_estimada >= $${pi++}`); vals.push(desde); }
+    if (hasta) { conds.push(`o.fecha_cierre_estimada <= $${pi++}`); vals.push(hasta); }
+    const whereBase = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+    // Para joins con cliente/lead en search
+    const joinSearch = search ? ` LEFT JOIN crm.clientes e ON e.id=o.cliente_id LEFT JOIN crm.leads l ON l.id=o.lead_id` : '';
+    const cond = whereBase;
+    const condWithJoin = whereBase ? whereBase : '';
+    const p = vals;
+    const condAnd = ''; // no usado pero mantener compat
 
+    const baseFrom = `FROM crm.oportunidades o LEFT JOIN crm.clientes e ON e.id=o.cliente_id LEFT JOIN crm.leads l ON l.id=o.lead_id`;
+    // helper para añadir AND etapa NOT IN cuando ya hay WHERE
+    const addOpenFilter = (c) => c ? `${c} AND o.etapa NOT IN ('ganada','perdida')` : `WHERE o.etapa NOT IN ('ganada','perdida')`;
     const [total, porEtapa, montoTotal, forecast, porEtapaCounts, vencidas, ticketAvg, ciclo, porFuente, porPrioridad, topVendedor] = await Promise.all([
-      pool.query(`SELECT COUNT(*) FROM crm.oportunidades o ${cond}`, p),
-      pool.query(`SELECT etapa, COUNT(*) AS total, COALESCE(SUM(monto_esperado), 0) AS monto FROM crm.oportunidades o ${cond} GROUP BY etapa ORDER BY CASE etapa WHEN 'lead' THEN 1 WHEN 'calificado' THEN 2 WHEN 'propuesta' THEN 3 WHEN 'negociacion' THEN 4 WHEN 'ganada' THEN 5 WHEN 'perdida' THEN 6 END`, p),
-      pool.query(`SELECT COALESCE(SUM(monto_esperado), 0) AS total FROM crm.oportunidades o ${cond ? cond + ` AND o.etapa NOT IN ('ganada','perdida')` : `WHERE o.etapa NOT IN ('ganada','perdida')`}`, p),
-      pool.query(`SELECT COALESCE(SUM(monto_esperado * COALESCE(probabilidad,0) / 100.0),0) AS total FROM crm.oportunidades o ${cond ? cond + ` AND o.etapa NOT IN ('ganada','perdida')` : `WHERE o.etapa NOT IN ('ganada','perdida')`}`, p),
-      pool.query(`SELECT etapa, COUNT(*) AS total FROM crm.oportunidades o ${cond} GROUP BY etapa`, p),
-      pool.query(`SELECT COUNT(*) FROM crm.oportunidades o ${cond ? cond + ` AND o.fecha_cierre_estimada < CURRENT_DATE AND o.etapa NOT IN ('ganada','perdida')` : `WHERE o.fecha_cierre_estimada < CURRENT_DATE AND o.etapa NOT IN ('ganada','perdida')`}`, p),
-      pool.query(`SELECT COALESCE(AVG(monto_esperado),0) AS avg, COUNT(*) as cnt FROM crm.oportunidades o ${cond ? cond + ` AND o.etapa NOT IN ('ganada','perdida')` : `WHERE o.etapa NOT IN ('ganada','perdida')`}`, p),
-      pool.query(`SELECT COALESCE(AVG(EXTRACT(DAY FROM (CURRENT_DATE - o.creado_en))),0) AS avg FROM crm.oportunidades o ${cond ? cond + ` AND o.etapa NOT IN ('ganada','perdida')` : `WHERE o.etapa NOT IN ('ganada','perdida')`}`, p),
-      pool.query(`SELECT COALESCE(fuente,'otro') as fuente, COUNT(*) as total FROM crm.oportunidades o ${cond} GROUP BY fuente ORDER BY total DESC`, p),
-      pool.query(`SELECT COALESCE(prioridad,'media') as prioridad, COUNT(*) as total FROM crm.oportunidades o ${cond} GROUP BY prioridad ORDER BY CASE prioridad WHEN 'critica' THEN 1 WHEN 'alta' THEN 2 WHEN 'media' THEN 3 WHEN 'baja' THEN 4 ELSE 5 END`, p),
-      pool.query(`SELECT o.vendedor_id, COUNT(*) as total, COALESCE(SUM(o.monto_esperado),0) as monto FROM crm.oportunidades o ${cond ? cond + ` AND o.vendedor_id IS NOT NULL` : `WHERE o.vendedor_id IS NOT NULL`} GROUP BY o.vendedor_id ORDER BY total DESC LIMIT 1`, p)
+      pool.query(`SELECT COUNT(*) ${baseFrom} ${cond}`, p),
+      pool.query(`SELECT etapa, COUNT(*) AS total, COALESCE(SUM(monto_esperado), 0) AS monto ${baseFrom} ${cond} GROUP BY etapa ORDER BY CASE etapa WHEN 'lead' THEN 1 WHEN 'calificado' THEN 2 WHEN 'propuesta' THEN 3 WHEN 'negociacion' THEN 4 WHEN 'ganada' THEN 5 WHEN 'perdida' THEN 6 END`, p),
+      pool.query(`SELECT COALESCE(SUM(monto_esperado), 0) AS total ${baseFrom} ${addOpenFilter(cond)}`, p),
+      pool.query(`SELECT COALESCE(SUM(monto_esperado * COALESCE(probabilidad,0) / 100.0),0) AS total ${baseFrom} ${addOpenFilter(cond)}`, p),
+      pool.query(`SELECT etapa, COUNT(*) AS total ${baseFrom} ${cond} GROUP BY etapa`, p),
+      pool.query(`SELECT COUNT(*) ${baseFrom} ${cond ? cond + ` AND o.fecha_cierre_estimada < CURRENT_DATE AND o.etapa NOT IN ('ganada','perdida')` : `WHERE o.fecha_cierre_estimada < CURRENT_DATE AND o.etapa NOT IN ('ganada','perdida')`}`, p),
+      pool.query(`SELECT COALESCE(AVG(monto_esperado),0) AS avg, COUNT(*) as cnt ${baseFrom} ${addOpenFilter(cond)}`, p),
+      pool.query(`SELECT COALESCE(AVG(EXTRACT(DAY FROM (CURRENT_DATE - o.creado_en))),0) AS avg ${baseFrom} ${addOpenFilter(cond)}`, p),
+      pool.query(`SELECT COALESCE(fuente,'otro') as fuente, COUNT(*) as total ${baseFrom} ${cond} GROUP BY fuente ORDER BY total DESC`, p),
+      pool.query(`SELECT COALESCE(prioridad,'media') as prioridad, COUNT(*) as total ${baseFrom} ${cond} GROUP BY prioridad ORDER BY CASE prioridad WHEN 'critica' THEN 1 WHEN 'alta' THEN 2 WHEN 'media' THEN 3 WHEN 'baja' THEN 4 ELSE 5 END`, p),
+      pool.query(`SELECT o.vendedor_id, COUNT(*) as total, COALESCE(SUM(o.monto_esperado),0) as monto ${baseFrom} ${cond ? cond + ` AND o.vendedor_id IS NOT NULL` : `WHERE o.vendedor_id IS NOT NULL`} GROUP BY o.vendedor_id ORDER BY total DESC LIMIT 1`, p)
     ]);
 
     const ganada = parseInt(porEtapaCounts.rows.find(r=>r.etapa==='ganada')?.total || 0);
@@ -382,7 +402,7 @@ router.put('/:id/mover', requirePermiso('editar_pipeline', 'crm'), requireVentas
     res.json({ ok: true, data: result.rows[0] });
   } catch (err) {
     console.error('[CRM] Error mover oportunidad:', err);
-    res.status(500).json({ error: err.message || 'Error al mover oportunidad', detail: String(err) });
+    res.status(500).json({ error: 'Error al mover oportunidad' });
   }
 });
 

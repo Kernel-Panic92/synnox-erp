@@ -133,8 +133,20 @@ const ETAPAS = [
 async function cargarPipeline() {
   try {
     const vendedor = document.getElementById('filtro-pipeline-vendedor')?.value || '';
+    const etapa = document.getElementById('filtro-pipeline-etapa')?.value || '';
+    const fuente = document.getElementById('filtro-pipeline-fuente')?.value || '';
+    const prioridad = document.getElementById('filtro-pipeline-prioridad')?.value || '';
+    const search = document.getElementById('filtro-pipeline-search')?.value?.trim() || '';
+    const desde = document.getElementById('filtro-pipeline-desde')?.value || '';
+    const hasta = document.getElementById('filtro-pipeline-hasta')?.value || '';
     const params = new URLSearchParams();
     if (vendedor) params.set('vendedor', vendedor);
+    if (etapa) params.set('etapa', etapa);
+    if (fuente) params.set('fuente', fuente);
+    if (prioridad) params.set('prioridad', prioridad);
+    if (search) params.set('search', search);
+    if (desde) params.set('desde', desde);
+    if (hasta) params.set('hasta', hasta);
     const [r, s] = await Promise.all([
       apiFetch('/oportunidades/pipeline?' + params),
       apiFetch('/oportunidades/stats?' + params)
@@ -190,7 +202,7 @@ async function cargarPipeline() {
 }
 
 function limpiarFiltrosPipeline() {
-  document.getElementById('filtro-pipeline-vendedor').value = '';
+  ['filtro-pipeline-vendedor','filtro-pipeline-etapa','filtro-pipeline-fuente','filtro-pipeline-prioridad','filtro-pipeline-search','filtro-pipeline-desde','filtro-pipeline-hasta'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   cargarPipeline();
 }
 

@@ -205,10 +205,37 @@
             <button class="btn btn-sm btn-primary" onclick="abrirModalOportunidad()">+ Nueva Oportunidad</button>
           </div>
         </div>
-        <div class="filters">
+        <div class="filters" style="gap:8px">
+          <input type="text" id="filtro-pipeline-search" placeholder="Buscar oportunidad o cliente..." oninput="cargarPipeline()" style="min-width:200px">
           <select id="filtro-pipeline-vendedor" onchange="cargarPipeline()">
             <option value="">Todos los vendedores</option>
           </select>
+          <select id="filtro-pipeline-etapa" onchange="cargarPipeline()">
+            <option value="">Todas las etapas</option>
+            <option value="lead">Lead</option>
+            <option value="calificado">Calificado</option>
+            <option value="propuesta">Propuesta</option>
+            <option value="negociacion">Negociación</option>
+            <option value="ganada">Ganada</option>
+            <option value="perdida">Perdida</option>
+          </select>
+          <select id="filtro-pipeline-fuente" onchange="cargarPipeline()">
+            <option value="">Todas las fuentes</option>
+            <option value="web">Web</option>
+            <option value="referido">Referido</option>
+            <option value="llamada">Llamada</option>
+            <option value="feria">Feria</option>
+            <option value="otro">Otro</option>
+          </select>
+          <select id="filtro-pipeline-prioridad" onchange="cargarPipeline()">
+            <option value="">Todas prioridades</option>
+            <option value="baja">Baja</option>
+            <option value="media">Media</option>
+            <option value="alta">Alta</option>
+            <option value="critica">Crítica</option>
+          </select>
+          <input type="date" id="filtro-pipeline-desde" onchange="cargarPipeline()" title="Desde cierre">
+          <input type="date" id="filtro-pipeline-hasta" onchange="cargarPipeline()" title="Hasta cierre">
           <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosPipeline()">✕ Limpiar</button>
         </div>
         <div class="stats-row" id="stats-pipeline"></div>
