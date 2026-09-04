@@ -106,7 +106,7 @@ router.get('/usuarios-all', requirePermiso('configurar', 'crm'), async (req, res
 router.get('/asesores', requirePermiso('ver_pipeline', 'crm'), async (req, res) => {
   try {
     const ldb = getLauncherDb();
-    const todos = ldb.prepare(`SELECT u.id,u.nombre,u.email,u.perfil_id FROM usuarios WHERE activo=1`).all();
+    const todos = ldb.prepare(`SELECT id,nombre,email,perfil_id FROM usuarios WHERE activo=1`).all();
     // filtra launcher ASESOR COMERCIAL (2440)
     let asesoresLauncher = todos.filter(u=> String(u.perfil_id)==='2440');
     // además, usuarios con perfil_venta Vendedor Generico (id 2) aunque su launcher perfil sea otro
