@@ -2,10 +2,14 @@ import pool from '../config/db.js';
 
 async function mapSiesa(tipo, crmCodigo) {
   if (!crmCodigo) return crmCodigo;
+  const code = String(crmCodigo).trim();
+  if (!code) return code;
   try {
-    const r = await pool.query(`SELECT siesa_codigo FROM crm.siesa_mapeos WHERE tipo=$1 AND crm_codigo=$2 LIMIT 1`, [tipo, String(crmCodigo)]);
-    return r.rows[0]?.siesa_codigo || String(crmCodigo);
-  } catch { return String(crmCodigo); }
+    // exact + case-insensitive + descripcion fallback
+    let r = await pool.query(`SELECT siesa_codigo FROM crm.siesa_mapeos WHERE tipo=$1 AND UPPER(TRIM(crm_codigo))=UPPER(TRIM($2)) LIMIT 1`, [tipo, code]);
+    if (!r.rows[0]) r = await pool.query(`SELECT siesa_codigo FROM crm.siesa_mapeos WHERE tipo=$1 AND UPPER(TRIM(descripcion))=UPPER(TRIM($2)) LIMIT 1`, [tipo, code]);
+    return r.rows[0]?.siesa_codigo || code;
+  } catch { return code; }
 }
 
 // Construye payload genérico SIESA Hub a partir del modelo CRM
