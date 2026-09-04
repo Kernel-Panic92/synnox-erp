@@ -123,7 +123,7 @@ router.get('/asesores', requirePermiso('ver_pipeline', 'crm'), async (req, res) 
     }).sort((a,b)=> a.nombre.localeCompare(b.nombre));
     ldb.close();
     res.json({ ok: true, data: result });
-  } catch (err){ console.error('asesores error', err); res.status(500).json({error:err.message, detail: String(err), stack: err.stack}); }
+  } catch (err){ console.error('asesores error', err); res.status(500).json({error:err.message}); }
 });
 
 // GET /api/perfiles-venta — listar perfiles con conteo usuarios
