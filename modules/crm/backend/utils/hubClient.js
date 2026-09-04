@@ -40,24 +40,41 @@ export function buildHubPayload({ cotizacion, items, cliente, sucursalFacturar, 
       fecha_entrega: cotizacion.fecha_entrega || null,
       orden_compra: cotizacion.orden_compra || null,
     },
-    vendedor: vendedorHub ? { codigo: vendedorHub.codigo, nombre: vendedorHub.nombre } : null,
+    vendedor: vendedorHub ? { codigo: String(vendedorHub.codigo).split(' - ')[0].split(' ')[0].trim(), nombre: vendedorHub.nombre } : null,
     observacion: cotizacion.notas || '',
-    items: (items || []).map((it, idx) => ({
-      linea: idx + 1,
-      referencia: it.referencia || '',
-      descripcion: it.descripcion || '',
-      unidad_medida: it.unidad_medida || 'UND',
-      cantidad: Number(it.cantidad) || 1,
-      precio_unitario: Number(it.precio_unitario) || 0,
-      descuento_pct: Number(it.descuento_pct) || 0,
-      subtotal: Number(it.subtotal) || (Number(it.cantidad) * Number(it.precio_unitario)),
-    })),
-    totales: {
-      subtotal: Number(cotizacion.valor_subtotal) || 0,
-      descuento: Number(cotizacion.valor_descuento) || 0,
-      iva: Number(cotizacion.valor_iva) || 0,
-      total: Number(cotizacion.valor_total) || 0,
-    },
+    items: (items || []).map((it, idx) => {
+      const cant = Number(it.cantidad) || 1;
+      const pu = Number(it.precio_unitario) || 0;
+      const d = Number(it.descuento_pct) || 0;
+      const bruto = cant * pu;
+      const descVal = bruto * d / 100;
+      const neto = bruto - descVal;
+      return {
+        linea: idx + 1,
+        referencia: it.referencia || '',
+        descripcion: it.descripcion || '',
+        unidad_medida: it.unidad_medida || 'UND',
+        cantidad: cant,
+        precio_unitario: pu,
+        descuento_pct: d,
+        porcentaje_iva: Number(it.porcentaje_iva ?? it.tasa_impuesto ?? 19),
+        subtotal: Number(it.subtotal) || neto,
+        _bruto: bruto,
+        _descuento_val: descVal,
+      };
+    }),
+    totales: (() => {
+      // SIESA exige coherencia: si hay descuento por línea, totales.descuento debe ser suma de línea
+      const lineDesc = (items||[]).reduce((s, it) => s + (Number(it.cantidad)||1)*(Number(it.precio_unitario)||0)*(Number(it.descuento_pct)||0)/100, 0);
+      const globalDesc = Number(cotizacion.valor_descuento)||0;
+      const desc = lineDesc + globalDesc;
+      return {
+        subtotal: Number(cotizacion.valor_subtotal) || (items||[]).reduce((s, it)=> s + (Number(it.cantidad)||1)*(Number(it.precio_unitario)||0), 0),
+        descuento: desc,
+        iva: Number(cotizacion.valor_iva) || 0,
+        total: Number(cotizacion.valor_total) || 0,
+      };
+    })(),
     // Metadatos Hub
     origen: 'SynnoxERP-CRM',
     creado_por: cotizacion.creado_por || null,
@@ -90,13 +107,14 @@ export async function toSiesaPayload(payloadCrm) {
       f430_num_orden_compra: payloadCrm.condiciones?.orden_compra || payloadCrm.cotizacion_numero || '',
       f350_consec_docto: '',
     },
-    Movimientos: (payloadCrm.items||[]).map(it => ({
+    Movimientos: (payloadCrm.items||[]).map((it, idx) => ({
+      f351_consecutivo: idx + 1,
       f351_id_item: it.referencia || it.descripcion,
+      f351_id_bodega: payloadCrm.condiciones?.bodega || '',
       f351_cant_pedida: Number(it.cantidad)||0,
       f351_precio_unitario: Number(it.precio_unitario)||0,
       f351_porc_descuento: Number(it.descuento_pct)||0,
-      f351_id_bodega: payloadCrm.condiciones?.bodega || '',
-      // liquidación por línea (SIESA exige por renglón)
+      f351_porc_iva: Number(it.porcentaje_iva ?? 19),
       f351_subtotal: Number(it.subtotal) || (Number(it.cantidad)*(Number(it.precio_unitario))*(1-(Number(it.descuento_pct)||0)/100)),
     })),
     _meta: { cotizacion_numero: payloadCrm.cotizacion_numero, warnings },
@@ -124,7 +142,11 @@ export async function enviarPedidoAlHub({ cotizacionId }, client = pool) {
   const cot = cotR.rows[0];
   if (cot.documento_erp) throw new Error('Ya tiene CPV');
 
-  const itemsR = await client.query(`SELECT * FROM crm.cotizacion_items WHERE cotizacion_id = $1 ORDER BY orden`, [cotizacionId]);
+  const itemsR = await client.query(`
+    SELECT ci.*, p.tasa_impuesto, p.precio_unitario as precio_lista
+    FROM crm.cotizacion_items ci
+    LEFT JOIN crm.productos p ON p.codigo = ci.referencia
+    WHERE ci.cotizacion_id = $1 ORDER BY ci.orden`, [cotizacionId]);
   const cliR = cot.cliente_id ? await client.query(`SELECT * FROM crm.clientes WHERE id = $1`, [cot.cliente_id]) : { rows: [] };
   const cliente = cliR.rows[0] || {};
 
