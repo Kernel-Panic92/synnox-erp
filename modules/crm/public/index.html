@@ -207,9 +207,13 @@
         </div>
         <div class="filters" style="gap:8px">
           <input type="text" id="filtro-pipeline-search" placeholder="Buscar oportunidad o cliente..." oninput="cargarPipeline()" style="min-width:200px">
-          <select id="filtro-pipeline-vendedor" onchange="cargarPipeline()">
-            <option value="">Todos los vendedores</option>
-          </select>
+          <div style="min-width:200px">
+            <input type="text" id="filtro-pipeline-vendedor-search" placeholder="Filtrar vendedor..." oninput="filtrarPipelineVendedor(this.value)" onfocus="filtrarPipelineVendedor('')" autocomplete="off" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px">
+            <select id="filtro-pipeline-vendedor" style="display:none;margin-top:4px;width:100%" size="4" onchange="onPipelineVendedorSelect()">
+              <option value="">Todos los vendedores</option>
+            </select>
+            <div id="filtro-pipeline-vendedor-selected" style="display:none;margin-top:4px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:12px"></div>
+          </div>
           <select id="filtro-pipeline-etapa" onchange="cargarPipeline()">
             <option value="">Todas las etapas</option>
             <option value="lead">Lead</option>

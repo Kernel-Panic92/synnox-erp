@@ -132,7 +132,11 @@ const ETAPAS = [
 
 async function cargarPipeline() {
   try {
-    const vendedor = document.getElementById('filtro-pipeline-vendedor')?.value || '';
+    if(!_pipelineVendedorCache.length){
+      // carga async sin bloquear
+      cargarVendedoresPipelineFilter();
+    }
+    const vendedor = document.getElementById('filtro-pipeline-vendedor')?.value || document.getElementById('filtro-pipeline-vendedor-search')?.dataset.selected || '';
     const etapa = document.getElementById('filtro-pipeline-etapa')?.value || '';
     const fuente = document.getElementById('filtro-pipeline-fuente')?.value || '';
     const prioridad = document.getElementById('filtro-pipeline-prioridad')?.value || '';
@@ -201,8 +205,64 @@ async function cargarPipeline() {
   } catch (err) { console.error('Pipeline error:', err); }
 }
 
+let _pipelineVendedorCache=[], _pipelineVendedorTimer=null;
+async function cargarVendedoresPipelineFilter(){
+  try{
+    const r=await apiFetch('/perfiles-venta/usuarios-all');
+    if(!r.ok) return;
+    _pipelineVendedorCache=r.data.data||r.data||[];
+    const sel=document.getElementById('filtro-pipeline-vendedor');
+    if(!sel) return;
+    const cur=sel.value;
+    sel.innerHTML='<option value="">Todos los vendedores</option>'+_pipelineVendedorCache.map(u=> `<option value="${u.id}">${esc(u.nombre)}${u.email?' — '+esc(u.email):''}</option>`).join('');
+    if(cur) sel.value=cur;
+  }catch{}
+}
+function filtrarPipelineVendedor(q){
+  const sel=document.getElementById('filtro-pipeline-vendedor');
+  const disp=document.getElementById('filtro-pipeline-vendedor-selected');
+  if(disp && disp.style.display!=='none' && q && q.length) return;
+  const qq=(q||'').trim().toLowerCase();
+  clearTimeout(_pipelineVendedorTimer);
+  _pipelineVendedorTimer=setTimeout(()=>{
+    let filtered;
+    if(!qq){
+      filtered = _pipelineVendedorCache;
+    } else {
+      filtered = _pipelineVendedorCache.filter(u=> (u.nombre&&u.nombre.toLowerCase().includes(qq)) || (u.email&&u.email.toLowerCase().includes(qq)));
+    }
+    if(!filtered.length){ sel.innerHTML='<option value="">Todos los vendedores</option><option disabled>No hay resultados</option>'; sel.style.display=''; sel.size=3; return; }
+    sel.innerHTML='<option value="">Todos los vendedores</option>'+filtered.map(u=> `<option value="${u.id}">${esc(u.nombre)}${u.email?' — '+esc(u.email):''}</option>`).join('');
+    sel.style.display=''; sel.size=Math.min(6, filtered.length+1);
+    const inp=document.getElementById('filtro-pipeline-vendedor-search');
+    if(inp && inp.dataset.selected) sel.value=inp.dataset.selected;
+  },200);
+}
+function onPipelineVendedorSelect(){
+  const sel=document.getElementById('filtro-pipeline-vendedor');
+  const disp=document.getElementById('filtro-pipeline-vendedor-selected');
+  const inp=document.getElementById('filtro-pipeline-vendedor-search');
+  const opt=sel.options[sel.selectedIndex];
+  if(!opt) return;
+  if(!opt.value){
+    disp.style.display='none'; disp.textContent=''; if(inp){ inp.value=''; inp.dataset.selected=''; }
+    sel.style.display='none';
+  } else {
+    disp.textContent='✓ '+opt.textContent+'  ✕'; disp.style.display=''; disp.title='Click para quitar';
+    disp.onclick=()=>{ sel.value=''; sel.style.display='none'; disp.style.display='none'; if(inp){ inp.value=''; inp.dataset.selected=''; } cargarPipeline(); };
+    if(inp){ inp.value=''; inp.dataset.selected=opt.value; }
+    sel.style.display='none';
+  }
+  cargarPipeline();
+}
 function limpiarFiltrosPipeline() {
   ['filtro-pipeline-vendedor','filtro-pipeline-etapa','filtro-pipeline-fuente','filtro-pipeline-prioridad','filtro-pipeline-search','filtro-pipeline-desde','filtro-pipeline-hasta'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
+  const pvDisp=document.getElementById('filtro-pipeline-vendedor-selected');
+  const pvSel=document.getElementById('filtro-pipeline-vendedor');
+  const pvInp=document.getElementById('filtro-pipeline-vendedor-search');
+  if(pvDisp) pvDisp.style.display='none';
+  if(pvSel){ pvSel.style.display='none'; pvSel.value=''; }
+  if(pvInp){ pvInp.value=''; pvInp.dataset.selected=''; }
   cargarPipeline();
 }
 
