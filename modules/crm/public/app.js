@@ -208,9 +208,16 @@ async function cargarPipeline() {
 let _pipelineVendedorCache=[], _pipelineVendedorTimer=null;
 async function cargarVendedoresPipelineFilter(){
   try{
-    const r=await apiFetch('/perfiles-venta/usuarios-all');
+    let r=await apiFetch('/perfiles-venta/asesores');
+    if(!r.ok) r=await apiFetch('/perfiles-venta/usuarios-all');
     if(!r.ok) return;
-    _pipelineVendedorCache=r.data.data||r.data||[];
+    let data=r.data.data||r.data||[];
+    // si viene de usuarios-all, filtrar solo ASESOR COMERCIAL (launcher 2440 o CRM comercial) para pipeline
+    if(r.data.data && r.data.data[0]?.perfil_id !== undefined){
+      const asesores = data.filter(u=> String(u.perfil_id)==='2440');
+      if(asesores.length) data = asesores;
+    }
+    _pipelineVendedorCache=data;
     const sel=document.getElementById('filtro-pipeline-vendedor');
     if(!sel) return;
     const cur=sel.value;

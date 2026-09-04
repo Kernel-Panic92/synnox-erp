@@ -93,13 +93,36 @@ router.get('/vendedores', requirePermiso('configurar', 'crm'), async (req, res) 
   } catch (err){ res.status(500).json({error:err.message}); }
 });
 
-// GET /api/perfiles-venta/usuarios-all — todos los usuarios activos (para aprobadores, sin necesidad de perfil)
+// GET /api/perfiles-venta/usuarios-all — todos los usuarios activos (para aprobadores) con perfil_id para filtro asesor
 router.get('/usuarios-all', requirePermiso('configurar', 'crm'), async (req, res) => {
   try {
     const ldb = getLauncherDb();
-    const usuarios = ldb.prepare(`SELECT id,nombre,email,rol FROM usuarios WHERE activo=1 ORDER BY nombre`).all();
+    const usuarios = ldb.prepare(`SELECT u.id,u.nombre,u.email,u.rol,u.perfil_id,p.nombre as perfil_nombre FROM usuarios u LEFT JOIN perfiles p ON p.id=u.perfil_id WHERE u.activo=1 ORDER BY u.nombre`).all();
     ldb.close();
     res.json({ ok: true, data: usuarios });
+  } catch (err){ res.status(500).json({error:err.message}); }
+});
+// GET /api/perfiles-venta/asesores — solo usuarios con perfil ASESOR COMERCIAL (launcher 2440 o CRM Vendedor Generico)
+router.get('/asesores', requirePermiso('ver_pipeline', 'crm'), async (req, res) => {
+  try {
+    const ldb = getLauncherDb();
+    const todos = ldb.prepare(`SELECT u.id,u.nombre,u.email,u.perfil_id FROM usuarios WHERE activo=1`).all();
+    // filtra launcher ASESOR COMERCIAL (2440)
+    let asesoresLauncher = todos.filter(u=> String(u.perfil_id)==='2440');
+    // además, usuarios con perfil_venta Vendedor Generico (id 2) aunque su launcher perfil sea otro
+    try {
+      const crmAsesores = await pool.query(`SELECT usuario_id FROM crm.usuario_perfil_venta WHERE perfil_venta_id IN (SELECT id FROM crm.perfiles_venta WHERE nombre ILIKE '%vendedor%' OR nombre ILIKE '%comercial%')`);
+      const idsCrm = new Set(crmAsesores.rows.map(r=> String(r.usuario_id)));
+      for (const u of todos) if (idsCrm.has(String(u.id)) && !asesoresLauncher.find(a=> String(a.id)===String(u.id))) asesoresLauncher.push(u);
+    } catch {}
+    // enriquecer con nombre/email
+    const result = asesoresLauncher.map(u=>{
+      const full = todos.find(t=> String(t.id)===String(u.id)) || u;
+      const row = ldb.prepare(`SELECT nombre,email FROM usuarios WHERE id=?`).get(u.id);
+      return { id: u.id, nombre: row?.nombre || full.nombre, email: row?.email || '' };
+    }).sort((a,b)=> a.nombre.localeCompare(b.nombre));
+    ldb.close();
+    res.json({ ok: true, data: result });
   } catch (err){ res.status(500).json({error:err.message}); }
 });
 
