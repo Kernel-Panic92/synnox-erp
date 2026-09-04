@@ -275,7 +275,7 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil(
   } catch (err) {
     await client.query('ROLLBACK');
     console.error('[CRM] Error crear cotizacion:', err);
-    res.status(500).json({ error: err.message || 'Error al crear cotizacion', detail: String(err) });
+    res.status(500).json({ error: 'Error al crear cotizacion' });
   } finally {
     client.release();
   }
