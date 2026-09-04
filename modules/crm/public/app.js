@@ -230,6 +230,16 @@ function filtrarPipelineVendedor(q){
   const disp=document.getElementById('filtro-pipeline-vendedor-selected');
   if(disp && disp.style.display!=='none' && q && q.length) return;
   const qq=(q||'').trim().toLowerCase();
+  // filtrado en tiempo real del kanban sin necesidad de seleccionar (si hay texto, filtra por nombre vendedor)
+  if(qq && qq.length>=2){
+    // filtra visualmente las cards sin ir al backend (rápido)
+    document.querySelectorAll('.kanban-card').forEach(card=>{
+      const txt=(card.textContent||'').toLowerCase();
+      card.style.display = txt.includes(qq) ? '' : 'none';
+    });
+  } else {
+    document.querySelectorAll('.kanban-card').forEach(card=> card.style.display='');
+  }
   clearTimeout(_pipelineVendedorTimer);
   _pipelineVendedorTimer=setTimeout(()=>{
     let filtered;
@@ -243,6 +253,10 @@ function filtrarPipelineVendedor(q){
     sel.style.display=''; sel.size=Math.min(6, filtered.length+1);
     const inp=document.getElementById('filtro-pipeline-vendedor-search');
     if(inp && inp.dataset.selected) sel.value=inp.dataset.selected;
+    // si hay texto, también refresca desde backend con vendedor id exacto al seleccionar, sino deja el filtro visual
+    if(qq && filtered.length===1){
+      // opcional: no auto-selecciona, deja que el usuario clickee
+    }
   },200);
 }
 function onPipelineVendedorSelect(){
