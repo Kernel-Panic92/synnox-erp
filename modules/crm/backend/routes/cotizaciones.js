@@ -201,9 +201,9 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil(
     if (!cliente_id) return res.status(400).json({ error: 'El cliente es obligatorio' });
 
     // Vendedor asignado al cliente tiene prioridad: la venta queda a nombre de él
-    const cliInfo = await client.query(`SELECT vendedor_codigo, razon_social_vendedor, vendedor_asignado, lista_precio_codigo, lista_precios FROM crm.clientes WHERE id=$1`, [cliente_id]);
+    const cliInfo = await client.query(`SELECT vendedor_codigo, asesor_comercial, lista_precio_codigo, lista_precios FROM crm.clientes WHERE id=$1`, [cliente_id]);
     if (!cliInfo.rows.length) return res.status(404).json({ error: 'Cliente no encontrado' });
-    const vendedorAsignado = cliInfo.rows[0].razon_social_vendedor?.trim() || (cliInfo.rows[0].vendedor_codigo ? `Vendedor ${cliInfo.rows[0].vendedor_codigo}` : null) || req.user.nombre || null;
+    const vendedorAsignado = cliInfo.rows[0].asesor_comercial?.trim() || (cliInfo.rows[0].vendedor_codigo ? `Vendedor ${cliInfo.rows[0].vendedor_codigo}` : null) || req.user.nombre || null;
     const vendedor_nombre = vendedorAsignado;
     const finalListaPrecios = lista_precios || cliInfo.rows[0].lista_precio_codigo || cliInfo.rows[0].lista_precios || '200';
 
