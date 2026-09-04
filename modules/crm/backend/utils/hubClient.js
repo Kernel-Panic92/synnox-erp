@@ -89,30 +89,46 @@ export function buildHubPayload({ cotizacion, items, cliente, sucursalFacturar, 
   };
 }
 
+function fmtSiesaDate(d) {
+  if (!d) return '';
+  try {
+    const dt = new Date(d);
+    if (isNaN(dt)) return String(d).replace(/-/g,'').slice(0,8);
+    return dt.toISOString().slice(0,10).replace(/-/g,'');
+  } catch { return String(d).replace(/-/g,'').slice(0,8); }
+}
 // Payload estricto SIESA (f350/f431) con códigos mapeados
 export async function toSiesaPayload(payloadCrm) {
   const condPago = await mapSiesa('condicion_pago', payloadCrm.condiciones?.condicion_pago || payloadCrm.condiciones?.condicion_pago);
   const undNeg = await mapSiesa('unidad_negocio', payloadCrm.condiciones?.unidad_negocio);
   const centroCosto = await mapSiesa('centro_costo', payloadCrm.condiciones?.centro_costo);
   const tipoDoc = await mapSiesa('tipo_documento', payloadCrm.condiciones?.tipo_documento || 'CPV');
+  // Bodega por CO si la cotización no trae bodega (ej. CO 200 → 20002)
+  let bodegaSiesa = payloadCrm.condiciones?.bodega || '';
+  if (!bodegaSiesa && payloadCrm.condiciones?.centro_operacion) {
+    const b = await mapSiesa('bodega_co', payloadCrm.condiciones.centro_operacion);
+    if (b !== payloadCrm.condiciones.centro_operacion) bodegaSiesa = b;
+  }
   const warnings = [];
   if (payloadCrm.condiciones?.condicion_pago && condPago === payloadCrm.condiciones.condicion_pago && (await pool.query(`SELECT 1 FROM crm.siesa_mapeos WHERE tipo='condicion_pago' AND crm_codigo=$1`, [payloadCrm.condiciones.condicion_pago])).rowCount===0) warnings.push(`condicion_pago ${payloadCrm.condiciones.condicion_pago} sin mapeo siesa_mapeos`);
   return {
     Encabezado: {
-      f350_id_co: payloadCrm.condiciones?.centro_operacion || '',
-      f350_id_tipo_docto: tipoDoc || 'CPV',
-      f350_id_tercero: payloadCrm.tercero?.nit || payloadCrm.tercero?.codigo_siesa || '',
-      f350_id_sucursal_fact: payloadCrm.tercero?.sucursal_facturar?.codigo || '001',
-      f350_id_sucursal_desp: payloadCrm.tercero?.sucursal_despachar?.codigo || '001',
-      f430_id_vendedor: payloadCrm.vendedor?.codigo || '',
-      f430_id_cond_pago: condPago || '',
-      f430_id_lista_precios: payloadCrm.condiciones?.lista_precios || '200',
-      f430_id_bodega: payloadCrm.condiciones?.bodega || '',
-      f350_id_unidad_negocio: undNeg || '',
-      f350_id_centro_costo: centroCosto || '',
-      f350_notas: `${payloadCrm.observacion || ''} | Cot: ${payloadCrm.cotizacion_numero}`.slice(0,250),
-      f430_num_orden_compra: payloadCrm.condiciones?.orden_compra || payloadCrm.cotizacion_numero || '',
+      f350_id_co: String(payloadCrm.condiciones?.centro_operacion || '').trim().slice(0,10),
+      f350_id_tipo_docto: String(tipoDoc || 'CPV').trim().slice(0,10),
+      f350_id_tercero: String(payloadCrm.tercero?.nit || payloadCrm.tercero?.codigo_siesa || '').replace(/\D/g,'').slice(0,20),
+      f350_id_sucursal_fact: String(payloadCrm.tercero?.sucursal_facturar?.codigo || '001').padStart(3,'0').slice(0,5),
+      f350_id_sucursal_desp: String(payloadCrm.tercero?.sucursal_despachar?.codigo || '001').padStart(3,'0').slice(0,5),
+      f430_id_vendedor: String(payloadCrm.vendedor?.codigo || '').split(' - ')[0].trim().slice(0,10),
+      f430_id_cond_pago: String(condPago || '').trim().slice(0,10),
+      f430_id_lista_precios: String(payloadCrm.condiciones?.lista_precios || '200').trim().slice(0,10),
+      f430_id_bodega: String(bodegaSiesa || '').trim().slice(0,10),
+      f350_id_unidad_negocio: String(undNeg || '').trim().slice(0,10),
+      f350_id_centro_costo: String(centroCosto || '').trim().slice(0,15),
+      f350_notas: String(`${payloadCrm.observacion || ''} | Cot: ${payloadCrm.cotizacion_numero}`.slice(0,250)).replace(/[\r\n]+/g,' ').trim(),
+      f430_num_orden_compra: String(payloadCrm.condiciones?.orden_compra || payloadCrm.cotizacion_numero || '').trim().slice(0,30),
       f350_consec_docto: '',
+      f350_fecha_pedido: fmtSiesaDate(payloadCrm.condiciones?.fecha_pedido || payloadCrm.creado_en),
+      f350_fecha_entrega: fmtSiesaDate(payloadCrm.condiciones?.fecha_entrega),
     },
     Movimientos: (payloadCrm.items||[]).map((it, idx) => ({
       f351_consecutivo: idx + 1,
