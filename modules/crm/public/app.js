@@ -599,9 +599,10 @@ async function cargarVendedoresSelect(selectId, selectedId) {
     }
     return;
   }
-  // Admin/gerente: lista completa buscable
+  // Admin/gerente: solo usuarios con perfil de ventas (asesores) — buscable
   try {
-    const r = await apiFetch('/perfiles-venta/usuarios-all');
+    let r = await apiFetch('/perfiles-venta/asesores');
+    if(!r.ok) r = await apiFetch('/perfiles-venta/usuarios-all');
     if (r.ok) {
       const lista = r.data.data || r.data || [];
       _vendedoresOportunidadCache = lista;
@@ -621,11 +622,13 @@ async function cargarVendedoresSelect(selectId, selectedId) {
           if(isOport && disp){ disp.textContent='✓ ID '+selectedId+'  ✕'; disp.style.display=''; }
         }
       } else if (isOport) {
-        // preselecciona al usuario actual para nuevas oportunidades
-        sel.value = usuario?.id || '';
-        if (sel.value && disp) {
-          const me = lista.find(u=> String(u.id)===String(sel.value));
-          if (me) { disp.textContent='✓ '+me.nombre+'  ✕'; disp.style.display=''; disp.onclick=()=>{ sel.value=''; disp.style.display='none'; if(searchInp) searchInp.value=''; }; }
+        // preselecciona al usuario actual si tiene perfil ventas, si no deja vacío
+        const me = lista.find(u=> String(u.id)===String(usuario?.id));
+        if (me) {
+          sel.value = me.id;
+          if (disp) { disp.textContent='✓ '+me.nombre+'  ✕'; disp.style.display=''; disp.onclick=()=>{ sel.value=''; disp.style.display='none'; if(searchInp) searchInp.value=''; }; }
+        } else {
+          sel.value = '';
         }
       }
       // para admin, el select queda oculto hasta que busque
