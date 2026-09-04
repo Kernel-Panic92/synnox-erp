@@ -160,17 +160,23 @@ async function cargarPipeline() {
             <span class="count">${stats[etapa.id]?.count || 0}</span>
           </span>
         </h4>
-        ${(pipeline[etapa.id] || []).map(o => `
+        ${(pipeline[etapa.id] || []).map(o => {
+          const priColor = { baja:'#6c757d', media:'#17a2b8', alta:'#fd7e14', critica:'#dc3545' }[o.prioridad||'media'] || '#6c757d';
+          return `
           <div class="kanban-card" draggable="true" ondragstart="dragOportunidad(event, '${o.id}')" onclick="editarOportunidad('${o.id}')">
             <div class="card-title">${esc(o.nombre)}</div>
             <div class="card-cliente">${esc(o.cliente_nombre || o.lead_nombre || '—')}</div>
+            <div style="display:flex;gap:4px;margin:4px 0">
+              ${o.fuente ? `<span style="font-size:10px;background:var(--surface2);border:1px solid var(--border);padding:1px 6px;border-radius:10px">${esc(o.fuente)}</span>`:''}
+              ${o.prioridad ? `<span style="font-size:10px;color:#fff;background:${priColor};padding:1px 6px;border-radius:10px;text-transform:capitalize">${esc(o.prioridad)}</span>`:''}
+            </div>
             <div class="card-monto">$${formatMoney(o.monto_esperado || 0)}</div>
             <div class="card-meta">
               <span>${o.probabilidad || 0}%</span>
               <span>${formatDate(o.fecha_cierre_estimada)}</span>
             </div>
           </div>
-        `).join('')}
+        `}).join('')}
       </div>
     `).join('');
   } catch (err) { console.error('Pipeline error:', err); }
@@ -215,12 +221,15 @@ async function abrirModalOportunidad(oportunidad = null) {
   document.getElementById('oportunidad-etapa').value = oportunidad?.etapa || 'lead';
   document.getElementById('oportunidad-fecha').value = oportunidad?.fecha_cierre_estimada ? String(oportunidad.fecha_cierre_estimada).split('T')[0] : '';
   document.getElementById('oportunidad-motivo-perdida').value = oportunidad?.motivo_perdida || '';
+  document.getElementById('oportunidad-fuente').value = oportunidad?.fuente || 'otro';
+  document.getElementById('oportunidad-prioridad').value = oportunidad?.prioridad || 'media';
   document.getElementById('oportunidad-etapa').onchange = function() {
     document.getElementById('grupo-motivo-perdida').style.display = this.value === 'perdida' ? 'block' : 'none';
   };
   document.getElementById('grupo-motivo-perdida').style.display = (oportunidad?.etapa === 'perdida') ? 'block' : 'none';
-  await cargarClientesSelect('oportunidad-cliente', oportunidad?.cliente_id);
-  await cargarLeadsSelectOportunidad(oportunidad?.lead_id);
+  // Cliente/Lead buscables (combobox) — si hay id, precarga el seleccionado
+  await setupOportunidadClienteCombobox(oportunidad?.cliente_id);
+  await setupOportunidadLeadCombobox(oportunidad?.lead_id);
   await cargarContactosOportunidad(oportunidad?.contacto_id);
   await cargarVendedoresSelect('oportunidad-vendedor', oportunidad?.vendedor_id);
   // Productos
@@ -283,32 +292,80 @@ function actualizarCantOportunidad(pid, val) {
   if (it) { it.cantidad = parseFloat(val)||1; renderOportunidadProductos(); }
 }
 
-async function cargarLeadsSelectOportunidad(selectedId) {
-  const sel = document.getElementById('oportunidad-lead');
-  if (!sel) return;
-  sel.innerHTML = '<option value="">Sin lead</option>';
-  try {
-    const r = await apiFetch('/leads?limit=500');
-    if (!r.ok) return;
-    const data = r.data.data || [];
-    sel.innerHTML = '<option value="">Sin lead</option>' + data.map(l => `<option value="${l.id}" ${l.id===selectedId?'selected':''}>${esc(l.raison_social)} — ${esc(l.numero_identificacion||'')}</option>`).join('');
-  } catch {}
-}
-function onClienteOportunidadChange() {
-  const cli = document.getElementById('oportunidad-cliente').value;
-  const leadSel = document.getElementById('oportunidad-lead');
-  if (cli && leadSel.value) { leadSel.value = ''; toast('Cliente seleccionado — lead limpiado', 'info'); }
-  cargarContactosOportunidad(null);
-}
-function onLeadOportunidadChange() {
-  const lead = document.getElementById('oportunidad-lead').value;
-  const cliSel = document.getElementById('oportunidad-cliente');
-  if (lead && cliSel.value) {
-    cliSel.value = '';
-    document.getElementById('oportunidad-contacto').innerHTML = '<option value="">Sin contacto</option>';
-    toast('Lead seleccionado — cliente limpiado', 'info');
+let _oportunidadClienteTimer=null, _oportunidadLeadTimer=null;
+async function setupOportunidadClienteCombobox(selectedId){
+  const sel=document.getElementById('oportunidad-cliente');
+  const inp=document.getElementById('oportunidad-cliente-search');
+  const disp=document.getElementById('oportunidad-cliente-selected');
+  if(!sel||!inp||!disp) return;
+  sel.style.display='none'; sel.innerHTML=''; inp.value=''; disp.style.display='none'; disp.textContent='';
+  if(selectedId){
+    try{ const r=await apiFetch('/clientes/'+selectedId); if(r.ok){ const c=r.data.data; sel.innerHTML=`<option value="${c.id}" selected>${esc(c.nombre)} — ${esc(c.nit||'')}</option>`; sel.value=c.id; disp.textContent=`✓ ${c.nombre} — ${c.nit||''}  ✕`; disp.style.display=''; disp.onclick=()=>{ sel.value=''; sel.innerHTML=''; disp.style.display='none'; inp.value=''; document.getElementById('oportunidad-contacto').innerHTML='<option value=\"\">Sin contacto</option>'; }; disp.title='Click para quitar'; } }catch{}
   }
 }
+async function filtrarOportunidadClientes(q){
+  const sel=document.getElementById('oportunidad-cliente');
+  const inp=document.getElementById('oportunidad-cliente-search');
+  const disp=document.getElementById('oportunidad-cliente-selected');
+  if(disp && disp.style.display!=='none') return;
+  const qq=(q||'').trim(); if(!qq || qq.length<2){ sel.style.display='none'; sel.innerHTML=''; return; }
+  clearTimeout(_oportunidadClienteTimer); _oportunidadClienteTimer=setTimeout(async()=>{
+    const r=await apiFetch('/clientes?search='+encodeURIComponent(qq)+'&limit=20'); if(!r.ok) return;
+    const data=r.data.data||[]; if(!data.length){ sel.innerHTML='<option>No hay resultados</option>'; sel.style.display=''; return; }
+    sel.innerHTML=data.map(c=> `<option value="${c.id}">${esc(c.nombre)} — ${esc(c.nit||'')}</option>`).join(''); sel.style.display=''; sel.size=Math.min(6,data.length+1);
+    sel.onchange=()=> onOportunidadClienteSelect();
+  },300);
+}
+function onOportunidadClienteSelect(){
+  const sel=document.getElementById('oportunidad-cliente');
+  const disp=document.getElementById('oportunidad-cliente-selected');
+  const inp=document.getElementById('oportunidad-cliente-search');
+  const opt=sel.options[sel.selectedIndex]; if(!opt || !opt.value || opt.textContent==='No hay resultados') return;
+  disp.textContent='✓ '+opt.textContent+'  ✕'; disp.style.display=''; disp.title='Click para quitar';
+  disp.onclick=()=>{ sel.value=''; sel.innerHTML=''; sel.style.display='none'; disp.style.display='none'; inp.value=''; document.getElementById('oportunidad-contacto').innerHTML='<option value=\"\">Sin contacto</option>'; };
+  sel.style.display='none'; inp.value='';
+  // limpiar lead si había
+  const leadSel=document.getElementById('oportunidad-lead'); const leadDisp=document.getElementById('oportunidad-lead-selected'); const leadInp=document.getElementById('oportunidad-lead-search');
+  if(leadSel.value){ leadSel.value=''; leadSel.innerHTML=''; leadSel.style.display='none'; if(leadDisp) leadDisp.style.display='none'; if(leadInp) leadInp.value=''; toast('Cliente seleccionado — lead limpiado','info'); }
+  cargarContactosOportunidad(null);
+}
+async function setupOportunidadLeadCombobox(selectedId){
+  const sel=document.getElementById('oportunidad-lead');
+  const inp=document.getElementById('oportunidad-lead-search');
+  const disp=document.getElementById('oportunidad-lead-selected');
+  if(!sel||!inp||!disp) return;
+  sel.style.display='none'; sel.innerHTML=''; inp.value=''; disp.style.display='none';
+  if(selectedId){
+    try{ const r=await apiFetch('/leads?search=&limit=500'); if(r.ok){ const found=(r.data.data||[]).find(l=>String(l.id)===String(selectedId)); if(found){ sel.innerHTML=`<option value="${found.id}" selected>${esc(found.raison_social)} — ${esc(found.numero_identificacion||'')}</option>`; sel.value=found.id; disp.textContent=`✓ ${found.raison_social} — ${found.numero_identificacion||''}  ✕`; disp.style.display=''; disp.onclick=()=>{ sel.value=''; sel.innerHTML=''; disp.style.display='none'; inp.value=''; }; } } }catch{}
+  }
+}
+async function filtrarOportunidadLeads(q){
+  const sel=document.getElementById('oportunidad-lead');
+  const disp=document.getElementById('oportunidad-lead-selected');
+  if(disp && disp.style.display!=='none') return;
+  const qq=(q||'').trim(); if(!qq || qq.length<2){ sel.style.display='none'; sel.innerHTML=''; return; }
+  clearTimeout(_oportunidadLeadTimer); _oportunidadLeadTimer=setTimeout(async()=>{
+    const r=await apiFetch('/leads?search='+encodeURIComponent(qq)+'&limit=20'); if(!r.ok) return;
+    const data=r.data.data||[]; if(!data.length){ sel.innerHTML='<option>No hay resultados</option>'; sel.style.display=''; return; }
+    sel.innerHTML=data.map(l=> `<option value="${l.id}">${esc(l.raison_social)} — ${esc(l.numero_identificacion||'')}</option>`).join(''); sel.style.display=''; sel.size=Math.min(6,data.length+1);
+    sel.onchange=()=> onOportunidadLeadSelect();
+  },300);
+}
+function onOportunidadLeadSelect(){
+  const sel=document.getElementById('oportunidad-lead');
+  const disp=document.getElementById('oportunidad-lead-selected');
+  const inp=document.getElementById('oportunidad-lead-search');
+  const opt=sel.options[sel.selectedIndex]; if(!opt || !opt.value) return;
+  disp.textContent='✓ '+opt.textContent+'  ✕'; disp.style.display=''; disp.title='Click para quitar';
+  disp.onclick=()=>{ sel.value=''; sel.innerHTML=''; sel.style.display='none'; disp.style.display='none'; inp.value=''; };
+  sel.style.display='none'; inp.value='';
+  const cliSel=document.getElementById('oportunidad-cliente'); const cliDisp=document.getElementById('oportunidad-cliente-selected'); const cliInp=document.getElementById('oportunidad-cliente-search');
+  if(cliSel.value){ cliSel.value=''; cliSel.innerHTML=''; cliSel.style.display='none'; if(cliDisp) cliDisp.style.display='none'; if(cliInp) cliInp.value=''; document.getElementById('oportunidad-contacto').innerHTML='<option value=\"\">Sin contacto</option>'; toast('Lead seleccionado — cliente limpiado','info'); }
+}
+// Legacy stubs por compatibilidad
+async function cargarLeadsSelectOportunidad(selectedId){ return setupOportunidadLeadCombobox(selectedId); }
+function onClienteOportunidadChange(){ return onOportunidadClienteSelect(); }
+function onLeadOportunidadChange(){ return onOportunidadLeadSelect(); }
 
 async function editarOportunidad(id) {
   const r = await apiFetch('/oportunidades/' + id);
@@ -327,17 +384,22 @@ async function eliminarOportunidad(id, nombre) {
 
 async function guardarOportunidad() {
   const id = document.getElementById('oportunidad-id').value;
+  const cliSel=document.getElementById('oportunidad-cliente');
+  const leadSel=document.getElementById('oportunidad-lead');
+  // hidden selects may have value even when display none; search inputs are auxiliary
   const body = {
     nombre: document.getElementById('oportunidad-nombre').value,
-    cliente_id: document.getElementById('oportunidad-cliente').value || null,
-    lead_id: document.getElementById('oportunidad-lead').value || null,
+    cliente_id: (cliSel && cliSel.value) ? cliSel.value : null,
+    lead_id: (leadSel && leadSel.value) ? leadSel.value : null,
     contacto_id: document.getElementById('oportunidad-contacto').value || null,
     monto_esperado: parseFloat(document.getElementById('oportunidad-monto').value) || 0,
     probabilidad: parseInt(document.getElementById('oportunidad-probabilidad').value) || 0,
     etapa: document.getElementById('oportunidad-etapa').value,
     fecha_cierre_estimada: document.getElementById('oportunidad-fecha').value || null,
     vendedor_id: document.getElementById('oportunidad-vendedor').value || usuario?.id,
-    motivo_perdida: document.getElementById('oportunidad-etapa').value === 'perdida' ? (document.getElementById('oportunidad-motivo-perdida').value || null) : null
+    motivo_perdida: document.getElementById('oportunidad-etapa').value === 'perdida' ? (document.getElementById('oportunidad-motivo-perdida').value || null) : null,
+    fuente: document.getElementById('oportunidad-fuente').value || 'otro',
+    prioridad: document.getElementById('oportunidad-prioridad').value || 'media'
   };
   if (!body.nombre) return toast('El nombre es obligatorio', 'error');
   if (!body.cliente_id && !body.lead_id) return toast('Seleccione un cliente o un lead', 'error');
@@ -376,6 +438,8 @@ async function guardarOportunidad() {
 async function cargarContactosOportunidad(selectedId) {
   const clienteId = document.getElementById('oportunidad-cliente')?.value;
   const sel = document.getElementById('oportunidad-contacto');
+  const searchEl = document.getElementById('oportunidad-contacto-search');
+  if (searchEl) searchEl.value='';
   sel.innerHTML = '<option value="">Sin contacto</option>';
   if (!clienteId) return;
   const r = await apiFetch('/contactos?cliente_id=' + clienteId + '&limit=100');
@@ -383,9 +447,18 @@ async function cargarContactosOportunidad(selectedId) {
   for (const c of r.data.data || []) {
     const opt = document.createElement('option');
     opt.value = c.id;
-    opt.textContent = c.nombre;
-    if (selectedId && c.id === selectedId) opt.selected = true;
+    opt.textContent = c.nombre + (c.cargo ? ' — '+c.cargo : '');
+    if (selectedId && String(c.id) === String(selectedId)) opt.selected = true;
     sel.appendChild(opt);
+  }
+}
+function filtrarContactoOportunidad(q){
+  const sel=document.getElementById('oportunidad-contacto');
+  const qq=(q||'').toLowerCase();
+  for(const opt of sel.options){
+    if(!opt.value) { opt.style.display=''; continue; }
+    const txt=(opt.textContent||'').toLowerCase();
+    opt.style.display = txt.includes(qq) ? '' : 'none';
   }
 }
 

@@ -657,17 +657,22 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Cliente <small style="font-weight:400;color:var(--muted)">— o Lead</small></label>
-        <select id="oportunidad-cliente" onchange="onClienteOportunidadChange()"></select>
+        <label>Cliente <small style="font-weight:400;color:var(--muted)">— o Lead</small> — busca por NIT o nombre</label>
+        <input type="text" id="oportunidad-cliente-search" placeholder="Buscar por NIT o nombre..." oninput="filtrarOportunidadClientes(this.value)" autocomplete="off">
+        <select id="oportunidad-cliente" style="display:none;margin-top:4px" size="4" onchange="onOportunidadClienteSelect()"></select>
+        <div id="oportunidad-cliente-selected" style="display:none;margin-top:4px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:13px"></div>
       </div>
       <div class="form-group">
-        <label>Contacto</label>
+        <label>Contacto — buscable por nombre</label>
+        <input type="text" id="oportunidad-contacto-search" placeholder="Filtrar contacto..." oninput="filtrarContactoOportunidad(this.value)" autocomplete="off" style="margin-bottom:4px">
         <select id="oportunidad-contacto"></select>
       </div>
     </div>
     <div class="form-group">
-      <label>Cliente Potencial (Lead) <small style="font-weight:400;color:var(--muted)">— alternativo a cliente</small></label>
-      <select id="oportunidad-lead" onchange="onLeadOportunidadChange()"></select>
+      <label>Cliente Potencial (Lead) <small style="font-weight:400;color:var(--muted)">— alternativo a cliente</small> — busca por NIT o nombre</label>
+      <input type="text" id="oportunidad-lead-search" placeholder="Buscar lead por NIT o nombre..." oninput="filtrarOportunidadLeads(this.value)" autocomplete="off">
+      <select id="oportunidad-lead" style="display:none;margin-top:4px" size="4" onchange="onOportunidadLeadSelect()"></select>
+      <div id="oportunidad-lead-selected" style="display:none;margin-top:4px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:13px"></div>
     </div>
     <p style="font-size:11px;color:var(--muted);margin-top:4px">* Requerido: cliente <strong>o</strong> lead (uno de los dos).</p>
     <div class="form-row">
@@ -699,12 +704,40 @@
     </div>
     <div class="form-row">
       <div class="form-group">
+        <label>Fuente</label>
+        <select id="oportunidad-fuente">
+          <option value="web">Web</option>
+          <option value="referido">Referido</option>
+          <option value="llamada">Llamada</option>
+          <option value="feria">Feria / Evento</option>
+          <option value="otro" selected>Otro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Prioridad</label>
+        <select id="oportunidad-prioridad">
+          <option value="baja">Baja</option>
+          <option value="media" selected>Media</option>
+          <option value="alta">Alta</option>
+          <option value="critica">Crítica</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
         <label>Vendedor asignado</label>
         <select id="oportunidad-vendedor"></select>
       </div>
       <div class="form-group" id="grupo-motivo-perdida" style="display:none">
         <label>Motivo de perdida</label>
-        <input type="text" id="oportunidad-motivo-perdida">
+        <select id="oportunidad-motivo-perdida">
+          <option value="">Seleccione motivo</option>
+          <option value="precio">Precio</option>
+          <option value="competencia">Competencia</option>
+          <option value="sin_presupuesto">Sin presupuesto</option>
+          <option value="no_responde">No responde</option>
+          <option value="otro">Otro</option>
+        </select>
       </div>
     </div>
     <!-- Productos posibles (maestro) -->
