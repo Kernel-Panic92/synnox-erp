@@ -201,9 +201,20 @@ router.post('/:id/productos', requirePermiso('editar_pipeline', 'crm'), requireV
     const { id } = req.params;
     const { producto_id, cantidad = 1, precio_unitario } = req.body;
     if (!producto_id) return res.status(400).json({ error: 'producto_id requerido' });
-    const prod = await pool.query(`SELECT precio_unitario FROM crm.productos WHERE id = $1`, [producto_id]);
+    const prod = await pool.query(`SELECT codigo, precio_unitario FROM crm.productos WHERE id = $1`, [producto_id]);
     if (!prod.rows.length) return res.status(404).json({ error: 'Producto no encontrado' });
-    const precio = precio_unitario !== undefined ? precio_unitario : prod.rows[0].precio_unitario;
+    let precio = precio_unitario;
+    if (precio === undefined || precio === null) {
+      // usa precio de la lista de la oportunidad (perfil default 200)
+      const opp = await pool.query(`SELECT lista_precios FROM crm.oportunidades WHERE id=$1`, [id]);
+      const lista = opp.rows[0]?.lista_precios || '200';
+      const lr = await pool.query(`SELECT id FROM crm.listas_precio WHERE codigo=$1 LIMIT 1`, [lista]);
+      if (lr.rows[0]) {
+        const pr = await pool.query(`SELECT precio FROM crm.lista_precio_items WHERE lista_id=$1 AND producto_id=$2 LIMIT 1`, [lr.rows[0].id, producto_id]);
+        if (pr.rows[0]) precio = pr.rows[0].precio;
+      }
+      if (precio === undefined) precio = prod.rows[0].precio_unitario;
+    }
     const result = await pool.query(`
       INSERT INTO crm.oportunidad_productos (oportunidad_id, producto_id, cantidad, precio_unitario)
       VALUES ($1,$2,$3,$4)
@@ -241,15 +252,15 @@ router.delete('/:id/productos/:productoId', requirePermiso('editar_pipeline', 'c
 // POST /api/oportunidades — Crear oportunidad (cliente o lead)
 router.post('/', requirePermiso('crear_oportunidad', 'crm'), requireVentasPerfil('editar_pipeline'), async (req, res) => {
   try {
-    const { cliente_id, lead_id, contacto_id, nombre, monto_esperado, probabilidad, etapa, vendedor_id, fecha_cierre_estimada, fuente, prioridad } = req.body;
+    const { cliente_id, lead_id, contacto_id, nombre, monto_esperado, probabilidad, etapa, vendedor_id, fecha_cierre_estimada, fuente, prioridad, lista_precios } = req.body;
     if (!nombre) return res.status(400).json({ error: 'El nombre es obligatorio' });
     if (!cliente_id && !lead_id) return res.status(400).json({ error: 'Seleccione un cliente o un lead' });
 
     const result = await pool.query(`
-      INSERT INTO crm.oportunidades (cliente_id, lead_id, contacto_id, nombre, monto_esperado, probabilidad, etapa, vendedor_id, fecha_cierre_estimada, fuente, prioridad)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
+      INSERT INTO crm.oportunidades (cliente_id, lead_id, contacto_id, nombre, monto_esperado, probabilidad, etapa, vendedor_id, fecha_cierre_estimada, fuente, prioridad, lista_precios)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
       RETURNING *
-    `, [cliente_id || null, lead_id || null, contacto_id || null, nombre, monto_esperado || 0, probabilidad || 10, etapa || 'lead', vendedor_id || req.user.id, fecha_cierre_estimada || null, fuente || 'otro', prioridad || 'media']);
+    `, [cliente_id || null, lead_id || null, contacto_id || null, nombre, monto_esperado || 0, probabilidad || 10, etapa || 'lead', vendedor_id || req.user.id, fecha_cierre_estimada || null, fuente || 'otro', prioridad || 'media', lista_precios || '200']);
 
     // Registrar en historial
     await pool.query(
@@ -274,7 +285,7 @@ router.put('/:id', requirePermiso('editar_pipeline', 'crm'), requireVentasPerfil
     const existing = await pool.query(`SELECT * FROM crm.oportunidades WHERE id = $1`, [id]);
     if (!existing.rows.length) return res.status(404).json({ error: 'Oportunidad no encontrada' });
 
-    const fields = ['cliente_id', 'lead_id', 'contacto_id', 'nombre', 'monto_esperado', 'probabilidad', 'motivo_perdida', 'vendedor_id', 'fecha_cierre_estimada', 'fuente', 'prioridad'];
+    const fields = ['cliente_id', 'lead_id', 'contacto_id', 'nombre', 'monto_esperado', 'probabilidad', 'motivo_perdida', 'vendedor_id', 'fecha_cierre_estimada', 'fuente', 'prioridad', 'lista_precios'];
     const updates = [];
     const params = [];
     let paramIdx = 1;

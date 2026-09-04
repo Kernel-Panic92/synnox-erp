@@ -227,6 +227,7 @@ async function abrirModalOportunidad(oportunidad = null) {
     document.getElementById('grupo-motivo-perdida').style.display = this.value === 'perdida' ? 'block' : 'none';
   };
   document.getElementById('grupo-motivo-perdida').style.display = (oportunidad?.etapa === 'perdida') ? 'block' : 'none';
+  await cargarListasOportunidad(oportunidad?.lista_precios);
   // Cliente/Lead buscables (combobox) — si hay id, precarga el seleccionado
   await setupOportunidadClienteCombobox(oportunidad?.cliente_id);
   await setupOportunidadLeadCombobox(oportunidad?.lead_id);
@@ -254,7 +255,8 @@ async function buscarOportunidadProducto() {
   _oportunidadProdTimer = setTimeout(async () => {
     const q = document.getElementById('buscar-oportunidad-producto')?.value;
     if (!q || q.length < 2) { document.getElementById('oportunidad-producto-resultados').innerHTML = '<p style="color:var(--muted);font-size:12px">Escribe al menos 2 caracteres.</p>'; return; }
-    const r = await apiFetch('/productos/buscar?q=' + encodeURIComponent(q));
+    const lista = document.getElementById('oportunidad-lista-precios')?.value || await getPerfilListaDefault();
+    const r = await apiFetch('/productos/buscar?q=' + encodeURIComponent(q) + '&lista=' + encodeURIComponent(lista));
     if (!r.ok) return;
     const data = r.data.data || [];
     if (!data.length) { document.getElementById('oportunidad-producto-resultados').innerHTML = '<p style="color:var(--muted);font-size:12px">No hay resultados.</p>'; return; }
@@ -460,6 +462,21 @@ function filtrarContactoOportunidad(q){
     const txt=(opt.textContent||'').toLowerCase();
     opt.style.display = txt.includes(qq) ? '' : 'none';
   }
+}
+async function cargarListasOportunidad(selected){
+  const sel=document.getElementById('oportunidad-lista-precios');
+  if(!sel) return;
+  sel.innerHTML='<option value="">Cargando...</option>';
+  try{
+    const def = selected || await getPerfilListaDefault();
+    const r=await apiFetch('/maestros?tipo=lista_precio&_='+Date.now());
+    const data=r.ok ? (r.data.data||[]) : [];
+    if(!data.length){ sel.innerHTML=`<option value="${esc(def)}" selected>${esc(def)} — GENERAL HORECA</option>`; return; }
+    sel.innerHTML=data.map(it=> `<option value="${esc(it.codigo)}" ${String(it.codigo)===String(def)?'selected':''}>${esc(it.codigo)} — ${esc(it.nombre)}</option>`).join('');
+    if(selected && !data.find(x=> String(x.codigo)===String(selected))){ sel.innerHTML+=`<option value="${esc(selected)}" selected>${esc(selected)} (actual)</option>`; }
+    sel.value=def;
+    if(selected) sel.value=selected;
+  }catch{ sel.innerHTML='<option value="200" selected>200 — GENERAL HORECA</option>'; }
 }
 
 async function cargarVendedoresSelect(selectId, selectedId) {
