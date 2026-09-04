@@ -353,8 +353,8 @@ router.put('/:id/mover', requirePermiso('editar_pipeline', 'crm'), requireVentas
     if (etapaAnterior === etapa) return res.json({ ok: true, data: existing.rows[0] });
 
     const result = await pool.query(
-      `UPDATE crm.oportunidades SET etapa = $1, actualizado_en = NOW(),
-       motivo_perdida = CASE WHEN $1 = 'perdida' THEN COALESCE($2, motivo_perdida) ELSE motivo_perdida END
+      `UPDATE crm.oportunidades SET etapa = $1::varchar, actualizado_en = NOW(),
+       motivo_perdida = CASE WHEN $1::varchar = 'perdida' THEN COALESCE($2::text, motivo_perdida) ELSE motivo_perdida END
        WHERE id = $3::uuid RETURNING *`,
       [etapa, comentario || null, id]
     );
