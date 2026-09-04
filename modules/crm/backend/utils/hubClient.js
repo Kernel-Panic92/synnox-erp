@@ -1,5 +1,13 @@
 import pool from '../config/db.js';
 
+async function mapSiesa(tipo, crmCodigo) {
+  if (!crmCodigo) return crmCodigo;
+  try {
+    const r = await pool.query(`SELECT siesa_codigo FROM crm.siesa_mapeos WHERE tipo=$1 AND crm_codigo=$2 LIMIT 1`, [tipo, String(crmCodigo)]);
+    return r.rows[0]?.siesa_codigo || String(crmCodigo);
+  } catch { return String(crmCodigo); }
+}
+
 // Construye payload genérico SIESA Hub a partir del modelo CRM
 // Basado en CSVs: Pedidos por item, Centros, Vendedores, Clientes
 export function buildHubPayload({ cotizacion, items, cliente, sucursalFacturar, sucursalDespachar, vendedorHub }) {
@@ -50,6 +58,44 @@ export function buildHubPayload({ cotizacion, items, cliente, sucursalFacturar, 
     origen: 'SynnoxERP-CRM',
     creado_por: cotizacion.creado_por || null,
     creado_en: new Date().toISOString(),
+  };
+}
+
+// Payload estricto SIESA (f350/f431) con códigos mapeados
+export async function toSiesaPayload(payloadCrm) {
+  const condPago = await mapSiesa('condicion_pago', payloadCrm.condiciones?.condicion_pago || payloadCrm.condiciones?.condicion_pago);
+  const undNeg = await mapSiesa('unidad_negocio', payloadCrm.condiciones?.unidad_negocio);
+  const centroCosto = await mapSiesa('centro_costo', payloadCrm.condiciones?.centro_costo);
+  const tipoDoc = await mapSiesa('tipo_documento', payloadCrm.condiciones?.tipo_documento || 'CPV');
+  const warnings = [];
+  if (payloadCrm.condiciones?.condicion_pago && condPago === payloadCrm.condiciones.condicion_pago && (await pool.query(`SELECT 1 FROM crm.siesa_mapeos WHERE tipo='condicion_pago' AND crm_codigo=$1`, [payloadCrm.condiciones.condicion_pago])).rowCount===0) warnings.push(`condicion_pago ${payloadCrm.condiciones.condicion_pago} sin mapeo siesa_mapeos`);
+  return {
+    Encabezado: {
+      f350_id_co: payloadCrm.condiciones?.centro_operacion || '',
+      f350_id_tipo_docto: tipoDoc || 'CPV',
+      f350_id_tercero: payloadCrm.tercero?.nit || payloadCrm.tercero?.codigo_siesa || '',
+      f350_id_sucursal_fact: payloadCrm.tercero?.sucursal_facturar?.codigo || '001',
+      f350_id_sucursal_desp: payloadCrm.tercero?.sucursal_despachar?.codigo || '001',
+      f430_id_vendedor: payloadCrm.vendedor?.codigo || '',
+      f430_id_cond_pago: condPago || '',
+      f430_id_lista_precios: payloadCrm.condiciones?.lista_precios || '200',
+      f430_id_bodega: payloadCrm.condiciones?.bodega || '',
+      f350_id_unidad_negocio: undNeg || '',
+      f350_id_centro_costo: centroCosto || '',
+      f350_notas: `${payloadCrm.observacion || ''} | Cot: ${payloadCrm.cotizacion_numero}`.slice(0,250),
+      f430_num_orden_compra: payloadCrm.condiciones?.orden_compra || payloadCrm.cotizacion_numero || '',
+      f350_consec_docto: '',
+    },
+    Movimientos: (payloadCrm.items||[]).map(it => ({
+      f351_id_item: it.referencia || it.descripcion,
+      f351_cant_pedida: Number(it.cantidad)||0,
+      f351_precio_unitario: Number(it.precio_unitario)||0,
+      f351_porc_descuento: Number(it.descuento_pct)||0,
+      f351_id_bodega: payloadCrm.condiciones?.bodega || '',
+      // liquidación por línea (SIESA exige por renglón)
+      f351_subtotal: Number(it.subtotal) || (Number(it.cantidad)*(Number(it.precio_unitario))*(1-(Number(it.descuento_pct)||0)/100)),
+    })),
+    _meta: { cotizacion_numero: payloadCrm.cotizacion_numero, warnings },
   };
 }
 
@@ -111,33 +157,34 @@ export async function enviarPedidoAlHub({ cotizacionId }, client = pool) {
   } catch {}
 
   const payload = buildHubPayload({ cotizacion: cot, items: itemsR.rows, cliente, sucursalFacturar: sucFact, sucursalDespachar: sucDesp, vendedorHub });
+  const payload_siesa = await toSiesaPayload(payload);
 
   if (cfg.mock_enabled || !cfg.base_url) {
-    // Mock: genera CPV-MOCK y guarda envío
+    // Mock: genera CPV-MOCK y guarda envío (guarda ambos payloads para debug dual)
     const mockCpv = `CPV-MOCK-${String(cotIdPadded(cot.numero)).padStart(6,'0')}-${Date.now().toString().slice(-4)}`;
-    const respuesta = { ok: true, documento_erp: mockCpv, estado_erp: 'confirmado', mock: true, payload_preview: payload };
-    await client.query(`INSERT INTO crm.hub_envios (cotizacion_id, numero, payload, respuesta, estado, documento_erp, intentos) VALUES ($1,$2,$3,$4,'mock',$5,1)`, [cotizacionId, cot.numero, JSON.stringify(payload), JSON.stringify(respuesta), mockCpv]);
+    const respuesta = { ok: true, documento_erp: mockCpv, estado_erp: 'confirmado', mock: true, payload_preview: payload, payload_siesa };
+    await client.query(`INSERT INTO crm.hub_envios (cotizacion_id, numero, payload, respuesta, estado, documento_erp, intentos) VALUES ($1,$2,$3,$4,'mock',$5,1)`, [cotizacionId, cot.numero, JSON.stringify({ payload_crm: payload, payload_siesa }), JSON.stringify(respuesta), mockCpv]);
     await client.query(`UPDATE crm.cotizaciones SET documento_erp = $1, estado_erp = 'confirmado', estado = CASE WHEN estado='borrador' THEN 'enviada' ELSE estado END, actualizado_en = NOW() WHERE id = $2`, [mockCpv, cotizacionId]);
-    return { documento_erp: mockCpv, estado_erp: 'confirmado', mock: true, payload, respuesta };
+    return { documento_erp: mockCpv, estado_erp: 'confirmado', mock: true, payload, payload_siesa, respuesta };
   }
 
-  // Real (cuando haya credenciales): POST al Hub
+  // Real (cuando haya credenciales): POST al Hub en formato SIESA f350/f351
   const token = await obtenerTokenHub(cfg);
   const resp = await fetch(`${cfg.base_url.replace(/\/$/,'')}/api/pedidos`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-    body: JSON.stringify(payload),
+    body: JSON.stringify(payload_siesa),
   });
   const body = await resp.json().catch(()=> ({}));
   if (!resp.ok) {
     const err = body.error || body.message || `Hub error ${resp.status}`;
-    await client.query(`INSERT INTO crm.hub_envios (cotizacion_id, numero, payload, respuesta, estado, ultimo_error, intentos) VALUES ($1,$2,$3,$4,'error',$5,1)`, [cotizacionId, cot.numero, JSON.stringify(payload), JSON.stringify(body), String(err).slice(0,1000)]);
+    await client.query(`INSERT INTO crm.hub_envios (cotizacion_id, numero, payload, respuesta, estado, ultimo_error, intentos) VALUES ($1,$2,$3,$4,'error',$5,1)`, [cotizacionId, cot.numero, JSON.stringify({ payload_crm: payload, payload_siesa }), JSON.stringify(body), String(err).slice(0,1000)]);
     throw new Error(err);
   }
   const documento_erp = body.documento_erp || body.cpv || body.numero || null;
-  await client.query(`INSERT INTO crm.hub_envios (cotizacion_id, numero, payload, respuesta, estado, documento_erp, intentos) VALUES ($1,$2,$3,$4,'enviado',$5,1)`, [cotizacionId, cot.numero, JSON.stringify(payload), JSON.stringify(body), documento_erp]);
+  await client.query(`INSERT INTO crm.hub_envios (cotizacion_id, numero, payload, respuesta, estado, documento_erp, intentos) VALUES ($1,$2,$3,$4,'enviado',$5,1)`, [cotizacionId, cot.numero, JSON.stringify({ payload_crm: payload, payload_siesa }), JSON.stringify(body), documento_erp]);
   if (documento_erp) await client.query(`UPDATE crm.cotizaciones SET documento_erp = $1, estado_erp = 'enviado', actualizado_en = NOW() WHERE id = $2`, [documento_erp, cotizacionId]);
-  return { documento_erp, estado_erp: 'enviado', mock: false, payload, respuesta: body };
+  return { documento_erp, estado_erp: 'enviado', mock: false, payload, payload_siesa, respuesta: body };
 }
 
 function cotIdPadded(numero) {
