@@ -371,7 +371,7 @@ router.put('/:id/mover', requirePermiso('editar_pipeline', 'crm'), requireVentas
     res.json({ ok: true, data: result.rows[0] });
   } catch (err) {
     console.error('[CRM] Error mover oportunidad:', err);
-    res.status(500).json({ error: 'Error al mover oportunidad' });
+    res.status(500).json({ error: err.message || 'Error al mover oportunidad', detail: String(err) });
   }
 });
 
