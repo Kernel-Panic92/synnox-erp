@@ -1,5 +1,65 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (04 Sep 2026 — sesión 53 — build mode)
+
+### Cambios Sesión 52-53 — CRM: Hub SIESA mock, payload f350/f351 y Pipeline pulido
+
+Sesión en `feat/crm-module` (build). Se dejó el CRM listo para SIESA Hub sin docs oficiales, se corrigieron precios/condición de pago y se pulió Pipeline/Oportunidades con combobox buscables.
+
+#### Hub SIESA — Mock y payload dual
+- Migraciones `025` `crm.vendedores` + `usuario_perfil_venta.codigo_vendedor`, `026` `crm.hub_config` + `crm.hub_envios` (UUID fix `a67ef8b`), `027` `crm.siesa_mapeos` (cond_pago, unidad_negocio, centro_costo, bodega_co), `028/029` campos SIESA en clientes/productos, `030` `creado_por INTEGER` fix `500` en crear cotización (`5262821`), `031` `bodega_co`, `032/033` `oportunidades.fuente/prioridad/lista_precios`.
+- `utils/hubClient.js` (`2ba454e`): `buildHubPayload` (payload limpio) + `toSiesaPayload` (mapea vía `siesa_mapeos` a `Encabezado{f350_id_co,f350_id_tipo_docto,f350_id_tercero,f350_id_sucursal_fact/desp,f430_id_vendedor,f430_id_cond_pago,f430_id_lista_precios,f430_id_bodega,f350_id_unidad_negocio}` + `Movimientos[{f351_consecutivo,f351_id_item,f351_cant_pedida,f351_precio_unitario,f351_porc_descuento,f351_porc_iva,f351_subtotal}]` con liquidación por línea). `totales {bruto,descuento,subtotal,iva,total}` coherente (ej. `COT-134311` 430k→46k→384k→34.960→418.960) y `iva` sumado por renglón (`5cb9e67` fix exento 0 vs 19).
+- `routes/hub.js` (`2ef2714`): `GET/PUT /hub/config`, `POST /hub/sync`, `POST /hub/enviar/:id`, `GET /hub/payload/:id` dual (`payload_crm + payload_siesa`), `GET /hub/envios`. `POST /cotizaciones/:id/enviar-erp` ahora genera `CPV-MOCK-xxxxx` y actualiza `documento_erp`.
+- Validación por perfil en `POST /cotizaciones` (`centro/bodega/lista/motivo` vs `getPerfilConfigForUser`) y `requireVentasPerfil` extendido a `PUT/DELETE/items/estado/enviar-erp` (`4c9fc97`).
+- UI `Admin → SIESA Hub` con toggle mock, base_url/client_id/secret y lista de envíos.
+
+#### Cotizaciones — Precios y condición
+- `GET /productos/buscar?lista=200` hace `COALESCE(lista_precio_items.precio, cualquier lista, base)` (`2b87c6a`) + frontend envía `lista` actual — fix `0303 Kg $10.000` que salía `$0`. `0303` insertado a `200` para demo.
+- `Vendedor` ahora resuelve nombre vía `GET /perfiles-venta/vendedores` (`0c98cee`) y `Condición de pago` autocompleta desde `medio_pago_desc` (`eaaeb1e` → `EFECTIVO`).
+
+#### Oportunidades / Pipeline — Combobox y negocio
+- Mig `032/033` añade `fuente/prioridad/lista_precios` a `crm.oportunidades`; backend `POST/PUT` y precio por lista al agregar producto (`efd82c7`).
+- Modal `Nueva Oportunidad`: `Cliente/Lead` buscables con debounce (`filtrarOportunidadClientes/Leads` + `✓ seleccionado ✕`), `Contacto` con filtro, `Fuente`/`Prioridad`/`Motivo pérdida` selects, `Lista de precios` combobox por defecto del perfil (`2af4b05`, `5866072` quita filtro contacto sobrante, `f300741` no pisa monto si producto sin precio).
+- `Vendedor` en combobox buscable solo con perfil ventas (`79910cc` backend 403 si no admin, frontend disabled; `120e83b` combobox con `✓`, `5131c47` solo nombre, `32e0c7f` solo asesores via `GET /perfiles-venta/asesores`).
+- Widgets Pipeline ampliados a 8 (`6e347c1`): `Vencidas`, `Ticket promedio`, `Ciclo promedio`, `por etapa/fuente/prioridad`, `Top vendedor` (fix path 4 niveles `09c1655`, solo asesores `d2d74cf`, solo nombre `a27e10c`).
+- Filtro global pipeline poblado (`1b09ed7`): `Buscar`, `Etapa`, `Fuente`, `Prioridad`, `Desde/Hasta` + `Vendedor` combobox buscable (solo asesores) con estilo Nómina (`8ae621d` absolute dropdown, tiempo real).
+- Drag & drop `PUT /oportunidades/:id/mover` fix `inconsistent types $1` con `::varchar/::uuid` (`ccc5735`, `db79ef6`).
+- Framework `components.css` Widgets estilo Nómina (`dee271b` + `6f3b091` pipeline con colores `blue/orange/purple/green`).
+
+#### Sintéticas y datos
+- `scripts/genera_oportunidades.js` (`5c89e41` 50/50 aleatorio cliente/lead): 42 oportunidades sintéticas para un mes, vendedor aleatorio entre 10 asesores 2440, 1-2 productos con precio de lista (`072ab0d` real-time + `261533a` fix `030 USING ::integer` que había borrado `vendedor_id`).
+
+#### Commits clave sesión 52-53 (desde `2af4b05`)
+- `4c9fc97` — `feat(crm): perfiles venta listos para SIESA Hub (vendedores + enforcement)`
+- `2ef2714` — `feat(crm): SIESA Hub mock adapter listo sin docs`
+- `a67ef8b` — `fix(crm): hub UUID fix`
+- `2ba454e` — `fix(crm): hub payload sucursales tabla correcta + fallback`
+- `eaaeb1e` — `fix(crm): cotizacion trae condicion pago + precios catalogo fallback`
+- `0c98cee` — `fix(crm): muestra vendedor con nombre SIESA y precio 0303 demo`
+- `d6b5110` — `feat(crm): adaptador SIESA Hub f350/f351 dual payload + mapeos`
+- `5262821` — `fix(crm): creado_por integer (500 crear cotizacion)`
+- `820f51f` — `fix(crm): payload siesa coherente (totales descuento, iva por linea)`
+- `11a0bd4` — `fix(crm): totales con bruto + iva por linea`
+- `5cb9e67` — `fix(crm): iva totales = sum linea (0 si exento)`
+- `416bdab` — `feat(crm): hub final listo — fechas YYYYMMDD, bodega por CO`
+- `2af4b05` — `feat(crm): pipeline interno pulido con combobox buscables`
+- `f300741` — `fix(crm): oportunidad no pisa monto con producto sin precio`
+- `efd82c7` — `feat(crm): oportunidad con lista precios por defecto del perfil`
+- `6e347c1` — `feat(crm): widgets pipeline completos (8/8)`
+- `6f3b091` — `style(crm): pipeline widgets con estilo Nomina`
+- `dee271b` — `style(framework): widgets Nómina-style en framework`
+- `79910cc` — `feat(crm): pipeline usuarios con perfil ventas`
+- `120e83b` — `feat(crm): vendedor oportunidad en combobox buscable`
+- `1b09ed7` — `feat(crm): filtro global pipeline poblado`
+- `d2d74cf` — `fix(crm): pipeline vendedor solo asesores comerciales`
+- `e167d47` — `fix(crm): pipeline vendedor combobox sin desborde`
+- `a27e10c` — `fix(crm): pipeline vendedor solo nombre`
+- `5131c47` — `fix(crm): modal vendedor solo nombre`
+- `32e0c7f` — `fix(crm): modal vendedor solo usuarios con perfil ventas`
+- `261533a` — `fix(crm): pipeline vendedor filtro y 030 USING cast correcto`
+- `09c1655` — `fix(crm): top vendedor nombre (path 4 niveles)`
+- `804f2a7` — `fix(crm): combobox cierra al clic fuera`
+
 ## Estado (31 Ago 2026 — sesión 51)
 
 ### Cambios Sesión 51 — CRM: Maestros SIESA, Pipeline con productos y pulido masivo del flujo comercial
