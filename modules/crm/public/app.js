@@ -143,11 +143,18 @@ async function cargarPipeline() {
     const { pipeline, stats } = r.data;
     if (s.ok) {
       const d = s.data;
+      const etapaBar = (d.por_etapa||[]).map(e=> `${e.etapa.slice(0,3)}:${e.total}`).join(' · ') || '—';
+      const fuenteBar = (d.por_fuente||[]).slice(0,3).map(f=> `${esc(f.fuente)}:${f.total}`).join(' · ') || '—';
+      const priBar = (d.por_prioridad||[]).map(p=> `${esc(p.prioridad)}:${p.total}`).join(' · ') || '—';
       document.getElementById('stats-pipeline').innerHTML = `
-        <div class="stat-card"><div class="stat-value">${d.total || 0}</div><div class="stat-label">Oportunidades</div></div>
-        <div class="stat-card"><div class="stat-value">$${formatMoney(d.monto_pipeline || 0)}</div><div class="stat-label">Pipeline abierto</div></div>
-        <div class="stat-card"><div class="stat-value">$${formatMoney(d.forecast_ponderado || 0)}</div><div class="stat-label">Forecast ponderado</div><div class="stat-sub">monto × probabilidad</div></div>
+        <div class="stat-card"><div class="stat-value">${d.total || 0}</div><div class="stat-label">Oportunidades</div><div class="stat-sub">${etapaBar}</div></div>
+        <div class="stat-card"><div class="stat-value">$${formatMoney(d.monto_pipeline || 0)}</div><div class="stat-label">Pipeline abierto</div><div class="stat-sub">Ticket $${formatMoney(d.ticket_promedio||0)}</div></div>
+        <div class="stat-card"><div class="stat-value">$${formatMoney(d.forecast_ponderado || 0)}</div><div class="stat-label">Forecast ponderado</div><div class="stat-sub">monto × prob</div></div>
         <div class="stat-card"><div class="stat-value">${d.win_rate || 0}%</div><div class="stat-label">Win rate</div><div class="stat-sub">${d.ganada||0} ganada · ${d.perdida||0} perdida</div></div>
+        <div class="stat-card" style="border-color:${(d.vencidas||0)>0?'var(--danger)':''}"><div class="stat-value" style="color:${(d.vencidas||0)>0?'var(--danger)':''}">${d.vencidas||0}</div><div class="stat-label">Vencidas</div><div class="stat-sub">cierre &lt; hoy</div></div>
+        <div class="stat-card"><div class="stat-value">${d.ciclo_promedio||0}d</div><div class="stat-label">Ciclo promedio</div><div class="stat-sub">días en pipeline</div></div>
+        <div class="stat-card"><div class="stat-value" style="font-size:14px">${d.top_vendedor ? esc(d.top_vendedor.nombre||('ID '+d.top_vendedor.id)) : '—'}</div><div class="stat-label">Top vendedor</div><div class="stat-sub">${d.top_vendedor? d.top_vendedor.total+' ops · $'+formatMoney(d.top_vendedor.monto) : '—'}</div></div>
+        <div class="stat-card"><div class="stat-value" style="font-size:11px;line-height:1.2">${fuenteBar}<br>${priBar}</div><div class="stat-label">Por fuente / prioridad</div></div>
       `;
     }
     const kanban = document.getElementById('pipeline-kanban');

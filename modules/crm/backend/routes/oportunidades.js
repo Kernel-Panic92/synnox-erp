@@ -118,17 +118,38 @@ router.get('/stats', requirePermiso('ver_pipeline', 'crm'), async (req, res) => 
     const p = vendedor ? [parseInt(vendedor)] : [];
     const pPipeline = vendedor ? [parseInt(vendedor)] : [];
 
-    const [total, porEtapa, montoTotal, forecast, porEtapaCounts] = await Promise.all([
+    const [total, porEtapa, montoTotal, forecast, porEtapaCounts, vencidas, ticketAvg, ciclo, porFuente, porPrioridad, topVendedor] = await Promise.all([
       pool.query(`SELECT COUNT(*) FROM crm.oportunidades o ${cond}`, p),
       pool.query(`SELECT etapa, COUNT(*) AS total, COALESCE(SUM(monto_esperado), 0) AS monto FROM crm.oportunidades o ${cond} GROUP BY etapa ORDER BY CASE etapa WHEN 'lead' THEN 1 WHEN 'calificado' THEN 2 WHEN 'propuesta' THEN 3 WHEN 'negociacion' THEN 4 WHEN 'ganada' THEN 5 WHEN 'perdida' THEN 6 END`, p),
       pool.query(`SELECT COALESCE(SUM(monto_esperado), 0) AS total FROM crm.oportunidades o ${cond ? cond + ` AND o.etapa NOT IN ('ganada','perdida')` : `WHERE o.etapa NOT IN ('ganada','perdida')`}`, p),
       pool.query(`SELECT COALESCE(SUM(monto_esperado * COALESCE(probabilidad,0) / 100.0),0) AS total FROM crm.oportunidades o ${cond ? cond + ` AND o.etapa NOT IN ('ganada','perdida')` : `WHERE o.etapa NOT IN ('ganada','perdida')`}`, p),
-      pool.query(`SELECT etapa, COUNT(*) AS total FROM crm.oportunidades o ${cond} GROUP BY etapa`, p)
+      pool.query(`SELECT etapa, COUNT(*) AS total FROM crm.oportunidades o ${cond} GROUP BY etapa`, p),
+      pool.query(`SELECT COUNT(*) FROM crm.oportunidades o ${cond ? cond + ` AND o.fecha_cierre_estimada < CURRENT_DATE AND o.etapa NOT IN ('ganada','perdida')` : `WHERE o.fecha_cierre_estimada < CURRENT_DATE AND o.etapa NOT IN ('ganada','perdida')`}`, p),
+      pool.query(`SELECT COALESCE(AVG(monto_esperado),0) AS avg, COUNT(*) as cnt FROM crm.oportunidades o ${cond ? cond + ` AND o.etapa NOT IN ('ganada','perdida')` : `WHERE o.etapa NOT IN ('ganada','perdida')`}`, p),
+      pool.query(`SELECT COALESCE(AVG(EXTRACT(DAY FROM (CURRENT_DATE - o.creado_en))),0) AS avg FROM crm.oportunidades o ${cond ? cond + ` AND o.etapa NOT IN ('ganada','perdida')` : `WHERE o.etapa NOT IN ('ganada','perdida')`}`, p),
+      pool.query(`SELECT COALESCE(fuente,'otro') as fuente, COUNT(*) as total FROM crm.oportunidades o ${cond} GROUP BY fuente ORDER BY total DESC`, p),
+      pool.query(`SELECT COALESCE(prioridad,'media') as prioridad, COUNT(*) as total FROM crm.oportunidades o ${cond} GROUP BY prioridad ORDER BY CASE prioridad WHEN 'critica' THEN 1 WHEN 'alta' THEN 2 WHEN 'media' THEN 3 WHEN 'baja' THEN 4 ELSE 5 END`, p),
+      pool.query(`SELECT o.vendedor_id, COUNT(*) as total, COALESCE(SUM(o.monto_esperado),0) as monto FROM crm.oportunidades o ${cond ? cond + ` AND o.vendedor_id IS NOT NULL` : `WHERE o.vendedor_id IS NOT NULL`} GROUP BY o.vendedor_id ORDER BY total DESC LIMIT 1`, p)
     ]);
 
     const ganada = parseInt(porEtapaCounts.rows.find(r=>r.etapa==='ganada')?.total || 0);
     const perdida = parseInt(porEtapaCounts.rows.find(r=>r.etapa==='perdida')?.total || 0);
     const winRate = (ganada + perdida) > 0 ? (ganada / (ganada + perdida) * 100) : 0;
+
+    // nombre top vendedor
+    let topVendedorNombre = null;
+    if (topVendedor.rows[0]?.vendedor_id) {
+      try {
+        const Database = (await import('better-sqlite3')).default;
+        const path = (await import('path')).default;
+        const { fileURLToPath } = await import('url');
+        const __dirname = path.dirname(fileURLToPath(import.meta.url));
+        const ldb = new Database(path.join(__dirname, '..','..','..','launcher','launcher.db'), {readonly:true});
+        const row = ldb.prepare('SELECT nombre FROM usuarios WHERE id=?').get(topVendedor.rows[0].vendedor_id);
+        if (row) topVendedorNombre = row.nombre;
+        ldb.close();
+      } catch {}
+    }
 
     res.json({
       ok: true,
@@ -137,7 +158,13 @@ router.get('/stats', requirePermiso('ver_pipeline', 'crm'), async (req, res) => 
       monto_pipeline: parseFloat(montoTotal.rows[0].total),
       forecast_ponderado: parseFloat(forecast.rows[0].total),
       win_rate: Math.round(winRate * 10) / 10,
-      ganada, perdida
+      ganada, perdida,
+      vencidas: parseInt(vencidas.rows[0].count),
+      ticket_promedio: parseFloat(ticketAvg.rows[0].avg)||0,
+      ciclo_promedio: Math.round(parseFloat(ciclo.rows[0].avg)||0),
+      por_fuente: porFuente.rows,
+      por_prioridad: porPrioridad.rows,
+      top_vendedor: topVendedor.rows[0] ? { id: topVendedor.rows[0].vendedor_id, total: parseInt(topVendedor.rows[0].total), monto: parseFloat(topVendedor.rows[0].monto), nombre: topVendedorNombre } : null
     });
   } catch (err) {
     console.error('[CRM] Error stats oportunidades:', err);
