@@ -114,7 +114,7 @@ router.get('/asesores', requirePermiso('ver_pipeline', 'crm'), async (req, res) 
       const crmAsesores = await pool.query(`SELECT usuario_id FROM crm.usuario_perfil_venta WHERE perfil_venta_id IN (SELECT id FROM crm.perfiles_venta WHERE nombre ILIKE '%vendedor%' OR nombre ILIKE '%comercial%')`);
       const idsCrm = new Set(crmAsesores.rows.map(r=> String(r.usuario_id)));
       for (const u of todos) if (idsCrm.has(String(u.id)) && !asesoresLauncher.find(a=> String(a.id)===String(u.id))) asesoresLauncher.push(u);
-    } catch {}
+    } catch (e) { console.error('asesores crm query', e.message); }
     // enriquecer con nombre/email
     const result = asesoresLauncher.map(u=>{
       const full = todos.find(t=> String(t.id)===String(u.id)) || u;
@@ -123,7 +123,7 @@ router.get('/asesores', requirePermiso('ver_pipeline', 'crm'), async (req, res) 
     }).sort((a,b)=> a.nombre.localeCompare(b.nombre));
     ldb.close();
     res.json({ ok: true, data: result });
-  } catch (err){ res.status(500).json({error:err.message}); }
+  } catch (err){ console.error('asesores error', err); res.status(500).json({error:err.message, detail: String(err), stack: err.stack}); }
 });
 
 // GET /api/perfiles-venta — listar perfiles con conteo usuarios
