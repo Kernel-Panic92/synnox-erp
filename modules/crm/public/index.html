@@ -8,10 +8,22 @@
 <link rel="stylesheet" href="base.css">
 <link rel="stylesheet" href="components.css">
 <style>
-.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
-.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center}
-.stat-card .stat-value{font-size:28px;font-weight:700;color:var(--accent)}
-.stat-card .stat-label{font-size:12px;color:var(--muted);margin-top:4px}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:12px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;position:relative;overflow:hidden;text-align:center}
+.stat-card::before{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;opacity:0.07;}
+.stat-card:nth-child(1)::before{background:var(--accent);}
+.stat-card:nth-child(2)::before{background:var(--accent2);}
+.stat-card:nth-child(3)::before{background:var(--success);}
+.stat-card:nth-child(4)::before{background:var(--warning);}
+.stat-card:nth-child(5)::before{background:#a06af7;}
+.stat-card:nth-child(6)::before{background:var(--accent);}
+.stat-card:nth-child(7)::before{background:var(--success);}
+.stat-card:nth-child(8)::before{background:var(--warning);}
+.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;text-align:center}
+.stat-value{font-family:var(--font-body);font-size:20px;font-weight:700;letter-spacing:0;line-height:1.1;text-align:center}
+.stat-value.blue{color:var(--accent);} .stat-value.orange{color:var(--accent2);}
+.stat-value.green{color:var(--success);} .stat-value.yellow{color:var(--warning);}
+.stat-value.purple{color:#a06af7;} .stat-value.red{color:var(--danger);}
 .filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
 .filters input,.filters select{padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px}
 .tbl-wrap{overflow-x:auto}
