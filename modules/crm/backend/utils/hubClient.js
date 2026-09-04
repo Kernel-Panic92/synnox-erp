@@ -64,16 +64,22 @@ export function buildHubPayload({ cotizacion, items, cliente, sucursalFacturar, 
       };
     }),
     totales: (() => {
-      // SIESA exige coherencia: si hay descuento por línea, totales.descuento debe ser suma de línea
+      // SIESA exige coherencia: bruto = sum(cant*precio), descuento = sum linea + global, subtotal = bruto - descuento
+      const bruto = (items||[]).reduce((s, it)=> s + (Number(it.cantidad)||1)*(Number(it.precio_unitario)||0), 0);
       const lineDesc = (items||[]).reduce((s, it) => s + (Number(it.cantidad)||1)*(Number(it.precio_unitario)||0)*(Number(it.descuento_pct)||0)/100, 0);
       const globalDesc = Number(cotizacion.valor_descuento)||0;
       const desc = lineDesc + globalDesc;
-      return {
-        subtotal: Number(cotizacion.valor_subtotal) || (items||[]).reduce((s, it)=> s + (Number(it.cantidad)||1)*(Number(it.precio_unitario)||0), 0),
-        descuento: desc,
-        iva: Number(cotizacion.valor_iva) || 0,
-        total: Number(cotizacion.valor_total) || 0,
-      };
+      const subtotal = bruto - desc;
+      // iva por línea (si exento 0, sino 19) — sumado
+      const ivaLine = (items||[]).reduce((s, it) => {
+        const cant = Number(it.cantidad)||1, pu = Number(it.precio_unitario)||0, d = Number(it.descuento_pct)||0;
+        const neto = cant*pu*(1-d/100);
+        const ivaPct = Number(it.porcentaje_iva ?? it.tasa_impuesto ?? 0);
+        return s + neto * ivaPct / 100;
+      }, 0);
+      const iva = Number(cotizacion.valor_iva) || ivaLine;
+      const total = subtotal + iva;
+      return { bruto, descuento: desc, subtotal, iva, total };
     })(),
     // Metadatos Hub
     origen: 'SynnoxERP-CRM',
