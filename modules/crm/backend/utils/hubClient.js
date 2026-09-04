@@ -77,7 +77,8 @@ export function buildHubPayload({ cotizacion, items, cliente, sucursalFacturar, 
         const ivaPct = Number(it.porcentaje_iva ?? it.tasa_impuesto ?? 0);
         return s + neto * ivaPct / 100;
       }, 0);
-      const iva = Number(cotizacion.valor_iva) || ivaLine;
+      // Si hay items, el iva debe reflejar exactamente la sumatoria por renglón (0 si exento), no el valor cacheado de cotizaciones
+      const iva = (items && items.length) ? Math.round(ivaLine) : (Number(cotizacion.valor_iva) || 0);
       const total = subtotal + iva;
       return { bruto, descuento: desc, subtotal, iva, total };
     })(),
