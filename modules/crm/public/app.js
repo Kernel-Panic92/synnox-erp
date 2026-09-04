@@ -212,27 +212,23 @@ async function cargarVendedoresPipelineFilter(){
     if(!r.ok) r=await apiFetch('/perfiles-venta/usuarios-all');
     if(!r.ok) return;
     let data=r.data.data||r.data||[];
-    // si viene de usuarios-all, filtrar solo ASESOR COMERCIAL (launcher 2440 o CRM comercial) para pipeline
     if(r.data.data && r.data.data[0]?.perfil_id !== undefined){
       const asesores = data.filter(u=> String(u.perfil_id)==='2440');
       if(asesores.length) data = asesores;
     }
     _pipelineVendedorCache=data;
-    const sel=document.getElementById('filtro-pipeline-vendedor');
-    if(!sel) return;
-    const cur=sel.value;
-    sel.innerHTML='<option value="">Todos los vendedores</option>'+_pipelineVendedorCache.map(u=> `<option value="${u.id}">${esc(u.nombre)}</option>`).join('');
-    if(cur) sel.value=cur;
   }catch{}
 }
 function filtrarPipelineVendedor(q){
-  const sel=document.getElementById('filtro-pipeline-vendedor');
+  const dropdown=document.getElementById('filtro-pipeline-vendedor-dropdown');
+  const hidden=document.getElementById('filtro-pipeline-vendedor');
   const disp=document.getElementById('filtro-pipeline-vendedor-selected');
+  const inp=document.getElementById('filtro-pipeline-vendedor-search');
+  if(!dropdown || !hidden) return;
   if(disp && disp.style.display!=='none' && q && q.length) return;
   const qq=(q||'').trim().toLowerCase();
-  // filtrado en tiempo real del kanban sin necesidad de seleccionar (si hay texto, filtra por nombre vendedor)
+  // tiempo real visual
   if(qq && qq.length>=2){
-    // filtra visualmente las cards sin ir al backend (rápido)
     document.querySelectorAll('.kanban-card').forEach(card=>{
       const txt=(card.textContent||'').toLowerCase();
       card.style.display = txt.includes(qq) ? '' : 'none';
@@ -243,36 +239,48 @@ function filtrarPipelineVendedor(q){
   clearTimeout(_pipelineVendedorTimer);
   _pipelineVendedorTimer=setTimeout(()=>{
     let filtered;
-    if(!qq){
-      filtered = _pipelineVendedorCache;
-    } else {
-      filtered = _pipelineVendedorCache.filter(u=> u.nombre&&u.nombre.toLowerCase().includes(qq));
+    if(!qq){ filtered = _pipelineVendedorCache; }
+    else { filtered = _pipelineVendedorCache.filter(u=> u.nombre&&u.nombre.toLowerCase().includes(qq)); }
+    if(!_pipelineVendedorCache.length){
+      dropdown.innerHTML='<div style="padding:10px;color:var(--muted);font-size:12px">Cargando vendedores...</div>';
+      dropdown.style.display='block'; return;
     }
-    if(!filtered.length){ sel.innerHTML='<option value="">Todos los vendedores</option><option disabled>No hay resultados</option>'; sel.style.display=''; sel.size=3; return; }
-    sel.innerHTML='<option value="">Todos los vendedores</option>'+filtered.map(u=> `<option value="${u.id}">${esc(u.nombre)}</option>`).join('');
-    sel.style.display=''; sel.size=Math.min(6, filtered.length+1);
-    const inp=document.getElementById('filtro-pipeline-vendedor-search');
-    if(inp && inp.dataset.selected) sel.value=inp.dataset.selected;
-    // si hay texto, también refresca desde backend con vendedor id exacto al seleccionar, sino deja el filtro visual
-    if(qq && filtered.length===1){
-      // opcional: no auto-selecciona, deja que el usuario clickee
+    if(!filtered.length){
+      dropdown.innerHTML='<div style="padding:10px;color:var(--muted);font-size:12px">No hay resultados</div><div style="padding:6px 10px;cursor:pointer;color:var(--accent)" onclick="onPipelineVendedorSelect(\'\',\'Todos los vendedores\')">Todos los vendedores</div>';
+      dropdown.style.display='block'; return;
     }
+    dropdown.innerHTML='<div style="padding:6px 10px;cursor:pointer;border-bottom:1px solid var(--border);color:var(--accent)" onclick="onPipelineVendedorSelect(\'\',\'Todos los vendedores\')">Todos los vendedores</div>' + filtered.map(u=> `<div style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px" onmouseover="this.style.background='var(--surface2)'" onmouseout="this.style.background='transparent'" onclick="onPipelineVendedorSelect('${u.id}','${esc(u.nombre).replace(/'/g,"\\'")}')">${esc(u.nombre)}</div>`).join('');
+    dropdown.style.display='block';
   },200);
 }
-function onPipelineVendedorSelect(){
-  const sel=document.getElementById('filtro-pipeline-vendedor');
+function onPipelineVendedorSelect(id, nombre){
+  const hidden=document.getElementById('filtro-pipeline-vendedor');
+  const dropdown=document.getElementById('filtro-pipeline-vendedor-dropdown');
   const disp=document.getElementById('filtro-pipeline-vendedor-selected');
   const inp=document.getElementById('filtro-pipeline-vendedor-search');
-  const opt=sel.options[sel.selectedIndex];
-  if(!opt) return;
-  if(!opt.value){
-    disp.style.display='none'; disp.textContent=''; if(inp){ inp.value=''; inp.dataset.selected=''; }
-    sel.style.display='none';
+  if(id===undefined){
+    // compat: llamado desde select legacy
+    const sel=document.getElementById('filtro-pipeline-vendedor');
+    const opt=sel?.options[sel.selectedIndex];
+    if(!opt) return;
+    id=opt.value; nombre=opt.textContent;
+  }
+  // hidden/dropdown ya definidos arriba como hidden/dropdown
+  const hidden2=document.getElementById('filtro-pipeline-vendedor');
+  const dropdown2=document.getElementById('filtro-pipeline-vendedor-dropdown');
+  const inp2=document.getElementById('filtro-pipeline-vendedor-search');
+  const disp2b=document.getElementById('filtro-pipeline-vendedor-selected');
+  if(!id){
+    hidden2.value=''; if(disp2b){ disp2b.style.display='none'; disp2b.textContent=''; }
+    if(inp2){ inp2.value=''; inp2.dataset.selected=''; }
+    if(dropdown2) dropdown2.style.display='none';
   } else {
-    disp.textContent='✓ '+opt.textContent+'  ✕'; disp.style.display=''; disp.title='Click para quitar';
-    disp.onclick=()=>{ sel.value=''; sel.style.display='none'; disp.style.display='none'; if(inp){ inp.value=''; inp.dataset.selected=''; } cargarPipeline(); };
-    if(inp){ inp.value=''; inp.dataset.selected=opt.value; }
-    sel.style.display='none';
+    hidden2.value=id;
+    if(disp2b){ disp2b.textContent='✓ '+nombre+'  ✕'; disp2b.style.display=''; disp2b.title='Click para quitar';
+      disp2b.onclick=()=>{ hidden2.value=''; disp2b.style.display='none'; if(inp2){ inp2.value=''; inp2.dataset.selected=''; } if(dropdown2) dropdown2.style.display='none'; cargarPipeline(); };
+    }
+    if(inp2){ inp2.value=''; inp2.dataset.selected=id; }
+    if(dropdown2) dropdown2.style.display='none';
   }
   cargarPipeline();
 }
