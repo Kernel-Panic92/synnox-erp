@@ -584,7 +584,7 @@ async function cargarVendedoresSelect(selectId, selectedId) {
   if (!esAdmin) {
     if (usuario) {
       const opt = document.createElement('option');
-      opt.value = usuario.id; opt.textContent = usuario.nombre + ' (' + (usuario.email || '') + ')';
+      opt.value = usuario.id; opt.textContent = usuario.nombre;
       opt.selected = true; sel.appendChild(opt);
       sel.value = usuario.id;
       if (isOport) {
@@ -595,7 +595,7 @@ async function cargarVendedoresSelect(selectId, selectedId) {
     }
     // precargar seleccionado si es otro (edición admin previa)
     if (selectedId && String(selectedId)!==String(usuario?.id)) {
-      try{ const r=await apiFetch('/perfiles-venta/usuarios-all'); if(r.ok){ const f=(r.data.data||r.data||[]).find(u=>String(u.id)===String(selectedId)); if(f){ const o=document.createElement('option'); o.value=f.id; o.textContent=f.nombre+' ('+f.email+')'; o.selected=true; sel.appendChild(o); sel.value=f.id; if(isOport && disp){ disp.textContent='✓ '+o.textContent+'  ✕'; disp.style.display=''; } } } }catch{}
+      try{ const r=await apiFetch('/perfiles-venta/usuarios-all'); if(r.ok){ const f=(r.data.data||r.data||[]).find(u=>String(u.id)===String(selectedId)); if(f){ const o=document.createElement('option'); o.value=f.id; o.textContent=f.nombre; o.selected=true; sel.appendChild(o); sel.value=f.id; if(isOport && disp){ disp.textContent='✓ '+o.textContent+'  ✕'; disp.style.display=''; } } } }catch{}
     }
     return;
   }
@@ -607,14 +607,14 @@ async function cargarVendedoresSelect(selectId, selectedId) {
       _vendedoresOportunidadCache = lista;
       for (const u of lista) {
         const opt = document.createElement('option');
-        opt.value = u.id; opt.textContent = u.nombre + (u.email ? ' ('+u.email+')' : '');
+        opt.value = u.id; opt.textContent = u.nombre;
         sel.appendChild(opt);
       }
       if (selectedId) {
         const found = lista.find(u=> String(u.id)===String(selectedId));
         if (found) {
           sel.value = selectedId;
-          if (isOport && disp) { disp.textContent='✓ '+found.nombre+' ('+found.email+')  ✕'; disp.style.display=''; disp.onclick=()=>{ sel.value=''; sel.innerHTML='<option value=\"\">Sin asignar</option>'; for(const u of _vendedoresOportunidadCache){ const o=document.createElement('option'); o.value=u.id; o.textContent=u.nombre+(u.email?' ('+u.email+')':''); sel.appendChild(o);} disp.style.display='none'; if(searchInp) searchInp.value=''; }; }
+          if (isOport && disp) { disp.textContent='✓ '+found.nombre+'  ✕'; disp.style.display=''; disp.onclick=()=>{ sel.value=''; sel.innerHTML='<option value=\"\">Sin asignar</option>'; for(const u of _vendedoresOportunidadCache){ const o=document.createElement('option'); o.value=u.id; o.textContent=u.nombre; sel.appendChild(o);} disp.style.display='none'; if(searchInp) searchInp.value=''; }; }
         } else {
           const opt = document.createElement('option');
           opt.value = selectedId; opt.textContent = 'ID ' + selectedId; opt.selected = true; sel.appendChild(opt); sel.value=selectedId;
@@ -625,7 +625,7 @@ async function cargarVendedoresSelect(selectId, selectedId) {
         sel.value = usuario?.id || '';
         if (sel.value && disp) {
           const me = lista.find(u=> String(u.id)===String(sel.value));
-          if (me) { disp.textContent='✓ '+me.nombre+' ('+me.email+')  ✕'; disp.style.display=''; disp.onclick=()=>{ sel.value=''; disp.style.display='none'; if(searchInp) searchInp.value=''; }; }
+          if (me) { disp.textContent='✓ '+me.nombre+'  ✕'; disp.style.display=''; disp.onclick=()=>{ sel.value=''; disp.style.display='none'; if(searchInp) searchInp.value=''; }; }
         }
       }
       // para admin, el select queda oculto hasta que busque
@@ -644,12 +644,12 @@ function filtrarVendedorOportunidad(q){
   if (!esAdmin) return;
   if (disp && disp.style.display!=='none' && !(q && q.length)) return;
   const qq=(q||'').trim().toLowerCase();
-  if (!qq || qq.length<2) { sel.style.display='none'; return; }
+  if (!qq || qq.length<1) { sel.style.display='none'; return; }
   clearTimeout(_vendedorOportunidadTimer);
   _vendedorOportunidadTimer=setTimeout(()=>{
-    const filtered = _vendedoresOportunidadCache.filter(u=> (u.nombre && u.nombre.toLowerCase().includes(qq)) || (u.email && u.email.toLowerCase().includes(qq)));
+    const filtered = _vendedoresOportunidadCache.filter(u=> u.nombre && u.nombre.toLowerCase().includes(qq));
     if (!filtered.length) { sel.innerHTML='<option>No hay resultados</option>'; sel.style.display=''; sel.size=3; return; }
-    sel.innerHTML=filtered.map(u=> `<option value="${u.id}">${esc(u.nombre)}${u.email?' — '+esc(u.email):''}</option>`).join('');
+    sel.innerHTML=filtered.map(u=> `<option value="${u.id}">${esc(u.nombre)}</option>`).join('');
     sel.style.display=''; sel.size=Math.min(6, filtered.length+1);
     sel.onchange=()=> onVendedorOportunidadSelect();
   },200);
