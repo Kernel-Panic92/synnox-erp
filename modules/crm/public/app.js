@@ -239,10 +239,10 @@ async function abrirModalOportunidad(oportunidad = null) {
   if (oportunidad?.id) {
     const pr = await apiFetch('/oportunidades/' + oportunidad.id + '/productos');
     if (pr.ok) _oportunidadProductos = pr.data.data || [];
-    // si ya tenía productos, total viene de la suma de ellos (backend ya recalculó), pero mantenemos monto manual si no hay productos
+    // solo pisa monto si la suma de productos aporta valor (>0)
     if (_oportunidadProductos.length) {
       const total = _oportunidadProductos.reduce((s,p)=>s+parseFloat(p.cantidad)*parseFloat(p.precio_unitario||p.precio_maestro||0),0);
-      document.getElementById('oportunidad-monto').value = total.toFixed(2);
+      if (total > 0) document.getElementById('oportunidad-monto').value = total.toFixed(2);
     }
   }
   renderOportunidadProductos();

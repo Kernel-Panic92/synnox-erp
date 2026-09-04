@@ -210,9 +210,10 @@ router.post('/:id/productos', requirePermiso('editar_pipeline', 'crm'), requireV
       ON CONFLICT (oportunidad_id, producto_id) DO UPDATE SET cantidad = EXCLUDED.cantidad, precio_unitario = EXCLUDED.precio_unitario
       RETURNING *
     `, [id, producto_id, cantidad, precio]);
-    // Opcional: recalcular monto_esperado como suma
+    // Recalcular monto_esperado solo si hay suma >0 (no pisar monto manual con $0 de producto sin precio)
     const sum = await pool.query(`SELECT COALESCE(SUM(cantidad * precio_unitario),0) AS total FROM crm.oportunidad_productos WHERE oportunidad_id = $1`, [id]);
-    await pool.query(`UPDATE crm.oportunidades SET monto_esperado = $1 WHERE id = $2`, [sum.rows[0].total, id]);
+    const total = parseFloat(sum.rows[0].total)||0;
+    if (total > 0) await pool.query(`UPDATE crm.oportunidades SET monto_esperado = $1 WHERE id = $2`, [total, id]);
     res.status(201).json({ ok: true, data: result.rows[0] });
   } catch (err) {
     console.error('[CRM] Error agregar producto oportunidad:', err);
@@ -226,7 +227,10 @@ router.delete('/:id/productos/:productoId', requirePermiso('editar_pipeline', 'c
     const { id, productoId } = req.params;
     await pool.query(`DELETE FROM crm.oportunidad_productos WHERE oportunidad_id = $1 AND producto_id = $2`, [id, productoId]);
     const sum = await pool.query(`SELECT COALESCE(SUM(cantidad * precio_unitario),0) AS total FROM crm.oportunidad_productos WHERE oportunidad_id = $1`, [id]);
-    await pool.query(`UPDATE crm.oportunidades SET monto_esperado = $1 WHERE id = $2`, [sum.rows[0].total, id]);
+    const total = parseFloat(sum.rows[0].total)||0;
+    if (total > 0 || (await pool.query(`SELECT COUNT(*) FROM crm.oportunidad_productos WHERE oportunidad_id=$1`,[id])).rows[0].count==='0') {
+      await pool.query(`UPDATE crm.oportunidades SET monto_esperado = $1 WHERE id = $2`, [total, id]);
+    }
     res.json({ ok: true });
   } catch (err) {
     console.error('[CRM] Error quitar producto oportunidad:', err);
