@@ -171,6 +171,8 @@ export async function crearTerceroHub(lead, client = pool){
   const payload = buildTerceroPayload(lead);
   if(cfg.mock_enabled || !cfg.base_url){
     const mockId = `TERCERO-MOCK-${String(payload.f200_nit||Date.now()).slice(-8)}-${Date.now().toString().slice(-4)}`;
+    // guarda en hub_envios para que Admin lo vea (cotizacion_id null)
+    try { await client.query(`INSERT INTO crm.hub_envios (cotizacion_id, numero, payload, respuesta, estado, documento_erp, intentos) VALUES (NULL, $1, $2, $3, 'mock', $4, 1)`, [String(lead.raison_social||lead.numero_identificacion||'LEAD').slice(0,50), JSON.stringify({ payload_tercero: payload }), JSON.stringify({ ok:true, tercero_id: mockId, mock:true }), mockId]); } catch {}
     return { tercero_id: mockId, mock: true, payload, respuesta: { ok:true, tercero_id: mockId } };
   }
   const token = await obtenerTokenHub(cfg);
@@ -179,8 +181,13 @@ export async function crearTerceroHub(lead, client = pool){
     body: JSON.stringify(payload)
   });
   const body = await resp.json().catch(()=>({}));
-  if(!resp.ok) throw new Error(body.error || body.message || `Hub tercero error ${resp.status}`);
-  return { tercero_id: body.tercero_id || body.id || body.codigo || payload.f200_nit, mock:false, payload, respuesta: body };
+  if(!resp.ok){
+    try { await client.query(`INSERT INTO crm.hub_envios (cotizacion_id, numero, payload, respuesta, estado, ultimo_error, intentos) VALUES (NULL, $1, $2, $3, 'error', $4, 1)`, [String(lead.raison_social||lead.numero_identificacion||'LEAD').slice(0,50), JSON.stringify({ payload_tercero: payload }), JSON.stringify(body), String(body.error||body.message||`Hub tercero error ${resp.status}`).slice(0,1000)]); } catch {}
+    throw new Error(body.error || body.message || `Hub tercero error ${resp.status}`);
+  }
+  const tid = body.tercero_id || body.id || body.codigo || payload.f200_nit;
+  try { await client.query(`INSERT INTO crm.hub_envios (cotizacion_id, numero, payload, respuesta, estado, documento_erp, intentos) VALUES (NULL, $1, $2, $3, 'enviado', $4, 1)`, [String(lead.raison_social||lead.numero_identificacion||'LEAD').slice(0,50), JSON.stringify({ payload_tercero: payload }), JSON.stringify(body), tid]); } catch {}
+  return { tercero_id: tid, mock:false, payload, respuesta: body };
 }
 
 async function getHubConfig(client = pool) {
