@@ -1311,10 +1311,11 @@ async function abrirModalLead(lead = null) {
   };
   dvEl.oninput = () => { dvEl.value = dvEl.value.replace(/\D/g,'').slice(0,1); };
   toggleDvLead();
-  // Google Places Autocomplete para dirección (usa key del Launcher si existe) — se carga una vez
-  await initLeadGooglePlaces();
-  await _initLeadPlacesAutocomplete();
-  // Departamento / Ciudad combobox DANE
+  // Google Places deshabilitado temporalmente (API key nueva requiere PlaceAutocompleteElement y causa loop) — direccion manual con DANE
+  // await initLeadGooglePlaces();
+  // await _initLeadPlacesAutocomplete();
+  // guarda lead actual para helpers de depto/ciudad
+  window._leadActual = lead;
   setupLeadDeptoCiudad(lead);
   // Productos de interés
   _leadProductos = lead?.productos || [];
