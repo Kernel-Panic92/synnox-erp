@@ -119,6 +119,7 @@ async function cargarDashboard() {
       `;
     }
     renderFunnelChart(d.funnel || [], 'widget-funnel');
+    if (!_pipelineVendedorCache.length) await cargarVendedoresPipelineFilter();
     renderTablaVendedores(d.ranking_vendedores || [], 'widget-vendedores');
     renderGraficoSVG(d.tendencia_mensual || [], 'widget-tendencia');
     renderDistribucionCiudades(d.distribucion_ciudades || [], 'widget-ciudades');
