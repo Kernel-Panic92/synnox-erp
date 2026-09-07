@@ -99,6 +99,8 @@ router.post('/', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
       if (dupLead.rows.length) return res.status(409).json({ error: `NIT ${numero_identificacion} ya existe como lead` });
     }
 
+    // Normalización: fuente única siesa_* (si viene tipo_identificacion legacy, úsalo como fallback)
+    const tipoSiesa = siesa_tipo_identificacion || (tipo_identificacion === 'NIT' ? '31' : tipo_identificacion) || '31';
     const result = await pool.query(`
       INSERT INTO crm.leads (raison_social, numero_identificacion, tipo_identificacion, nombre_establecimiento,
         direccion, ciudad, departamento, email, telefono, canal, segmento, tipo_negocio,
@@ -106,11 +108,11 @@ router.post('/', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
         siesa_tipo_identificacion, siesa_dv, siesa_tipo_persona, siesa_regimen, siesa_responsabilidad_fiscal, siesa_ciiu)
       VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'nuevo',$17,$18,$19,$20,$21,$22)
       RETURNING *
-    `, [raison_social, numero_identificacion || null, tipo_identificacion || 'NIT', nombre_establecimiento || null,
+    `, [raison_social, numero_identificacion || null, tipoSiesa, nombre_establecimiento || null,
         direccion || null, ciudad || null, departamento || null, email || null, telefono || null,
         canal || null, segmento || null, tipo_negocio || null, lista_precios || null,
         condicion_pago || null, asesor_comercial || null, notas || null,
-        siesa_tipo_identificacion || '31', siesa_dv || null, siesa_tipo_persona || 1, siesa_regimen || '48', siesa_responsabilidad_fiscal || 'R-99-PN', siesa_ciiu || '4723']);
+        tipoSiesa, siesa_dv || null, siesa_tipo_persona || 1, siesa_regimen || '48', siesa_responsabilidad_fiscal || 'R-99-PN', siesa_ciiu || '4723']);
 
     await auditarEvento({ accion: 'crear', entidad: 'lead', entidad_id: result.rows[0].id, usuario_id: req.user.id, metadata: { raison_social } });
     res.status(201).json({ ok: true, data: result.rows[0] });
@@ -124,6 +126,13 @@ router.post('/', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
 router.put('/:id', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
   try {
     const { id } = req.params;
+    // Normalización fuente única siesa_*: si viene siesa, sincroniza legacy y viceversa
+    if (req.body.siesa_tipo_identificacion !== undefined && req.body.tipo_identificacion === undefined) {
+      req.body.tipo_identificacion = req.body.siesa_tipo_identificacion;
+    } else if (req.body.tipo_identificacion !== undefined && req.body.siesa_tipo_identificacion === undefined) {
+      const t = String(req.body.tipo_identificacion).toUpperCase();
+      req.body.siesa_tipo_identificacion = t === 'NIT' ? '31' : t;
+    }
     const fields = ['raison_social', 'numero_identificacion', 'tipo_identificacion', 'nombre_establecimiento',
       'direccion', 'ciudad', 'departamento', 'email', 'telefono', 'canal', 'segmento', 'tipo_negocio',
       'lista_precios', 'condicion_pago', 'asesor_comercial', 'notas', 'estado',
