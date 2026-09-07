@@ -144,25 +144,62 @@ export async function toSiesaPayload(payloadCrm) {
   };
 }
 
+function daneFromCiudad(ciudad, depto){
+  const c = String(ciudad||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  const d = String(depto||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  const map = {
+    'BOGOTA': { pais:'170', depto:'11', ciudad:'11001' },
+    'BOGOTA D.C.': { pais:'170', depto:'11', ciudad:'11001' },
+    'MEDELLIN': { pais:'170', depto:'05', ciudad:'05001' },
+    'CALI': { pais:'170', depto:'76', ciudad:'76001' },
+    'BARRANQUILLA': { pais:'170', depto:'08', ciudad:'08001' },
+    'CARTAGENA': { pais:'170', depto:'13', ciudad:'13001' },
+    'BUCARAMANGA': { pais:'170', depto:'68', ciudad:'68001' },
+    'ITAGUI': { pais:'170', depto:'05', ciudad:'05360' },
+    'ENVIGADO': { pais:'170', depto:'05', ciudad:'05266' },
+  };
+  if(map[c]) return map[c];
+  if(c.includes('BOGOTA')) return map['BOGOTA'];
+  // fallback por depto
+  const deptoMap = { 'CUNDINAMARCA':'25', 'ANTIOQUIA':'05', 'VALLE':'76', 'ATLANTICO':'08', 'SANTANDER':'68' };
+  for(const k in deptoMap) if(d.includes(k)) return { pais:'170', depto:deptoMap[k], ciudad: deptoMap[k]+'001' };
+  return { pais:'170', depto:'11', ciudad:'11001' }; // default Bogotá
+}
+function cleanDir(dir){ return String(dir||'').trim().replace(/,+$/,'').replace(/\s+,/g,',').slice(0,200); }
 export function buildTerceroPayload(lead){
-  // f200 tercero SIESA Hub — DIAN obligatorio
+  const dane = daneFromCiudad(lead.ciudad, lead.departamento);
+  const dirClean = cleanDir(lead.direccion);
+  // f200 tercero SIESA Hub — DIAN obligatorio + sucursal principal 001
   return {
-    f200_id_tercero: String(lead.numero_identificacion||'').replace(/\D/g,'').slice(0,20),
-    f200_nit: String(lead.numero_identificacion||'').replace(/\D/g,'').slice(0,20),
-    f200_dv: String(lead.siesa_dv||'').slice(0,1) || null,
-    f200_razon_social: String(lead.raison_social||'').slice(0,200),
-    f200_tipo_ident: String(lead.siesa_tipo_identificacion||'31').slice(0,5),
-    f200_tipo_persona: String(lead.siesa_tipo_persona||1),
-    f200_regimen: String(lead.siesa_regimen||'48'),
-    f200_responsabilidad_fiscal: String(lead.siesa_responsabilidad_fiscal||'R-99-PN').slice(0,20),
-    f200_ciiu: String(lead.siesa_ciiu||'4723').slice(0,10),
-    f200_direccion: String(lead.direccion||'').slice(0,200),
-    f200_ciudad: String(lead.ciudad||'').slice(0,100),
-    f200_departamento: String(lead.departamento||'').slice(0,100),
-    f200_email: String(lead.email||'').slice(0,200),
-    f200_telefono: String(lead.telefono||'').slice(0,30),
-    _lead_id: lead.id,
-    _origen: 'SynnoxCRM-Lead'
+    Tercero: {
+      f200_id_tipo_ident: String(lead.siesa_tipo_identificacion||'31').slice(0,5),
+      f200_nit: String(lead.numero_identificacion||'').replace(/\D/g,'').slice(0,20),
+      f200_dv: String(lead.siesa_dv||'').replace(/\D/g,'').slice(0,1) || null,
+      f200_tipo_persona: String(lead.siesa_tipo_persona||1),
+      f200_razon_social: String(lead.raison_social||'').slice(0,200),
+      f200_nombre_comercial: String(lead.raison_social||'').slice(0,200),
+      f200_f201_id_regimen: String(lead.siesa_regimen||'48').slice(0,10),
+      f200_id_responsabilidad_fiscal: String(lead.siesa_responsabilidad_fiscal||'R-99-PN').slice(0,20),
+      f200_id_ciiu: String(lead.siesa_ciiu||'4723').slice(0,10),
+      f200_email: String(lead.email||'').slice(0,200),
+      f200_telefono: String(lead.telefono||'').replace(/\D/g,'').slice(0,30),
+      f200_direccion: dirClean,
+      f200_id_pais: dane.pais,
+      f200_id_depto: dane.depto,
+      f200_id_ciudad: dane.ciudad,
+      f200_ind_estado: '0',
+      _lead_id: lead.id,
+      _origen: 'SynnoxCRM-Lead'
+    },
+    SucursalPrincipal: {
+      f201_id_sucursal: '001',
+      f201_descripcion: 'PRINCIPAL',
+      f201_direccion: dirClean,
+      f201_telefono: String(lead.telefono||'').replace(/\D/g,'').slice(0,30),
+      f201_id_pais: dane.pais,
+      f201_id_depto: dane.depto,
+      f201_id_ciudad: dane.ciudad
+    }
   };
 }
 
