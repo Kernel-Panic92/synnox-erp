@@ -1,5 +1,55 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (07 Sep 2026 — sesión 54 — build mode)
+
+### Cambios Sesión 54 — CRM: Places por proxy, Dashboard gerencial y Analítica Avanzada
+
+Sesión en `feat/crm-module` (build). Se arregló Google Places en leads, se unificó el combobox en actividades, se aplicó GPS a visitas y se construyó un Dashboard con widgets y pestaña de Analítica Avanzada.
+
+#### Google Places en Lead — Proxy backend (fix definitivo)
+- **Problema**: cargar `maps.googleapis.com/maps/api/js` en frontend causaba `gmp-internal-* already defined` + `Module common has been provided more than once` y no desplegaba opciones.
+- **Fix** (`6d15074`→`5239080`→`2fa5302`→`4d860f8`): ya NO se carga el JS de Google Maps. Backend proxy `routes/places.js` (`GET /api/places/autocomplete?input=&components=country:co` + `GET /api/places/details?place_id=` usando `google_maps_key` del Launcher). Frontend `_initLeadPlacesAutocomplete` con dropdown propio `position:fixed z-index:300` append a `document.body` (evita clipping por `overflow-y:auto` del `.modal`), posicionado con `getBoundingClientRect()`, DANE auto + lat/lng + place_id. **IMPORTANTE**: las llamadas estaban comentadas en `abrirModalLead` — descomentadas.
+- `places.js` montado en `server.js` como `/api/places` con `protect`.
+
+#### Combobox unificado y GPS en Actividades
+- **Nueva Actividad** (`9df7ae3`): cliente combobox pasa de `✓ ... ✕` debajo a selección **dentro del input** (`readOnly` + clic para cambiar), con `filtrarActClientes` usando debounce API (300ms) en vez de cache local. `guardarActividad` sigue leyendo del `<select>` hidden.
+- **GPS en visitas** (`5100387`): condición `tipo === 'reunion'` → `['reunion','visita'].includes(tipo)` en `actualizarActGPSGroup` y `guardarActividad`. Mapa + captura GPS auto para Visita en Proceso/Realizada igual que Reunión. `llamada/nota` siguen sin GPS.
+
+#### Pipeline — KPIs con feedback de Gemini
+- **3 KPIs nuevos** (`1eb839d`): Vencidas clicable (toggle resalta tarjetas `data-vencida`, badge `⏰ VENCIDA fecha` + borde rojo), Conversión por etapa (funnel `L→C·C→P·P→N`), Pérdida por causal (mini-barras por `motivo_perdida`). Backend `/oportunidades/stats` agrega `perdida_por_motivo`.
+- **Pulido visual** (`87820c9`→`cf3a511`→`7924715`): `#stats-pipeline` flex con `overflow-x:auto` + scroll suave; funnel vertical con `funnel-row` (texto izq, % der) y badges dinámicos (verde ≥50%, naranja 30-49%, rojo <30%, `—` sin base); `kpi-chips` para fuente/prioridad/etapa; títulos arriba (`stat-label-top`); tooltips `title` con fórmula; `formatMoneyShort` montos compactos en headers Kanban (`$152,3 M`).
+
+#### Dashboard — Widgets y filtros de periodo
+- **4 widgets** (`2b3adce`→`bbe8f44`): Embudo de ventas (barras por etapa, Perdida gris), Rendimiento de asesores (top 10 por monto ganado), Tendencia mensual (SVG nativo con `generate_series` rellenando meses vacíos + `<title>` tooltip), Distribución geográfica (top 8 ciudades, scroll 220px). Sin `better-sqlite3` en backend (fix `dd57117` ERR_DLOPEN_FAILED ABI 115 vs 127 → nombres de asesores resueltos en frontend vía `_pipelineVendedorCache`).
+- **Filtros de periodo** (`3705a80`): barra `Periodo` con `desde/hasta` + botones `Mes actual`, `Mes anterior`, `Trimestre`, `✕ Limpiar`. Backend `/api/dashboard` respeta `desde/hasta` en funnel/ranking/tendencia/ciudades con casting `::date + INTERVAL '1 day'`. Se eliminó la tabla de Clientes Recientes.
+
+#### Analítica Avanzada — pestaña 3×2 (9 widgets)
+- **Tabs** `Resumen`/`Analítica Avanzada` en dashboard (`d91c0f8`→`072e96f`), comparten filtros de periodo.
+- **Endpoint** `GET /api/dashboard/analytics` con 9 métricas:
+  - **ACV** (promedio ganadas), **Pipeline coverage** (pipeline÷meta editable `window._metaMensual`; rojo <1x, naranja 1-3x, verde 3-4x), **Forecast ponderado** (Σ monto×prob ÷ meta, `window._forecastActual`), **Velocidad por etapa** (días entre cambios de `oportunidad_historial`, orden cronológico), **Pérdida por causal** (%), **Slippage** (vencidas/abiertas, rojo ≥40%), **Recurrencia de clientes** (ganadas recurrentes vs nuevos), **Ticket promedio por canal** (AVG ganadas por fuente), **LTV estimado** (ACV × recurrencia).
+- **Drag & drop a PERDIDA** (`072e96f`): si la oportunidad no tiene `motivo_perdida`, `prompt` obligatorio con 5 opciones (Precio, Competencia, Sin presupuesto, No responde, Otro) — alimenta Pérdida por causal.
+- **Descartado** (sin datos): CAC, Deal Slippage (historial de fechas), quota real por vendedor (no existe `crm.metas`).
+
+#### Nota técnica
+- El server corre como root en PM2 (`/root/.pm2`). El binario `better-sqlite3@11.10.0` está compilado para Node ABI 115 pero el runtime pide 127 → `ERR_DLOPEN_FAILED`. Evitar `import('better-sqlite3')` en rutas del CRM; resolver nombres de usuarios en frontend o vía endpoint `/perfiles-venta/*`.
+
+#### Commits sesión 54 (desde `ace122b`)
+- `4d860f8` — `fix(crm): lead Places proxy estaba comentado — descomenta _initLeadPlacesAutocomplete`
+- `2fa5302` — `fix(crm): lead direccion dropdown via fixed positioning (overflow modal clipping)`
+- `5239080` — `fix(crm): SyntaxError expected expression got ')' (app.js:1389)`
+- `6d15074` — `feat(crm): lead direccion via proxy Places (no gmaps js multiple)`
+- `9df7ae3` — `feat(crm): actividades cliente combobox con seleccion dentro del input`
+- `5100387` — `feat(crm): GPS auto tambien para visitas en proceso/realizada`
+- `1eb839d` — `feat(crm): pipeline KPIs — vencidas clicable, funnel conversion, perdida por causal`
+- `87820c9`/`cf3a511`/`7924715` — `style(crm): pipeline KPIs legibles/perfect/scroll + montos compactos`
+- `2b3adce` — `feat(crm): dashboard widgets — embudo, ranking asesores, tendencia SVG, geografica`
+- `dd57117` — `fix(crm): dashboard 500 — quita import better-sqlite3 (ERR_DLOPEN_FAILED)`
+- `fc1cd4f` — `fix(crm): dashboard asesores — espera cache vendedores para nombre`
+- `3705a80` — `feat(crm): dashboard filtro fechas (mes actual/anterior/trimestre)`
+- `bbe8f44` — `style(crm): dashboard — perdida gris, tendencia meses completos, ciudades scroll, sin clientes recientes`
+- `d91c0f8` — `feat(crm): dashboard Analitica Avanzada — ACV, coverage, velocity, loss, recurrencia, LTV`
+- `072e96f` — `feat(crm): analitica 3x2 — slippage, ticket por canal, forecast ponderado, motivo obligatorio`
+
 ## Estado (04 Sep 2026 — sesión 53 — build mode)
 
 ### Cambios Sesión 52-53 — CRM: Hub SIESA mock, payload f350/f351 y Pipeline pulido
