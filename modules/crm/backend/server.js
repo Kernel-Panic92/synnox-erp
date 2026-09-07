@@ -44,6 +44,7 @@ import leadsRoutes from './routes/leads.js';
 import perfilesVentaRoutes from './routes/perfilesVenta.js';
 import maestrosRoutes from './routes/maestros.js';
 import hubRoutes from './routes/hub.js';
+import placesRoutes from './routes/places.js';
 
 const protect = createProtect(MODULE_ID);
 
@@ -63,6 +64,7 @@ app.use('/api/leads', protect, leadsRoutes);
 app.use('/api/perfiles-venta', protect, perfilesVentaRoutes);
 app.use('/api/maestros', protect, maestrosRoutes);
 app.use('/api/hub', protect, hubRoutes);
+app.use('/api/places', protect, placesRoutes);
 
 // Public endpoint for centros
 app.get('/api/centros', (req, res) => {

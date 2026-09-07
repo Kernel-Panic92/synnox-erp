@@ -1323,56 +1323,67 @@ async function abrirModalLead(lead = null) {
   renderLeadProductos();
   showModal('modal-lead');
 }
-let _placesLeadLoaded=false;
-window.iniciarAutocompleteLead = function(){ window.googleMapsListo=true; _placesLeadLoaded=true; };
-async function initLeadGooglePlaces(){
-  if(_placesLeadLoaded || window.googleMapsListo) return;
-  try{
-    // intenta launcher primero, luego CRM config
-    let key='';
-    try{ const r=await fetch('/api/config/gmaps/key',{credentials:'include'}); const j=await r.json(); key=(j.key||'').trim(); }catch{}
-    if(!key){
-      try{ const r2=await fetch(HF.API+'/configuracion/gmaps/key',{credentials:'include'}); const j2=await r2.json(); key=(j2.key||j2.data||'').trim(); }catch{}
-    }
-    if(!key) return;
-    if(document.querySelector('script[src*="maps.googleapis.com"]')){ window.googleMapsListo=true; _placesLeadLoaded=true; return; }
-    await new Promise((res,rej)=>{
-      const s=document.createElement('script');
-      s.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places&callback=iniciarAutocompleteLead`;
-      s.async=true; s.defer=true;
-      s.onerror=rej; document.head.appendChild(s);
-      // fallback si callback no dispara en 5s
-      setTimeout(()=>{ if(window.googleMapsListo) res(); },5000);
-      const orig=window.iniciarAutocompleteLead;
-      window.iniciarAutocompleteLead=()=>{ window.googleMapsListo=true; _placesLeadLoaded=true; if(orig) orig(); res(); };
-    });
-  }catch(e){ console.warn('Places no disponible', e.message); }
-}
+let _leadDireccionTimer=null;
+async function initLeadGooglePlaces(){ /* proxy-based, no gmaps js */ }
 async function _initLeadPlacesAutocomplete(){
-  if(!window.googleMapsListo || !window.google?.maps?.places) return;
   const input=document.getElementById('lead-direccion');
   if(!input || input.dataset.placesBound==='1') return;
   input.dataset.placesBound='1';
-  const ac=new google.maps.places.Autocomplete(input, { componentRestrictions:{country:'co'}, fields:['address_components','formatted_address','geometry','place_id'] });
-  ac.addListener('place_changed', ()=>{
-    const place=ac.getPlace(); if(!place || !place.geometry) return;
-    const comps=place.address_components||[];
-    let ciudad='', depto='';
-    for(const c of comps){
-      if(c.types.includes('locality')) ciudad=c.long_name;
-      else if(c.types.includes('administrative_area_level_1')) depto=c.long_name;
-      else if(!ciudad && c.types.includes('administrative_area_level_2')) ciudad=c.long_name;
-    }
-    if(place.formatted_address) input.value=place.formatted_address;
-    if(ciudad || depto){
-      const depInp=document.getElementById('lead-departamento-search');
-      const ciuInp=document.getElementById('lead-ciudad-search');
-      if(depto && depInp){ depInp.value=depto; filtrarLeadDepto(depto); setTimeout(()=>{ const sel=document.getElementById('lead-departamento'); if(sel && sel.options.length>1){ sel.selectedIndex=1; onLeadDeptoSelect(); } },300); }
-      if(ciudad && ciuInp){ setTimeout(()=>{ ciuInp.value=ciudad; filtrarLeadCiudad(ciudad); setTimeout(()=>{ const sel=document.getElementById('lead-ciudad'); if(sel && sel.options.length>1){ sel.selectedIndex=1; onLeadCiudadSelect(); } },300); },600); }
-    }
-    input.dataset.place_id=place.place_id||'';
-    input.dataset.lat=place.geometry.location.lat()||'';
-    input.dataset.lng=place.geometry.location.lng()||'';
+  input.setAttribute('autocomplete','off');
+  let dd=document.getElementById('lead-direccion-dropdown');
+  if(!dd){
+    dd=document.createElement('div');
+    dd.id='lead-direccion-dropdown';
+    dd.style.cssText='display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:30;max-height:200px;overflow:auto;box-shadow:0 8px 20px rgba(0,0,0,.2)';
+    input.parentElement.style.position='relative';
+    input.parentElement.appendChild(dd);
+    document.addEventListener('click',(e)=>{ if(!input.parentElement.contains(e.target)) dd.style.display='none'; });
+  }
+  input.addEventListener('input', ()=>{
+    const q=input.value.trim();
+    if(q.length<4){ dd.style.display='none'; return; }
+    clearTimeout(_leadDireccionTimer);
+    _leadDireccionTimer=setTimeout(async()=>{
+      try{
+        const r=await apiFetch('/places/autocomplete?input='+encodeURIComponent(q));
+        if(!r.ok || !r.data.predictions?.length){ dd.style.display='none'; return; }
+        dd.innerHTML=r.data.predictions.map(p=> `<div style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px" data-place-id="${p.place_id}">${esc(p.description)}</div>`).join('');
+        dd.style.display='block';
+        for(const el of dd.children){
+          el.addEventListener('click', async()=>{
+            const pid=el.dataset.placeId;
+            const desc=el.textContent;
+            input.value=desc; dd.style.display='none';
+            try{
+              const dr=await apiFetch('/places/details?place_id='+encodeURIComponent(pid));
+              if(dr.ok && dr.data.result){
+                const place=dr.data.result;
+                const comps=place.address_components||[];
+                let ciudad='', depto='';
+                for(const c of comps){
+                  if(c.types.includes('locality')) ciudad=c.long_name;
+                  else if(c.types.includes('administrative_area_level_1')) depto=c.long_name;
+                  else if(!ciudad && c.types.includes('administrative_area_level_2')) ciudad=c.long_name;
+                }
+                if(place.formatted_address) input.value=place.formatted_address;
+                if(ciudad || depto){
+                  const depInp=document.getElementById('lead-departamento-search');
+                  const ciuInp=document.getElementById('lead-ciudad-search');
+                  if(depto && depInp){ depInp.value=depto; filtrarLeadDepto(depto); setTimeout(()=>{ const sel=document.getElementById('lead-departamento'); if(sel && sel.options.length>1){ sel.selectedIndex=1; onLeadDeptoSelect(); } },300); }
+                  if(ciudad && ciuInp){ setTimeout(()=>{ ciuInp.value=ciudad; filtrarLeadCiudad(ciudad); setTimeout(()=>{ const sel=document.getElementById('lead-ciudad'); if(sel && sel.options.length>1){ sel.selectedIndex=1; onLeadCiudadSelect(); } },300); },600); }
+                }
+                input.dataset.place_id=place.place_id||pid;
+                input.dataset.lat=place.geometry?.location?.lat||'';
+                input.dataset.lng=place.geometry?.location?.lng||'';
+                input.dataset.formatted=place.formatted_address||desc;
+                window._leadPlace={ place_id: place.place_id||pid, lat: place.geometry?.location?.lat, lng: place.geometry?.location?.lng, formatted: place.formatted_address||desc };
+              }
+            }catch{}
+          });
+        }
+      }catch{}
+    },300);
+  });
     input.dataset.formatted=place.formatted_address||'';
     window._leadPlace={ place_id: place.place_id, lat: place.geometry.location.lat(), lng: place.geometry.location.lng(), formatted: place.formatted_address };
   });
