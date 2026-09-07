@@ -1381,11 +1381,8 @@ async function _initLeadPlacesAutocomplete(){
             }catch{}
           });
         }
-      }catch{}
+      }catch(e){ console.warn('Places proxy error', e.message); }
     },300);
-  });
-    input.dataset.formatted=place.formatted_address||'';
-    window._leadPlace={ place_id: place.place_id, lat: place.geometry.location.lat(), lng: place.geometry.location.lng(), formatted: place.formatted_address };
   });
 }
 function daneFromLeadCiudad(ciudad, depto){
