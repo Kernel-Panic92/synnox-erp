@@ -1312,13 +1312,12 @@ async function abrirModalLead(lead = null) {
   dvEl.oninput = () => { dvEl.value = dvEl.value.replace(/\D/g,'').slice(0,1); };
   toggleDvLead();
   // Google Places Autocomplete para dirección (usa key del Launcher si existe) — se carga una vez
-  initLeadGooglePlaces();
+  await initLeadGooglePlaces();
+  await _initLeadPlacesAutocomplete();
   // Departamento / Ciudad combobox DANE
   setupLeadDeptoCiudad(lead);
   // Productos de interés
   _leadProductos = lead?.productos || [];
-  // Google Places Autocomplete para dirección (usa key del Launcher si existe) — se carga una vez
-  initLeadGooglePlaces();
   // guarda lead actual para helpers de depto/ciudad
   window._leadActual = lead;
   document.getElementById('buscar-lead-producto').value='';
@@ -1327,35 +1326,44 @@ async function abrirModalLead(lead = null) {
   showModal('modal-lead');
 }
 let _placesLeadLoaded=false;
+let _placesLeadLoading=null;
 async function initLeadGooglePlaces(){
   if(_placesLeadLoaded) return;
-  // evita múltiples inyecciones
-  if(document.querySelector('script[data-gmaps-places]')) { _placesLeadLoaded=true; return; }
-  try{
-    const r=await fetch('/api/config/gmaps/key',{credentials:'include'});
-    const j=await r.json(); const key=(j.key||'').trim();
-    if(!key) return;
-    await new Promise((res,rej)=>{
-      const s=document.createElement('script');
-      s.dataset.gmapsPlaces='1';
-      s.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places&loading=async`;
-      s.async=true; s.defer=true;
-      s.onload=res; s.onerror=rej; document.head.appendChild(s);
-    });
+  if(_placesLeadLoading) return _placesLeadLoading;
+  // si ya hay un script de gmaps en la página (del launcher u otro módulo), no inyectar otro
+  if(document.querySelector('script[src*="maps.googleapis.com"]')){
     _placesLeadLoaded=true;
-    // espera a que google.maps esté listo
-    let tries=0; while(!window.google?.maps?.places && tries<50){ await new Promise(r=>setTimeout(r,100)); tries++; }
-    const input=document.getElementById('lead-direccion');
-    if(!input) return;
-    // Usa PlaceAutocompleteElement si está disponible (nuevo), fallback a Autocomplete legacy
-    if(window.google?.maps?.places?.PlaceAutocompleteElement){
-      // No interfiere con input existente; mantiene fallback simple para no duplicar elementos
-      return;
-    }
-    if(!window.google?.maps?.places?.Autocomplete) return;
-    // Evita duplicar autocomplete en el mismo input
-    if(input.dataset.placesBound==='1') return;
-    input.dataset.placesBound='1';
+    return;
+  }
+  if(window.google?.maps) { _placesLeadLoaded=true; return; }
+  _placesLeadLoading = (async()=>{
+    try{
+      const r=await fetch('/api/config/gmaps/key',{credentials:'include'});
+      const j=await r.json(); const key=(j.key||'').trim();
+      if(!key) return;
+      await new Promise((res,rej)=>{
+        const s=document.createElement('script');
+        s.dataset.gmapsPlaces='1';
+        s.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}&libraries=places&loading=async`;
+        s.async=true; s.defer=true;
+        s.onload=()=>{ _placesLeadLoaded=true; res(); };
+        s.onerror=rej; document.head.appendChild(s);
+      });
+      let tries=0; while(!window.google?.maps && tries<50){ await new Promise(r=>setTimeout(r,100)); tries++; }
+      if(window.google?.maps?.importLibrary){
+        try{ await google.maps.importLibrary('places'); }catch{}
+      }
+    }catch(e){ console.warn('Places no disponible', e.message); }
+    finally{ _placesLeadLoaded=true; }
+  })();
+  return _placesLeadLoading;
+}
+async function _initLeadPlacesAutocomplete(){
+  // llamado después de que gmaps esté listo, enlaza el input solo una vez
+  const input=document.getElementById('lead-direccion');
+  if(!input || !window.google?.maps?.places?.Autocomplete) return;
+  if(input.dataset.placesBound==='1') return;
+  input.dataset.placesBound='1';
     const ac=new google.maps.places.Autocomplete(input, { componentRestrictions:{country:'co'}, fields:['address_components','formatted_address','geometry','place_id'] });
     ac.addListener('place_changed', ()=>{
       const place=ac.getPlace(); if(!place) return;
