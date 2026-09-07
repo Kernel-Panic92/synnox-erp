@@ -144,6 +144,45 @@ export async function toSiesaPayload(payloadCrm) {
   };
 }
 
+export function buildTerceroPayload(lead){
+  // f200 tercero SIESA Hub — DIAN obligatorio
+  return {
+    f200_id_tercero: String(lead.numero_identificacion||'').replace(/\D/g,'').slice(0,20),
+    f200_nit: String(lead.numero_identificacion||'').replace(/\D/g,'').slice(0,20),
+    f200_dv: String(lead.siesa_dv||'').slice(0,1) || null,
+    f200_razon_social: String(lead.raison_social||'').slice(0,200),
+    f200_tipo_ident: String(lead.siesa_tipo_identificacion||'31').slice(0,5),
+    f200_tipo_persona: String(lead.siesa_tipo_persona||1),
+    f200_regimen: String(lead.siesa_regimen||'48'),
+    f200_responsabilidad_fiscal: String(lead.siesa_responsabilidad_fiscal||'R-99-PN').slice(0,20),
+    f200_ciiu: String(lead.siesa_ciiu||'4723').slice(0,10),
+    f200_direccion: String(lead.direccion||'').slice(0,200),
+    f200_ciudad: String(lead.ciudad||'').slice(0,100),
+    f200_departamento: String(lead.departamento||'').slice(0,100),
+    f200_email: String(lead.email||'').slice(0,200),
+    f200_telefono: String(lead.telefono||'').slice(0,30),
+    _lead_id: lead.id,
+    _origen: 'SynnoxCRM-Lead'
+  };
+}
+
+export async function crearTerceroHub(lead, client = pool){
+  const cfg = await getHubConfig(client);
+  const payload = buildTerceroPayload(lead);
+  if(cfg.mock_enabled || !cfg.base_url){
+    const mockId = `TERCERO-MOCK-${String(payload.f200_nit||Date.now()).slice(-8)}-${Date.now().toString().slice(-4)}`;
+    return { tercero_id: mockId, mock: true, payload, respuesta: { ok:true, tercero_id: mockId } };
+  }
+  const token = await obtenerTokenHub(cfg);
+  const resp = await fetch(`${cfg.base_url.replace(/\/$/,'')}/api/terceros`, {
+    method: 'POST', headers:{'Content-Type':'application/json','Authorization':`Bearer ${token}`},
+    body: JSON.stringify(payload)
+  });
+  const body = await resp.json().catch(()=>({}));
+  if(!resp.ok) throw new Error(body.error || body.message || `Hub tercero error ${resp.status}`);
+  return { tercero_id: body.tercero_id || body.id || body.codigo || payload.f200_nit, mock:false, payload, respuesta: body };
+}
+
 async function getHubConfig(client = pool) {
   const r = await client.query(`SELECT * FROM crm.hub_config ORDER BY id LIMIT 1`);
   return r.rows[0] || { mock_enabled: true, base_url: '', client_id: '', client_secret: '' };

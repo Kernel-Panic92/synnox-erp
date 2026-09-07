@@ -2,6 +2,7 @@ import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
 import { auditarEvento } from '../../../../framework/audit.js';
+import { crearTerceroHub } from '../utils/hubClient.js';
 
 const router = express.Router();
 
@@ -197,7 +198,7 @@ router.delete('/:id', requirePermiso('eliminar_contacto', 'crm'), async (req, re
   }
 });
 
-// POST /api/leads/:id/convertir — Enviar lead a ERP para crear tercero
+// POST /api/leads/:id/convertir — Enviar lead a ERP (SIESA Hub) para crear tercero → luego cliente
 router.post('/:id/convertir', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
   try {
     const { id } = req.params;
@@ -205,35 +206,30 @@ router.post('/:id/convertir', requirePermiso('crear_contacto', 'crm'), async (re
     if (!lead.rows.length) return res.status(404).json({ error: 'Lead no encontrado' });
     if (lead.rows[0].estado === 'convertido') return res.status(400).json({ error: 'Este lead ya fue convertido' });
 
-    // TODO: Cuando tengamos la API de SIESA, aqui se crea el tercero
-    // const siesaResponse = await crearTerceroERP(lead.rows[0]);
-    // if (!siesaResponse.ok) return res.status(502).json({ error: 'Error en API SIESA' });
-
-    // Por ahora, simular que la API no esta disponible
-    const apiDisponible = false; // Cambiar a true cuando tengamos la API
-
-    if (!apiDisponible) {
-      return res.status(503).json({
-        error: 'API de SIESA no disponible. El tercero debe crearse manualmente en el ERP.',
-        lead_id: id,
-        datos_tercero: {
-          codigo: lead.rows[0].numero_identificacion,
-          razon_social: lead.rows[0].raison_social,
-          nit: lead.rows[0].numero_identificacion,
-          direccion: lead.rows[0].direccion,
-          ciudad: lead.rows[0].ciudad,
-          email: lead.rows[0].email,
-          telefono: lead.rows[0].telefono
-        }
-      });
+    // Hub SIESA: crea tercero (mock si no hay credenciales)
+    try {
+      const hub = await crearTerceroHub(lead.rows[0]);
+      // Marca lead como enviado/convertido y crea cliente formal (misma transacción que confirmar)
+      const client = await pool.connect();
+      try {
+        await client.query('BEGIN');
+        const l = lead.rows[0];
+        const cli = await client.query(`
+          INSERT INTO crm.clientes (codigo_siesa, nit, nombre, canal, activo, direccion, ciudad, departamento, email, telefono, tipo, tipo_negocio, notas, asesor_comercial,
+            siesa_tipo_identificacion, siesa_dv, siesa_tipo_persona, siesa_regimen, siesa_responsabilidad_fiscal, siesa_ciiu)
+          VALUES ($1,$2,$3,$4,TRUE,$5,$6,$7,$8,$9,'real',$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id
+        `,[hub.tercero_id||l.numero_identificacion, l.numero_identificacion, l.raison_social, l.canal||'', l.direccion, l.ciudad, l.departamento, l.email, l.telefono, l.tipo_negocio, l.notas, l.asesor_comercial,
+           l.siesa_tipo_identificacion||'31', l.siesa_dv||null, l.siesa_tipo_persona||1, l.siesa_regimen||'48', l.siesa_responsabilidad_fiscal||'R-99-PN', l.siesa_ciiu||'4723']);
+        await client.query(`UPDATE crm.leads SET estado='convertido', cliente_convertido=TRUE, cliente_id=$1, fecha_conversion=NOW(), erp_tercero_id=$2, actualizado_en=NOW() WHERE id=$3`,[cli.rows[0].id, hub.tercero_id, id]);
+        await client.query('COMMIT');
+        await auditarEvento({ accion:'convertir', entidad:'lead', entidad_id:id, usuario_id:req.user.id, metadata:{ cliente_id:cli.rows[0].id, erp_tercero_id:hub.tercero_id, mock:hub.mock } });
+        return res.json({ ok:true, cliente_id:cli.rows[0].id, erp_tercero_id:hub.tercero_id, mock:hub.mock, payload:hub.payload });
+      } catch(e){ await client.query('ROLLBACK'); throw e; } finally { client.release(); }
+    } catch(hubErr){
+      // Si Hub falla, deja el lead en estado para reintento y devuelve payload para debug
+      console.error('[CRM] Hub tercero error', hubErr.message);
+      return res.status(502).json({ error: `Hub SIESA: ${hubErr.message}`, lead_id:id, payload: hubErr.payload || null });
     }
-
-    // Cuando la API este disponible:
-    // await pool.query(`
-    //   UPDATE crm.leads SET estado = 'enviado_erp', erp_tercero_id = $1, actualizado_en = NOW() WHERE id = $2
-    // `, [siesaResponse.tercero_id, id]);
-
-    res.status(503).json({ error: 'API de SIESA no disponible aun' });
   } catch (err) {
     console.error('[CRM] Error convertir lead:', err);
     res.status(500).json({ error: 'Error al procesar' });
