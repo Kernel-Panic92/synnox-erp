@@ -166,12 +166,13 @@ async function cargarPipeline() {
       // Funnel: conversion entre etapas consecutivas (snapshot actual)
       const cntEtapa = {};
       (d.por_etapa||[]).forEach(e=>{ cntEtapa[e.etapa]=parseInt(e.total)||0; });
-      const conv = (a,b)=> a>0 ? Math.round(b/a*100) : 0;
+      const conv = (a,b)=> a>0 ? Math.round(b/a*100) : null;
+      const convClass = (v)=> v===null ? 'na' : v>=50 ? 'ok' : v>=30 ? 'warn' : 'bad';
       const funnelRows = [
         ['Lead → Calif', cntEtapa.lead||0, cntEtapa.calificado||0],
         ['Calif → Prop', cntEtapa.calificado||0, cntEtapa.propuesta||0],
         ['Prop → Neg', cntEtapa.propuesta||0, cntEtapa.negociacion||0],
-      ].map(([label,a,b])=> `<div class="funnel-row"><span>${label} (${a}→${b})</span><strong>${conv(a,b)}%</strong></div>`).join('');
+      ].map(([label,a,b])=>{ const v=conv(a,b); return `<div class="funnel-row"><span>${label} (${a}→${b})</span><strong class="${convClass(v)}">${v===null?'—':v+'%'}</strong></div>`; }).join('');
       const funnelTip = `Lead ${cntEtapa.lead||0} → Calificado ${cntEtapa.calificado||0} → Propuesta ${cntEtapa.propuesta||0} → Negociación ${cntEtapa.negociacion||0}`;
       // Perdida por causal: mini-barras
       const motivoLabel = { precio:'Precio', competencia:'Competencia', sin_presupuesto:'Sin ppto', no_responde:'No responde', otro:'Otro', sin_motivo:'Sin motivo' };
@@ -189,9 +190,9 @@ async function cargarPipeline() {
         <div class="stat-card" style="border-color:${(d.vencidas||0)>0?'var(--danger)':''};${_soloVencidas?'outline:2px solid var(--danger);':''}cursor:pointer" onclick="toggleFiltroVencidas()" title="Clic para resaltar vencidas en el tablero"><div class="stat-value ${ (d.vencidas||0)>0?'red':'green'}">${d.vencidas||0}</div><div class="stat-label">Vencidas ${_soloVencidas?'◉':''}</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">cierre &lt; hoy · clic filtra</div></div>
         <div class="stat-card"><div class="stat-value yellow">${d.ciclo_promedio||0}d</div><div class="stat-label">Ciclo promedio</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">días en pipeline</div></div>
         <div class="stat-card"><div class="stat-value green" style="font-size:14px">${d.top_vendedor ? esc(d.top_vendedor.nombre||('ID '+d.top_vendedor.id)) : '—'}</div><div class="stat-label">Top vendedor</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">${d.top_vendedor? d.top_vendedor.total+' ops · $'+formatMoney(d.top_vendedor.monto) : '—'}</div></div>
-        <div class="stat-card" title="Distribución por fuente y prioridad"><div class="kpi-chips">${fuenteBar}</div><div class="kpi-chips">${priBar}</div><div class="stat-label">Por fuente / prioridad</div></div>
-        <div class="stat-card" title="${funnelTip}"><div style="display:flex;flex-direction:column;gap:2px;margin-top:2px">${funnelRows}</div><div class="stat-label">Conversión por etapa</div></div>
-        <div class="stat-card" title="Oportunidades perdidas agrupadas por motivo"><div style="display:flex;flex-direction:column;gap:3px;margin-top:2px">${perdidaBar}</div><div class="stat-label">Pérdida por causal</div></div>
+        <div class="stat-card" title="Distribución por fuente y prioridad"><div class="stat-label-top">Por fuente / prioridad</div><div class="kpi-chips">${fuenteBar}</div><div class="kpi-chips">${priBar}</div></div>
+        <div class="stat-card" title="${funnelTip}"><div class="stat-label-top">Conversión por etapa</div><div style="display:flex;flex-direction:column;gap:2px">${funnelRows}</div></div>
+        <div class="stat-card" title="Oportunidades perdidas agrupadas por motivo"><div class="stat-label-top">Pérdida por causal</div><div style="display:flex;flex-direction:column;gap:3px">${perdidaBar}</div></div>
       `;
       aplicarFiltroVencidas();
     }
