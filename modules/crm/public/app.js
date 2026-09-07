@@ -1257,18 +1257,34 @@ function abrirModalLead(lead = null) {
   document.getElementById('lead-email').value = lead?.email || '';
   document.getElementById('lead-asesor').value = lead?.asesor_comercial || usuario?.nombre || '';
   document.getElementById('lead-canal').value = lead?.canal || 'otro';
+  document.getElementById('lead-tipo-negocio').value = lead?.tipo_negocio || '';
+  await cargarListasLead(lead?.lista_precios);
   document.getElementById('lead-notas').value = lead?.notas || '';
   document.getElementById('lead-siesa-tipo').value = lead?.siesa_tipo_identificacion || '31';
   document.getElementById('lead-siesa-dv').value = lead?.siesa_dv || '';
   document.getElementById('lead-siesa-regimen').value = lead?.siesa_regimen || '48';
   document.getElementById('lead-siesa-resp').value = lead?.siesa_responsabilidad_fiscal || 'R-99-PN';
   document.getElementById('lead-siesa-ciiu').value = lead?.siesa_ciiu || '4723';
-  // Productos de interés (si lead tiene productos previos, cargarlos; por ahora solo cliente-side)
+  // Productos de interés
   _leadProductos = lead?.productos || [];
   document.getElementById('buscar-lead-producto').value='';
   document.getElementById('lead-producto-resultados').innerHTML='<p style="color:var(--muted);font-size:12px">Busca un producto del maestro.</p>';
   renderLeadProductos();
   showModal('modal-lead');
+}
+async function cargarListasLead(selected){
+  const sel=document.getElementById('lead-lista-precios');
+  if(!sel) return;
+  sel.innerHTML='<option value="">Cargando...</option>';
+  try{
+    const def = selected || await getPerfilListaDefault();
+    const r=await apiFetch('/maestros?tipo=lista_precio&_='+Date.now());
+    const data=r.ok ? (r.data.data||[]) : [];
+    if(!data.length){ sel.innerHTML=`<option value="${esc(def)}" selected>${esc(def)} — GENERAL HORECA</option>`; return; }
+    sel.innerHTML=data.map(it=> `<option value="${esc(it.codigo)}" ${String(it.codigo)===String(def)?'selected':''}>${esc(it.codigo)} — ${esc(it.nombre)}</option>`).join('');
+    if(selected && !data.find(x=> String(x.codigo)===String(selected))){ sel.innerHTML+=`<option value="${esc(selected)}" selected>${esc(selected)} (actual)</option>`; }
+    sel.value=def; if(selected) sel.value=selected;
+  }catch{ sel.innerHTML='<option value="200" selected>200 — GENERAL HORECA</option>'; }
 }
 async function buscarLeadProducto(){
   clearTimeout(_leadProdTimer);
@@ -1340,6 +1356,8 @@ async function guardarLead() {
     email: document.getElementById('lead-email').value,
     asesor_comercial: usuario?.nombre || document.getElementById('lead-asesor').value,
     canal: document.getElementById('lead-canal').value,
+    tipo_negocio: document.getElementById('lead-tipo-negocio').value || null,
+    lista_precios: document.getElementById('lead-lista-precios').value || null,
     notas: document.getElementById('lead-notas').value + (_leadProductos.length ? `\n[Productos: ${_leadProductos.map(p=>p.codigo).join(', ')}]` : ''),
     siesa_tipo_identificacion: document.getElementById('lead-siesa-tipo').value,
     siesa_dv: document.getElementById('lead-siesa-dv').value,
