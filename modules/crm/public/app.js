@@ -280,14 +280,14 @@ function onPipelineVendedorSelect(id, nombre){
   const disp2b=document.getElementById('filtro-pipeline-vendedor-selected');
   if(!id){
     hidden2.value=''; if(disp2b){ disp2b.style.display='none'; disp2b.textContent=''; }
-    if(inp2){ inp2.value=''; inp2.dataset.selected=''; }
+    if(inp2){ inp2.value=''; inp2.readOnly=false; inp2.placeholder='Filtrar vendedor (asesor)...'; inp2.dataset.selected=''; inp2.onclick=null; }
     if(dropdown2) dropdown2.style.display='none';
   } else {
     hidden2.value=id;
-    if(disp2b){ disp2b.textContent='✓ '+nombre+'  ✕'; disp2b.style.display=''; disp2b.title='Click para quitar';
-      disp2b.onclick=()=>{ hidden2.value=''; disp2b.style.display='none'; if(inp2){ inp2.value=''; inp2.dataset.selected=''; } if(dropdown2) dropdown2.style.display='none'; cargarPipeline(); };
+    if(inp2){ inp2.value=nombre; inp2.readOnly=true; inp2.title='Seleccionado — clic para cambiar'; inp2.dataset.selected=id;
+      inp2.onclick=()=>{ hidden2.value=''; inp2.value=''; inp2.readOnly=false; inp2.placeholder='Filtrar vendedor (asesor)...'; if(disp2b) disp2b.style.display='none'; if(dropdown2) dropdown2.style.display='none'; inp2.onclick=null; cargarPipeline(); };
     }
-    if(inp2){ inp2.value=''; inp2.dataset.selected=id; }
+    if(disp2b) disp2b.style.display='none';
     if(dropdown2) dropdown2.style.display='none';
   }
   cargarPipeline();
@@ -1371,18 +1371,18 @@ function filtrarLeadDepto(q){
 }
 function onLeadDeptoSelect(){
   const sel=document.getElementById('lead-departamento');
-  const disp=document.getElementById('lead-departamento-selected');
   const inp=document.getElementById('lead-departamento-search');
   const opt=sel.options[sel.selectedIndex]; if(!opt||!opt.value) return;
-  disp.textContent='✓ '+opt.textContent+'  ✕'; disp.style.display=''; disp.title='Click para quitar';
-  disp.onclick=()=>{ sel.value=''; disp.style.display='none'; sel.style.display='none'; inp.value=''; };
-  sel.style.display='none'; inp.value='';
+  inp.value=opt.textContent; inp.readOnly=true; inp.title='Seleccionado — clic para cambiar';
+  inp.onclick=()=>{ inp.value=''; inp.readOnly=false; sel.value=''; sel.style.display='none'; inp.onclick=null; };
+  sel.style.display='none';
+  const disp=document.getElementById('lead-departamento-selected'); if(disp) disp.style.display='none';
   // al cambiar depto, limpia ciudad si no pertenece
-  const ciuSel=document.getElementById('lead-ciudad'); const ciuDisp=document.getElementById('lead-ciudad-selected');
+  const ciuSel=document.getElementById('lead-ciudad'); const ciuInp=document.getElementById('lead-ciudad-search');
   if(ciuSel && ciuSel.value){
     const depCode=_daneDeptos.find(d=> d.nombre===opt.textContent.split(' — ')[1] || d.codigo===opt.value)?.codigo;
     const ciu=_daneCiudades.find(c=> c.codigo===ciuSel.value || c.nombre===ciuSel.value);
-    if(ciu && ciu.depto!==depCode){ ciuSel.value=''; if(ciuDisp) ciuDisp.style.display='none'; }
+    if(ciu && ciu.depto!==depCode){ ciuSel.value=''; const cd=document.getElementById('lead-ciudad-selected'); if(cd) cd.style.display='none'; if(ciuInp){ ciuInp.value=''; ciuInp.readOnly=false; } }
   }
 }
 function filtrarLeadCiudad(q){
@@ -1406,12 +1406,12 @@ function filtrarLeadCiudad(q){
 }
 function onLeadCiudadSelect(){
   const sel=document.getElementById('lead-ciudad');
-  const disp=document.getElementById('lead-ciudad-selected');
   const inp=document.getElementById('lead-ciudad-search');
   const opt=sel.options[sel.selectedIndex]; if(!opt||!opt.value) return;
-  disp.textContent='✓ '+opt.textContent+'  ✕'; disp.style.display=''; disp.title='Click para quitar';
-  disp.onclick=()=>{ sel.value=''; disp.style.display='none'; sel.style.display='none'; inp.value=''; };
-  sel.style.display='none'; inp.value='';
+  inp.value=opt.textContent; inp.readOnly=true; inp.title='Seleccionado — clic para cambiar';
+  inp.onclick=()=>{ inp.value=''; inp.readOnly=false; sel.value=''; sel.style.display='none'; inp.onclick=null; };
+  sel.style.display='none';
+  const disp=document.getElementById('lead-ciudad-selected'); if(disp) disp.style.display='none';
 }
 async function buscarLeadProducto(){
   clearTimeout(_leadProdTimer);
@@ -2343,12 +2343,12 @@ async function abrirModalCotizacion(cotizacion = null) {
     if (rc.ok) {
       const c = rc.data.data;
       const sel = document.getElementById('cotizacion-cliente');
+      const inp = document.getElementById('cotizacion-cliente-search');
       sel.innerHTML = `<option value="${c.id}" selected>${esc(c.nombre)} — ${esc(c.nit || '')}</option>`;
       sel.value = c.id;
-      const sd = document.getElementById('cotizacion-cliente-selected');
-      sd.textContent = '✓ ' + c.nombre + ' — ' + (c.nit || '') + '  ✕';
-      sd.style.display = ''; sd.style.cursor = 'pointer';
-      sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; document.getElementById('cotizacion-cliente-search').value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-vendedor-info').style.display='none'; document.getElementById('cotizacion-condicion-pago').value=''; };
+      inp.value = `${c.nombre} — ${c.nit || ''}`; inp.readOnly = true; inp.title = 'Seleccionado — clic para cambiar';
+      inp.onclick = () => { inp.value=''; inp.readOnly=false; inp.placeholder='Buscar por NIT o nombre...'; sel.value=''; sel.innerHTML=''; sel.style.display='none'; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-vendedor-info').style.display='none'; document.getElementById('cotizacion-condicion-pago').value=''; inp.onclick=null; };
+      const sd = document.getElementById('cotizacion-cliente-selected'); if(sd) sd.style.display='none';
       await cargarContactosCotizacion(c.id, cotizacion?.contacto_id || null);
       await cargarSucursalesCotizacion(c.id, cotizacion?.facturar_a || null, cotizacion?.despachar_a || null);
       // defaults del cliente
@@ -2411,8 +2411,8 @@ function cambiarTabCotizacion(tab, btn) {
 let _cotClienteTimer = null;
 async function filtrarCotizacionClientes(q) {
   const sel = document.getElementById('cotizacion-cliente');
-  const sd = document.getElementById('cotizacion-cliente-selected');
-  if (sel.value && sd.style.display !== 'none') return;
+  const inp = document.getElementById('cotizacion-cliente-search');
+  if (inp && inp.readOnly) return;
   const qq = (q || '').trim();
   if (!qq || qq.length < 2) { sel.style.display = 'none'; sel.innerHTML = ''; return; }
   clearTimeout(_cotClienteTimer);
@@ -2420,18 +2420,16 @@ async function filtrarCotizacionClientes(q) {
     const r = await apiFetch('/clientes?search=' + encodeURIComponent(qq) + '&limit=20');
     if (!r.ok) return;
     const data = r.data.data || [];
-    if (!data.length) { sel.innerHTML = '<option>No hay resultados</option>'; sel.style.display = ''; return; }
+    if (!data.length) { sel.innerHTML = '<option>No hay resultados</option>'; sel.style.display = ''; sel.size=Math.min(6,1); return; }
     sel.innerHTML = data.map(c => `<option value="${c.id}">${esc(c.nombre)} — ${esc(c.nit || '')}</option>`).join('');
-    sel.style.display = '';
+    sel.style.display = ''; sel.size=Math.min(6,data.length+1);
     sel.onchange = async () => {
       const opt = sel.options[sel.selectedIndex];
       if (!opt || !opt.value || opt.textContent === 'No hay resultados') return;
-      sd.textContent = '✓ ' + opt.textContent + '  ✕';
-      sd.style.display = ''; sd.style.cursor = 'pointer';
-      sd.title = 'Click para quitar';
-      sd.onclick = () => { sd.style.display='none'; sel.value=''; sel.innerHTML=''; sel.style.display='none'; document.getElementById('cotizacion-cliente-search').value=''; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-vendedor-info').style.display='none'; (async()=>{const d=await getPerfilListaDefault(); document.getElementById('cotizacion-lista-precios').value=d+' — GENERAL HORECA'; window._cotizacionListaPrecio=d;})(); };
+      inp.value = opt.textContent; inp.readOnly = true; inp.title = 'Seleccionado — clic para cambiar';
+      inp.onclick = () => { inp.value=''; inp.readOnly=false; inp.placeholder='Buscar por NIT o nombre...'; sel.value=''; sel.innerHTML=''; sel.style.display='none'; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-vendedor-info').style.display='none'; inp.onclick=null; (async()=>{const d=await getPerfilListaDefault(); document.getElementById('cotizacion-lista-precios').value=d+' — GENERAL HORECA'; window._cotizacionListaPrecio=d;})(); };
       sel.style.display = 'none';
-      document.getElementById('cotizacion-cliente-search').value = '';
+      const sd=document.getElementById('cotizacion-cliente-selected'); if(sd) sd.style.display='none';
       await cargarContactosCotizacion(opt.value);
       await cargarSucursalesCotizacion(opt.value);
       // trae defaults del cliente: condicion pago y lista precios
