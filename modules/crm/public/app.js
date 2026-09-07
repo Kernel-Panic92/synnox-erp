@@ -1359,11 +1359,12 @@ async function initLeadGooglePlaces(){
   return _placesLeadLoading;
 }
 async function _initLeadPlacesAutocomplete(){
-  // llamado después de que gmaps esté listo, enlaza el input solo una vez
-  const input=document.getElementById('lead-direccion');
-  if(!input || !window.google?.maps?.places?.Autocomplete) return;
-  if(input.dataset.placesBound==='1') return;
-  input.dataset.placesBound='1';
+  try{
+    // llamado después de que gmaps esté listo, enlaza el input solo una vez
+    const input=document.getElementById('lead-direccion');
+    if(!input || !window.google?.maps?.places?.Autocomplete) return;
+    if(input.dataset.placesBound==='1') return;
+    input.dataset.placesBound='1';
     const ac=new google.maps.places.Autocomplete(input, { componentRestrictions:{country:'co'}, fields:['address_components','formatted_address','geometry','place_id'] });
     ac.addListener('place_changed', ()=>{
       const place=ac.getPlace(); if(!place) return;
@@ -1388,6 +1389,7 @@ async function _initLeadPlacesAutocomplete(){
       input.dataset.formatted=place.formatted_address||'';
     });
   }catch(e){ console.warn('Places no disponible', e.message); }
+}
 }
 function daneFromLeadCiudad(ciudad, depto){
   const c=(ciudad||'').toUpperCase(), d=(depto||'').toUpperCase();
