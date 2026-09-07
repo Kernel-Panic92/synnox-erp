@@ -1255,13 +1255,25 @@ function calcularDV(nit){
   const mod = sum % 11;
   return String(mod > 1 ? 11 - mod : mod);
 }
-const _daneDeptos=[
-  {codigo:'05',nombre:'ANTIOQUIA'},{codigo:'08',nombre:'ATLANTICO'},{codigo:'11',nombre:'BOGOTA D.C.'},{codigo:'13',nombre:'BOLIVAR'},{codigo:'15',nombre:'BOYACA'},{codigo:'17',nombre:'CALDAS'},{codigo:'18',nombre:'CAQUETA'},{codigo:'19',nombre:'CAUCA'},{codigo:'20',nombre:'CESAR'},{codigo:'23',nombre:'CORDOBA'},{codigo:'25',nombre:'CUNDINAMARCA'},{codigo:'27',nombre:'CHOCO'},{codigo:'41',nombre:'HUILA'},{codigo:'44',nombre:'LA GUAJIRA'},{codigo:'47',nombre:'MAGDALENA'},{codigo:'50',nombre:'META'},{codigo:'52',nombre:'NARINO'},{codigo:'54',nombre:'NORTE DE SANTANDER'},{codigo:'63',nombre:'QUINDIO'},{codigo:'66',nombre:'RISARALDA'},{codigo:'68',nombre:'SANTANDER'},{codigo:'70',nombre:'SUCRE'},{codigo:'73',nombre:'TOLIMA'},{codigo:'76',nombre:'VALLE DEL CAUCA'},{codigo:'81',nombre:'ARAUCA'},{codigo:'85',nombre:'CASANARE'},{codigo:'86',nombre:'PUTUMAYO'},{codigo:'88',nombre:'SAN ANDRES'},{codigo:'91',nombre:'AMAZONAS'},{codigo:'94',nombre:'GUAINIA'},{codigo:'95',nombre:'GUAVIARE'},{codigo:'97',nombre:'VAUPES'},{codigo:'99',nombre:'VICHADA'}
-];
-const _daneCiudades=[
-  {codigo:'11001',nombre:'BOGOTA D.C.',depto:'11'},{codigo:'05001',nombre:'MEDELLIN',depto:'05'},{codigo:'76001',nombre:'CALI',depto:'76'},{codigo:'08001',nombre:'BARRANQUILLA',depto:'08'},{codigo:'13001',nombre:'CARTAGENA',depto:'13'},{codigo:'68001',nombre:'BUCARAMANGA',depto:'68'},{codigo:'05360',nombre:'ITAGUI',depto:'05'},{codigo:'05266',nombre:'ENVIGADO',depto:'05'},{codigo:'66001',nombre:'PEREIRA',depto:'66'},{codigo:'73001',nombre:'IBAGUE',depto:'73'},{codigo:'47001',nombre:'SANTA MARTA',depto:'47'},{codigo:'50001',nombre:'VILLAVICENCIO',depto:'50'},{codigo:'54001',nombre:'CUCUTA',depto:'54'},{codigo:'63001',nombre:'ARMENIA',depto:'63'},{codigo:'70001',nombre:'SINCELEJO',depto:'70'},{codigo:'23001',nombre:'MONTERIA',depto:'23'},{codigo:'44001',nombre:'RIOHACHA',depto:'44'},{codigo:'41001',nombre:'NEIVA',depto:'41'},{codigo:'52001',nombre:'PASTO',depto:'52'},{codigo:'81001',nombre:'ARAUCA',depto:'81'},
-  {codigo:'17001',nombre:'MANIZALES',depto:'17'},{codigo:'18001',nombre:'FLORENCIA',depto:'18'},{codigo:'19001',nombre:'POPAYAN',depto:'19'},{codigo:'20001',nombre:'VALLEDUPAR',depto:'20'},{codigo:'27001',nombre:'QUIBDO',depto:'27'},{codigo:'15001',nombre:'TUNJA',depto:'15'},{codigo:'52001',nombre:'PASTO',depto:'52'},{codigo:'63001',nombre:'ARMENIA',depto:'63'},{codigo:'66001',nombre:'PEREIRA',depto:'66'},{codigo:'73001',nombre:'IBAGUE',depto:'73'},{codigo:'05002',nombre:'ABEJORRAL',depto:'05'},{codigo:'05129',nombre:'CALDAS',depto:'05'},{codigo:'05615',nombre:'RIONEGRO',depto:'05'},{codigo:'76111',nombre:'BUGALAGRANDE',depto:'76'},{codigo:'76520',nombre:'PALMIRA',depto:'76'},{codigo:'76892',nombre:'YUMBO',depto:'76'},{codigo:'11001',nombre:'BOGOTA',depto:'11'}
-];
+let _daneDeptos=[], _daneCiudades=[];
+(async()=>{
+  try{
+    const r=await fetch('./data/colombia.json'); if(!r.ok) throw new Error();
+    const j=await r.json();
+    _daneDeptos=j.departamentos.map(d=>({codigo:d.codigo_dane, nombre:d.nombre.toUpperCase()}));
+    _daneCiudades=[];
+    for(const dep of j.departamentos){
+      for(const m of dep.municipios) _daneCiudades.push({codigo:m.codigo_dane, nombre:m.nombre.toUpperCase(), depto:dep.codigo_dane});
+    }
+  }catch{
+    _daneDeptos=[
+      {codigo:'05',nombre:'ANTIOQUIA'},{codigo:'08',nombre:'ATLANTICO'},{codigo:'11',nombre:'BOGOTA D.C.'},{codigo:'13',nombre:'BOLIVAR'},{codigo:'15',nombre:'BOYACA'},{codigo:'17',nombre:'CALDAS'},{codigo:'18',nombre:'CAQUETA'},{codigo:'19',nombre:'CAUCA'},{codigo:'20',nombre:'CESAR'},{codigo:'23',nombre:'CORDOBA'},{codigo:'25',nombre:'CUNDINAMARCA'},{codigo:'27',nombre:'CHOCO'},{codigo:'41',nombre:'HUILA'},{codigo:'44',nombre:'LA GUAJIRA'},{codigo:'47',nombre:'MAGDALENA'},{codigo:'50',nombre:'META'},{codigo:'52',nombre:'NARINO'},{codigo:'54',nombre:'NORTE DE SANTANDER'},{codigo:'63',nombre:'QUINDIO'},{codigo:'66',nombre:'RISARALDA'},{codigo:'68',nombre:'SANTANDER'},{codigo:'70',nombre:'SUCRE'},{codigo:'73',nombre:'TOLIMA'},{codigo:'76',nombre:'VALLE DEL CAUCA'},{codigo:'81',nombre:'ARAUCA'},{codigo:'85',nombre:'CASANARE'},{codigo:'86',nombre:'PUTUMAYO'},{codigo:'88',nombre:'SAN ANDRES'},{codigo:'91',nombre:'AMAZONAS'},{codigo:'94',nombre:'GUAINIA'},{codigo:'95',nombre:'GUAVIARE'},{codigo:'97',nombre:'VAUPES'},{codigo:'99',nombre:'VICHADA'}
+    ];
+    _daneCiudades=[
+      {codigo:'11001',nombre:'BOGOTA D.C.',depto:'11'},{codigo:'05001',nombre:'MEDELLIN',depto:'05'},{codigo:'76001',nombre:'CALI',depto:'76'},{codigo:'08001',nombre:'BARRANQUILLA',depto:'08'},{codigo:'13001',nombre:'CARTAGENA',depto:'13'},{codigo:'68001',nombre:'BUCARAMANGA',depto:'68'},{codigo:'05360',nombre:'ITAGUI',depto:'05'},{codigo:'05266',nombre:'ENVIGADO',depto:'05'},{codigo:'66001',nombre:'PEREIRA',depto:'66'},{codigo:'73001',nombre:'IBAGUE',depto:'73'},{codigo:'47001',nombre:'SANTA MARTA',depto:'47'},{codigo:'50001',nombre:'VILLAVICENCIO',depto:'50'},{codigo:'54001',nombre:'CUCUTA',depto:'54'},{codigo:'63001',nombre:'ARMENIA',depto:'63'},{codigo:'70001',nombre:'SINCELEJO',depto:'70'},{codigo:'23001',nombre:'MONTERIA',depto:'23'},{codigo:'44001',nombre:'RIOHACHA',depto:'44'},{codigo:'41001',nombre:'NEIVA',depto:'41'},{codigo:'52001',nombre:'PASTO',depto:'52'},{codigo:'81001',nombre:'ARAUCA',depto:'81'}
+    ];
+  }
+})();
 let _leadProductos=[], _leadProdTimer=null;
 async function abrirModalLead(lead = null) {
   document.getElementById('modal-lead-title').textContent = lead ? 'Editar Lead' : 'Nuevo Lead';
