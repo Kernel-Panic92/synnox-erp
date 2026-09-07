@@ -416,16 +416,15 @@ async function setupOportunidadClienteCombobox(selectedId){
   const inp=document.getElementById('oportunidad-cliente-search');
   const disp=document.getElementById('oportunidad-cliente-selected');
   if(!sel||!inp||!disp) return;
-  sel.style.display='none'; sel.innerHTML=''; inp.value=''; disp.style.display='none'; disp.textContent='';
+  sel.style.display='none'; sel.innerHTML=''; inp.value=''; inp.readOnly=false; inp.placeholder='Buscar por NIT o nombre...'; disp.style.display='none'; disp.textContent='';
   if(selectedId){
-    try{ const r=await apiFetch('/clientes/'+selectedId); if(r.ok){ const c=r.data.data; sel.innerHTML=`<option value="${c.id}" selected>${esc(c.nombre)} — ${esc(c.nit||'')}</option>`; sel.value=c.id; disp.textContent=`✓ ${c.nombre} — ${c.nit||''}  ✕`; disp.style.display=''; disp.onclick=()=>{ sel.value=''; sel.innerHTML=''; disp.style.display='none'; inp.value=''; document.getElementById('oportunidad-contacto').innerHTML='<option value=\"\">Sin contacto</option>'; }; disp.title='Click para quitar'; } }catch{}
+    try{ const r=await apiFetch('/clientes/'+selectedId); if(r.ok){ const c=r.data.data; sel.innerHTML=`<option value="${c.id}" selected>${esc(c.nombre)} — ${esc(c.nit||'')}</option>`; sel.value=c.id; inp.value=`${c.nombre} — ${c.nit||''}`; inp.readOnly=true; disp.style.display='none'; inp.title='Click para cambiar — borra para buscar otro'; inp.onclick=()=>{ if(inp.readOnly){ inp.value=''; inp.readOnly=false; inp.placeholder='Buscar por NIT o nombre...'; sel.value=''; sel.innerHTML=''; document.getElementById('oportunidad-contacto').innerHTML='<option value=\"\">Sin contacto</option>'; } }; } }catch{}
   }
 }
 async function filtrarOportunidadClientes(q){
   const sel=document.getElementById('oportunidad-cliente');
   const inp=document.getElementById('oportunidad-cliente-search');
-  const disp=document.getElementById('oportunidad-cliente-selected');
-  if(disp && disp.style.display!=='none') return;
+  if(inp && inp.readOnly) return;
   const qq=(q||'').trim(); if(!qq || qq.length<2){ sel.style.display='none'; sel.innerHTML=''; return; }
   clearTimeout(_oportunidadClienteTimer); _oportunidadClienteTimer=setTimeout(async()=>{
     const r=await apiFetch('/clientes?search='+encodeURIComponent(qq)+'&limit=20'); if(!r.ok) return;
@@ -436,31 +435,30 @@ async function filtrarOportunidadClientes(q){
 }
 function onOportunidadClienteSelect(){
   const sel=document.getElementById('oportunidad-cliente');
-  const disp=document.getElementById('oportunidad-cliente-selected');
   const inp=document.getElementById('oportunidad-cliente-search');
   const opt=sel.options[sel.selectedIndex]; if(!opt || !opt.value || opt.textContent==='No hay resultados') return;
-  disp.textContent='✓ '+opt.textContent+'  ✕'; disp.style.display=''; disp.title='Click para quitar';
-  disp.onclick=()=>{ sel.value=''; sel.innerHTML=''; sel.style.display='none'; disp.style.display='none'; inp.value=''; document.getElementById('oportunidad-contacto').innerHTML='<option value=\"\">Sin contacto</option>'; };
-  sel.style.display='none'; inp.value='';
+  inp.value=opt.textContent; inp.readOnly=true; inp.title='Seleccionado — clic para cambiar';
+  inp.onclick=()=>{ inp.value=''; inp.readOnly=false; inp.placeholder='Buscar por NIT o nombre...'; sel.value=''; sel.innerHTML=''; sel.style.display='none'; document.getElementById('oportunidad-contacto').innerHTML='<option value=\"\">Sin contacto</option>'; inp.onclick=null; };
+  sel.style.display='none';
   // limpiar lead si había
-  const leadSel=document.getElementById('oportunidad-lead'); const leadDisp=document.getElementById('oportunidad-lead-selected'); const leadInp=document.getElementById('oportunidad-lead-search');
-  if(leadSel.value){ leadSel.value=''; leadSel.innerHTML=''; leadSel.style.display='none'; if(leadDisp) leadDisp.style.display='none'; if(leadInp) leadInp.value=''; toast('Cliente seleccionado — lead limpiado','info'); }
+  const leadSel=document.getElementById('oportunidad-lead'); const leadInp=document.getElementById('oportunidad-lead-search');
+  if(leadSel.value){ leadSel.value=''; leadSel.innerHTML=''; leadSel.style.display='none'; const ld=document.getElementById('oportunidad-lead-selected'); if(ld) ld.style.display='none'; if(leadInp){ leadInp.value=''; leadInp.readOnly=false; } toast('Cliente seleccionado — lead limpiado','info'); }
   cargarContactosOportunidad(null);
 }
 async function setupOportunidadLeadCombobox(selectedId){
   const sel=document.getElementById('oportunidad-lead');
   const inp=document.getElementById('oportunidad-lead-search');
   const disp=document.getElementById('oportunidad-lead-selected');
-  if(!sel||!inp||!disp) return;
-  sel.style.display='none'; sel.innerHTML=''; inp.value=''; disp.style.display='none';
+  if(!sel||!inp) return;
+  sel.style.display='none'; sel.innerHTML=''; inp.value=''; inp.readOnly=false; inp.placeholder='Buscar lead por NIT o nombre...'; if(disp) disp.style.display='none';
   if(selectedId){
-    try{ const r=await apiFetch('/leads?search=&limit=500'); if(r.ok){ const found=(r.data.data||[]).find(l=>String(l.id)===String(selectedId)); if(found){ sel.innerHTML=`<option value="${found.id}" selected>${esc(found.raison_social)} — ${esc(found.numero_identificacion||'')}</option>`; sel.value=found.id; disp.textContent=`✓ ${found.raison_social} — ${found.numero_identificacion||''}  ✕`; disp.style.display=''; disp.onclick=()=>{ sel.value=''; sel.innerHTML=''; disp.style.display='none'; inp.value=''; }; } } }catch{}
+    try{ const r=await apiFetch('/leads?search=&limit=500'); if(r.ok){ const found=(r.data.data||[]).find(l=>String(l.id)===String(selectedId)); if(found){ sel.innerHTML=`<option value="${found.id}" selected>${esc(found.raison_social)} — ${esc(found.numero_identificacion||'')}</option>`; sel.value=found.id; inp.value=`${found.raison_social} — ${found.numero_identificacion||''}`; inp.readOnly=true; if(disp) disp.style.display='none'; inp.title='Seleccionado — clic para cambiar'; inp.onclick=()=>{ inp.value=''; inp.readOnly=false; sel.value=''; sel.innerHTML=''; if(disp) disp.style.display='none'; inp.onclick=null; }; } } }catch{}
   }
 }
 async function filtrarOportunidadLeads(q){
   const sel=document.getElementById('oportunidad-lead');
-  const disp=document.getElementById('oportunidad-lead-selected');
-  if(disp && disp.style.display!=='none') return;
+  const inp=document.getElementById('oportunidad-lead-search');
+  if(inp && inp.readOnly) return;
   const qq=(q||'').trim(); if(!qq || qq.length<2){ sel.style.display='none'; sel.innerHTML=''; return; }
   clearTimeout(_oportunidadLeadTimer); _oportunidadLeadTimer=setTimeout(async()=>{
     const r=await apiFetch('/leads?search='+encodeURIComponent(qq)+'&limit=20'); if(!r.ok) return;
@@ -471,14 +469,13 @@ async function filtrarOportunidadLeads(q){
 }
 function onOportunidadLeadSelect(){
   const sel=document.getElementById('oportunidad-lead');
-  const disp=document.getElementById('oportunidad-lead-selected');
   const inp=document.getElementById('oportunidad-lead-search');
   const opt=sel.options[sel.selectedIndex]; if(!opt || !opt.value) return;
-  disp.textContent='✓ '+opt.textContent+'  ✕'; disp.style.display=''; disp.title='Click para quitar';
-  disp.onclick=()=>{ sel.value=''; sel.innerHTML=''; sel.style.display='none'; disp.style.display='none'; inp.value=''; };
-  sel.style.display='none'; inp.value='';
-  const cliSel=document.getElementById('oportunidad-cliente'); const cliDisp=document.getElementById('oportunidad-cliente-selected'); const cliInp=document.getElementById('oportunidad-cliente-search');
-  if(cliSel.value){ cliSel.value=''; cliSel.innerHTML=''; cliSel.style.display='none'; if(cliDisp) cliDisp.style.display='none'; if(cliInp) cliInp.value=''; document.getElementById('oportunidad-contacto').innerHTML='<option value=\"\">Sin contacto</option>'; toast('Lead seleccionado — cliente limpiado','info'); }
+  inp.value=opt.textContent; inp.readOnly=true; inp.title='Seleccionado — clic para cambiar';
+  inp.onclick=()=>{ inp.value=''; inp.readOnly=false; inp.placeholder='Buscar lead por NIT o nombre...'; sel.value=''; sel.innerHTML=''; sel.style.display='none'; inp.onclick=null; };
+  sel.style.display='none';
+  const cliSel=document.getElementById('oportunidad-cliente'); const cliInp=document.getElementById('oportunidad-cliente-search');
+  if(cliSel.value){ cliSel.value=''; cliSel.innerHTML=''; cliSel.style.display='none'; const cd=document.getElementById('oportunidad-cliente-selected'); if(cd) cd.style.display='none'; if(cliInp){ cliInp.value=''; cliInp.readOnly=false; cliInp.onclick=null; } document.getElementById('oportunidad-contacto').innerHTML='<option value=\"\">Sin contacto</option>'; toast('Lead seleccionado — cliente limpiado','info'); }
 }
 // Legacy stubs por compatibilidad
 async function cargarLeadsSelectOportunidad(selectedId){ return setupOportunidadLeadCombobox(selectedId); }
@@ -671,11 +668,9 @@ async function cargarVendedoresSelect(selectId, selectedId) {
 function filtrarVendedorOportunidad(q){
   const sel=document.getElementById('oportunidad-vendedor');
   const inp=document.getElementById('oportunidad-vendedor-search');
-  const disp=document.getElementById('oportunidad-vendedor-selected');
-  if (!sel) return;
+  if (!sel || (inp && inp.readOnly)) return;
   const esAdmin=['admin','gerente'].includes(usuario?.rol);
   if (!esAdmin) return;
-  if (disp && disp.style.display!=='none' && !(q && q.length)) return;
   const qq=(q||'').trim().toLowerCase();
   if (!qq || qq.length<1) { sel.style.display='none'; return; }
   clearTimeout(_vendedorOportunidadTimer);
