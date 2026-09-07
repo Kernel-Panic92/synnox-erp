@@ -1245,19 +1245,22 @@ function limpiarFiltrosLeads() {
 function calcularDV(nit){
   const clean = String(nit||'').replace(/\D/g,'');
   if(!clean) return '';
-  const primos=[71,67,59,53,47,43,41,37,29,23,19,17,13,7,3];
   let sum=0;
   const len=clean.length;
+  const pesos=[3,7,13,17,19,23,29,37,41,43,47,53,59,67,71];
   for(let i=0;i<len;i++){
     const dig = parseInt(clean[len-1-i],10);
-    const p = primos[primos.length-1 - (len-1-i) % primos.length] || 3;
-    // Algoritmo DIAN: pesos 3,7,13,17,19,23,29,37,41,43,47,53,59,67,71 desde derecha
-    const pesos=[3,7,13,17,19,23,29,37,41,43,47,53,59,67,71];
     sum += dig * pesos[i % pesos.length];
   }
   const mod = sum % 11;
   return String(mod > 1 ? 11 - mod : mod);
 }
+const _daneDeptos=[
+  {codigo:'05',nombre:'ANTIOQUIA'},{codigo:'08',nombre:'ATLANTICO'},{codigo:'11',nombre:'BOGOTA D.C.'},{codigo:'13',nombre:'BOLIVAR'},{codigo:'15',nombre:'BOYACA'},{codigo:'17',nombre:'CALDAS'},{codigo:'18',nombre:'CAQUETA'},{codigo:'19',nombre:'CAUCA'},{codigo:'20',nombre:'CESAR'},{codigo:'23',nombre:'CORDOBA'},{codigo:'25',nombre:'CUNDINAMARCA'},{codigo:'27',nombre:'CHOCO'},{codigo:'41',nombre:'HUILA'},{codigo:'44',nombre:'LA GUAJIRA'},{codigo:'47',nombre:'MAGDALENA'},{codigo:'50',nombre:'META'},{codigo:'52',nombre:'NARINO'},{codigo:'54',nombre:'NORTE DE SANTANDER'},{codigo:'63',nombre:'QUINDIO'},{codigo:'66',nombre:'RISARALDA'},{codigo:'68',nombre:'SANTANDER'},{codigo:'70',nombre:'SUCRE'},{codigo:'73',nombre:'TOLIMA'},{codigo:'76',nombre:'VALLE DEL CAUCA'},{codigo:'81',nombre:'ARAUCA'},{codigo:'85',nombre:'CASANARE'},{codigo:'86',nombre:'PUTUMAYO'},{codigo:'88',nombre:'SAN ANDRES'},{codigo:'91',nombre:'AMAZONAS'},{codigo:'94',nombre:'GUAINIA'},{codigo:'95',nombre:'GUAVIARE'},{codigo:'97',nombre:'VAUPES'},{codigo:'99',nombre:'VICHADA'}
+];
+const _daneCiudades=[
+  {codigo:'11001',nombre:'BOGOTA D.C.',depto:'11'},{codigo:'05001',nombre:'MEDELLIN',depto:'05'},{codigo:'76001',nombre:'CALI',depto:'76'},{codigo:'08001',nombre:'BARRANQUILLA',depto:'08'},{codigo:'13001',nombre:'CARTAGENA',depto:'13'},{codigo:'68001',nombre:'BUCARAMANGA',depto:'68'},{codigo:'05360',nombre:'ITAGUI',depto:'05'},{codigo:'05266',nombre:'ENVIGADO',depto:'05'},{codigo:'66001',nombre:'PEREIRA',depto:'66'},{codigo:'73001',nombre:'IBAGUE',depto:'73'},{codigo:'47001',nombre:'SANTA MARTA',depto:'47'},{codigo:'50001',nombre:'VILLAVICENCIO',depto:'50'},{codigo:'54001',nombre:'CUCUTA',depto:'54'},{codigo:'63001',nombre:'ARMENIA',depto:'63'},{codigo:'70001',nombre:'SINCELEJO',depto:'70'},{codigo:'23001',nombre:'MONTERIA',depto:'23'},{codigo:'44001',nombre:'RIOHACHA',depto:'44'},{codigo:'41001',nombre:'NEIVA',depto:'41'},{codigo:'52001',nombre:'PASTO',depto:'52'},{codigo:'81001',nombre:'ARAUCA',depto:'81'}
+];
 let _leadProductos=[], _leadProdTimer=null;
 async function abrirModalLead(lead = null) {
   document.getElementById('modal-lead-title').textContent = lead ? 'Editar Lead' : 'Nuevo Lead';
@@ -1300,8 +1303,13 @@ async function abrirModalLead(lead = null) {
   };
   dvEl.oninput = () => { dvEl.value = dvEl.value.replace(/\D/g,'').slice(0,1); };
   toggleDvLead();
+  // Departamento / Ciudad combobox DANE
+  setupLeadDeptoCiudad(lead);
   // Productos de interés
   _leadProductos = lead?.productos || [];
+  // guarda lead actual para helpers de depto/ciudad
+  window._leadActual = lead;
+  setupLeadDeptoCiudad(lead);
   document.getElementById('buscar-lead-producto').value='';
   document.getElementById('lead-producto-resultados').innerHTML='<p style="color:var(--muted);font-size:12px">Busca un producto del maestro.</p>';
   renderLeadProductos();
@@ -1320,6 +1328,79 @@ async function cargarListasLead(selected){
     if(selected && !data.find(x=> String(x.codigo)===String(selected))){ sel.innerHTML+=`<option value="${esc(selected)}" selected>${esc(selected)} (actual)</option>`; }
     sel.value=def; if(selected) sel.value=selected;
   }catch{ sel.innerHTML='<option value="200" selected>200 — GENERAL HORECA</option>'; }
+}
+function setupLeadDeptoCiudad(lead){
+  const depSel=document.getElementById('lead-departamento');
+  const depSearch=document.getElementById('lead-departamento-search');
+  const depDisp=document.getElementById('lead-departamento-selected');
+  const ciuSel=document.getElementById('lead-ciudad');
+  const ciuSearch=document.getElementById('lead-ciudad-search');
+  const ciuDisp=document.getElementById('lead-ciudad-selected');
+  if(!depSel||!ciuSel) return;
+  const depVal=lead?.departamento||'';
+  const ciuVal=lead?.ciudad||'';
+  if(depVal){
+    const found=_daneDeptos.find(d=> d.codigo===depVal || d.nombre===depVal.toUpperCase());
+    if(found){ depSel.value=found.nombre; depSearch.value=''; if(depDisp){ depDisp.textContent=`✓ ${found.codigo} — ${found.nombre}  ✕`; depDisp.style.display=''; depDisp.onclick=()=>{ depSel.value=''; depDisp.style.display='none'; depSearch.value=''; }; } }
+    else { depSearch.value=depVal; depSel.value=depVal; }
+  } else { depSel.value=''; if(depDisp) depDisp.style.display='none'; depSearch.value=''; }
+  if(ciuVal){
+    const found=_daneCiudades.find(c=> c.codigo===ciuVal || c.nombre===ciuVal.toUpperCase());
+    if(found){ ciuSel.value=found.nombre; ciuSearch.value=''; if(ciuDisp){ ciuDisp.textContent=`✓ ${found.codigo} — ${found.nombre}  ✕`; ciuDisp.style.display=''; ciuDisp.onclick=()=>{ ciuSel.value=''; ciuDisp.style.display='none'; ciuSearch.value=''; }; } }
+    else { ciuSearch.value=ciuVal; ciuSel.value=ciuVal; }
+  } else { ciuSel.value=''; if(ciuDisp) ciuDisp.style.display='none'; ciuSearch.value=''; }
+}
+function filtrarLeadDepto(q){
+  const sel=document.getElementById('lead-departamento');
+  const disp=document.getElementById('lead-departamento-selected');
+  if(disp && disp.style.display!=='none' && q) return;
+  const qq=(q||'').trim().toLowerCase();
+  if(!qq || qq.length<1){ sel.style.display='none'; return; }
+  const filtered=_daneDeptos.filter(d=> d.nombre.toLowerCase().includes(qq) || d.codigo.includes(qq));
+  if(!filtered.length){ sel.innerHTML='<option>No hay resultados</option>'; sel.style.display=''; return; }
+  sel.innerHTML=filtered.map(d=> `<option value="${d.nombre}">${d.codigo} — ${d.nombre}</option>`).join(''); sel.style.display=''; sel.size=Math.min(6,filtered.length+1);
+  sel.onchange=()=> onLeadDeptoSelect();
+}
+function onLeadDeptoSelect(){
+  const sel=document.getElementById('lead-departamento');
+  const disp=document.getElementById('lead-departamento-selected');
+  const inp=document.getElementById('lead-departamento-search');
+  const opt=sel.options[sel.selectedIndex]; if(!opt||!opt.value) return;
+  disp.textContent='✓ '+opt.textContent+'  ✕'; disp.style.display=''; disp.title='Click para quitar';
+  disp.onclick=()=>{ sel.value=''; disp.style.display='none'; sel.style.display='none'; inp.value=''; };
+  sel.style.display='none'; inp.value='';
+  // al cambiar depto, limpia ciudad si no pertenece
+  const ciuSel=document.getElementById('lead-ciudad'); const ciuDisp=document.getElementById('lead-ciudad-selected');
+  if(ciuSel && ciuSel.value){
+    const depCode=_daneDeptos.find(d=> d.nombre===opt.textContent.split(' — ')[1] || d.codigo===opt.value)?.codigo;
+    const ciu=_daneCiudades.find(c=> c.codigo===ciuSel.value || c.nombre===ciuSel.value);
+    if(ciu && ciu.depto!==depCode){ ciuSel.value=''; if(ciuDisp) ciuDisp.style.display='none'; }
+  }
+}
+function filtrarLeadCiudad(q){
+  const sel=document.getElementById('lead-ciudad');
+  const disp=document.getElementById('lead-ciudad-selected');
+  if(disp && disp.style.display!=='none' && q) return;
+  const qq=(q||'').trim().toLowerCase();
+  const depVal=document.getElementById('lead-departamento')?.value;
+  let pool=_daneCiudades;
+  // depVal es nombre como "BOGOTA D.C.", busca su código
+  const depCode=_daneDeptos.find(d=> d.nombre===depVal || d.codigo===depVal)?.codigo;
+  if(depCode) pool=_daneCiudades.filter(c=> c.depto===depCode);
+  if(!qq || qq.length<1){ sel.style.display='none'; return; }
+  const filtered=pool.filter(c=> c.nombre.toLowerCase().includes(qq) || c.codigo.includes(qq));
+  if(!filtered.length){ sel.innerHTML='<option>No hay resultados</option>'; sel.style.display=''; return; }
+  sel.innerHTML=filtered.map(c=> `<option value="${c.nombre}">${c.codigo} — ${c.nombre}</option>`).join(''); sel.style.display=''; sel.size=Math.min(6,filtered.length+1);
+  sel.onchange=()=> onLeadCiudadSelect();
+}
+function onLeadCiudadSelect(){
+  const sel=document.getElementById('lead-ciudad');
+  const disp=document.getElementById('lead-ciudad-selected');
+  const inp=document.getElementById('lead-ciudad-search');
+  const opt=sel.options[sel.selectedIndex]; if(!opt||!opt.value) return;
+  disp.textContent='✓ '+opt.textContent+'  ✕'; disp.style.display=''; disp.title='Click para quitar';
+  disp.onclick=()=>{ sel.value=''; disp.style.display='none'; sel.style.display='none'; inp.value=''; };
+  sel.style.display='none'; inp.value='';
 }
 async function buscarLeadProducto(){
   clearTimeout(_leadProdTimer);

@@ -972,13 +972,17 @@
       <input type="text" id="lead-nombre-est">
     </div>
     <div class="form-row">
-      <div class="form-group">
-        <label>Ciudad</label>
-        <input type="text" id="lead-ciudad">
+      <div class="form-group" style="position:relative">
+        <label>Departamento — DANE (ej. 11 CUNDINAMARCA)</label>
+        <input type="text" id="lead-departamento-search" placeholder="Buscar departamento..." oninput="filtrarLeadDepto(this.value)" onfocus="filtrarLeadDepto('')" autocomplete="off">
+        <select id="lead-departamento" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:180px;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:30" size="5" onchange="onLeadDeptoSelect()"></select>
+        <div id="lead-departamento-selected" style="display:none;margin-top:4px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:12px"></div>
       </div>
-      <div class="form-group">
-        <label>Departamento</label>
-        <input type="text" id="lead-departamento">
+      <div class="form-group" style="position:relative">
+        <label>Ciudad — DANE (ej. 11001 BOGOTA)</label>
+        <input type="text" id="lead-ciudad-search" placeholder="Buscar ciudad..." oninput="filtrarLeadCiudad(this.value)" onfocus="filtrarLeadCiudad('')" autocomplete="off">
+        <select id="lead-ciudad" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:180px;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:30" size="5" onchange="onLeadCiudadSelect()"></select>
+        <div id="lead-ciudad-selected" style="display:none;margin-top:4px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:12px"></div>
       </div>
     </div>
     <div class="form-group">
