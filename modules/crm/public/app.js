@@ -1242,6 +1242,22 @@ function limpiarFiltrosLeads() {
   cargarLeads();
 }
 
+function calcularDV(nit){
+  const clean = String(nit||'').replace(/\D/g,'');
+  if(!clean) return '';
+  const primos=[71,67,59,53,47,43,41,37,29,23,19,17,13,7,3];
+  let sum=0;
+  const len=clean.length;
+  for(let i=0;i<len;i++){
+    const dig = parseInt(clean[len-1-i],10);
+    const p = primos[primos.length-1 - (len-1-i) % primos.length] || 3;
+    // Algoritmo DIAN: pesos 3,7,13,17,19,23,29,37,41,43,47,53,59,67,71 desde derecha
+    const pesos=[3,7,13,17,19,23,29,37,41,43,47,53,59,67,71];
+    sum += dig * pesos[i % pesos.length];
+  }
+  const mod = sum % 11;
+  return String(mod > 1 ? 11 - mod : mod);
+}
 let _leadProductos=[], _leadProdTimer=null;
 async function abrirModalLead(lead = null) {
   document.getElementById('modal-lead-title').textContent = lead ? 'Editar Lead' : 'Nuevo Lead';
@@ -1265,6 +1281,25 @@ async function abrirModalLead(lead = null) {
   document.getElementById('lead-siesa-regimen').value = lead?.siesa_regimen || '48';
   document.getElementById('lead-siesa-resp').value = lead?.siesa_responsabilidad_fiscal || 'R-99-PN';
   document.getElementById('lead-siesa-ciiu').value = lead?.siesa_ciiu || '4723';
+  // Normalización DIAN: CC no lleva DV, NIT sí; NIT sin espacios, DV sin guiones y autocalculado
+  const dvEl = document.getElementById('lead-siesa-dv');
+  const tipoEl = document.getElementById('lead-siesa-tipo');
+  const nitEl = document.getElementById('lead-nit');
+  function toggleDvLead(){
+    const esNit = tipoEl.value === '31';
+    dvEl.disabled = !esNit;
+    dvEl.parentElement.style.opacity = esNit ? '1' : '0.5';
+    if(!esNit) dvEl.value='';
+    else if(nitEl.value && !dvEl.value) dvEl.value = calcularDV(nitEl.value) || '';
+  }
+  tipoEl.onchange = toggleDvLead;
+  nitEl.oninput = () => {
+    let v = nitEl.value.replace(/\D/g,'').slice(0,15);
+    if(v !== nitEl.value) nitEl.value = v;
+    if(tipoEl.value==='31') dvEl.value = calcularDV(v) || dvEl.value.replace(/\D/g,'').slice(0,1);
+  };
+  dvEl.oninput = () => { dvEl.value = dvEl.value.replace(/\D/g,'').slice(0,1); };
+  toggleDvLead();
   // Productos de interés
   _leadProductos = lead?.productos || [];
   document.getElementById('buscar-lead-producto').value='';
