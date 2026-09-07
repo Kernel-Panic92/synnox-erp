@@ -967,22 +967,9 @@
       <div class="form-group"><label>NIT / Identificación *</label><input type="text" id="lead-nit" placeholder="800123456 sin puntos"></div>
       <div class="form-group"><label>DV</label><input type="text" id="lead-siesa-dv" maxlength="1" placeholder="0-9"></div>
     </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Nombre establecimiento</label>
-        <input type="text" id="lead-nombre-est">
-      </div>
-      <div class="form-group">
-        <label>Estado</label>
-        <select id="lead-estado">
-          <option value="nuevo">Nuevo</option>
-          <option value="contactado">Contactado</option>
-          <option value="calificado">Calificado</option>
-          <option value="enviado_erp">Enviado a ERP</option>
-          <option value="convertido">Convertido</option>
-          <option value="perdido">Perdido</option>
-        </select>
-      </div>
+    <div class="form-group">
+      <label>Nombre establecimiento</label>
+      <input type="text" id="lead-nombre-est">
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -1010,12 +997,18 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Asesor comercial</label>
-        <input type="text" id="lead-asesor">
+        <label>Asesor comercial <small style="font-weight:400;color:var(--muted)">— auto</small></label>
+        <input type="text" id="lead-asesor" disabled style="background:var(--surface2);cursor:not-allowed">
       </div>
       <div class="form-group">
-        <label>Canal</label>
-        <input type="text" id="lead-canal">
+        <label>Canal / Fuente <small style="font-weight:400;color:var(--muted)">— como Oportunidad</small></label>
+        <select id="lead-canal">
+          <option value="web">Web</option>
+          <option value="referido">Referido</option>
+          <option value="llamada">Llamada</option>
+          <option value="feria">Feria / Evento</option>
+          <option value="otro" selected>Otro</option>
+        </select>
       </div>
     </div>
     <div class="form-group">
@@ -1027,6 +1020,18 @@
       <div class="form-group"><label>Responsabilidad fiscal</label><input type="text" id="lead-siesa-resp" placeholder="R-99-PN" value="R-99-PN"></div>
     </div>
     <div class="form-group"><label>CIIU (4 dígitos)</label><input type="text" id="lead-siesa-ciiu" placeholder="4723" value="4723"></div>
+    <div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:12px;background:var(--surface2)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong style="font-size:13px">Productos de interés</strong>
+        <span id="lead-productos-total" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="text" id="buscar-lead-producto" placeholder="Buscar por código o nombre..." style="flex:1" oninput="buscarLeadProducto()">
+        <button class="btn btn-sm btn-secondary" onclick="buscarLeadProducto()">Buscar</button>
+      </div>
+      <div id="lead-producto-resultados" style="max-height:160px;overflow-y:auto;margin-bottom:8px"></div>
+      <div id="lead-productos-lista"></div>
+    </div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="hideModal('modal-lead')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarLead()">Guardar</button>

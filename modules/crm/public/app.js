@@ -1242,27 +1242,69 @@ function limpiarFiltrosLeads() {
   cargarLeads();
 }
 
+let _leadProductos=[], _leadProdTimer=null;
 function abrirModalLead(lead = null) {
   document.getElementById('modal-lead-title').textContent = lead ? 'Editar Lead' : 'Nuevo Lead';
   document.getElementById('lead-id').value = lead?.id || '';
   document.getElementById('lead-razon-social').value = lead?.raison_social || '';
   document.getElementById('lead-nit').value = lead?.numero_identificacion || '';
   document.getElementById('lead-nombre-est').value = lead?.nombre_establecimiento || '';
-  document.getElementById('lead-estado').value = lead?.estado || 'nuevo';
+  // Estado se maneja via oportunidades (pipeline), no editable aquí
   document.getElementById('lead-ciudad').value = lead?.ciudad || '';
   document.getElementById('lead-departamento').value = lead?.departamento || '';
   document.getElementById('lead-direccion').value = lead?.direccion || '';
   document.getElementById('lead-telefono').value = lead?.telefono || '';
   document.getElementById('lead-email').value = lead?.email || '';
-  document.getElementById('lead-asesor').value = lead?.asesor_comercial || '';
-  document.getElementById('lead-canal').value = lead?.canal || '';
+  document.getElementById('lead-asesor').value = lead?.asesor_comercial || usuario?.nombre || '';
+  document.getElementById('lead-canal').value = lead?.canal || 'otro';
   document.getElementById('lead-notas').value = lead?.notas || '';
   document.getElementById('lead-siesa-tipo').value = lead?.siesa_tipo_identificacion || '31';
   document.getElementById('lead-siesa-dv').value = lead?.siesa_dv || '';
   document.getElementById('lead-siesa-regimen').value = lead?.siesa_regimen || '48';
   document.getElementById('lead-siesa-resp').value = lead?.siesa_responsabilidad_fiscal || 'R-99-PN';
   document.getElementById('lead-siesa-ciiu').value = lead?.siesa_ciiu || '4723';
+  // Productos de interés (si lead tiene productos previos, cargarlos; por ahora solo cliente-side)
+  _leadProductos = lead?.productos || [];
+  document.getElementById('buscar-lead-producto').value='';
+  document.getElementById('lead-producto-resultados').innerHTML='<p style="color:var(--muted);font-size:12px">Busca un producto del maestro.</p>';
+  renderLeadProductos();
   showModal('modal-lead');
+}
+async function buscarLeadProducto(){
+  clearTimeout(_leadProdTimer);
+  _leadProdTimer=setTimeout(async()=>{
+    const q=document.getElementById('buscar-lead-producto')?.value;
+    if(!q||q.length<2){ document.getElementById('lead-producto-resultados').innerHTML='<p style="color:var(--muted);font-size:12px">Escribe al menos 2 caracteres.</p>'; return; }
+    const r=await apiFetch('/productos/buscar?q='+encodeURIComponent(q));
+    if(!r.ok) return;
+    const data=r.data.data||[];
+    if(!data.length){ document.getElementById('lead-producto-resultados').innerHTML='<p style="color:var(--muted);font-size:12px">No hay resultados.</p>'; return; }
+    document.getElementById('lead-producto-resultados').innerHTML=data.map(p=> `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--surface)">
+        <div><strong>${esc(p.codigo)}</strong> — ${esc(p.nombre)}<br><span style="font-size:11px;color:var(--muted)">${esc(p.unidad_medida||'UND')} · $${formatMoney(p.precio_unitario||0)}</span></div>
+        <button class="btn btn-sm btn-primary btn-action" onclick='agregarProductoLead(${JSON.stringify(p).replace(/"/g,"&quot;")})' title="Agregar" aria-label="Agregar ${esc(p.nombre)}">＋</button>
+      </div>`).join('');
+  },300);
+}
+function agregarProductoLead(p){
+  if(_leadProductos.find(x=>x.codigo===p.codigo)) return toast('Producto ya agregado','warning');
+  _leadProductos.push({ codigo:p.codigo, nombre:p.nombre, unidad_medida:p.unidad_medida, precio:p.precio_unitario||0 });
+  renderLeadProductos();
+}
+function quitarProductoLead(codigo){
+  _leadProductos=_leadProductos.filter(x=>x.codigo!==codigo);
+  renderLeadProductos();
+}
+function renderLeadProductos(){
+  const cont=document.getElementById('lead-productos-lista');
+  const total=document.getElementById('lead-productos-total');
+  if(!_leadProductos.length){ cont.innerHTML='<p style="color:var(--muted);font-size:12px">Sin productos.</p>'; if(total) total.textContent=''; return; }
+  if(total) total.textContent=_leadProductos.length+' prod';
+  cont.innerHTML=_leadProductos.map(p=> `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 8px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--surface)">
+      <div><strong>${esc(p.codigo)}</strong> — ${esc(p.nombre)}<br><span style="font-size:11px;color:var(--muted)">${esc(p.unidad_medida||'UND')} · $${formatMoney(p.precio||0)}</span></div>
+      <button class="btn btn-sm btn-danger btn-action" onclick="quitarProductoLead('${p.codigo}')" title="Quitar">✕</button>
+    </div>`).join('');
 }
 
 async function editarLead(id) {
@@ -1285,25 +1327,27 @@ async function crearOportunidadDesdeLead(leadId, nombre){
 
 async function guardarLead() {
   const id = document.getElementById('lead-id').value;
+  const isNew = !id;
   const body = {
     raison_social: document.getElementById('lead-razon-social').value,
     numero_identificacion: document.getElementById('lead-nit').value,
     nombre_establecimiento: document.getElementById('lead-nombre-est').value,
-    estado: document.getElementById('lead-estado').value,
+    estado: isNew ? 'nuevo' : undefined,
     ciudad: document.getElementById('lead-ciudad').value,
     departamento: document.getElementById('lead-departamento').value,
     direccion: document.getElementById('lead-direccion').value,
     telefono: document.getElementById('lead-telefono').value,
     email: document.getElementById('lead-email').value,
-    asesor_comercial: document.getElementById('lead-asesor').value,
+    asesor_comercial: usuario?.nombre || document.getElementById('lead-asesor').value,
     canal: document.getElementById('lead-canal').value,
-    notas: document.getElementById('lead-notas').value,
+    notas: document.getElementById('lead-notas').value + (_leadProductos.length ? `\n[Productos: ${_leadProductos.map(p=>p.codigo).join(', ')}]` : ''),
     siesa_tipo_identificacion: document.getElementById('lead-siesa-tipo').value,
     siesa_dv: document.getElementById('lead-siesa-dv').value,
     siesa_regimen: document.getElementById('lead-siesa-regimen').value,
     siesa_responsabilidad_fiscal: document.getElementById('lead-siesa-resp').value,
     siesa_ciiu: document.getElementById('lead-siesa-ciiu').value
   };
+  if (body.estado === undefined) delete body.estado;
   if (!body.raison_social) return toast('La razon social es obligatoria', 'error');
 
   const r = id
