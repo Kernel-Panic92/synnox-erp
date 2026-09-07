@@ -108,15 +108,6 @@ async function cargarDashboard() {
     if (!r.ok) return;
     const d = r.data;
     if (!_pipelineVendedorCache.length) cargarVendedoresPipelineFilter();
-    const recientes = d.clientes_recientes || [];
-    if (recientes.length) {
-      document.getElementById('clientes-recientes').innerHTML = `
-        <h4 style="margin-bottom:12px">Clientes Recientes</h4>
-        <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Nombre</th><th>Tipo</th><th>Ciudad</th><th>Creado</th></tr></thead><tbody>
-          ${recientes.map(e => `<tr><td>${esc(e.nombre)}</td><td><span class="badge badge-${esc(e.tipo)}">${tipoClienteLabel(e.tipo)}</span></td><td>${esc(e.ciudad || '—')}</td><td>${formatDate(e.creado_en)}</td></tr>`).join('')}
-        </tbody></table></div>
-      `;
-    }
     renderFunnelChart(d.funnel || [], 'widget-funnel');
     if (!_pipelineVendedorCache.length) await cargarVendedoresPipelineFilter();
     renderTablaVendedores(d.ranking_vendedores || [], 'widget-vendedores');
@@ -153,6 +144,7 @@ function renderFunnelChart(data, containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
   const maxMonto = Math.max(0, ...data.map(e => Number(e.monto) || 0));
+  const barColor = (etapa) => etapa === 'perdida' ? '#a0aec0' : 'var(--accent)';
   const html = data.map(item => {
     const pct = maxMonto > 0 ? (Number(item.monto) / maxMonto) * 100 : 0;
     return `
@@ -162,7 +154,7 @@ function renderFunnelChart(data, containerId) {
           <span>$${formatMoney(item.monto)}</span>
         </div>
         <div style="background:var(--surface2);border-radius:6px;height:18px;overflow:hidden">
-          <div style="width:${pct}%;background:var(--accent);height:100%;transition:width .4s ease;border-radius:6px"></div>
+          <div style="width:${pct}%;background:${barColor(item.etapa)};height:100%;transition:width .4s ease;border-radius:6px"></div>
         </div>
       </div>`;
   }).join('');
@@ -180,9 +172,9 @@ function renderTablaVendedores(vendedores, containerId) {
     const ganado = Number(v.monto_ganado) || 0;
     return `
       <tr>
-        <td style="padding:8px;font-weight:600">${esc(nombreVendedor(v.vendedor_id))}</td>
-        <td style="padding:8px;text-align:center">${v.ops_abiertas}</td>
-        <td style="padding:8px;text-align:right;font-weight:600;color:var(--accent)">$${formatMoney(ganado)}</td>
+        <td style="padding:9px 8px;font-weight:600">${esc(nombreVendedor(v.vendedor_id))}</td>
+        <td style="padding:9px 8px;text-align:center">${v.ops_abiertas}</td>
+        <td style="padding:9px 8px;text-align:right;font-weight:600;color:var(--accent)">$${formatMoney(ganado)}</td>
       </tr>`;
   }).join('');
   container.innerHTML = `
@@ -201,12 +193,13 @@ function renderGraficoSVG(historico, containerId) {
   const py = (m) => height - ((Number(m) / maxVenta) * (height - 40) + 20);
   const puntos = historico.map((h, i) => `${px(i)},${py(h.monto)}`).join(' ');
   const mesCorto = (m) => { try { return new Date(m + '-01').toLocaleDateString('es-CO',{month:'short'}); } catch { return m.slice(5); } };
+  const line = historico.length > 1 ? `<polyline fill="none" stroke="var(--accent)" stroke-width="3" points="${puntos}"/>` : '';
   container.innerHTML = `
     <div class="widget-title">Tendencia mensual</div>
     <svg viewBox="0 0 ${width} ${height}" style="width:100%;overflow:visible">
-      <polyline fill="none" stroke="var(--accent)" stroke-width="3" points="${puntos}"/>
+      ${line}
       ${historico.map((h, i) => `
-        <circle cx="${px(i)}" cy="${py(h.monto)}" r="4" fill="var(--accent)"/>
+        <circle cx="${px(i)}" cy="${py(h.monto)}" r="4" fill="var(--accent)"><title>${h.mes}: $${formatMoney(h.monto)}</title></circle>
         <text x="${px(i)}" y="${height + 14}" font-size="10" fill="var(--muted)" text-anchor="middle">${mesCorto(h.mes)}</text>`).join('')}
     </svg>`;
 }
@@ -225,7 +218,7 @@ function renderDistribucionCiudades(ciudadesData, containerId) {
         </div>
       </div>`;
   }).join('');
-  container.innerHTML = `<div class="widget-title">Distribución geográfica</div>${items || '<div style="color:var(--muted);font-size:12px">Sin datos</div>'}`;
+  container.innerHTML = `<div class="widget-title">Distribución geográfica</div><div style="max-height:220px;overflow-y:auto;padding-right:4px">${items || '<div style="color:var(--muted);font-size:12px">Sin datos</div>'}</div>`;
 }
 
 // ── Pipeline Kanban ──

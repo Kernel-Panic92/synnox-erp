@@ -110,17 +110,21 @@ app.get('/api/dashboard', protect, async (req, res) => {
     const cliWhere = cliFiltro.length ? `WHERE ${cliFiltro.join(' AND ')} AND activo = TRUE` : 'WHERE activo = TRUE';
     const opWhereVendedor = opFiltro.length ? `WHERE ${opFiltro.join(' AND ')} AND o.vendedor_id IS NOT NULL` : 'WHERE o.vendedor_id IS NOT NULL';
 
-    const [funnelEtapas, rankingVendedores, tendenciaMensual, distribucionCiudades, clientesRecientes] = await Promise.all([
+    const tendDesde = desde || `TO_CHAR(NOW() - INTERVAL '5 months','YYYY-MM-01')`;
+    const tendHasta = hasta || `TO_CHAR(NOW(),'YYYY-MM-01')`;
+
+    const [funnelEtapas, rankingVendedores, tendenciaMensual, distribucionCiudades] = await Promise.all([
       pool.query(`SELECT etapa, COUNT(*) as cantidad, COALESCE(SUM(monto_esperado),0) as monto FROM crm.oportunidades o ${opWhere} GROUP BY etapa ORDER BY CASE etapa WHEN 'lead' THEN 1 WHEN 'calificado' THEN 2 WHEN 'propuesta' THEN 3 WHEN 'negociacion' THEN 4 WHEN 'ganada' THEN 5 WHEN 'perdida' THEN 6 END`, params),
       pool.query(`SELECT o.vendedor_id, COUNT(*) FILTER (WHERE o.etapa NOT IN ('ganada','perdida')) as ops_abiertas, COUNT(*) FILTER (WHERE o.etapa='ganada') as ops_ganadas, COALESCE(SUM(o.monto_esperado) FILTER (WHERE o.etapa='ganada'),0) as monto_ganado FROM crm.oportunidades o ${opWhereVendedor} GROUP BY o.vendedor_id HAVING COUNT(*) > 0 ORDER BY monto_ganado DESC, ops_abiertas DESC LIMIT 10`, params),
-      pool.query(`SELECT TO_CHAR(o.creado_en,'YYYY-MM') as mes, COUNT(*) as cantidad, COALESCE(SUM(o.monto_esperado),0) as monto FROM crm.oportunidades o ${opWhere ? opWhere + ` AND o.creado_en >= NOW() - INTERVAL '6 months'` : `WHERE o.creado_en >= NOW() - INTERVAL '6 months'`} GROUP BY mes ORDER BY mes`, params),
-      pool.query(`SELECT COALESCE(ciudad,'Sin ciudad') as ciudad, COUNT(*) as cantidad FROM crm.clientes ${cliWhere} GROUP BY ciudad ORDER BY cantidad DESC LIMIT 8`, params),
-      pool.query(`SELECT id, nombre, tipo, ciudad, creado_en FROM crm.clientes ${cliWhere} ORDER BY creado_en DESC LIMIT 10`, params)
+      pool.query(`SELECT TO_CHAR(mes,'YYYY-MM') as mes, COUNT(o.id) as cantidad, COALESCE(SUM(o.monto_esperado),0) as monto
+        FROM generate_series(${tendDesde}::date, ${tendHasta}::date, INTERVAL '1 month') mes
+        LEFT JOIN crm.oportunidades o ON DATE_TRUNC('month', o.creado_en) = DATE_TRUNC('month', mes)
+        GROUP BY mes ORDER BY mes`),
+      pool.query(`SELECT COALESCE(ciudad,'Sin ciudad') as ciudad, COUNT(*) as cantidad FROM crm.clientes ${cliWhere} GROUP BY ciudad ORDER BY cantidad DESC LIMIT 8`, params)
     ]);
 
     res.json({
       ok: true,
-      clientes_recientes: clientesRecientes.rows,
       funnel: funnelEtapas.rows,
       ranking_vendedores: rankingVendedores.rows,
       tendencia_mensual: tendenciaMensual.rows,
