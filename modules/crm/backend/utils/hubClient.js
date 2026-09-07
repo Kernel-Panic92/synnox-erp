@@ -169,14 +169,30 @@ function cleanDir(dir){ return String(dir||'').trim().replace(/,+$/,'').replace(
 export function buildTerceroPayload(lead){
   const dane = daneFromCiudad(lead.ciudad, lead.departamento);
   const dirClean = cleanDir(lead.direccion);
-  // f200 tercero SIESA Hub — DIAN obligatorio + sucursal principal 001
+  const esNit = String(lead.siesa_tipo_identificacion||'31') === '31';
+  const dvClean = esNit ? String(lead.siesa_dv||'').replace(/\D/g,'').slice(0,1) : '';
+  const tipoPersona = String(lead.siesa_tipo_persona|| (esNit ? '1' : '2'));
+  // Para persona natural (2) SIESA exige descomponer razon_social en nombres/apellidos; para jurídica (1) basta razon_social
+  let ap1='', ap2='', n1='', n2='';
+  if(tipoPersona==='2'){
+    const partes = String(lead.raison_social||'').trim().split(/\s+/).filter(Boolean);
+    if(partes.length>=2){ ap1=partes[0].slice(0,100); ap2=(partes[1]||'').slice(0,100); n1=partes.slice(2,3).join(' ').slice(0,100); n2=partes.slice(3).join(' ').slice(0,100); }
+    else { n1=String(lead.raison_social||'').slice(0,100); }
+  }
   return {
     Tercero: {
       f200_id_tipo_ident: String(lead.siesa_tipo_identificacion||'31').slice(0,5),
       f200_nit: String(lead.numero_identificacion||'').replace(/\D/g,'').slice(0,20),
-      f200_dv: String(lead.siesa_dv||'').replace(/\D/g,'').slice(0,1) || null,
-      f200_tipo_persona: String(lead.siesa_tipo_persona||1),
-      f200_razon_social: String(lead.raison_social||'').slice(0,200),
+      f200_dv: esNit ? (dvClean || null) : '',
+      f200_tipo_persona: tipoPersona,
+      ...(tipoPersona==='2' ? {
+        f200_primer_apellido: ap1,
+        f200_segundo_apellido: ap2,
+        f200_primer_nombre: n1,
+        f200_segundo_nombre: n2,
+      } : {
+        f200_razon_social: String(lead.raison_social||'').slice(0,200),
+      }),
       f200_nombre_comercial: String(lead.raison_social||'').slice(0,200),
       f200_f201_id_regimen: String(lead.siesa_regimen||'48').slice(0,10),
       f200_id_responsabilidad_fiscal: String(lead.siesa_responsabilidad_fiscal||'R-99-PN').slice(0,20),
