@@ -1390,7 +1390,6 @@ async function _initLeadPlacesAutocomplete(){
     });
   }catch(e){ console.warn('Places no disponible', e.message); }
 }
-}
 function daneFromLeadCiudad(ciudad, depto){
   const c=(ciudad||'').toUpperCase(), d=(depto||'').toUpperCase();
   const byCity=_daneCiudades.find(x=> x.nombre===c);
