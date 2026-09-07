@@ -1,7 +1,7 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
-import { enviarPedidoAlHub, getHubEnvios, buildHubPayload, toSiesaPayload } from '../utils/hubClient.js';
+import { enviarPedidoAlHub, getHubEnvios, buildHubPayload, toSiesaPayload, buildTerceroPayload } from '../utils/hubClient.js';
 
 const router = express.Router();
 
@@ -105,6 +105,16 @@ router.get('/payload/:cotizacionId', requirePermiso('ver', 'crm'), async (req, r
     const envios = await getHubEnvios(id);
     res.json({ ok: true, payload: payload_crm, payload_crm, payload_siesa, warnings, missing, envios });
   } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// GET /api/hub/payload-lead/:leadId — preview tercero f200 (lead → SIESA)
+router.get('/payload-lead/:leadId', requirePermiso('ver', 'crm'), async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT * FROM crm.leads WHERE id=$1`, [req.params.leadId]);
+    if(!r.rows.length) return res.status(404).json({ error:'Lead no encontrado' });
+    const payload = buildTerceroPayload(r.rows[0]);
+    res.json({ ok:true, payload });
+  } catch(err){ res.status(500).json({ error: err.message }); }
 });
 
 export default router;
