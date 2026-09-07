@@ -1199,10 +1199,13 @@ async function cargarLeads() {
         <td>${esc(l.email || '—')}</td>
         <td>${formatDate(l.creado_en)}</td>
         <td>
-          <button class="btn btn-sm btn-secondary" onclick="editarLead('${l.id}')" title="Editar lead" aria-label="Editar lead ${esc(l.raison_social)}">✏️</button>
-          ${l.estado !== 'convertido' && l.estado !== 'enviado_erp' ? `<button class="btn btn-sm btn-primary" onclick="enviarLeadERP('${l.id}','${esc(l.raison_social)}')" title="Convertir a tercero" aria-label="Convertir lead ${esc(l.raison_social)}">🔄</button>` : ''}
-          ${l.estado === 'enviado_erp' ? `<button class="btn btn-sm btn-primary" onclick="marcarConvertido('${l.id}','${esc(l.raison_social)}')" title="Marcar como convertido" aria-label="Marcar lead ${esc(l.raison_social)} como convertido">✅</button>` : ''}
-          ${l.estado !== 'convertido' ? `<button class="btn btn-sm btn-danger" onclick="eliminarLead('${l.id}')" title="Eliminar lead" aria-label="Eliminar lead ${esc(l.raison_social)}">🗑️</button>` : ''}
+          <div class="tbl-actions">
+            <button class="btn btn-sm btn-secondary btn-action" onclick="editarLead('${l.id}')" title="Editar lead" aria-label="Editar lead ${esc(l.raison_social)}">✏️</button>
+            ${l.estado !== 'convertido' ? `<button class="btn btn-sm btn-primary btn-action" onclick="crearOportunidadDesdeLead('${l.id}','${esc(l.raison_social).replace(/'/g,"\\'")}')" title="Crear oportunidad" aria-label="Crear oportunidad desde ${esc(l.raison_social)}">💼</button>` : ''}
+            ${l.estado !== 'convertido' && l.estado !== 'enviado_erp' ? `<button class="btn btn-sm btn-primary btn-action" onclick="enviarLeadERP('${l.id}','${esc(l.raison_social)}')" title="Convertir a tercero" aria-label="Convertir lead ${esc(l.raison_social)}">🔄</button>` : ''}
+            ${l.estado === 'enviado_erp' ? `<button class="btn btn-sm btn-primary btn-action" onclick="marcarConvertido('${l.id}','${esc(l.raison_social)}')" title="Marcar como convertido" aria-label="Marcar lead ${esc(l.raison_social)} como convertido">✅</button>` : ''}
+            ${l.estado !== 'convertido' ? `<button class="btn btn-sm btn-danger btn-action" onclick="eliminarLead('${l.id}')" title="Eliminar lead" aria-label="Eliminar lead ${esc(l.raison_social)}">🗑️</button>` : ''}
+          </div>
         </td>
       </tr>
     `).join('');
@@ -1254,6 +1257,11 @@ function abrirModalLead(lead = null) {
   document.getElementById('lead-asesor').value = lead?.asesor_comercial || '';
   document.getElementById('lead-canal').value = lead?.canal || '';
   document.getElementById('lead-notas').value = lead?.notas || '';
+  document.getElementById('lead-siesa-tipo').value = lead?.siesa_tipo_identificacion || '31';
+  document.getElementById('lead-siesa-dv').value = lead?.siesa_dv || '';
+  document.getElementById('lead-siesa-regimen').value = lead?.siesa_regimen || '48';
+  document.getElementById('lead-siesa-resp').value = lead?.siesa_responsabilidad_fiscal || 'R-99-PN';
+  document.getElementById('lead-siesa-ciiu').value = lead?.siesa_ciiu || '4723';
   showModal('modal-lead');
 }
 
@@ -1267,6 +1275,12 @@ async function verLead(id) {
   const r = await apiFetch('/leads/' + id);
   if (!r.ok) return toast('Error al cargar', 'error');
   abrirModalLead(r.data.data);
+}
+async function crearOportunidadDesdeLead(leadId, nombre){
+  // abre oportunidad precargando lead
+  const oportunidad = { lead_id: leadId, nombre: `Oportunidad ${nombre}`.slice(0,120), etapa: 'lead' };
+  navigate('pipeline');
+  setTimeout(()=> abrirModalOportunidad(oportunidad), 300);
 }
 
 async function guardarLead() {
@@ -1283,7 +1297,12 @@ async function guardarLead() {
     email: document.getElementById('lead-email').value,
     asesor_comercial: document.getElementById('lead-asesor').value,
     canal: document.getElementById('lead-canal').value,
-    notas: document.getElementById('lead-notas').value
+    notas: document.getElementById('lead-notas').value,
+    siesa_tipo_identificacion: document.getElementById('lead-siesa-tipo').value,
+    siesa_dv: document.getElementById('lead-siesa-dv').value,
+    siesa_regimen: document.getElementById('lead-siesa-regimen').value,
+    siesa_responsabilidad_fiscal: document.getElementById('lead-siesa-resp').value,
+    siesa_ciiu: document.getElementById('lead-siesa-ciiu').value
   };
   if (!body.raison_social) return toast('La razon social es obligatoria', 'error');
 

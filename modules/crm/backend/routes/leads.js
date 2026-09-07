@@ -84,24 +84,33 @@ router.get('/:id', requirePermiso('ver', 'crm'), async (req, res) => {
   }
 });
 
-// POST /api/leads — Crear lead
+// POST /api/leads — Crear lead (Hub-ready con siesa_* y validación NIT)
 router.post('/', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
   try {
     const { raison_social, numero_identificacion, tipo_identificacion, nombre_establecimiento,
       direccion, ciudad, departamento, email, telefono, canal, segmento, tipo_negocio,
-      lista_precios, condicion_pago, asesor_comercial, notas } = req.body;
+      lista_precios, condicion_pago, asesor_comercial, notas,
+      siesa_tipo_identificacion, siesa_dv, siesa_tipo_persona, siesa_regimen, siesa_responsabilidad_fiscal, siesa_ciiu } = req.body;
     if (!raison_social) return res.status(400).json({ error: 'La razon social es obligatoria' });
+    if (numero_identificacion) {
+      const dup = await pool.query(`SELECT id FROM crm.clientes WHERE nit=$1 AND activo=TRUE LIMIT 1`, [String(numero_identificacion).trim()]);
+      if (dup.rows.length) return res.status(409).json({ error: `NIT ${numero_identificacion} ya existe como cliente formal` });
+      const dupLead = await pool.query(`SELECT id FROM crm.leads WHERE numero_identificacion=$1 LIMIT 1`, [String(numero_identificacion).trim()]);
+      if (dupLead.rows.length) return res.status(409).json({ error: `NIT ${numero_identificacion} ya existe como lead` });
+    }
 
     const result = await pool.query(`
       INSERT INTO crm.leads (raison_social, numero_identificacion, tipo_identificacion, nombre_establecimiento,
         direccion, ciudad, departamento, email, telefono, canal, segmento, tipo_negocio,
-        lista_precios, condicion_pago, asesor_comercial, notas, estado)
-      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'nuevo')
+        lista_precios, condicion_pago, asesor_comercial, notas, estado,
+        siesa_tipo_identificacion, siesa_dv, siesa_tipo_persona, siesa_regimen, siesa_responsabilidad_fiscal, siesa_ciiu)
+      VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,'nuevo',$17,$18,$19,$20,$21,$22)
       RETURNING *
     `, [raison_social, numero_identificacion || null, tipo_identificacion || 'NIT', nombre_establecimiento || null,
         direccion || null, ciudad || null, departamento || null, email || null, telefono || null,
         canal || null, segmento || null, tipo_negocio || null, lista_precios || null,
-        condicion_pago || null, asesor_comercial || null, notas || null]);
+        condicion_pago || null, asesor_comercial || null, notas || null,
+        siesa_tipo_identificacion || '31', siesa_dv || null, siesa_tipo_persona || 1, siesa_regimen || '48', siesa_responsabilidad_fiscal || 'R-99-PN', siesa_ciiu || '4723']);
 
     await auditarEvento({ accion: 'crear', entidad: 'lead', entidad_id: result.rows[0].id, usuario_id: req.user.id, metadata: { raison_social } });
     res.status(201).json({ ok: true, data: result.rows[0] });
@@ -111,13 +120,14 @@ router.post('/', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
   }
 });
 
-// PUT /api/leads/:id
+// PUT /api/leads/:id — Hub-ready siesa_*
 router.put('/:id', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
   try {
     const { id } = req.params;
     const fields = ['raison_social', 'numero_identificacion', 'tipo_identificacion', 'nombre_establecimiento',
       'direccion', 'ciudad', 'departamento', 'email', 'telefono', 'canal', 'segmento', 'tipo_negocio',
-      'lista_precios', 'condicion_pago', 'asesor_comercial', 'notas', 'estado'];
+      'lista_precios', 'condicion_pago', 'asesor_comercial', 'notas', 'estado',
+      'siesa_tipo_identificacion','siesa_dv','siesa_tipo_persona','siesa_regimen','siesa_responsabilidad_fiscal','siesa_ciiu'];
     const updates = [];
     const params = [];
     let paramIdx = 1;
@@ -235,13 +245,15 @@ router.put('/:id/confirmar', requirePermiso('crear_contacto', 'crm'), async (req
 
     const l = lead.rows[0];
 
-    // Crear cliente en CRM
+    // Crear cliente en CRM con siesa_* (Hub-ready)
     const cliente = await client.query(`
       INSERT INTO crm.clientes (codigo_siesa, nit, nombre, canal, activo, direccion, ciudad, departamento,
-        email, telefono, tipo, tipo_negocio, notas, asesor_comercial)
-      VALUES ($1,$2,$3,$4,TRUE,$5,$6,$7,$8,$9,'real',$10,$11,$12) RETURNING id
+        email, telefono, tipo, tipo_negocio, notas, asesor_comercial,
+        siesa_tipo_identificacion, siesa_dv, siesa_tipo_persona, siesa_regimen, siesa_responsabilidad_fiscal, siesa_ciiu)
+      VALUES ($1,$2,$3,$4,TRUE,$5,$6,$7,$8,$9,'real',$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id
     `, [erp_tercero_id || l.numero_identificacion, l.numero_identificacion, l.raison_social, l.canal || '',
-        l.direccion, l.ciudad, l.departamento, l.email, l.telefono, l.tipo_negocio, l.notas, l.asesor_comercial]);
+        l.direccion, l.ciudad, l.departamento, l.email, l.telefono, l.tipo_negocio, l.notas, l.asesor_comercial,
+        l.siesa_tipo_identificacion||'31', l.siesa_dv||null, l.siesa_tipo_persona||1, l.siesa_regimen||'48', l.siesa_responsabilidad_fiscal||'R-99-PN', l.siesa_ciiu||'4723']);
 
     // Marcar lead como convertido
     await client.query(`
