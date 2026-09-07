@@ -24,6 +24,13 @@
 .stat-value.blue{color:var(--accent);} .stat-value.orange{color:var(--accent2);}
 .stat-value.green{color:var(--success);} .stat-value.yellow{color:var(--warning);}
 .stat-value.purple{color:#a06af7;} .stat-value.red{color:var(--danger);}
+#stats-pipeline{display:flex;overflow-x:auto;gap:8px;padding-bottom:6px;scrollbar-width:thin}
+#stats-pipeline .stat-card{flex:0 0 auto;min-width:168px;max-width:230px}
+.funnel-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted);padding:1px 0}
+.funnel-row strong{color:var(--accent);font-size:12px}
+.kpi-chips{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:4px}
+.kpi-chip{display:inline-block;font-size:10px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;white-space:nowrap}
+.kpi-chip b{font-weight:700}
 .filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
 .filters input,.filters select{padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px}
 .tbl-wrap{overflow-x:auto}

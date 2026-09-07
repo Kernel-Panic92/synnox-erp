@@ -159,14 +159,20 @@ async function cargarPipeline() {
     const { pipeline, stats } = r.data;
     if (s.ok) {
       const d = s.data;
-      const etapaBar = (d.por_etapa||[]).map(e=> `${e.etapa.slice(0,3)}:${e.total}`).join(' · ') || '—';
-      const fuenteBar = (d.por_fuente||[]).slice(0,3).map(f=> `${esc(f.fuente)}:${f.total}`).join(' · ') || '—';
-      const priBar = (d.por_prioridad||[]).map(p=> `${esc(p.prioridad)}:${p.total}`).join(' · ') || '—';
+      const chip = (label, total)=> `<span class="kpi-chip">${esc(label)} <b>${total}</b></span>`;
+      const etapaBar = (d.por_etapa||[]).map(e=> chip(e.etapa.slice(0,3), e.total)).join('') || '—';
+      const fuenteBar = (d.por_fuente||[]).slice(0,4).map(f=> chip(f.fuente, f.total)).join('') || '—';
+      const priBar = (d.por_prioridad||[]).map(p=> chip(p.prioridad, p.total)).join('') || '—';
       // Funnel: conversion entre etapas consecutivas (snapshot actual)
       const cntEtapa = {};
       (d.por_etapa||[]).forEach(e=>{ cntEtapa[e.etapa]=parseInt(e.total)||0; });
       const conv = (a,b)=> a>0 ? Math.round(b/a*100) : 0;
-      const funnelBar = `L→C ${conv(cntEtapa.lead||0,cntEtapa.calificado||0)}% · C→P ${conv(cntEtapa.calificado||0,cntEtapa.propuesta||0)}% · P→N ${conv(cntEtapa.propuesta||0,cntEtapa.negociacion||0)}%`;
+      const funnelRows = [
+        ['Lead → Calif', cntEtapa.lead||0, cntEtapa.calificado||0],
+        ['Calif → Prop', cntEtapa.calificado||0, cntEtapa.propuesta||0],
+        ['Prop → Neg', cntEtapa.propuesta||0, cntEtapa.negociacion||0],
+      ].map(([label,a,b])=> `<div class="funnel-row"><span>${label} (${a}→${b})</span><strong>${conv(a,b)}%</strong></div>`).join('');
+      const funnelTip = `Lead ${cntEtapa.lead||0} → Calificado ${cntEtapa.calificado||0} → Propuesta ${cntEtapa.propuesta||0} → Negociación ${cntEtapa.negociacion||0}`;
       // Perdida por causal: mini-barras
       const motivoLabel = { precio:'Precio', competencia:'Competencia', sin_presupuesto:'Sin ppto', no_responde:'No responde', otro:'Otro', sin_motivo:'Sin motivo' };
       const perds = d.perdida_por_motivo||[];
@@ -176,16 +182,16 @@ async function cargarPipeline() {
         return `<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted)"><span style="min-width:70px">${esc(motivoLabel[p.motivo]||p.motivo)}</span><span style="flex:1;background:var(--surface2);border-radius:4px;height:8px;overflow:hidden"><span style="display:block;height:100%;width:${w}%;background:var(--danger)"></span></span><span>${p.total}</span></div>`;
       }).join('') : '<span style="font-size:10px;color:var(--muted)">Sin pérdidas</span>';
       document.getElementById('stats-pipeline').innerHTML = `
-        <div class="stat-card"><div class="stat-value blue">${d.total || 0}</div><div class="stat-label">Oportunidades</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">${etapaBar}</div></div>
-        <div class="stat-card"><div class="stat-value orange">$${formatMoney(d.monto_pipeline || 0)}</div><div class="stat-label">Pipeline abierto</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">Ticket $${formatMoney(d.ticket_promedio||0)}</div></div>
-        <div class="stat-card"><div class="stat-value purple">$${formatMoney(d.forecast_ponderado || 0)}</div><div class="stat-label">Forecast ponderado</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">monto × prob</div></div>
-        <div class="stat-card"><div class="stat-value green">${d.win_rate || 0}%</div><div class="stat-label">Win rate</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">${d.ganada||0} ganada · ${d.perdida||0} perdida</div></div>
+        <div class="stat-card" title="Total oportunidades bajo filtros activos"><div class="stat-value blue">${d.total || 0}</div><div class="stat-label">Oportunidades</div><div class="kpi-chips">${etapaBar}</div></div>
+        <div class="stat-card" title="Suma de montos en etapas abiertas (sin ganada/perdida)"><div class="stat-value orange">$${formatMoney(d.monto_pipeline || 0)}</div><div class="stat-label">Pipeline abierto</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">Ticket $${formatMoney(d.ticket_promedio||0)}</div></div>
+        <div class="stat-card" title="Suma de monto × probabilidad / 100 en etapas abiertas"><div class="stat-value purple">$${formatMoney(d.forecast_ponderado || 0)}</div><div class="stat-label">Forecast ponderado</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">monto × prob</div></div>
+        <div class="stat-card" title="Ganadas / (ganadas + perdidas)"><div class="stat-value green">${d.win_rate || 0}%</div><div class="stat-label">Win rate</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">${d.ganada||0} ganada · ${d.perdida||0} perdida</div></div>
         <div class="stat-card" style="border-color:${(d.vencidas||0)>0?'var(--danger)':''};${_soloVencidas?'outline:2px solid var(--danger);':''}cursor:pointer" onclick="toggleFiltroVencidas()" title="Clic para resaltar vencidas en el tablero"><div class="stat-value ${ (d.vencidas||0)>0?'red':'green'}">${d.vencidas||0}</div><div class="stat-label">Vencidas ${_soloVencidas?'◉':''}</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">cierre &lt; hoy · clic filtra</div></div>
         <div class="stat-card"><div class="stat-value yellow">${d.ciclo_promedio||0}d</div><div class="stat-label">Ciclo promedio</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">días en pipeline</div></div>
         <div class="stat-card"><div class="stat-value green" style="font-size:14px">${d.top_vendedor ? esc(d.top_vendedor.nombre||('ID '+d.top_vendedor.id)) : '—'}</div><div class="stat-label">Top vendedor</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">${d.top_vendedor? d.top_vendedor.total+' ops · $'+formatMoney(d.top_vendedor.monto) : '—'}</div></div>
-        <div class="stat-card"><div class="stat-value" style="font-size:11px;line-height:1.2">${fuenteBar}<br>${priBar}</div><div class="stat-label">Por fuente / prioridad</div></div>
-        <div class="stat-card"><div class="stat-value" style="font-size:11px;line-height:1.4">${funnelBar}</div><div class="stat-label">Conversión por etapa</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">lead→cal→prop→neg</div></div>
-        <div class="stat-card"><div style="display:flex;flex-direction:column;gap:3px;margin-top:2px">${perdidaBar}</div><div class="stat-label">Pérdida por causal</div></div>
+        <div class="stat-card" title="Distribución por fuente y prioridad"><div class="kpi-chips">${fuenteBar}</div><div class="kpi-chips">${priBar}</div><div class="stat-label">Por fuente / prioridad</div></div>
+        <div class="stat-card" title="${funnelTip}"><div style="display:flex;flex-direction:column;gap:2px;margin-top:2px">${funnelRows}</div><div class="stat-label">Conversión por etapa</div></div>
+        <div class="stat-card" title="Oportunidades perdidas agrupadas por motivo"><div style="display:flex;flex-direction:column;gap:3px;margin-top:2px">${perdidaBar}</div><div class="stat-label">Pérdida por causal</div></div>
       `;
       aplicarFiltroVencidas();
     }
