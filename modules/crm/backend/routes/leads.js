@@ -172,7 +172,8 @@ router.put('/:id', requirePermiso('crear_contacto', 'crm'), async (req, res) => 
     const fields = ['raison_social', 'numero_identificacion', 'tipo_identificacion', 'nombre_establecimiento',
       'direccion', 'ciudad', 'departamento', 'email', 'telefono', 'canal', 'segmento', 'tipo_negocio',
       'lista_precios', 'condicion_pago', 'asesor_comercial', 'notas', 'estado',
-      'siesa_tipo_identificacion','siesa_dv','siesa_tipo_persona','siesa_regimen','siesa_responsabilidad_fiscal','siesa_ciiu'];
+      'siesa_tipo_identificacion','siesa_dv','siesa_tipo_persona','siesa_regimen','siesa_responsabilidad_fiscal','siesa_ciiu',
+      'latitud','longitud','google_place_id','direccion_google'];
     const updates = [];
     const params = [];
     let paramIdx = 1;
