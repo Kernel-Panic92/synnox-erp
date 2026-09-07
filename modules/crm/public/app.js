@@ -1311,17 +1311,70 @@ async function abrirModalLead(lead = null) {
   };
   dvEl.oninput = () => { dvEl.value = dvEl.value.replace(/\D/g,'').slice(0,1); };
   toggleDvLead();
+  // Google Places Autocomplete para dirección (usa key del Launcher si existe) — se carga una vez
+  initLeadGooglePlaces();
   // Departamento / Ciudad combobox DANE
   setupLeadDeptoCiudad(lead);
   // Productos de interés
   _leadProductos = lead?.productos || [];
+  // Google Places Autocomplete para dirección (usa key del Launcher si existe) — se carga una vez
+  initLeadGooglePlaces();
   // guarda lead actual para helpers de depto/ciudad
   window._leadActual = lead;
-  setupLeadDeptoCiudad(lead);
   document.getElementById('buscar-lead-producto').value='';
   document.getElementById('lead-producto-resultados').innerHTML='<p style="color:var(--muted);font-size:12px">Busca un producto del maestro.</p>';
   renderLeadProductos();
   showModal('modal-lead');
+}
+let _placesLeadLoaded=false;
+async function initLeadGooglePlaces(){
+  if(_placesLeadLoaded || window.google?.maps?.places) return;
+  try{
+    const r=await fetch('/api/config/gmaps/key',{credentials:'include'});
+    const j=await r.json(); const key=j.key||'';
+    if(!key) return;
+    await new Promise((res,rej)=>{
+      const s=document.createElement('script');
+      s.src=`https://maps.googleapis.com/maps/api/js?key=${key}&libraries=places`;
+      s.onload=res; s.onerror=rej; document.head.appendChild(s);
+    });
+    _placesLeadLoaded=true;
+    const input=document.getElementById('lead-direccion');
+    if(!input || !window.google?.maps?.places) return;
+    const ac=new google.maps.places.Autocomplete(input, { componentRestrictions:{country:'co'}, fields:['address_components','formatted_address','geometry','place_id'] });
+    ac.addListener('place_changed', ()=>{
+      const place=ac.getPlace(); if(!place) return;
+      const comps=place.address_components||[];
+      let ciudad='', depto='';
+      for(const c of comps){
+        if(c.types.includes('locality')) ciudad=c.long_name;
+        else if(c.types.includes('administrative_area_level_1')) depto=c.long_name;
+        else if(!ciudad && c.types.includes('administrative_area_level_2')) ciudad=c.long_name;
+      }
+      const dane=(()=>{ try{ return daneFromLeadCiudad(ciudad, depto); }catch{ return null; }})();
+      // helper para mapear a DANE si existe
+      window._leadPlace={ place_id: place.place_id, lat: place.geometry?.location?.lat(), lng: place.geometry?.location?.lng(), formatted: place.formatted_address };
+      if(place.formatted_address) input.value=place.formatted_address;
+      if(ciudad || depto){
+        const depInp=document.getElementById('lead-departamento-search');
+        const ciuInp=document.getElementById('lead-ciudad-search');
+        if(depto && depInp){ depInp.value=depto; filtrarLeadDepto(depto); setTimeout(()=>{ const sel=document.getElementById('lead-departamento'); if(sel.options.length){ sel.selectedIndex=1; onLeadDeptoSelect(); } },300); }
+        if(ciudad && ciuInp){ setTimeout(()=>{ ciuInp.value=ciudad; filtrarLeadCiudad(ciudad); setTimeout(()=>{ const sel=document.getElementById('lead-ciudad'); if(sel.options.length>1){ sel.selectedIndex=1; onLeadCiudadSelect(); } },300); },600); }
+      }
+      // guarda para enviar al backend
+      input.dataset.place_id=place.place_id||'';
+      input.dataset.lat=place.geometry?.location?.lat()||'';
+      input.dataset.lng=place.geometry?.location?.lng()||'';
+    });
+  }catch(e){ console.warn('Places no disponible', e.message); }
+}
+function daneFromLeadCiudad(ciudad, depto){
+  const c=(ciudad||'').toUpperCase(), d=(depto||'').toUpperCase();
+  const byCity=_daneCiudades.find(x=> x.nombre===c);
+  if(byCity) return {ciudad:byCity.codigo, depto:byCity.depto};
+  const byDept=_daneDeptos.find(x=> x.nombre===d);
+  if(byDept) return {ciudad:byDept.codigo+'001', depto:byDept.codigo};
+  return null;
 }
 async function cargarListasLead(selected){
   const sel=document.getElementById('lead-lista-precios');
@@ -1486,6 +1539,10 @@ async function guardarLead() {
     tipo_negocio: document.getElementById('lead-tipo-negocio').value || null,
     lista_precios: document.getElementById('lead-lista-precios').value || null,
     notas: document.getElementById('lead-notas').value + (_leadProductos.length ? `\n[Productos: ${_leadProductos.map(p=>p.codigo).join(', ')}]` : ''),
+    latitud: document.getElementById('lead-direccion')?.dataset.lat || null,
+    longitud: document.getElementById('lead-direccion')?.dataset.lng || null,
+    google_place_id: document.getElementById('lead-direccion')?.dataset.place_id || null,
+    direccion_google: document.getElementById('lead-direccion')?.dataset.formatted || null,
     siesa_tipo_identificacion: document.getElementById('lead-siesa-tipo').value,
     siesa_dv: document.getElementById('lead-siesa-dv').value,
     siesa_regimen: document.getElementById('lead-siesa-regimen').value,
