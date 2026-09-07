@@ -138,9 +138,12 @@ async function cargarAnalitica() {
     const d = r.data;
     renderAcv(d.acv, 'widget-acv');
     renderCoverage(d.pipeline_abierto || 0, 'widget-coverage');
+    renderForecast(d.forecast_ponderado || 0, 'widget-forecast');
     renderStageVelocity(d.stage_velocity || [], 'widget-velocity');
     renderLossReason(d.loss_reason || [], 'widget-loss');
+    renderSlippage(d.slippage_rate || { vencidas: 0, abiertas: 0, pct: 0 }, 'widget-slippage');
     renderRepeatPurchase(d.repeat_purchase || { nuevos: 0, recurrentes: 0 }, 'widget-repeat');
+    renderTicketFuente(d.ticket_por_fuente || [], 'widget-fuente');
     renderLtv(d.acv || { promedio: 0 }, d.repeat_purchase || { nuevos: 0, recurrentes: 0 }, 'widget-ltv');
   } catch (err) { console.error('Analitica error:', err); }
 }
@@ -155,6 +158,51 @@ function renderAcv(acv, containerId) {
     <div style="font-size:11px;color:var(--muted);margin-top:8px">Monto promedio por cierre en etapa Ganada. Detecta si la fuerza apunta a cuentas de mayor valor.</div>`;
 }
 
+function renderForecast(ponderado, containerId) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  window._forecastActual = ponderado;
+  const meta = window._metaMensual || 5000000;
+  const pct = meta > 0 ? Math.round(ponderado / meta * 1000) / 10 : 0;
+  const color = pct >= 100 ? 'var(--success)' : pct >= 70 ? 'var(--accent)' : 'var(--warning)';
+  c.innerHTML = `
+    <div class="widget-title">Forecast ponderado</div>
+    <div class="metric-big">$${formatMoney(ponderado)}</div>
+    <div class="metric-sub">Proyección estimada vs meta $${formatMoney(meta)}</div>
+    <div class="coverage-bar"><span style="width:${Math.min(100, pct)}%;background:${color}"></span></div>
+    <div style="font-size:11px;font-weight:700;text-align:right;margin-top:4px;color:var(--muted)">${pct}% alcanzado del forecast</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:4px">Σ monto × probabilidad en etapas abiertas.</div>`;
+}
+
+function renderSlippage(sl, containerId) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  const pct = sl.pct || 0;
+  const color = pct >= 40 ? 'var(--danger)' : pct >= 20 ? 'var(--warning)' : 'var(--success)';
+  c.innerHTML = `
+    <div class="widget-title">Slippage (estancamiento)</div>
+    <div class="metric-big" style="color:${color}">${pct}%</div>
+    <div class="metric-sub">${sl.vencidas || 0} de ${sl.abiertas || 0} oportunidades con cierre vencido</div>
+    <div class="coverage-bar"><span style="width:${Math.min(100, pct)}%;background:${color}"></span></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px">% de pipeline abierto cuya fecha estimada ya pasó — alerta de forecast optimista.</div>`;
+}
+
+function renderTicketFuente(fuentes, containerId) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  const max = Math.max(1, ...fuentes.map(f => Number(f.ticket) || 0));
+  const rows = (fuentes || []).map(f => `
+    <div style="margin-bottom:7px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:3px;color:var(--text)">
+        <span style="text-transform:capitalize">${esc(f.fuente)}</span><span>$${formatMoney(f.ticket)} <small style="color:var(--muted);font-weight:400">(${f.n})</small></span>
+      </div>
+      <div style="background:var(--surface2);border-radius:5px;height:10px;overflow:hidden">
+        <div style="width:${Math.round((Number(f.ticket)||0)/max*100)}%;background:var(--accent);height:100%;border-radius:5px"></div>
+      </div>
+    </div>`).join('');
+  c.innerHTML = `<div class="widget-title">Ticket promedio por canal</div>${rows || '<div style="color:var(--muted);font-size:12px">Sin ventas ganadas</div>'}`;
+}
+
 function renderCoverage(pipelineAbierto, containerId) {
   const c = document.getElementById(containerId);
   if (!c) return;
@@ -162,13 +210,14 @@ function renderCoverage(pipelineAbierto, containerId) {
   const ratio = meta > 0 ? (pipelineAbierto / meta) : 0;
   const pct = Math.min(100, Math.round(ratio * 100));
   const healthy = ratio >= 3 && ratio <= 4;
+  const ratioColor = ratio >= 3 ? 'var(--success)' : ratio >= 1 ? 'var(--warning)' : 'var(--danger)';
   c.innerHTML = `
     <div class="widget-title">Pipeline coverage</div>
-    <div class="metric-big" style="color:${ratio >= 3 ? 'var(--success)' : 'var(--warning)'}">${ratio.toFixed(1)}x</div>
+    <div class="metric-big" style="color:${ratioColor}">${ratio.toFixed(1)}x</div>
     <div class="metric-sub">Pipeline $${formatMoney(pipelineAbierto)} vs meta $${formatMoney(meta)}</div>
-    <div class="coverage-bar"><span style="width:${Math.min(100, pct)}%;${ratio >= 3 ? 'background:var(--success)' : ratio < 1 ? 'background:var(--danger)' : ''}"></span></div>
-    <div style="font-size:11px;color:var(--muted);margin-top:6px">${healthy ? 'Saludable (3x-4x).' : ratio < 3 ? 'Por debajo de lo ideal (meta 3x-4x).' : 'Sobre-cubierto.'} Meta editable: </div>
-    <input type="number" id="coverage-meta-input" value="${meta}" style="width:100%;margin-top:6px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px" onchange="window._metaMensual=parseFloat(this.value)||0; renderCoverage(${pipelineAbierto}, 'widget-coverage')">`;
+    <div class="coverage-bar"><span style="width:${Math.min(100, pct)}%;background:${ratioColor}"></span></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px">${healthy ? 'Saludable (3x-4x).' : ratio < 1 ? '⚠️ Crítico — por debajo de la meta.' : 'Por debajo de lo ideal (meta 3x-4x).'} Meta editable: </div>
+    <input type="number" id="coverage-meta-input" value="${meta}" style="width:100%;margin-top:6px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px" onchange="window._metaMensual=parseFloat(this.value)||0; renderCoverage(${pipelineAbierto}, 'widget-coverage'); renderForecast(${window._forecastActual || 0}, 'widget-forecast')">`;
 }
 
 function renderStageVelocity(vel, containerId) {
@@ -572,10 +621,22 @@ async function dropOportunidad(ev, etapa) {
   ev.currentTarget.classList.remove('drag-over');
   const id = ev.dataTransfer.getData('text/plain');
   if (!id) return;
+  let motivo = null;
+  if (etapa === 'perdida') {
+    const r2 = await apiFetch('/oportunidades/' + id);
+    const tieneMotivo = r2.ok && r2.data?.data?.motivo_perdida;
+    if (!tieneMotivo) {
+      const opt = prompt('¿Motivo de la pérdida?\n\n1) Precio\n2) Competencia\n3) Sin presupuesto\n4) No responde\n5) Otro\n\n(Escribe el número o el motivo, o cancela)');
+      if (opt === null) return; // cancelado
+      const mapa = { '1':'precio', '2':'competencia', '3':'sin_presupuesto', '4':'no_responde', '5':'otro' };
+      motivo = mapa[String(opt).trim()] || String(opt).trim();
+      if (!motivo) { toast('Motivo obligatorio para perder la oportunidad', 'warning'); return; }
+    }
+  }
   const r = await apiFetch('/oportunidades/' + id + '/mover', {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ etapa })
+    body: JSON.stringify({ etapa, motivo_perdida: motivo })
   });
   if (!r.ok) return toast('Error al mover oportunidad', 'error');
   toast('Oportunidad movida a ' + ETAPAS.find(e => e.id === etapa)?.label, 'success');

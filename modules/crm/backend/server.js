@@ -150,7 +150,7 @@ app.get('/api/dashboard/analytics', protect, async (req, res) => {
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     const addCond = (sql) => conds.length ? `${conds.join(' AND ')} AND ${sql}` : `WHERE ${sql}`;
 
-    const [acv, lossReason, repeatPurchase, velocity, pipelineTotal] = await Promise.all([
+    const [acv, lossReason, repeatPurchase, velocity, pipelineTotal, slippage, ticketFuente, forecastPonderado] = await Promise.all([
       // ACV: monto promedio por negocio ganado
       pool.query(`SELECT COUNT(*) as n, COALESCE(AVG(monto_esperado),0) as acv, COALESCE(SUM(monto_esperado),0) as total FROM crm.oportunidades o ${addCond(`o.etapa='ganada'`)}`, params),
       // Pérdida por causal (% de cada motivo dentro de PERDIDA)
@@ -160,14 +160,24 @@ app.get('/api/dashboard/analytics', protect, async (req, res) => {
         COUNT(*) FILTER (WHERE o.cliente_id IS NOT NULL AND (SELECT COUNT(*) FROM crm.oportunidades o2 WHERE o2.cliente_id=o.cliente_id AND o2.etapa='ganada' AND o2.id < o.id)=0) as nuevos,
         COUNT(*) FILTER (WHERE o.cliente_id IS NOT NULL AND (SELECT COUNT(*) FROM crm.oportunidades o2 WHERE o2.cliente_id=o.cliente_id AND o2.etapa='ganada' AND o2.id < o.id)>0) as recurrentes
         FROM crm.oportunidades o ${addCond(`o.etapa='ganada' AND o.cliente_id IS NOT NULL`)}`, params),
-      // Stage velocity: días promedio entre cambios de etapa del historial
+      // Stage velocity: días promedio entre cambios de etapa del historial (orden cronológico del pipeline)
       pool.query(`SELECT h.etapa_nueva, ROUND(AVG(EXTRACT(EPOCH FROM (h.fecha - lag.fecha))/86400.0),1) as dias_promedio, COUNT(*) as muestras
         FROM crm.oportunidad_historial h
         JOIN LATERAL (SELECT MAX(fecha) as fecha FROM crm.oportunidad_historial h2 WHERE h2.oportunidad_id=h.oportunidad_id AND h2.fecha < h.fecha) lag ON true
         WHERE lag.fecha IS NOT NULL
-        GROUP BY h.etapa_nueva ORDER BY MIN(h.fecha)`),
+        GROUP BY h.etapa_nueva
+        ORDER BY CASE h.etapa_nueva WHEN 'lead' THEN 1 WHEN 'calificado' THEN 2 WHEN 'propuesta' THEN 3 WHEN 'negociacion' THEN 4 WHEN 'ganada' THEN 5 WHEN 'perdida' THEN 6 ELSE 7 END`),
       // Pipeline abierto total (para cobertura vs meta)
-      pool.query(`SELECT COALESCE(SUM(monto_esperado),0) as pipeline_abierto FROM crm.oportunidades o ${addCond(`o.etapa NOT IN ('ganada','perdida')`)}`, params)
+      pool.query(`SELECT COALESCE(SUM(monto_esperado),0) as pipeline_abierto FROM crm.oportunidades o ${addCond(`o.etapa NOT IN ('ganada','perdida')`)}`, params),
+      // Slippage: % de oportunidades abiertas con fecha de cierre ya pasada (vencidas / abiertas)
+      pool.query(`SELECT
+        COUNT(*) FILTER (WHERE o.fecha_cierre_estimada IS NOT NULL AND o.fecha_cierre_estimada < CURRENT_DATE) as vencidas,
+        COUNT(*) as abiertas
+        FROM crm.oportunidades o ${addCond(`o.etapa NOT IN ('ganada','perdida')`)}`, params),
+      // Ticket promedio por fuente/canal (ganadas)
+      pool.query(`SELECT COALESCE(NULLIF(o.fuente,''),'otro') as fuente, COUNT(*) as n, ROUND(COALESCE(AVG(o.monto_esperado),0),0) as ticket FROM crm.oportunidades o ${addCond(`o.etapa='ganada'`)} GROUP BY fuente ORDER BY ticket DESC`, params),
+      // Forecast ponderado: SUM(monto × probabilidad) en etapas abiertas
+      pool.query(`SELECT COALESCE(SUM(o.monto_esperado * COALESCE(o.probabilidad,0) / 100.0),0) as ponderado FROM crm.oportunidades o ${addCond(`o.etapa NOT IN ('ganada','perdida')`)}`, params)
     ]);
 
     res.json({
@@ -180,6 +190,13 @@ app.get('/api/dashboard/analytics', protect, async (req, res) => {
       },
       stage_velocity: velocity.rows,
       pipeline_abierto: parseFloat(pipelineTotal.rows[0].pipeline_abierto),
+      slippage_rate: {
+        vencidas: parseInt(slippage.rows[0].vencidas) || 0,
+        abiertas: parseInt(slippage.rows[0].abiertas) || 0,
+        pct: (slippage.rows[0].abiertas > 0 ? Math.round(parseInt(slippage.rows[0].vencidas) / parseInt(slippage.rows[0].abiertas) * 100) : 0)
+      },
+      ticket_por_fuente: ticketFuente.rows,
+      forecast_ponderado: parseFloat(forecastPonderado.rows[0].ponderado),
       desde: desde || null,
       hasta: hasta || null
     });

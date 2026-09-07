@@ -33,6 +33,8 @@
 .kpi-chip b{font-weight:700}
 .stat-label-top{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;text-align:center;margin-bottom:6px}
 .dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:16px}
+.dash-grid-3{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
+@media(min-width:1200px){.dash-grid-3{grid-template-columns:repeat(3,1fr)}}
 .dash-widget{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
 .dash-widget .widget-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
 .dash-tabs{display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:0}
@@ -196,12 +198,15 @@
     </div>
   </div>
   <div id="dash-analitica" style="display:none">
-    <div class="dash-grid">
+    <div class="dash-grid dash-grid-3">
       <div class="dash-widget" id="widget-acv"></div>
       <div class="dash-widget" id="widget-coverage"></div>
+      <div class="dash-widget" id="widget-forecast"></div>
       <div class="dash-widget" id="widget-velocity"></div>
       <div class="dash-widget" id="widget-loss"></div>
+      <div class="dash-widget" id="widget-slippage"></div>
       <div class="dash-widget" id="widget-repeat"></div>
+      <div class="dash-widget" id="widget-fuente"></div>
       <div class="dash-widget" id="widget-ltv"></div>
     </div>
   </div>
