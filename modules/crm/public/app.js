@@ -1360,9 +1360,52 @@ async function initLeadGooglePlaces(){
 }
 async function _initLeadPlacesAutocomplete(){
   try{
-    // llamado después de que gmaps esté listo, enlaza el input solo una vez
     const input=document.getElementById('lead-direccion');
-    if(!input || !window.google?.maps?.places?.Autocomplete) return;
+    if(!input) return;
+    if(input.dataset.placesBound==='1') return;
+    // Si el nuevo PlaceAutocompleteElement está disponible (API key nueva), úsalo; si no, fallback a Autocomplete legacy
+    if(window.google?.maps?.places?.PlaceAutocompleteElement){
+      if(document.querySelector('gmp-place-autocomplete[data-lead]')) return;
+      input.dataset.placesBound='1';
+      const wrap=document.createElement('gmp-place-autocomplete');
+      wrap.dataset.lead='1';
+      wrap.setAttribute('country','co');
+      wrap.style.display='block';
+      // clona estilos del input al nuevo elemento
+      wrap.style.width='100%';
+      input.parentNode.insertBefore(wrap, input);
+      wrap.appendChild(input);
+      // el nuevo elemento expone el input interno
+      wrap.addEventListener('gmp-placeselect', async (e)=>{
+        const place=e.place || e.detail?.place;
+        if(!place) return;
+        // fetchPlaceDetails si es necesario
+        if(!place.addressComponents && place.fetchFields){
+          await place.fetchFields({fields:['addressComponents','formattedAddress','location','id']});
+        }
+        const comps=place.addressComponents||[];
+        let ciudad='', depto='';
+        for(const c of comps){
+          if(c.types.includes('locality')) ciudad=c.displayName;
+          else if(c.types.includes('administrative_area_level_1')) depto=c.displayName;
+        }
+        const formatted=place.formattedAddress || input.value;
+        window._leadPlace={ place_id: place.id, lat: place.location?.lat, lng: place.location?.lng, formatted };
+        if(formatted) input.value=formatted;
+        if(ciudad || depto){
+          const depInp=document.getElementById('lead-departamento-search');
+          const ciuInp=document.getElementById('lead-ciudad-search');
+          if(depto && depInp){ depInp.value=depto; filtrarLeadDepto(depto); setTimeout(()=>{ const sel=document.getElementById('lead-departamento'); if(sel.options.length>1){ sel.selectedIndex=1; onLeadDeptoSelect(); } },300); }
+          if(ciudad && ciuInp){ setTimeout(()=>{ ciuInp.value=ciudad; filtrarLeadCiudad(ciudad); setTimeout(()=>{ const sel=document.getElementById('lead-ciudad'); if(sel.options.length>1){ sel.selectedIndex=1; onLeadCiudadSelect(); } },300); },600); }
+        }
+        input.dataset.place_id=place.id||'';
+        input.dataset.lat=place.location?.lat||'';
+        input.dataset.lng=place.location?.lng||'';
+        input.dataset.formatted=formatted||'';
+      });
+      return;
+    }
+    if(!window.google?.maps?.places?.Autocomplete) return;
     if(input.dataset.placesBound==='1') return;
     input.dataset.placesBound='1';
     const ac=new google.maps.places.Autocomplete(input, { componentRestrictions:{country:'co'}, fields:['address_components','formatted_address','geometry','place_id'] });
