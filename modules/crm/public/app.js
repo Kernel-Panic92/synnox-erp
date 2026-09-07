@@ -162,16 +162,32 @@ async function cargarPipeline() {
       const etapaBar = (d.por_etapa||[]).map(e=> `${e.etapa.slice(0,3)}:${e.total}`).join(' · ') || '—';
       const fuenteBar = (d.por_fuente||[]).slice(0,3).map(f=> `${esc(f.fuente)}:${f.total}`).join(' · ') || '—';
       const priBar = (d.por_prioridad||[]).map(p=> `${esc(p.prioridad)}:${p.total}`).join(' · ') || '—';
+      // Funnel: conversion entre etapas consecutivas (snapshot actual)
+      const cntEtapa = {};
+      (d.por_etapa||[]).forEach(e=>{ cntEtapa[e.etapa]=parseInt(e.total)||0; });
+      const conv = (a,b)=> a>0 ? Math.round(b/a*100) : 0;
+      const funnelBar = `L→C ${conv(cntEtapa.lead||0,cntEtapa.calificado||0)}% · C→P ${conv(cntEtapa.calificado||0,cntEtapa.propuesta||0)}% · P→N ${conv(cntEtapa.propuesta||0,cntEtapa.negociacion||0)}%`;
+      // Perdida por causal: mini-barras
+      const motivoLabel = { precio:'Precio', competencia:'Competencia', sin_presupuesto:'Sin ppto', no_responde:'No responde', otro:'Otro', sin_motivo:'Sin motivo' };
+      const perds = d.perdida_por_motivo||[];
+      const maxPerd = Math.max(1, ...perds.map(p=>parseInt(p.total)||0));
+      const perdidaBar = perds.length ? perds.slice(0,4).map(p=>{
+        const w = Math.round((parseInt(p.total)||0)/maxPerd*100);
+        return `<div style="display:flex;align-items:center;gap:4px;font-size:10px;color:var(--muted)"><span style="min-width:70px">${esc(motivoLabel[p.motivo]||p.motivo)}</span><span style="flex:1;background:var(--surface2);border-radius:4px;height:8px;overflow:hidden"><span style="display:block;height:100%;width:${w}%;background:var(--danger)"></span></span><span>${p.total}</span></div>`;
+      }).join('') : '<span style="font-size:10px;color:var(--muted)">Sin pérdidas</span>';
       document.getElementById('stats-pipeline').innerHTML = `
         <div class="stat-card"><div class="stat-value blue">${d.total || 0}</div><div class="stat-label">Oportunidades</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">${etapaBar}</div></div>
         <div class="stat-card"><div class="stat-value orange">$${formatMoney(d.monto_pipeline || 0)}</div><div class="stat-label">Pipeline abierto</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">Ticket $${formatMoney(d.ticket_promedio||0)}</div></div>
         <div class="stat-card"><div class="stat-value purple">$${formatMoney(d.forecast_ponderado || 0)}</div><div class="stat-label">Forecast ponderado</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">monto × prob</div></div>
         <div class="stat-card"><div class="stat-value green">${d.win_rate || 0}%</div><div class="stat-label">Win rate</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">${d.ganada||0} ganada · ${d.perdida||0} perdida</div></div>
-        <div class="stat-card" style="border-color:${(d.vencidas||0)>0?'var(--danger)':''}"><div class="stat-value ${ (d.vencidas||0)>0?'red':'green'}">${d.vencidas||0}</div><div class="stat-label">Vencidas</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">cierre &lt; hoy</div></div>
+        <div class="stat-card" style="border-color:${(d.vencidas||0)>0?'var(--danger)':''};${_soloVencidas?'outline:2px solid var(--danger);':''}cursor:pointer" onclick="toggleFiltroVencidas()" title="Clic para resaltar vencidas en el tablero"><div class="stat-value ${ (d.vencidas||0)>0?'red':'green'}">${d.vencidas||0}</div><div class="stat-label">Vencidas ${_soloVencidas?'◉':''}</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">cierre &lt; hoy · clic filtra</div></div>
         <div class="stat-card"><div class="stat-value yellow">${d.ciclo_promedio||0}d</div><div class="stat-label">Ciclo promedio</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">días en pipeline</div></div>
         <div class="stat-card"><div class="stat-value green" style="font-size:14px">${d.top_vendedor ? esc(d.top_vendedor.nombre||('ID '+d.top_vendedor.id)) : '—'}</div><div class="stat-label">Top vendedor</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">${d.top_vendedor? d.top_vendedor.total+' ops · $'+formatMoney(d.top_vendedor.monto) : '—'}</div></div>
         <div class="stat-card"><div class="stat-value" style="font-size:11px;line-height:1.2">${fuenteBar}<br>${priBar}</div><div class="stat-label">Por fuente / prioridad</div></div>
+        <div class="stat-card"><div class="stat-value" style="font-size:11px;line-height:1.4">${funnelBar}</div><div class="stat-label">Conversión por etapa</div><div class="stat-sub" style="font-size:10px;color:var(--muted)">lead→cal→prop→neg</div></div>
+        <div class="stat-card"><div style="display:flex;flex-direction:column;gap:3px;margin-top:2px">${perdidaBar}</div><div class="stat-label">Pérdida por causal</div></div>
       `;
+      aplicarFiltroVencidas();
     }
     const kanban = document.getElementById('pipeline-kanban');
     kanban.innerHTML = ETAPAS.map(etapa => `
@@ -185,8 +201,12 @@ async function cargarPipeline() {
         </h4>
         ${(pipeline[etapa.id] || []).map(o => {
           const priColor = { baja:'#6c757d', media:'#17a2b8', alta:'#fd7e14', critica:'#dc3545' }[o.prioridad||'media'] || '#6c757d';
+          const hoyISO = new Date().toISOString().slice(0,10);
+          const fcISO = o.fecha_cierre_estimada ? String(o.fecha_cierre_estimada).slice(0,10) : '';
+          const esVencida = fcISO && fcISO < hoyISO && !['ganada','perdida'].includes(o.etapa);
           return `
-          <div class="kanban-card" draggable="true" ondragstart="dragOportunidad(event, '${o.id}')" onclick="editarOportunidad('${o.id}')">
+          <div class="kanban-card" ${esVencida?'data-vencida="1" style="border-left:3px solid var(--danger)"':''} draggable="true" ondragstart="dragOportunidad(event, '${o.id}')" onclick="editarOportunidad('${o.id}')">
+            ${esVencida?'<div style="font-size:10px;color:var(--danger);font-weight:700">⏰ VENCIDA '+esc(fcISO)+'</div>':''}
             <div class="card-title">${esc(o.nombre)}</div>
             <div class="card-cliente">${esc(o.cliente_nombre || o.lead_nombre || '—')}</div>
             <div style="display:flex;gap:4px;margin:4px 0">
@@ -292,7 +312,21 @@ function onPipelineVendedorSelect(id, nombre){
   }
   cargarPipeline();
 }
+let _soloVencidas = false;
+function toggleFiltroVencidas(){
+  _soloVencidas = !_soloVencidas;
+  aplicarFiltroVencidas();
+  cargarPipeline();
+}
+function aplicarFiltroVencidas(){
+  document.querySelectorAll('#pipeline-kanban .kanban-card').forEach(card=>{
+    if(!_soloVencidas){ card.style.opacity=''; card.style.display=''; return; }
+    if(card.dataset.vencida==='1'){ card.style.opacity=''; card.style.display=''; card.style.boxShadow='0 0 0 2px var(--danger)'; }
+    else { card.style.opacity='0.25'; card.style.boxShadow=''; }
+  });
+}
 function limpiarFiltrosPipeline() {
+  _soloVencidas = false;
   ['filtro-pipeline-vendedor','filtro-pipeline-etapa','filtro-pipeline-fuente','filtro-pipeline-prioridad','filtro-pipeline-search','filtro-pipeline-desde','filtro-pipeline-hasta'].forEach(id=>{ const el=document.getElementById(id); if(el) el.value=''; });
   const pvDisp=document.getElementById('filtro-pipeline-vendedor-selected');
   const pvSel=document.getElementById('filtro-pipeline-vendedor');

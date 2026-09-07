@@ -138,7 +138,7 @@ router.get('/stats', requirePermiso('ver_pipeline', 'crm'), async (req, res) => 
     const baseFrom = `FROM crm.oportunidades o LEFT JOIN crm.clientes e ON e.id=o.cliente_id LEFT JOIN crm.leads l ON l.id=o.lead_id`;
     // helper para añadir AND etapa NOT IN cuando ya hay WHERE
     const addOpenFilter = (c) => c ? `${c} AND o.etapa NOT IN ('ganada','perdida')` : `WHERE o.etapa NOT IN ('ganada','perdida')`;
-    const [total, porEtapa, montoTotal, forecast, porEtapaCounts, vencidas, ticketAvg, ciclo, porFuente, porPrioridad, topVendedor] = await Promise.all([
+    const [total, porEtapa, montoTotal, forecast, porEtapaCounts, vencidas, ticketAvg, ciclo, porFuente, porPrioridad, topVendedor, perdidaMotivo] = await Promise.all([
       pool.query(`SELECT COUNT(*) ${baseFrom} ${cond}`, p),
       pool.query(`SELECT etapa, COUNT(*) AS total, COALESCE(SUM(monto_esperado), 0) AS monto ${baseFrom} ${cond} GROUP BY etapa ORDER BY CASE etapa WHEN 'lead' THEN 1 WHEN 'calificado' THEN 2 WHEN 'propuesta' THEN 3 WHEN 'negociacion' THEN 4 WHEN 'ganada' THEN 5 WHEN 'perdida' THEN 6 END`, p),
       pool.query(`SELECT COALESCE(SUM(monto_esperado), 0) AS total ${baseFrom} ${addOpenFilter(cond)}`, p),
@@ -149,7 +149,8 @@ router.get('/stats', requirePermiso('ver_pipeline', 'crm'), async (req, res) => 
       pool.query(`SELECT COALESCE(AVG(EXTRACT(DAY FROM (CURRENT_DATE - o.creado_en))),0) AS avg ${baseFrom} ${addOpenFilter(cond)}`, p),
       pool.query(`SELECT COALESCE(fuente,'otro') as fuente, COUNT(*) as total ${baseFrom} ${cond} GROUP BY fuente ORDER BY total DESC`, p),
       pool.query(`SELECT COALESCE(prioridad,'media') as prioridad, COUNT(*) as total ${baseFrom} ${cond} GROUP BY prioridad ORDER BY CASE prioridad WHEN 'critica' THEN 1 WHEN 'alta' THEN 2 WHEN 'media' THEN 3 WHEN 'baja' THEN 4 ELSE 5 END`, p),
-      pool.query(`SELECT o.vendedor_id, COUNT(*) as total, COALESCE(SUM(o.monto_esperado),0) as monto ${baseFrom} ${cond ? cond + ` AND o.vendedor_id IS NOT NULL` : `WHERE o.vendedor_id IS NOT NULL`} GROUP BY o.vendedor_id ORDER BY total DESC LIMIT 1`, p)
+      pool.query(`SELECT o.vendedor_id, COUNT(*) as total, COALESCE(SUM(o.monto_esperado),0) as monto ${baseFrom} ${cond ? cond + ` AND o.vendedor_id IS NOT NULL` : `WHERE o.vendedor_id IS NOT NULL`} GROUP BY o.vendedor_id ORDER BY total DESC LIMIT 1`, p),
+      pool.query(`SELECT COALESCE(NULLIF(o.motivo_perdida,''),'sin_motivo') as motivo, COUNT(*) as total ${baseFrom} ${cond ? cond + ` AND o.etapa='perdida'` : `WHERE o.etapa='perdida'`} GROUP BY motivo ORDER BY total DESC`, p)
     ]);
 
     const ganada = parseInt(porEtapaCounts.rows.find(r=>r.etapa==='ganada')?.total || 0);
@@ -184,6 +185,7 @@ router.get('/stats', requirePermiso('ver_pipeline', 'crm'), async (req, res) => 
       ciclo_promedio: Math.round(parseFloat(ciclo.rows[0].avg)||0),
       por_fuente: porFuente.rows,
       por_prioridad: porPrioridad.rows,
+      perdida_por_motivo: perdidaMotivo.rows,
       top_vendedor: topVendedor.rows[0] ? { id: topVendedor.rows[0].vendedor_id, total: parseInt(topVendedor.rows[0].total), monto: parseFloat(topVendedor.rows[0].monto), nombre: topVendedorNombre } : null
     });
   } catch (err) {
