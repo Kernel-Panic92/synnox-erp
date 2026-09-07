@@ -1197,8 +1197,8 @@ async function cargarLeads() {
           <div class="tbl-actions">
             <button class="btn btn-sm btn-secondary btn-action" onclick="editarLead('${l.id}')" title="Editar lead" aria-label="Editar lead ${esc(l.raison_social)}">✏️</button>
             ${l.estado !== 'convertido' ? `<button class="btn btn-sm btn-primary btn-action" onclick="crearOportunidadDesdeLead('${l.id}','${esc(l.raison_social).replace(/'/g,"\\'")}')" title="Crear oportunidad" aria-label="Crear oportunidad desde ${esc(l.raison_social)}">💼</button>` : ''}
-            ${l.estado !== 'convertido' && l.estado !== 'enviado_erp' ? `<button class="btn btn-sm btn-primary btn-action" onclick="enviarLeadERP('${l.id}','${esc(l.raison_social)}')" title="Convertir a tercero" aria-label="Convertir lead ${esc(l.raison_social)}">🔄</button>` : ''}
-            ${l.estado === 'enviado_erp' ? `<button class="btn btn-sm btn-primary btn-action" onclick="marcarConvertido('${l.id}','${esc(l.raison_social)}')" title="Marcar como convertido" aria-label="Marcar lead ${esc(l.raison_social)} como convertido">✅</button>` : ''}
+            ${l.estado !== 'convertido' && l.estado !== 'enviado_erp' ? `<button class="btn btn-sm btn-primary btn-action" onclick="enviarLeadERP('${l.id}','${esc(l.raison_social)}')" title="Enviar al ERP (crea prospecto)" aria-label="Enviar lead ${esc(l.raison_social)} al ERP">🚀</button>` : ''}
+            ${l.estado === 'enviado_erp' ? `<button class="btn btn-sm btn-success btn-action" onclick="activarLead('${l.id}','${esc(l.raison_social)}')" title="Contabilidad: Activar cliente" aria-label="Activar cliente ${esc(l.raison_social)}">✅</button>` : ''}
             ${l.estado !== 'convertido' ? `<button class="btn btn-sm btn-danger btn-action" onclick="eliminarLead('${l.id}')" title="Eliminar lead" aria-label="Eliminar lead ${esc(l.raison_social)}">🗑️</button>` : ''}
           </div>
         </td>
@@ -1529,6 +1529,13 @@ async function marcarConvertido(id, nombre) {
     if (!r.ok) return toast(r.data?.error || 'Error al confirmar', 'error');
     toast('Lead convertido en cliente', 'success');
     cargarLeads();
+  }});
+}
+async function activarLead(id, nombre){
+  confirmar({ titulo:'Activar cliente', mensaje:`¿Activar cliente prospecto de "${nombre}"? (Contabilidad)`, icono:'✅', onConfirm: async()=>{
+    const r=await apiFetch('/leads/'+id+'/activar',{method:'PUT'});
+    if(!r.ok) return toast(r.data?.error||'Error al activar','error');
+    toast('Cliente activado','success'); cargarLeads(); cargarClientes();
   }});
 }
 

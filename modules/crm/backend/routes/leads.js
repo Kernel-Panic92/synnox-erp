@@ -85,6 +85,37 @@ router.get('/:id', requirePermiso('ver', 'crm'), async (req, res) => {
   }
 });
 
+function calcularDV(nit){
+  const clean=String(nit||'').replace(/\D/g,'');
+  if(!clean) return '';
+  let sum=0; const pesos=[3,7,13,17,19,23,29,37,41,43,47,53,59,67,71];
+  for(let i=0;i<clean.length;i++){ sum += parseInt(clean[clean.length-1-i],10) * pesos[i%pesos.length]; }
+  const mod=sum%11; return String(mod>1?11-mod:mod);
+}
+function validarLeadDIAN(b, isUpdate=false){
+  const errs=[];
+  const nit = String(b.numero_identificacion||'').replace(/\D/g,'');
+  if(!isUpdate || b.raison_social!==undefined) if(!b.raison_social || !String(b.raison_social).trim()) errs.push('Razón social obligatoria');
+  if(!isUpdate || b.numero_identificacion!==undefined){
+    if(!nit) errs.push('NIT/Cédula obligatorio (solo dígitos)');
+    else if(nit.length<6 || nit.length>11) errs.push('NIT/Cédula debe tener 6-11 dígitos');
+  }
+  const tipo = String(b.siesa_tipo_identificacion||'31');
+  if(!['31','13','22','41','42'].includes(tipo)) errs.push('Tipo identificación SIESA debe ser 31(NIT),13(CC),22(CE),41(Pas)');
+  if(tipo==='31'){
+    const dv = String(b.siesa_dv||'').replace(/\D/g,'').slice(0,1);
+    if(!dv) errs.push('DV obligatorio para NIT (31)');
+    else if(nit && dv !== calcularDV(nit)) errs.push(`DV no coincide (calculado ${calcularDV(nit)} para NIT ${nit})`);
+  }
+  if(!isUpdate || b.siesa_regimen!==undefined) if(!b.siesa_regimen) errs.push('Régimen DIAN obligatorio');
+  if(!isUpdate || b.siesa_responsabilidad_fiscal!==undefined) if(!b.siesa_responsabilidad_fiscal) errs.push('Responsabilidad fiscal obligatoria');
+  if(!isUpdate || b.siesa_ciiu!==undefined) if(!b.siesa_ciiu || !/^\d{4}$/.test(String(b.siesa_ciiu))) errs.push('CIIU debe ser 4 dígitos');
+  if(!isUpdate || b.email!==undefined) if(b.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(b.email))) errs.push('Email inválido');
+  if(!isUpdate || b.direccion!==undefined) if(!b.direccion || !String(b.direccion).trim()) errs.push('Dirección obligatoria');
+  if(!isUpdate || b.ciudad!==undefined) if(!b.ciudad) errs.push('Ciudad obligatoria');
+  if(!isUpdate || b.departamento!==undefined) if(!b.departamento) errs.push('Departamento obligatorio');
+  return errs;
+}
 // POST /api/leads — Crear lead (Hub-ready con siesa_* y validación NIT)
 router.post('/', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
   try {
@@ -92,12 +123,16 @@ router.post('/', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
       direccion, ciudad, departamento, email, telefono, canal, segmento, tipo_negocio,
       lista_precios, condicion_pago, asesor_comercial, notas,
       siesa_tipo_identificacion, siesa_dv, siesa_tipo_persona, siesa_regimen, siesa_responsabilidad_fiscal, siesa_ciiu } = req.body;
-    if (!raison_social) return res.status(400).json({ error: 'La razon social es obligatoria' });
+    const dianErrs = validarLeadDIAN(req.body, false);
+    if(dianErrs.length) return res.status(400).json({ error: dianErrs[0], detalles: dianErrs });
     if (numero_identificacion) {
-      const dup = await pool.query(`SELECT id FROM crm.clientes WHERE nit=$1 AND activo=TRUE LIMIT 1`, [String(numero_identificacion).trim()]);
-      if (dup.rows.length) return res.status(409).json({ error: `NIT ${numero_identificacion} ya existe como cliente formal` });
-      const dupLead = await pool.query(`SELECT id FROM crm.leads WHERE numero_identificacion=$1 LIMIT 1`, [String(numero_identificacion).trim()]);
-      if (dupLead.rows.length) return res.status(409).json({ error: `NIT ${numero_identificacion} ya existe como lead` });
+      const cleanNit = String(numero_identificacion).replace(/\D/g,'');
+      const dup = await pool.query(`SELECT id FROM crm.clientes WHERE nit=$1 AND activo=TRUE LIMIT 1`, [cleanNit]);
+      if (dup.rows.length) return res.status(409).json({ error: `NIT ${cleanNit} ya existe como cliente formal` });
+      const dupLead = await pool.query(`SELECT id FROM crm.leads WHERE numero_identificacion=$1 LIMIT 1`, [cleanNit]);
+      if (dupLead.rows.length) return res.status(409).json({ error: `NIT ${cleanNit} ya existe como lead` });
+      req.body.numero_identificacion = cleanNit;
+      if(req.body.siesa_dv) req.body.siesa_dv = String(req.body.siesa_dv).replace(/\D/g,'').slice(0,1);
     }
 
     // Normalización: fuente única siesa_* (si viene tipo_identificacion legacy, úsalo como fallback)
@@ -214,13 +249,15 @@ router.post('/:id/convertir', requirePermiso('crear_contacto', 'crm'), async (re
       try {
         await client.query('BEGIN');
         const l = lead.rows[0];
-        const cli = await client.query(`
+        // Cliente creado como prospecto inactivo hasta que contabilidad lo active (flujo lead → prospecto → activo)
+      const vendedorCreador = l.asesor_comercial || req.user.nombre || null;
+      const cli = await client.query(`
           INSERT INTO crm.clientes (codigo_siesa, nit, nombre, canal, activo, direccion, ciudad, departamento, email, telefono, tipo, tipo_negocio, notas, asesor_comercial,
-            siesa_tipo_identificacion, siesa_dv, siesa_tipo_persona, siesa_regimen, siesa_responsabilidad_fiscal, siesa_ciiu)
-          VALUES ($1,$2,$3,$4,TRUE,$5,$6,$7,$8,$9,'real',$10,$11,$12,$13,$14,$15,$16,$17,$18) RETURNING id
-        `,[hub.tercero_id||l.numero_identificacion, l.numero_identificacion, l.raison_social, l.canal||'', l.direccion, l.ciudad, l.departamento, l.email, l.telefono, l.tipo_negocio, l.notas, l.asesor_comercial,
-           l.siesa_tipo_identificacion||'31', l.siesa_dv||null, l.siesa_tipo_persona||1, l.siesa_regimen||'48', l.siesa_responsabilidad_fiscal||'R-99-PN', l.siesa_ciiu||'4723']);
-        await client.query(`UPDATE crm.leads SET estado='convertido', cliente_convertido=TRUE, cliente_id=$1, fecha_conversion=NOW(), erp_tercero_id=$2, actualizado_en=NOW() WHERE id=$3`,[cli.rows[0].id, hub.tercero_id, id]);
+            siesa_tipo_identificacion, siesa_dv, siesa_tipo_persona, siesa_regimen, siesa_responsabilidad_fiscal, siesa_ciiu, origen)
+          VALUES ($1,$2,$3,$4,FALSE,$5,$6,$7,$8,$9,'real',$10,$11,$12,$13,$14,$15,$16,$17,$18,'lead') RETURNING id
+        `,[hub.tercero_id||l.numero_identificacion, String(l.numero_identificacion).replace(/\D/g,''), l.raison_social, l.canal||'', l.direccion, l.ciudad, l.departamento, l.email, l.telefono, l.tipo_negocio, `Lead ${l.raison_social} → prospecto. `+(l.notas||''), vendedorCreador,
+           l.siesa_tipo_identificacion||'31', l.siesa_dv||calcularDV(String(l.numero_identificacion).replace(/\D/g,'')), l.siesa_tipo_persona||1, l.siesa_regimen||'48', l.siesa_responsabilidad_fiscal||'R-99-PN', l.siesa_ciiu||'4723']);
+        await client.query(`UPDATE crm.leads SET estado='enviado_erp', cliente_id=$1, erp_tercero_id=$2, actualizado_en=NOW() WHERE id=$3`,[cli.rows[0].id, hub.tercero_id, id]);
         await client.query('COMMIT');
         await auditarEvento({ accion:'convertir', entidad:'lead', entidad_id:id, usuario_id:req.user.id, metadata:{ cliente_id:cli.rows[0].id, erp_tercero_id:hub.tercero_id, mock:hub.mock } });
         return res.json({ ok:true, cliente_id:cli.rows[0].id, erp_tercero_id:hub.tercero_id, mock:hub.mock, payload:hub.payload });
@@ -234,6 +271,23 @@ router.post('/:id/convertir', requirePermiso('crear_contacto', 'crm'), async (re
     console.error('[CRM] Error convertir lead:', err);
     res.status(500).json({ error: 'Error al procesar' });
   }
+});
+
+// PUT /api/leads/:id/activar — Contabilidad activa cliente prospecto (marca activo y convertido)
+router.put('/:id/activar', requirePermiso('configurar', 'crm'), async (req, res) => {
+  const client = await pool.connect();
+  try{
+    await client.query('BEGIN');
+    const lead = await client.query(`SELECT * FROM crm.leads WHERE id=$1`,[req.params.id]);
+    if(!lead.rows.length) return res.status(404).json({error:'Lead no encontrado'});
+    const l = lead.rows[0];
+    if(!l.cliente_id) return res.status(400).json({error:'Lead aún no tiene cliente prospecto (primero Enviar al ERP)'});
+    await client.query(`UPDATE crm.clientes SET activo=TRUE, actualizado_en=NOW() WHERE id=$1`,[l.cliente_id]);
+    await client.query(`UPDATE crm.leads SET estado='convertido', cliente_convertido=TRUE, fecha_conversion=NOW(), actualizado_en=NOW() WHERE id=$1`,[l.id]);
+    await client.query('COMMIT');
+    await auditarEvento({ accion:'activar', entidad:'lead', entidad_id:l.id, usuario_id:req.user.id, metadata:{ cliente_id:l.cliente_id } });
+    res.json({ ok:true, cliente_id:l.cliente_id });
+  }catch(err){ await client.query('ROLLBACK'); console.error('[CRM] Error activar lead', err); res.status(500).json({error:'Error al activar'}); } finally{ client.release(); }
 });
 
 // PUT /api/leads/:id/confirmar — Contabilidad confirma que tercero fue creado en ERP
