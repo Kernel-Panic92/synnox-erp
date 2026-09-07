@@ -99,41 +99,34 @@ app.get('/api/auth/me', protect, async (req, res) => {
 app.get('/api/dashboard', protect, async (req, res) => {
   try {
     const pool = (await import('./config/db.js')).default;
+    const { desde, hasta } = req.query;
+    const opFiltro = [];
+    const cliFiltro = [];
+    const params = [];
+    let pi = 1;
+    if (desde) { opFiltro.push(`o.creado_en >= $${pi}::date`); cliFiltro.push(`creado_en >= $${pi}::date`); params.push(desde); pi++; }
+    if (hasta) { opFiltro.push(`o.creado_en < $${pi}::date + INTERVAL '1 day'`); cliFiltro.push(`creado_en < $${pi}::date + INTERVAL '1 day'`); params.push(hasta); pi++; }
+    const opWhere = opFiltro.length ? `WHERE ${opFiltro.join(' AND ')}` : '';
+    const cliWhere = cliFiltro.length ? `WHERE ${cliFiltro.join(' AND ')} AND activo = TRUE` : 'WHERE activo = TRUE';
+    const opWhereVendedor = opFiltro.length ? `WHERE ${opFiltro.join(' AND ')} AND o.vendedor_id IS NOT NULL` : 'WHERE o.vendedor_id IS NOT NULL';
 
-    const [totalClientes, porTipo, contactosRecientes, clientesRecientes, totalOportunidades, oportunidadesAbiertas, montoPipeline, cotizacionesPendientes, descuentosPendientes] = await Promise.all([
-      pool.query(`SELECT COUNT(*) FROM crm.clientes WHERE activo = TRUE`),
-      pool.query(`SELECT tipo, COUNT(*) AS total FROM crm.clientes WHERE activo = TRUE GROUP BY tipo ORDER BY total DESC`),
-      pool.query(`SELECT COUNT(*) FROM crm.contactos WHERE activo = TRUE`),
-      pool.query(`SELECT id, nombre, tipo, ciudad, creado_en FROM crm.clientes WHERE activo = TRUE ORDER BY creado_en DESC LIMIT 10`),
-      pool.query(`SELECT COUNT(*) FROM crm.oportunidades`),
-      pool.query(`SELECT COUNT(*) FROM crm.oportunidades WHERE etapa NOT IN ('ganada', 'perdida')`),
-      pool.query(`SELECT COALESCE(SUM(monto_esperado), 0) AS total FROM crm.oportunidades WHERE etapa NOT IN ('ganada', 'perdida')`),
-      pool.query(`SELECT COUNT(*) FROM crm.cotizaciones WHERE estado IN ('borrador','enviada')`),
-      pool.query(`SELECT COUNT(*) FROM crm.descuentos_solicitud WHERE estado = 'pendiente'`)
-    ]);
-
-    const [funnelEtapas, rankingVendedores, tendenciaMensual, distribucionCiudades] = await Promise.all([
-      pool.query(`SELECT etapa, COUNT(*) as cantidad, COALESCE(SUM(monto_esperado),0) as monto FROM crm.oportunidades GROUP BY etapa ORDER BY CASE etapa WHEN 'lead' THEN 1 WHEN 'calificado' THEN 2 WHEN 'propuesta' THEN 3 WHEN 'negociacion' THEN 4 WHEN 'ganada' THEN 5 WHEN 'perdida' THEN 6 END`),
-      pool.query(`SELECT o.vendedor_id, COUNT(*) FILTER (WHERE o.etapa NOT IN ('ganada','perdida')) as ops_abiertas, COUNT(*) FILTER (WHERE o.etapa='ganada') as ops_ganadas, COALESCE(SUM(o.monto_esperado) FILTER (WHERE o.etapa='ganada'),0) as monto_ganado FROM crm.oportunidades o WHERE o.vendedor_id IS NOT NULL GROUP BY o.vendedor_id HAVING COUNT(*) > 0 ORDER BY monto_ganado DESC, ops_abiertas DESC LIMIT 10`),
-      pool.query(`SELECT TO_CHAR(o.creado_en,'YYYY-MM') as mes, COUNT(*) as cantidad, COALESCE(SUM(o.monto_esperado),0) as monto FROM crm.oportunidades o WHERE o.creado_en >= NOW() - INTERVAL '6 months' GROUP BY mes ORDER BY mes`),
-      pool.query(`SELECT COALESCE(ciudad,'Sin ciudad') as ciudad, COUNT(*) as cantidad FROM crm.clientes WHERE activo = TRUE GROUP BY ciudad ORDER BY cantidad DESC LIMIT 8`)
+    const [funnelEtapas, rankingVendedores, tendenciaMensual, distribucionCiudades, clientesRecientes] = await Promise.all([
+      pool.query(`SELECT etapa, COUNT(*) as cantidad, COALESCE(SUM(monto_esperado),0) as monto FROM crm.oportunidades o ${opWhere} GROUP BY etapa ORDER BY CASE etapa WHEN 'lead' THEN 1 WHEN 'calificado' THEN 2 WHEN 'propuesta' THEN 3 WHEN 'negociacion' THEN 4 WHEN 'ganada' THEN 5 WHEN 'perdida' THEN 6 END`, params),
+      pool.query(`SELECT o.vendedor_id, COUNT(*) FILTER (WHERE o.etapa NOT IN ('ganada','perdida')) as ops_abiertas, COUNT(*) FILTER (WHERE o.etapa='ganada') as ops_ganadas, COALESCE(SUM(o.monto_esperado) FILTER (WHERE o.etapa='ganada'),0) as monto_ganado FROM crm.oportunidades o ${opWhereVendedor} GROUP BY o.vendedor_id HAVING COUNT(*) > 0 ORDER BY monto_ganado DESC, ops_abiertas DESC LIMIT 10`, params),
+      pool.query(`SELECT TO_CHAR(o.creado_en,'YYYY-MM') as mes, COUNT(*) as cantidad, COALESCE(SUM(o.monto_esperado),0) as monto FROM crm.oportunidades o ${opWhere ? opWhere + ` AND o.creado_en >= NOW() - INTERVAL '6 months'` : `WHERE o.creado_en >= NOW() - INTERVAL '6 months'`} GROUP BY mes ORDER BY mes`, params),
+      pool.query(`SELECT COALESCE(ciudad,'Sin ciudad') as ciudad, COUNT(*) as cantidad FROM crm.clientes ${cliWhere} GROUP BY ciudad ORDER BY cantidad DESC LIMIT 8`, params),
+      pool.query(`SELECT id, nombre, tipo, ciudad, creado_en FROM crm.clientes ${cliWhere} ORDER BY creado_en DESC LIMIT 10`, params)
     ]);
 
     res.json({
       ok: true,
-      clientes_total: parseInt(totalClientes.rows[0].count),
-      clientes_por_tipo: porTipo.rows,
-      contactos_total: parseInt(contactosRecientes.rows[0].count),
       clientes_recientes: clientesRecientes.rows,
-      oportunidades_total: parseInt(totalOportunidades.rows[0].count),
-      oportunidades_abiertas: parseInt(oportunidadesAbiertas.rows[0].count),
-      monto_pipeline: parseFloat(montoPipeline.rows[0].total),
-      cotizaciones_pendientes: parseInt(cotizacionesPendientes.rows[0].count),
-      descuentos_pendientes: parseInt(descuentosPendientes.rows[0].count),
       funnel: funnelEtapas.rows,
       ranking_vendedores: rankingVendedores.rows,
       tendencia_mensual: tendenciaMensual.rows,
-      distribucion_ciudades: distribucionCiudades.rows
+      distribucion_ciudades: distribucionCiudades.rows,
+      desde: desde || null,
+      hasta: hasta || null
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

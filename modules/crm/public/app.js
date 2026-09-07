@@ -98,17 +98,16 @@ function navigate(page) {
 // ── Dashboard ──
 async function cargarDashboard() {
   try {
-    const r = await apiFetch('/dashboard');
+    const desde = document.getElementById('dash-desde')?.value || '';
+    const hasta = document.getElementById('dash-hasta')?.value || '';
+    const qs = new URLSearchParams();
+    if (desde) qs.set('desde', desde);
+    if (hasta) qs.set('hasta', hasta);
+    const q = qs.toString() ? '?' + qs.toString() : '';
+    const r = await apiFetch('/dashboard' + q);
     if (!r.ok) return;
     const d = r.data;
     if (!_pipelineVendedorCache.length) cargarVendedoresPipelineFilter();
-    document.getElementById('stats-row').innerHTML = `
-      <div class="stat-card"><div class="stat-value">${d.clientes_total || 0}</div><div class="stat-label">Clientes</div></div>
-      <div class="stat-card"><div class="stat-value">${d.oportunidades_abiertas || 0}</div><div class="stat-label">Oportunidades</div></div>
-      <div class="stat-card"><div class="stat-value">$${formatMoney(d.monto_pipeline || 0)}</div><div class="stat-label">Pipeline</div></div>
-      <div class="stat-card"><div class="stat-value">${d.cotizaciones_pendientes || 0}</div><div class="stat-label">Cotiz. pendientes</div></div>
-      <div class="stat-card"><div class="stat-value">${d.descuentos_pendientes || 0}</div><div class="stat-label">Desc. pendientes</div></div>
-    `;
     const recientes = d.clientes_recientes || [];
     if (recientes.length) {
       document.getElementById('clientes-recientes').innerHTML = `
@@ -124,6 +123,28 @@ async function cargarDashboard() {
     renderGraficoSVG(d.tendencia_mensual || [], 'widget-tendencia');
     renderDistribucionCiudades(d.distribucion_ciudades || [], 'widget-ciudades');
   } catch (err) { console.error('Dashboard error:', err); }
+}
+
+function dashMesActual() {
+  const ahora = new Date();
+  const desde = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+  const hasta = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0);
+  document.getElementById('dash-desde').value = desde.toISOString().slice(0, 10);
+  document.getElementById('dash-hasta').value = hasta.toISOString().slice(0, 10);
+  cargarDashboard();
+}
+function dashMesAnterior() {
+  const ahora = new Date();
+  const desde = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
+  const hasta = new Date(ahora.getFullYear(), ahora.getMonth(), 0);
+  document.getElementById('dash-desde').value = desde.toISOString().slice(0, 10);
+  document.getElementById('dash-hasta').value = hasta.toISOString().slice(0, 10);
+  cargarDashboard();
+}
+function limpiarFiltrosDash() {
+  document.getElementById('dash-desde').value = '';
+  document.getElementById('dash-hasta').value = '';
+  cargarDashboard();
 }
 
 // ── Dashboard widgets ──

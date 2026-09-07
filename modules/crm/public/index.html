@@ -167,13 +167,21 @@
       <!-- Dashboard -->
 <div class="page active" id="page-dashboard">
   <div class="stats-row" id="stats-row"></div>
-  <div id="clientes-recientes"></div>
+  <div class="filters" id="dash-filtros" style="gap:8px;margin-bottom:16px">
+    <label style="font-size:12px;font-weight:600;color:var(--muted)">Periodo:</label>
+    <input type="date" id="dash-desde" onchange="cargarDashboard()" title="Desde">
+    <input type="date" id="dash-hasta" onchange="cargarDashboard()" title="Hasta">
+    <button class="btn btn-sm btn-secondary" onclick="dashMesActual()" title="Mes actual">Mes actual</button>
+    <button class="btn btn-sm btn-secondary" onclick="dashMesAnterior()" title="Mes anterior">Mes anterior</button>
+    <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosDash()">✕ Limpiar</button>
+  </div>
   <div class="dash-grid">
     <div class="dash-widget" id="widget-funnel"></div>
     <div class="dash-widget" id="widget-vendedores"></div>
     <div class="dash-widget" id="widget-tendencia"></div>
     <div class="dash-widget" id="widget-ciudades"></div>
   </div>
+  <div id="clientes-recientes" style="margin-top:16px"></div>
 </div>
 
       <!-- Leads -->
