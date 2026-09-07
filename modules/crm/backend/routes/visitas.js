@@ -72,7 +72,7 @@ async function guardarVisita({ tipo, cliente_id, contacto_id, oportunidad_id, ve
   return result.rows[0];
 }
 
-// POST /api/actividades — Crear actividad (con GPS auto si Reunión en Proceso/Realizada + foto)
+// POST /api/actividades — Crear actividad (con GPS auto si Reunión/Visita en Proceso/Realizada + foto)
 router.post('/actividades', requirePermiso('registrar_visita', 'crm'), upload.single('foto'), async (req, res) => {
   try {
     const { cliente_id, contacto_id, asunto, lugar, tipo_actividad, descripcion, fecha_inicio, fecha_fin, estado, recordatorio, latitud, longitud, precision_gps } = req.body;

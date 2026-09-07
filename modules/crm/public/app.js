@@ -2235,9 +2235,9 @@ function actualizarActGPSGroup() {
   const group = document.getElementById('act-gps-group');
   if (!group) return;
   group.style.display = '';
-  const necesita = tipo === 'reunion' && (estado === 'en_proceso' || estado === 'realizada');
+  const necesita = ['reunion', 'visita'].includes(tipo) && (estado === 'en_proceso' || estado === 'realizada');
   const hint = document.querySelector('#act-gps-group label small');
-  if (hint) hint.textContent = necesita ? '— auto al guardar (Reunión)' : '— se capturará al pasar a En Proceso / Realizada (solo Reunión)';
+  if (hint) hint.textContent = necesita ? '— auto al guardar (Reunión/Visita)' : '— se capturará al pasar a En Proceso / Realizada (solo Reunión/Visita)';
   setTimeout(() => {
     const mapEl = document.getElementById('act-map');
     if (mapEl && !mapEl._leaflet_id) {
@@ -2353,7 +2353,7 @@ async function guardarActividad() {
   if (fechaInicioVal && fechaFinVal && new Date(fechaFinVal) < new Date(fechaInicioVal)) return toast('Fecha fin no puede ser anterior a inicio', 'error');
 
   const btn = document.getElementById('btn-guardar-actividad');
-  const necesitaGPS = tipo === 'reunion' && (estado === 'en_proceso' || estado === 'realizada');
+  const necesitaGPS = ['reunion', 'visita'].includes(tipo) && (estado === 'en_proceso' || estado === 'realizada');
   if (necesitaGPS) {
     const coordsEl = document.getElementById('act-coords');
     if (!coordsEl.dataset.lat) {
