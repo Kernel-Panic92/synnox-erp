@@ -1243,7 +1243,7 @@ function limpiarFiltrosLeads() {
 }
 
 let _leadProductos=[], _leadProdTimer=null;
-function abrirModalLead(lead = null) {
+async function abrirModalLead(lead = null) {
   document.getElementById('modal-lead-title').textContent = lead ? 'Editar Lead' : 'Nuevo Lead';
   document.getElementById('lead-id').value = lead?.id || '';
   document.getElementById('lead-razon-social').value = lead?.raison_social || '';
