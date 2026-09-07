@@ -1324,36 +1324,47 @@ async function abrirModalLead(lead = null) {
   showModal('modal-lead');
 }
 let _leadDireccionTimer=null;
+let _placesDD=null;
+function _posicionarPlacesDD(input){
+  if(!_placesDD) return;
+  const r=input.getBoundingClientRect();
+  _placesDD.style.left=r.left+'px';
+  _placesDD.style.top=(r.bottom+2)+'px';
+  _placesDD.style.width=r.width+'px';
+}
 async function initLeadGooglePlaces(){ /* proxy-based, no gmaps js */ }
 async function _initLeadPlacesAutocomplete(){
   const input=document.getElementById('lead-direccion');
   if(!input || input.dataset.placesBound==='1') return;
   input.dataset.placesBound='1';
   input.setAttribute('autocomplete','off');
-  let dd=document.getElementById('lead-direccion-dropdown');
-  if(!dd){
-    dd=document.createElement('div');
-    dd.id='lead-direccion-dropdown';
-    dd.style.cssText='display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:30;max-height:200px;overflow:auto;box-shadow:0 8px 20px rgba(0,0,0,.2)';
-    input.parentElement.style.position='relative';
-    input.parentElement.appendChild(dd);
-    document.addEventListener('click',(e)=>{ if(!input.parentElement.contains(e.target)) dd.style.display='none'; });
+  if(!_placesDD){
+    _placesDD=document.createElement('div');
+    _placesDD.id='lead-direccion-dropdown';
+    _placesDD.style.cssText='display:none;position:fixed;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:8px;max-height:200px;overflow:auto;box-shadow:0 8px 20px rgba(0,0,0,.25)';
+    document.body.appendChild(_placesDD);
+    document.addEventListener('click',(e)=>{
+      if(!input.parentElement.contains(e.target) && !_placesDD.contains(e.target)) _placesDD.style.display='none';
+    });
+    const modalContent=input.closest('.modal');
+    if(modalContent) modalContent.addEventListener('scroll',()=>{ if(_placesDD.style.display==='block') _posicionarPlacesDD(input); });
   }
   input.addEventListener('input', ()=>{
     const q=input.value.trim();
-    if(q.length<4){ dd.style.display='none'; return; }
+    if(q.length<4){ _placesDD.style.display='none'; return; }
     clearTimeout(_leadDireccionTimer);
     _leadDireccionTimer=setTimeout(async()=>{
       try{
         const r=await apiFetch('/places/autocomplete?input='+encodeURIComponent(q));
-        if(!r.ok || !r.data.predictions?.length){ dd.style.display='none'; return; }
-        dd.innerHTML=r.data.predictions.map(p=> `<div style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px" data-place-id="${p.place_id}">${esc(p.description)}</div>`).join('');
-        dd.style.display='block';
-        for(const el of dd.children){
+        if(!r.ok || !r.data.predictions?.length){ _placesDD.style.display='none'; return; }
+        _placesDD.innerHTML=r.data.predictions.map(p=> `<div style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px" data-place-id="${p.place_id}">${esc(p.description)}</div>`).join('');
+        _posicionarPlacesDD(input);
+        _placesDD.style.display='block';
+        for(const el of _placesDD.children){
           el.addEventListener('click', async()=>{
             const pid=el.dataset.placeId;
             const desc=el.textContent;
-            input.value=desc; dd.style.display='none';
+            input.value=desc; _placesDD.style.display='none';
             try{
               const dr=await apiFetch('/places/details?place_id='+encodeURIComponent(pid));
               if(dr.ok && dr.data.result){
