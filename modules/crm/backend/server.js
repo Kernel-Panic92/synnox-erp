@@ -114,22 +114,10 @@ app.get('/api/dashboard', protect, async (req, res) => {
 
     const [funnelEtapas, rankingVendedores, tendenciaMensual, distribucionCiudades] = await Promise.all([
       pool.query(`SELECT etapa, COUNT(*) as cantidad, COALESCE(SUM(monto_esperado),0) as monto FROM crm.oportunidades GROUP BY etapa ORDER BY CASE etapa WHEN 'lead' THEN 1 WHEN 'calificado' THEN 2 WHEN 'propuesta' THEN 3 WHEN 'negociacion' THEN 4 WHEN 'ganada' THEN 5 WHEN 'perdida' THEN 6 END`),
-      pool.query(`SELECT o.vendedor_id, COUNT(*) FILTER (WHERE o.etapa NOT IN ('ganada','perdida')) as ops_abiertas, COUNT(*) FILTER (WHERE o.etapa='ganada') as ops_ganadas, COALESCE(SUM(o.monto_esperado) FILTER (WHERE o.etapa='ganada'),0) as monto_ganado, COALESCE(SUM(o.monto_esperado) FILTER (WHERE o.etapa NOT IN ('ganada','perdida')),0) as monto_pipeline FROM crm.oportunidades o WHERE o.vendedor_id IS NOT NULL GROUP BY o.vendedor_id HAVING COUNT(*) > 0 ORDER BY monto_ganado DESC, ops_abiertas DESC LIMIT 10`),
+      pool.query(`SELECT o.vendedor_id, COUNT(*) FILTER (WHERE o.etapa NOT IN ('ganada','perdida')) as ops_abiertas, COUNT(*) FILTER (WHERE o.etapa='ganada') as ops_ganadas, COALESCE(SUM(o.monto_esperado) FILTER (WHERE o.etapa='ganada'),0) as monto_ganado FROM crm.oportunidades o WHERE o.vendedor_id IS NOT NULL GROUP BY o.vendedor_id HAVING COUNT(*) > 0 ORDER BY monto_ganado DESC, ops_abiertas DESC LIMIT 10`),
       pool.query(`SELECT TO_CHAR(o.creado_en,'YYYY-MM') as mes, COUNT(*) as cantidad, COALESCE(SUM(o.monto_esperado),0) as monto FROM crm.oportunidades o WHERE o.creado_en >= NOW() - INTERVAL '6 months' GROUP BY mes ORDER BY mes`),
       pool.query(`SELECT COALESCE(ciudad,'Sin ciudad') as ciudad, COUNT(*) as cantidad FROM crm.clientes WHERE activo = TRUE GROUP BY ciudad ORDER BY cantidad DESC LIMIT 8`)
     ]);
-
-    // Resolve vendedor names
-    const Database = (await import('better-sqlite3')).default;
-    const pathMod = (await import('path')).default;
-    const { fileURLToPath } = await import('url');
-    const __dirname = pathMod.dirname(fileURLToPath(import.meta.url));
-    const ldb = new Database(pathMod.join(__dirname, '..', '..', '..', '..', 'launcher', 'launcher.db'), { readonly: true });
-    const ranking = rankingVendedores.rows.map(r => {
-      const u = ldb.prepare('SELECT nombre FROM usuarios WHERE id=?').get(r.vendedor_id);
-      return { ...r, nombre: u?.nombre || 'Usuario ' + r.vendedor_id };
-    });
-    ldb.close();
 
     res.json({
       ok: true,
@@ -143,7 +131,7 @@ app.get('/api/dashboard', protect, async (req, res) => {
       cotizaciones_pendientes: parseInt(cotizacionesPendientes.rows[0].count),
       descuentos_pendientes: parseInt(descuentosPendientes.rows[0].count),
       funnel: funnelEtapas.rows,
-      ranking_vendedores: ranking,
+      ranking_vendedores: rankingVendedores.rows,
       tendencia_mensual: tendenciaMensual.rows,
       distribucion_ciudades: distribucionCiudades.rows
     });

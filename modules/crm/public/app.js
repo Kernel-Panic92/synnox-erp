@@ -101,6 +101,7 @@ async function cargarDashboard() {
     const r = await apiFetch('/dashboard');
     if (!r.ok) return;
     const d = r.data;
+    if (!_pipelineVendedorCache.length) cargarVendedoresPipelineFilter();
     document.getElementById('stats-row').innerHTML = `
       <div class="stat-card"><div class="stat-value">${d.clientes_total || 0}</div><div class="stat-label">Clientes</div></div>
       <div class="stat-card"><div class="stat-value">${d.oportunidades_abiertas || 0}</div><div class="stat-label">Oportunidades</div></div>
@@ -148,11 +149,16 @@ function renderFunnelChart(data, containerId) {
 function renderTablaVendedores(vendedores, containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
+  const nombreVendedor = (id) => {
+    const cached = _pipelineVendedorCache.find(u => String(u.id) === String(id));
+    if (cached?.nombre) return cached.nombre;
+    return 'ID ' + id;
+  };
   const filas = vendedores.map(v => {
     const ganado = Number(v.monto_ganado) || 0;
     return `
       <tr>
-        <td style="padding:8px;font-weight:600">${esc(v.nombre)}</td>
+        <td style="padding:8px;font-weight:600">${esc(nombreVendedor(v.vendedor_id))}</td>
         <td style="padding:8px;text-align:center">${v.ops_abiertas}</td>
         <td style="padding:8px;text-align:right;font-weight:600;color:var(--accent)">$${formatMoney(ganado)}</td>
       </tr>`;
