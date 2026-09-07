@@ -53,11 +53,15 @@
 @media(max-width:768px){
   .stats-row{grid-template-columns:repeat(2,1fr)}
   .form-row{grid-template-columns:1fr}
-  .kanban{flex-direction:column;min-height:auto}
-  .kanban-col{min-width:100%}
+  .kanban{min-height:auto}
 }
-.kanban{display:flex;gap:16px;overflow-x:auto;padding-bottom:16px;min-height:400px}
-.kanban-col{min-width:260px;flex:1;background:var(--surface2);border-radius:12px;padding:14px;border:1px solid var(--border)}
+.kanban{display:flex;gap:12px;overflow-x:auto;overflow-y:hidden;padding-bottom:12px;min-height:400px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+.kanban::-webkit-scrollbar{height:6px}
+.kanban::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px}
+.kanban-col{flex:1 1 0;min-width:180px;max-width:280px;background:var(--surface2);border-radius:12px;padding:12px;border:1px solid var(--border);display:flex;flex-direction:column}
+@media(max-width:1920px){.kanban-col{max-width:none}}
+@media(max-width:1400px){.kanban-col{min-width:160px;padding:10px}}
+@media(max-width:1100px){.kanban-col{min-width:150px}}
 .kanban-col.drag-over{background:rgba(0,168,107,.06);border-color:var(--accent)}
 .kanban-col h4{padding:6px 0;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center;color:var(--muted);margin:0 0 10px}
 .kanban-col h4 .count{font-size:11px;background:var(--surface);padding:2px 8px;border-radius:10px;border:1px solid var(--border)}
@@ -836,9 +840,8 @@
     </div>
     <div class="form-group">
       <label>Cliente * <small style="font-weight:400;color:var(--muted)">— busca por NIT o nombre</small></label>
-      <input type="text" id="act-cliente-search" placeholder="Buscar por NIT o nombre..." autocomplete="off" oninput="filtrarActClientes(this.value)">
+      <input type="text" id="act-cliente-search" placeholder="Buscar por NIT o nombre..." autocomplete="off">
       <select id="act-cliente" size="5" style="width:100%;margin-top:6px;display:none;max-height:140px"></select>
-      <div id="act-cliente-selected" style="margin-top:6px;font-size:13px;color:var(--accent);display:none"></div>
     </div>
     <div class="form-group">
       <label>Lugar</label>
@@ -1045,6 +1048,26 @@
       <div class="form-group"><label>Responsabilidad fiscal</label><input type="text" id="lead-siesa-resp" placeholder="R-99-PN" value="R-99-PN"></div>
     </div>
     <div class="form-group"><label>CIIU (4 dígitos)</label><input type="text" id="lead-siesa-ciiu" placeholder="4723" value="4723"></div>
+    <!-- Adjuntos Lead — RUT, cert bancario, cámara, etc. (20MB, max 10) -->
+    <div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:12px;background:var(--surface2)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong style="font-size:13px">📎 Adjuntos <small style="font-weight:400;color:var(--muted)">— RUT, cert. bancario, cámara (20MB, max 10)</small></strong>
+        <span id="lead-adjuntos-count" style="font-size:11px;color:var(--muted)"></span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+        <select id="lead-adjunto-tipo" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px">
+          <option value="rut">RUT</option>
+          <option value="cert_bancario">Cert. bancario</option>
+          <option value="camara_comercio">Cámara comercio</option>
+          <option value="cedula">Cédula</option>
+          <option value="otro" selected>Otro</option>
+        </select>
+        <input type="file" id="lead-adjunto-input" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.xlsx,.xls,.docx,.doc,.csv" style="flex:1;min-width:180px;font-size:12px">
+        <button class="btn btn-sm btn-secondary" onclick="subirLeadAdjuntos()">Subir</button>
+      </div>
+      <div id="lead-adjuntos-drop" style="border:1.5px dashed var(--border);border-radius:8px;padding:16px;text-align:center;color:var(--muted);font-size:12px;margin-bottom:8px;background:var(--surface)" ondragenter="event.preventDefault();this.style.borderColor='var(--accent)'" ondragover="event.preventDefault();this.style.borderColor='var(--accent)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="onLeadAdjuntosDrop(event)">Arrastra archivos aquí o usa el selector</div>
+      <div id="lead-adjuntos-lista" style="max-height:220px;overflow-y:auto"></div>
+    </div>
     <div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:12px;background:var(--surface2)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
         <strong style="font-size:13px">Productos de interés</strong>
@@ -1495,7 +1518,7 @@
   </div>
 </div>
 
-<script src="theme.js"></script>
-<script src="app.js"></script>
+<script src="theme.js?v=20260907g"></script>
+<script src="app.js?v=20260907g"></script>
 </body>
 </html>

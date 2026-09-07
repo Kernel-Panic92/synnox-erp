@@ -1320,7 +1320,151 @@ async function abrirModalLead(lead = null) {
   document.getElementById('buscar-lead-producto').value='';
   document.getElementById('lead-producto-resultados').innerHTML='<p style="color:var(--muted);font-size:12px">Busca un producto del maestro.</p>';
   renderLeadProductos();
+  // Adjuntos (RUT, cert, etc.) — permite pendientes antes de guardar
+  _leadAdjuntosPendientes=[];
+  const _adjInput = document.getElementById('lead-adjunto-input');
+  if(_adjInput){ _adjInput.value=''; _adjInput.disabled=false; }
+  const _adjDrop = document.getElementById('lead-adjuntos-drop');
+  if(_adjDrop) _adjDrop.style.opacity='1';
+  if(lead?.id){ cargarLeadAdjuntos(lead.id); } else {
+    _leadAdjuntosCache=[];
+    renderLeadAdjuntos();
+    document.getElementById('lead-adjuntos-lista').innerHTML='<p style="color:var(--muted);font-size:12px">Puedes adjuntar archivos antes de guardar — se subirán al crear el lead (RUT, cert. bancario, cámara, 20MB c/u, máx 10).</p><div id="lead-adjuntos-pendientes"></div>';
+  }
   showModal('modal-lead');
+}
+let _leadAdjuntosCache=[];
+let _leadAdjuntosPendientes=[];
+async function cargarLeadAdjuntos(leadId){
+  const lista=document.getElementById('lead-adjuntos-lista');
+  const cnt=document.getElementById('lead-adjuntos-count');
+  if(!lista) return;
+  lista.innerHTML='<p style="color:var(--muted);font-size:12px">Cargando adjuntos...</p>';
+  try{
+    const r=await apiFetch('/leads/'+leadId+'/adjuntos');
+    if(!r.ok){ lista.innerHTML=`<p style="color:var(--danger);font-size:12px">${esc(r.data?.error||'Error al cargar')}</p>`; return; }
+    _leadAdjuntosCache=r.data.data||[];
+    renderLeadAdjuntos();
+  }catch(e){ lista.innerHTML=`<p style="color:var(--danger);font-size:12px">${esc(e.message)}</p>`; }
+}
+function renderLeadAdjuntos(){
+  const lista=document.getElementById('lead-adjuntos-lista');
+  const cnt=document.getElementById('lead-adjuntos-count');
+  if(!lista) return;
+  const total = _leadAdjuntosCache.length + _leadAdjuntosPendientes.length;
+  if(cnt) cnt.textContent = total + '/10' + (_leadAdjuntosPendientes.length ? ` (${_leadAdjuntosPendientes.length} pendientes)` : '');
+  if(!total){
+    lista.innerHTML='<p style="color:var(--muted);font-size:12px">Sin adjuntos. Sube RUT, cert. bancario, cámara o cédula (20MB c/u, máx 10). Arrastrar o seleccionar — si es lead nuevo se guardarán al crear.</p>';
+    return;
+  }
+  const pendientesHtml = _leadAdjuntosPendientes.map((p,i)=>{
+    const kb=(p.file.size/1024).toFixed(0);
+    const tipoLabel={rut:'RUT',cert_bancario:'Cert. bancario',camara_comercio:'Cámara',cedula:'Cédula',otro:'Otro'}[p.tipo]||p.tipo;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px dashed var(--warning);border-radius:8px;margin-bottom:6px;background:rgba(247,212,79,.08)">
+      <span style="font-size:18px">⏳</span>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(p.file.name)}">${esc(p.file.name)} <small style="color:var(--warning)">· pendiente</small></div><div style="font-size:11px;color:var(--muted)">${tipoLabel} · ${kb} KB · se subirá al guardar</div></div>
+      <button class="btn btn-sm btn-danger btn-action" onclick="quitarLeadAdjuntoPendiente(${i})" title="Quitar pendiente">✕</button>
+    </div>`;
+  }).join('');
+  const guardadosHtml = _leadAdjuntosCache.map(a=>{
+    const icon=a.mime?.includes('pdf')?'📄':a.mime?.includes('image')?'🖼️':a.mime?.includes('sheet')?'📊':'📎';
+    const kb=(a.size/1024).toFixed(0);
+    const tipoLabel={rut:'RUT',cert_bancario:'Cert. bancario',camara_comercio:'Cámara',cedula:'Cédula',otro:'Otro'}[a.tipo]||a.tipo;
+    return `<div style="display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;background:var(--surface)">
+      <span style="font-size:18px">${icon}</span>
+      <div style="flex:1;min-width:0"><div style="font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(a.nombre_original)}">${esc(a.nombre_original)}</div><div style="font-size:11px;color:var(--muted)">${tipoLabel} · ${kb} KB · ${formatDate(a.creado_en)}</div></div>
+      <button class="btn btn-sm btn-secondary btn-action" onclick="descargarLeadAdjunto('${a.id}')" title="Descargar" aria-label="Descargar ${esc(a.nombre_original)}">📥</button>
+      <button class="btn btn-sm btn-danger btn-action" onclick="eliminarLeadAdjunto('${a.id}')" title="Eliminar" aria-label="Eliminar ${esc(a.nombre_original)}">🗑️</button>
+    </div>`;
+  }).join('');
+  lista.innerHTML = pendientesHtml + guardadosHtml;
+}
+function quitarLeadAdjuntoPendiente(idx){
+  _leadAdjuntosPendientes.splice(idx,1);
+  renderLeadAdjuntos();
+}
+function agregarAdjuntosPendientes(files, tipo){
+  const total = _leadAdjuntosCache.length + _leadAdjuntosPendientes.length + files.length;
+  if(total > 10) { toast(`Máximo 10 archivos (llevarías ${total})`,'error'); return false; }
+  for(const f of files){ if(f.size>20*1024*1024){ toast(`${f.name} supera 20MB`,'error'); return false; } }
+  for(const f of files) _leadAdjuntosPendientes.push({ file:f, tipo });
+  renderLeadAdjuntos();
+  return true;
+}
+async function subirLeadAdjuntos(){
+  const leadId=document.getElementById('lead-id')?.value;
+  const input=document.getElementById('lead-adjunto-input');
+  const tipo=document.getElementById('lead-adjunto-tipo')?.value||'otro';
+  const files=input?.files;
+  if(!files||!files.length) return toast('Selecciona al menos un archivo','warning');
+  // Si es lead nuevo, guarda como pendientes y no sube aún
+  if(!leadId){
+    if(agregarAdjuntosPendientes([...files], tipo)){
+      input.value='';
+      toast(`${files.length} archivo(s) en espera — se subirán al guardar el lead`,'info');
+    }
+    return;
+  }
+  if(_leadAdjuntosCache.length + files.length > 10) return toast(`Máximo 10 archivos (ya tienes ${_leadAdjuntosCache.length})`,'error');
+  for(const f of files){ if(f.size>20*1024*1024) return toast(`${f.name} supera 20MB`,'error'); }
+  const fd=new FormData();
+  for(const f of files) fd.append('archivos', f);
+  fd.append('tipo', tipo);
+  const btn=document.querySelector('button[onclick="subirLeadAdjuntos()"]');
+  if(btn){ btn.disabled=true; btn.textContent='Subiendo...'; }
+  try{
+    const r=await fetch(HF.API+'/leads/'+leadId+'/adjuntos',{ method:'POST', credentials:'include', body: fd });
+    const j=await r.json().catch(()=>({}));
+    if(!r.ok) return toast(j.error||'Error al subir','error');
+    toast(`${j.data.length} archivo(s) subido(s)`, 'success');
+    input.value='';
+    await cargarLeadAdjuntos(leadId);
+  }catch(e){ toast(e.message,'error'); }
+  finally{ if(btn){ btn.disabled=false; btn.textContent='Subir'; } }
+}
+function onLeadAdjuntosDrop(e){
+  e.preventDefault(); e.currentTarget.style.borderColor='var(--border)';
+  const files=e.dataTransfer?.files;
+  if(!files?.length) return;
+  const tipo=document.getElementById('lead-adjunto-tipo')?.value||'otro';
+  const leadId=document.getElementById('lead-id')?.value;
+  if(!leadId){
+    if(agregarAdjuntosPendientes([...files], tipo)) toast(`${files.length} archivo(s) en espera`,'info');
+    return;
+  }
+  const input=document.getElementById('lead-adjunto-input');
+  const dt=new DataTransfer();
+  for(const f of files) dt.items.add(f);
+  input.files=dt.files;
+  subirLeadAdjuntos();
+}
+async function eliminarLeadAdjunto(adjId){
+  const leadId=document.getElementById('lead-id')?.value;
+  if(!leadId||!adjId) return;
+  confirmar({ titulo:'Eliminar adjunto', mensaje:'¿Eliminar este archivo?', icono:'🗑️', onConfirm: async()=>{
+    const r=await apiFetch('/leads/'+leadId+'/adjuntos/'+adjId,{ method:'DELETE' });
+    if(!r.ok) return toast(r.data?.error||'Error al eliminar','error');
+    toast('Adjunto eliminado','success');
+    await cargarLeadAdjuntos(leadId);
+  }});
+}
+async function descargarLeadAdjunto(adjId){
+  const leadId=document.getElementById('lead-id')?.value;
+  if(!leadId) return;
+  // descarga autenticada via fetch blob
+  try{
+    const r=await fetch(HF.API+'/leads/'+leadId+'/adjuntos/'+adjId+'/descargar',{ credentials:'include' });
+    if(!r.ok){ const j=await r.json().catch(()=>({})); return toast(j.error||'Error al descargar','error'); }
+    const blob=await r.blob();
+    const cd=r.headers.get('Content-Disposition')||'';
+    let filename='archivo';
+    const m=cd.match(/filename="?([^"]+)"?/); if(m) filename=m[1];
+    // fallback al nombre original del cache
+    const cached=_leadAdjuntosCache.find(x=>String(x.id)===String(adjId));
+    if(cached) filename=cached.nombre_original;
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a'); a.href=url; a.download=filename; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+  }catch(e){ toast(e.message,'error'); }
 }
 let _leadDireccionTimer=null;
 let _placesDD=null;
@@ -1334,38 +1478,61 @@ function _posicionarPlacesDD(input){
 async function initLeadGooglePlaces(){ /* proxy-based, no gmaps js */ }
 async function _initLeadPlacesAutocomplete(){
   const input=document.getElementById('lead-direccion');
-  if(!input || input.dataset.placesBound==='1') return;
+  if(!input) return;
+  // Siempre recrea el dropdown si existía uno viejo con z-index bajo (cache del navegador)
+  const old=document.getElementById('lead-direccion-dropdown');
+  if(old && old.style.zIndex!=='10000') { old.remove(); _placesDD=null; }
+  if(input.dataset.placesBound==='1' && _placesDD) return;
   input.dataset.placesBound='1';
   input.setAttribute('autocomplete','off');
   if(!_placesDD){
     _placesDD=document.createElement('div');
     _placesDD.id='lead-direccion-dropdown';
-    _placesDD.style.cssText='display:none;position:fixed;z-index:300;background:var(--surface);border:1px solid var(--border);border-radius:8px;max-height:200px;overflow:auto;box-shadow:0 8px 20px rgba(0,0,0,.25)';
+    _placesDD.style.cssText='display:none;position:fixed;z-index:10000;background:var(--surface);color:var(--text);border:1px solid var(--border);border-radius:8px;max-height:240px;overflow:auto;box-shadow:0 12px 32px rgba(0,0,0,.30)';
     document.body.appendChild(_placesDD);
     document.addEventListener('click',(e)=>{
       if(!input.parentElement.contains(e.target) && !_placesDD.contains(e.target)) _placesDD.style.display='none';
     });
     const modalContent=input.closest('.modal');
     if(modalContent) modalContent.addEventListener('scroll',()=>{ if(_placesDD.style.display==='block') _posicionarPlacesDD(input); });
+    window.addEventListener('scroll',()=>{ if(_placesDD.style.display==='block') _posicionarPlacesDD(input); }, true);
+    window.addEventListener('resize',()=>{ if(_placesDD.style.display==='block') _posicionarPlacesDD(input); });
   }
+  // helper para debug desde consola: window.testPlaces('Calle 10')
+  window.testPlaces = async (qq)=>{
+    console.log('[places] testPlaces', qq, 'HF.API', (typeof HF!=='undefined'?HF.API:'HF no definido'));
+    const r=await apiFetch('/places/autocomplete?input='+encodeURIComponent(qq||'Calle 10 Medellin'));
+    console.log('[places] testPlaces result', r);
+    if(r.ok && r.data?.predictions) alert('Predictions: '+r.data.predictions.length+' - '+r.data.predictions[0]?.description);
+    else alert('Error: '+JSON.stringify(r.data));
+    return r;
+  };
   input.addEventListener('input', ()=>{
     const q=input.value.trim();
-    if(q.length<4){ _placesDD.style.display='none'; return; }
+    console.log('[places] input', q, 'len', q.length);
+    if(q.length<3){ _placesDD.style.display='none'; return; }
     clearTimeout(_leadDireccionTimer);
     _leadDireccionTimer=setTimeout(async()=>{
+      console.log('[places] fetching', q, 'via', HF.API+'/places/autocomplete');
       try{
         const r=await apiFetch('/places/autocomplete?input='+encodeURIComponent(q));
-        if(!r.ok || !r.data.predictions?.length){ _placesDD.style.display='none'; return; }
-        _placesDD.innerHTML=r.data.predictions.map(p=> `<div style="padding:8px 10px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px" data-place-id="${p.place_id}">${esc(p.description)}</div>`).join('');
+        console.log('[places] response', r);
+        if(r.data?.warning){ console.warn('[places] warning', r.data.warning); _placesDD.innerHTML=`<div style="padding:10px;color:var(--warning);font-size:12px">⚠️ ${esc(r.data.warning)}</div>`; _posicionarPlacesDD(input); _placesDD.style.display='block'; return; }
+        if(!r.ok){ _placesDD.innerHTML=`<div style="padding:10px;color:var(--danger);font-size:12px">❌ ${esc(r.data?.error||'Error') } (status ${r.status})</div>`; _posicionarPlacesDD(input); _placesDD.style.display='block'; console.warn('[places] autocomplete no ok', r.data); return; }
+        if(!r.data.predictions?.length){ _placesDD.innerHTML=`<div style="padding:10px;color:var(--muted);font-size:12px">Sin resultados para "${esc(q)}"</div>`; _posicionarPlacesDD(input); _placesDD.style.display='block'; setTimeout(()=>_placesDD.style.display='none', 2000); return; }
+        _placesDD.innerHTML=r.data.predictions.map(p=> `<div style="padding:10px 12px;cursor:pointer;border-bottom:1px solid var(--border);font-size:13px" data-place-id="${p.place_id}" onmouseenter="this.style.background='var(--surface2)'" onmouseleave="this.style.background='transparent'">${esc(p.description)}</div>`).join('');
         _posicionarPlacesDD(input);
         _placesDD.style.display='block';
+        console.log('[places] dropdown visible', r.data.predictions.length, _placesDD.getBoundingClientRect());
         for(const el of _placesDD.children){
           el.addEventListener('click', async()=>{
             const pid=el.dataset.placeId;
             const desc=el.textContent;
             input.value=desc; _placesDD.style.display='none';
+            console.log('[places] selected', pid, desc);
             try{
               const dr=await apiFetch('/places/details?place_id='+encodeURIComponent(pid));
+              console.log('[places] details', dr);
               if(dr.ok && dr.data.result){
                 const place=dr.data.result;
                 const comps=place.address_components||[];
@@ -1375,7 +1542,26 @@ async function _initLeadPlacesAutocomplete(){
                   else if(c.types.includes('administrative_area_level_1')) depto=c.long_name;
                   else if(!ciudad && c.types.includes('administrative_area_level_2')) ciudad=c.long_name;
                 }
-                if(place.formatted_address) input.value=place.formatted_address;
+                if(place.formatted_address){
+                  // Limpia ciudad/depto/país del string (SIESA 80 chars, evita redundancia)
+                  const _parts=place.formatted_address.split(',').map(p=>p.trim()).filter(Boolean);
+                  let _clean=place.formatted_address;
+                  if(_parts.length>2){
+                    const _isGeo=(p)=>{
+                      const n=p.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+                      return n==='COLOMBIA'||n==='CO'|| _daneDeptos.some(d=> d.nombre.toUpperCase()===n) || _daneCiudades.some(c=> c.nombre.toUpperCase()===n);
+                    };
+                    let _keep=[];
+                    for(let _i=0;_i<_parts.length;_i++){
+                      if(_keep.length<2 && !_isGeo(_parts[_i])) _keep.push(_parts[_i]);
+                      else if(_keep.length>=2) break;
+                    }
+                    if(_keep.length) _clean=_keep.join(', ');
+                    else _clean=_parts.slice(0,2).join(', ');
+                    if(_clean.length>80) _clean=_clean.slice(0,80).trim().replace(/,+$/,'');
+                  } else if(_clean.length>80) _clean=_clean.slice(0,80).trim();
+                  input.value=_clean;
+                }
                 if(ciudad || depto){
                   const depInp=document.getElementById('lead-departamento-search');
                   const ciuInp=document.getElementById('lead-ciudad-search');
@@ -1388,10 +1574,10 @@ async function _initLeadPlacesAutocomplete(){
                 input.dataset.formatted=place.formatted_address||desc;
                 window._leadPlace={ place_id: place.place_id||pid, lat: place.geometry?.location?.lat, lng: place.geometry?.location?.lng, formatted: place.formatted_address||desc };
               }
-            }catch{}
+            }catch(e){ console.warn('[places] details error', e.message); }
           });
         }
-      }catch(e){ console.warn('Places proxy error', e.message); }
+      }catch(e){ console.warn('Places proxy error', e.message); _placesDD.innerHTML=`<div style="padding:10px;color:var(--danger)">Error: ${esc(e.message)}</div>`; _posicionarPlacesDD(input); _placesDD.style.display='block'; }
     },300);
   });
 }
@@ -1584,8 +1770,30 @@ async function guardarLead() {
     : await apiFetch('/leads', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
 
   if (!r.ok) return toast(r.data?.error || 'Error al guardar', 'error');
+  const newId = id || r.data.data?.id;
+  // Si es creación y hay adjuntos pendientes, súbelos sin perder el hilo
+  if(isNew && _leadAdjuntosPendientes.length){
+    const pendientes=[..._leadAdjuntosPendientes];
+    toast(`Lead creado — subiendo ${pendientes.length} adjunto(s)...`,'info');
+    let okCount=0;
+    for(const p of pendientes){
+      const fd=new FormData();
+      fd.append('archivos', p.file);
+      fd.append('tipo', p.tipo);
+      try{
+        const rr=await fetch(HF.API+'/leads/'+newId+'/adjuntos',{ method:'POST', credentials:'include', body: fd });
+        const jj=await rr.json().catch(()=>({}));
+        if(rr.ok) okCount+= jj.data?.length||1;
+        else toast(`Error ${p.file.name}: ${jj.error||rr.status}`,'error');
+      }catch(e){ toast(`Error ${p.file.name}: ${e.message}`,'error'); }
+    }
+    _leadAdjuntosPendientes=[];
+    if(okCount) toast(`${okCount} adjunto(s) subido(s)`,'success');
+  }
   toast(id ? 'Lead actualizado' : 'Lead creado', 'success');
   hideModal('modal-lead');
+  // limpia pendientes por si quedó algo
+  _leadAdjuntosPendientes=[];
   cargarLeads();
 }
 
@@ -1981,6 +2189,7 @@ function limpiarFiltrosVisitas() {
 }
 
 let _actClientesCache = [];
+let _actClienteTimer = null;
 
 async function cargarActClientesCache() {
   if (_actClientesCache.length) return _actClientesCache;
@@ -1991,32 +2200,31 @@ async function cargarActClientesCache() {
   return _actClientesCache;
 }
 
-function filtrarActClientes(q) {
+async function filtrarActClientes(q) {
   const sel = document.getElementById('act-cliente');
-  const selectedDiv = document.getElementById('act-cliente-selected');
-  const qq = (q || '').toLowerCase().trim();
-  // single select: if already selected, ignore new search unless cleared
-  if (sel.value && selectedDiv.style.display !== 'none') return;
-  if (!qq) { sel.style.display = 'none'; sel.innerHTML = ''; return; }
-  const filtered = _actClientesCache.filter(c =>
-    (c.nombre && c.nombre.toLowerCase().includes(qq)) ||
-    (c.nit && String(c.nit).toLowerCase().includes(qq)) ||
-    (c.codigo_siesa && String(c.codigo_siesa).toLowerCase().includes(qq))
-  ).slice(0, 20);
-  if (!filtered.length) { sel.innerHTML = '<option>No hay resultados</option>'; sel.style.display = ''; return; }
-  sel.innerHTML = filtered.map(c => `<option value="${c.id}">${esc(c.nombre)} — ${esc(c.nit || c.codigo_siesa || '')}</option>`).join('');
-  sel.style.display = '';
-  sel.onchange = () => {
-    const opt = sel.options[sel.selectedIndex];
-    if (!opt || !opt.value || opt.textContent === 'No hay resultados') return;
-    selectedDiv.textContent = '✓ ' + opt.textContent + '  ✕';
-    selectedDiv.style.display = '';
-    selectedDiv.title = 'Click para quitar';
-    selectedDiv.style.cursor = 'pointer';
-    selectedDiv.onclick = () => { selectedDiv.style.display = 'none'; sel.value = ''; document.getElementById('act-cliente-search').value = ''; };
-    sel.style.display = 'none';
-    document.getElementById('act-cliente-search').value = '';
-  };
+  const inp = document.getElementById('act-cliente-search');
+  if (inp && inp.readOnly) return;
+  const qq = (q || '').trim();
+  if (!qq || qq.length < 2) { sel.style.display = 'none'; sel.innerHTML = ''; return; }
+  clearTimeout(_actClienteTimer);
+  _actClienteTimer = setTimeout(async () => {
+    const r = await apiFetch('/clientes?search=' + encodeURIComponent(qq) + '&limit=20');
+    if (!r.ok) return;
+    const data = r.data.data || [];
+    if (!data.length) { sel.innerHTML = '<option>No hay resultados</option>'; sel.style.display = ''; sel.size = 1; return; }
+    sel.innerHTML = data.map(c => `<option value="${c.id}">${esc(c.nombre)} — ${esc(c.nit || '')}</option>`).join('');
+    sel.style.display = ''; sel.size = Math.min(6, data.length + 1);
+    sel.onchange = () => {
+      const opt = sel.options[sel.selectedIndex];
+      if (!opt || !opt.value || opt.textContent === 'No hay resultados') return;
+      inp.value = opt.textContent; inp.readOnly = true; inp.title = 'Seleccionado — clic para cambiar';
+      inp.onclick = () => {
+        inp.value = ''; inp.readOnly = false; inp.placeholder = 'Buscar por NIT o nombre...';
+        sel.value = ''; sel.innerHTML = ''; sel.style.display = 'none'; inp.onclick = null;
+      };
+      sel.style.display = 'none';
+    };
+  }, 300);
 }
 
 let _actMap = null;
@@ -2107,12 +2315,14 @@ async function abrirModalCrearActividad() {
   coordsEl2.value = ''; coordsEl2.dataset.lat = ''; coordsEl2.dataset.lng = ''; coordsEl2.dataset.precision = '';
   const txt2 = document.getElementById('act-coords-text'); if (txt2) txt2.textContent = '—';
   if (_actMap) { try { _actMap.remove(); } catch {} _actMap = null; const mEl = document.getElementById('act-map'); if (mEl) { mEl._leaflet_id = null; mEl.innerHTML = ''; } }
-  document.getElementById('act-cliente-search').value = '';
-  document.getElementById('act-cliente').value = '';
-  document.getElementById('act-cliente').style.display = 'none';
-  document.getElementById('act-cliente').innerHTML = '';
-  document.getElementById('act-cliente-selected').style.display = 'none';
-  document.getElementById('act-cliente-selected').textContent = '';
+  const inp = document.getElementById('act-cliente-search');
+  const sel = document.getElementById('act-cliente');
+  inp.value = ''; inp.readOnly = false; inp.placeholder = 'Buscar por NIT o nombre...'; inp.onclick = null;
+  sel.value = ''; sel.innerHTML = ''; sel.style.display = 'none';
+  if (!inp.dataset.bound) {
+    inp.dataset.bound = '1';
+    inp.addEventListener('input', () => filtrarActClientes(inp.value));
+  }
   await cargarActClientesCache();
   const nowLocal = new Date(Date.now() - new Date().getTimezoneOffset()*60000).toISOString().slice(0,16);
   const fi = document.getElementById('act-fecha-inicio');
@@ -3649,7 +3859,7 @@ async function ejecutarImportacion() {
 function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 function formatDate(iso) { if (!iso) return '—'; return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' }); }
 function showModal(id) { document.getElementById(id).classList.add('active'); }
-function hideModal(id) { document.getElementById(id).classList.remove('active'); }
+function hideModal(id) { document.getElementById(id).classList.remove('active'); if(id==='modal-lead' && typeof _placesDD !=='undefined' && _placesDD) _placesDD.style.display='none'; }
 
 function renderPagination(containerId, total, page, limit, onPage) {
   const container = document.getElementById(containerId);
