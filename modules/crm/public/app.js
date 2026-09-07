@@ -1398,10 +1398,10 @@ function filtrarLeadCiudad(q){
   if(!qq || qq.length<1){ sel.style.display='none'; return; }
   const depVal=document.getElementById('lead-departamento')?.value;
   const depCode=_daneDeptos.find(d=> d.nombre===depVal || d.codigo===depVal)?.codigo;
-  let filtered=_daneCiudades.filter(c=> c.nombre.toLowerCase().includes(qq) || c.codigo.includes(qq));
+  let filtered=_daneCiudades.filter(c=> (c.nombre && c.nombre.toLowerCase().includes(qq)) || (c.codigo && String(c.codigo).toLowerCase().includes(qq)));
   // si hay depto seleccionado, prioriza sus ciudades arriba pero no oculta las demás
   if(depCode){
-    filtered.sort((a,b)=> (a.depto===depCode?0:1) - (b.depto===depCode?0:1));
+    filtered.sort((a,b)=> (String(a.depto)===String(depCode)?0:1) - (String(b.depto)===String(depCode)?0:1));
   }
   if(!filtered.length){ sel.innerHTML='<option>No hay resultados</option>'; sel.style.display=''; return; }
   // muestra máximo 20, con indicador si es de otro depto
