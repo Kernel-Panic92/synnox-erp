@@ -113,7 +113,115 @@ async function cargarDashboard() {
     renderTablaVendedores(d.ranking_vendedores || [], 'widget-vendedores');
     renderGraficoSVG(d.tendencia_mensual || [], 'widget-tendencia');
     renderDistribucionCiudades(d.distribucion_ciudades || [], 'widget-ciudades');
+    if (document.getElementById('dash-analitica')?.style.display !== 'none') cargarAnalitica();
   } catch (err) { console.error('Dashboard error:', err); }
+}
+
+function cambiarTabDash(tab) {
+  document.getElementById('dash-tab-resumen').classList.toggle('active', tab === 'resumen');
+  document.getElementById('dash-tab-analitica').classList.toggle('active', tab === 'analitica');
+  document.getElementById('dash-resumen').style.display = tab === 'resumen' ? '' : 'none';
+  document.getElementById('dash-analitica').style.display = tab === 'analitica' ? '' : 'none';
+  if (tab === 'analitica') cargarAnalitica();
+}
+
+async function cargarAnalitica() {
+  try {
+    const desde = document.getElementById('dash-desde')?.value || '';
+    const hasta = document.getElementById('dash-hasta')?.value || '';
+    const qs = new URLSearchParams();
+    if (desde) qs.set('desde', desde);
+    if (hasta) qs.set('hasta', hasta);
+    const q = qs.toString() ? '?' + qs.toString() : '';
+    const r = await apiFetch('/dashboard/analytics' + q);
+    if (!r.ok) return;
+    const d = r.data;
+    renderAcv(d.acv, 'widget-acv');
+    renderCoverage(d.pipeline_abierto || 0, 'widget-coverage');
+    renderStageVelocity(d.stage_velocity || [], 'widget-velocity');
+    renderLossReason(d.loss_reason || [], 'widget-loss');
+    renderRepeatPurchase(d.repeat_purchase || { nuevos: 0, recurrentes: 0 }, 'widget-repeat');
+    renderLtv(d.acv || { promedio: 0 }, d.repeat_purchase || { nuevos: 0, recurrentes: 0 }, 'widget-ltv');
+  } catch (err) { console.error('Analitica error:', err); }
+}
+
+function renderAcv(acv, containerId) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  c.innerHTML = `
+    <div class="widget-title">Valor promedio de venta (ACV)</div>
+    <div class="metric-big">$${formatMoney(acv?.promedio || 0)}</div>
+    <div class="metric-sub">${acv?.n || 0} negocios ganados · total $${formatMoney(acv?.total || 0)}</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px">Monto promedio por cierre en etapa Ganada. Detecta si la fuerza apunta a cuentas de mayor valor.</div>`;
+}
+
+function renderCoverage(pipelineAbierto, containerId) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  const meta = window._metaMensual || 5000000;
+  const ratio = meta > 0 ? (pipelineAbierto / meta) : 0;
+  const pct = Math.min(100, Math.round(ratio * 100));
+  const healthy = ratio >= 3 && ratio <= 4;
+  c.innerHTML = `
+    <div class="widget-title">Pipeline coverage</div>
+    <div class="metric-big" style="color:${ratio >= 3 ? 'var(--success)' : 'var(--warning)'}">${ratio.toFixed(1)}x</div>
+    <div class="metric-sub">Pipeline $${formatMoney(pipelineAbierto)} vs meta $${formatMoney(meta)}</div>
+    <div class="coverage-bar"><span style="width:${Math.min(100, pct)}%;${ratio >= 3 ? 'background:var(--success)' : ratio < 1 ? 'background:var(--danger)' : ''}"></span></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:6px">${healthy ? 'Saludable (3x-4x).' : ratio < 3 ? 'Por debajo de lo ideal (meta 3x-4x).' : 'Sobre-cubierto.'} Meta editable: </div>
+    <input type="number" id="coverage-meta-input" value="${meta}" style="width:100%;margin-top:6px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px" onchange="window._metaMensual=parseFloat(this.value)||0; renderCoverage(${pipelineAbierto}, 'widget-coverage')">`;
+}
+
+function renderStageVelocity(vel, containerId) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  const rows = (vel || []).map(v => `
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px dashed var(--border);font-size:12px">
+      <span style="color:var(--text);font-weight:500">${esc((_ETAPA_LABEL[v.etapa_nueva] || v.etapa_nueva))}</span>
+      <div><span style="font-weight:700;color:var(--accent)">${v.dias_promedio}d</span> <span style="font-size:10px;color:var(--muted)">(${v.muestras} mov)</span></div>
+    </div>`).join('');
+  c.innerHTML = `<div class="widget-title">Velocidad por etapa</div>${rows || '<div style="color:var(--muted);font-size:12px">Sin historial</div>'}`;
+}
+
+function renderLossReason(loss, containerId) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  const labels = { precio:'Precio', competencia:'Competencia', sin_presupuesto:'Sin ppto', no_responde:'No responde', otro:'Otro', sin_motivo:'Sin motivo' };
+  const max = Math.max(1, ...loss.map(l => parseInt(l.total) || 0));
+  const rows = (loss || []).slice(0, 6).map(l => `
+    <div style="margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:3px;color:var(--text)">
+        <span>${esc(labels[l.motivo] || l.motivo)}</span><span>${parseFloat(l.pct).toFixed(0)}% · ${l.total}</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:5px;height:12px;overflow:hidden">
+        <div style="width:${Math.round((parseInt(l.total)||0)/max*100)}%;background:var(--danger);height:100%;border-radius:5px"></div>
+      </div>
+    </div>`).join('');
+  c.innerHTML = `<div class="widget-title">Pérdida por causal</div>${rows || '<div style="color:var(--muted);font-size:12px">Sin pérdidas</div>'}`;
+}
+
+function renderRepeatPurchase(rp, containerId) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  const total = (rp.nuevos || 0) + (rp.recurrentes || 0);
+  const pct = total > 0 ? Math.round((rp.recurrentes || 0) / total * 100) : 0;
+  c.innerHTML = `
+    <div class="widget-title">Recurrencia de clientes</div>
+    <div class="metric-big">${pct}%</div>
+    <div class="metric-sub">${rp.recurrentes || 0} recurrentes · ${rp.nuevos || 0} nuevos</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px">Oportunidades ganadas de clientes con compra previa vs clientes nuevos.</div>`;
+}
+
+function renderLtv(acv, rp, containerId) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  const total = (rp.nuevos || 0) + (rp.recurrentes || 0);
+  const recurrencia = total > 0 ? 1 + (rp.recurrentes || 0) / total : 1;
+  const ltv = (acv?.promedio || 0) * recurrencia;
+  c.innerHTML = `
+    <div class="widget-title">LTV estimado</div>
+    <div class="metric-big">$${formatMoney(ltv)}</div>
+    <div class="metric-sub">ACV $${formatMoney(acv?.promedio || 0)} × recurrencia ${recurrencia.toFixed(1)}x</div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px">Proyección de ingreso por cuenta a lo largo de la relación.</div>`;
 }
 
 function dashMesActual() {
@@ -135,6 +243,14 @@ function dashMesAnterior() {
 function limpiarFiltrosDash() {
   document.getElementById('dash-desde').value = '';
   document.getElementById('dash-hasta').value = '';
+  cargarDashboard();
+}
+function dashMesTrimestre() {
+  const ahora = new Date();
+  const desde = new Date(ahora.getFullYear(), ahora.getMonth() - 2, 1);
+  const hasta = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0);
+  document.getElementById('dash-desde').value = desde.toISOString().slice(0, 10);
+  document.getElementById('dash-hasta').value = hasta.toISOString().slice(0, 10);
   cargarDashboard();
 }
 

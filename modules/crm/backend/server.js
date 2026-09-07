@@ -137,6 +137,58 @@ app.get('/api/dashboard', protect, async (req, res) => {
   }
 });
 
+// GET /api/dashboard/analytics — Indicadores gerenciales avanzados
+app.get('/api/dashboard/analytics', protect, async (req, res) => {
+  try {
+    const pool = (await import('./config/db.js')).default;
+    const { desde, hasta } = req.query;
+    const conds = [];
+    const params = [];
+    let pi = 1;
+    if (desde) { conds.push(`o.creado_en >= $${pi}::date`); params.push(desde); pi++; }
+    if (hasta) { conds.push(`o.creado_en < $${pi}::date + INTERVAL '1 day'`); params.push(hasta); pi++; }
+    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+    const addCond = (sql) => conds.length ? `${conds.join(' AND ')} AND ${sql}` : `WHERE ${sql}`;
+
+    const [acv, lossReason, repeatPurchase, velocity, pipelineTotal] = await Promise.all([
+      // ACV: monto promedio por negocio ganado
+      pool.query(`SELECT COUNT(*) as n, COALESCE(AVG(monto_esperado),0) as acv, COALESCE(SUM(monto_esperado),0) as total FROM crm.oportunidades o ${addCond(`o.etapa='ganada'`)}`, params),
+      // Pérdida por causal (% de cada motivo dentro de PERDIDA)
+      pool.query(`SELECT COALESCE(NULLIF(motivo_perdida,''),'sin_motivo') as motivo, COUNT(*) as total, 100.0*COUNT(*)/NULLIF(SUM(COUNT(*)) OVER (),0) as pct FROM crm.oportunidades o ${addCond(`o.etapa='perdida'`)} GROUP BY motivo ORDER BY total DESC`, params),
+      // Repeat purchase: ganadas de clientes con >1 oportunidad ganada vs clientes nuevos
+      pool.query(`SELECT
+        COUNT(*) FILTER (WHERE o.cliente_id IS NOT NULL AND (SELECT COUNT(*) FROM crm.oportunidades o2 WHERE o2.cliente_id=o.cliente_id AND o2.etapa='ganada' AND o2.id < o.id)=0) as nuevos,
+        COUNT(*) FILTER (WHERE o.cliente_id IS NOT NULL AND (SELECT COUNT(*) FROM crm.oportunidades o2 WHERE o2.cliente_id=o.cliente_id AND o2.etapa='ganada' AND o2.id < o.id)>0) as recurrentes
+        FROM crm.oportunidades o ${addCond(`o.etapa='ganada' AND o.cliente_id IS NOT NULL`)}`, params),
+      // Stage velocity: días promedio entre cambios de etapa del historial
+      pool.query(`SELECT h.etapa_nueva, ROUND(AVG(EXTRACT(EPOCH FROM (h.fecha - lag.fecha))/86400.0),1) as dias_promedio, COUNT(*) as muestras
+        FROM crm.oportunidad_historial h
+        JOIN LATERAL (SELECT MAX(fecha) as fecha FROM crm.oportunidad_historial h2 WHERE h2.oportunidad_id=h.oportunidad_id AND h2.fecha < h.fecha) lag ON true
+        WHERE lag.fecha IS NOT NULL
+        GROUP BY h.etapa_nueva ORDER BY MIN(h.fecha)`),
+      // Pipeline abierto total (para cobertura vs meta)
+      pool.query(`SELECT COALESCE(SUM(monto_esperado),0) as pipeline_abierto FROM crm.oportunidades o ${addCond(`o.etapa NOT IN ('ganada','perdida')`)}`, params)
+    ]);
+
+    res.json({
+      ok: true,
+      acv: { n: parseInt(acv.rows[0].n), promedio: parseFloat(acv.rows[0].acv), total: parseFloat(acv.rows[0].total) },
+      loss_reason: lossReason.rows,
+      repeat_purchase: {
+        nuevos: parseInt(repeatPurchase.rows[0].nuevos) || 0,
+        recurrentes: parseInt(repeatPurchase.rows[0].recurrentes) || 0
+      },
+      stage_velocity: velocity.rows,
+      pipeline_abierto: parseFloat(pipelineTotal.rows[0].pipeline_abierto),
+      desde: desde || null,
+      hasta: hasta || null
+    });
+  } catch (err) {
+    console.error('[CRM] Error dashboard analytics:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get('/api/health', (req, res) => res.json({ ok: true }));
 app.get('/health', (req, res) => res.json({ status: 'ok', module: MODULE_ID }));
 

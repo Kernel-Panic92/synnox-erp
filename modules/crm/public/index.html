@@ -35,6 +35,14 @@
 .dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:16px}
 .dash-widget{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
 .dash-widget .widget-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
+.dash-tabs{display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:0}
+.dash-tab{background:transparent;border:none;border-bottom:2px solid transparent;padding:8px 14px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-radius:8px 8px 0 0}
+.dash-tab:hover{color:var(--text)}
+.dash-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.metric-big{font-size:22px;font-weight:700;color:var(--text);line-height:1.1}
+.metric-sub{font-size:11px;color:var(--muted);margin-top:2px}
+.coverage-bar{background:var(--surface2);border-radius:6px;height:14px;overflow:hidden;margin:8px 0}
+.coverage-bar>span{display:block;height:100%;background:var(--accent);border-radius:6px;transition:width .4s ease}
 #stats-pipeline .stat-card{padding:10px 12px}
 .funnel-row strong.ok{color:var(--success)} .funnel-row strong.warn{color:var(--warning)} .funnel-row strong.bad{color:var(--danger)} .funnel-row strong.na{color:var(--muted)}
 .filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
@@ -166,20 +174,36 @@
 
       <!-- Dashboard -->
 <div class="page active" id="page-dashboard">
-  <div class="stats-row" id="stats-row"></div>
+  <div class="dash-tabs">
+    <button class="dash-tab active" id="dash-tab-resumen" onclick="cambiarTabDash('resumen')">Resumen</button>
+    <button class="dash-tab" id="dash-tab-analitica" onclick="cambiarTabDash('analitica')">Analítica Avanzada</button>
+  </div>
   <div class="filters" id="dash-filtros" style="gap:8px;margin-bottom:16px">
     <label style="font-size:12px;font-weight:600;color:var(--muted)">Periodo:</label>
     <input type="date" id="dash-desde" onchange="cargarDashboard()" title="Desde">
     <input type="date" id="dash-hasta" onchange="cargarDashboard()" title="Hasta">
     <button class="btn btn-sm btn-secondary" onclick="dashMesActual()" title="Mes actual">Mes actual</button>
     <button class="btn btn-sm btn-secondary" onclick="dashMesAnterior()" title="Mes anterior">Mes anterior</button>
+    <button class="btn btn-sm btn-secondary" onclick="dashMesTrimestre()" title="Últimos 3 meses">Trimestre</button>
     <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosDash()">✕ Limpiar</button>
   </div>
-  <div class="dash-grid">
-    <div class="dash-widget" id="widget-funnel"></div>
-    <div class="dash-widget" id="widget-vendedores"></div>
-    <div class="dash-widget" id="widget-tendencia"></div>
-    <div class="dash-widget" id="widget-ciudades"></div>
+  <div id="dash-resumen">
+    <div class="dash-grid">
+      <div class="dash-widget" id="widget-funnel"></div>
+      <div class="dash-widget" id="widget-vendedores"></div>
+      <div class="dash-widget" id="widget-tendencia"></div>
+      <div class="dash-widget" id="widget-ciudades"></div>
+    </div>
+  </div>
+  <div id="dash-analitica" style="display:none">
+    <div class="dash-grid">
+      <div class="dash-widget" id="widget-acv"></div>
+      <div class="dash-widget" id="widget-coverage"></div>
+      <div class="dash-widget" id="widget-velocity"></div>
+      <div class="dash-widget" id="widget-loss"></div>
+      <div class="dash-widget" id="widget-repeat"></div>
+      <div class="dash-widget" id="widget-ltv"></div>
+    </div>
   </div>
 </div>
 
