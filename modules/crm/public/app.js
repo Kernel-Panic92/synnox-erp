@@ -117,7 +117,87 @@ async function cargarDashboard() {
         </tbody></table></div>
       `;
     }
+    renderFunnelChart(d.funnel || [], 'widget-funnel');
+    renderTablaVendedores(d.ranking_vendedores || [], 'widget-vendedores');
+    renderGraficoSVG(d.tendencia_mensual || [], 'widget-tendencia');
+    renderDistribucionCiudades(d.distribucion_ciudades || [], 'widget-ciudades');
   } catch (err) { console.error('Dashboard error:', err); }
+}
+
+// ── Dashboard widgets ──
+const _ETAPA_LABEL = { lead:'Lead', calificado:'Calificado', propuesta:'Propuesta', negociacion:'Negociación', ganada:'Ganada', perdida:'Perdida' };
+function renderFunnelChart(data, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const maxMonto = Math.max(0, ...data.map(e => Number(e.monto) || 0));
+  const html = data.map(item => {
+    const pct = maxMonto > 0 ? (Number(item.monto) / maxMonto) * 100 : 0;
+    return `
+      <div style="margin-bottom:10px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:4px;color:var(--text)">
+          <span>${esc(_ETAPA_LABEL[item.etapa] || item.etapa)} (${item.cantidad})</span>
+          <span>$${formatMoney(item.monto)}</span>
+        </div>
+        <div style="background:var(--surface2);border-radius:6px;height:18px;overflow:hidden">
+          <div style="width:${pct}%;background:var(--accent);height:100%;transition:width .4s ease;border-radius:6px"></div>
+        </div>
+      </div>`;
+  }).join('');
+  container.innerHTML = `<div class="widget-title">Embudo de ventas</div>${html || '<div style="color:var(--muted);font-size:12px">Sin datos</div>'}`;
+}
+function renderTablaVendedores(vendedores, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const filas = vendedores.map(v => {
+    const ganado = Number(v.monto_ganado) || 0;
+    return `
+      <tr>
+        <td style="padding:8px;font-weight:600">${esc(v.nombre)}</td>
+        <td style="padding:8px;text-align:center">${v.ops_abiertas}</td>
+        <td style="padding:8px;text-align:right;font-weight:600;color:var(--accent)">$${formatMoney(ganado)}</td>
+      </tr>`;
+  }).join('');
+  container.innerHTML = `
+    <div class="widget-title">Rendimiento de asesores</div>
+    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Asesor</th><th style="text-align:center">Ops</th><th style="text-align:right">Ganado</th></tr></thead><tbody>
+      ${filas || '<tr><td colspan="3" style="color:var(--muted);text-align:center">Sin datos</td></tr>'}
+    </tbody></table></div>`;
+}
+function renderGraficoSVG(historico, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  if (!historico.length) { container.innerHTML = '<div class="widget-title">Tendencia mensual</div><div style="color:var(--muted);font-size:12px">Sin datos</div>'; return; }
+  const maxVenta = Math.max(1, ...historico.map(h => Number(h.monto) || 0));
+  const height = 140, width = 360;
+  const px = (i) => (historico.length > 1 ? (i / (historico.length - 1)) : 0) * (width - 40) + 20;
+  const py = (m) => height - ((Number(m) / maxVenta) * (height - 40) + 20);
+  const puntos = historico.map((h, i) => `${px(i)},${py(h.monto)}`).join(' ');
+  const mesCorto = (m) => { try { return new Date(m + '-01').toLocaleDateString('es-CO',{month:'short'}); } catch { return m.slice(5); } };
+  container.innerHTML = `
+    <div class="widget-title">Tendencia mensual</div>
+    <svg viewBox="0 0 ${width} ${height}" style="width:100%;overflow:visible">
+      <polyline fill="none" stroke="var(--accent)" stroke-width="3" points="${puntos}"/>
+      ${historico.map((h, i) => `
+        <circle cx="${px(i)}" cy="${py(h.monto)}" r="4" fill="var(--accent)"/>
+        <text x="${px(i)}" y="${height + 14}" font-size="10" fill="var(--muted)" text-anchor="middle">${mesCorto(h.mes)}</text>`).join('')}
+    </svg>`;
+}
+function renderDistribucionCiudades(ciudadesData, containerId) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  const total = ciudadesData.reduce((a, c) => a + (Number(c.cantidad) || 0), 0);
+  const items = ciudadesData.map(c => {
+    const pct = total > 0 ? ((Number(c.cantidad) / total) * 100).toFixed(1) : 0;
+    return `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px dashed var(--border);font-size:12px">
+        <span style="color:var(--text);font-weight:500">${esc(c.ciudad)}</span>
+        <div>
+          <span style="font-weight:bold;color:var(--text);margin-right:8px">${c.cantidad}</span>
+          <span style="background:var(--surface2);color:var(--accent);font-size:10px;padding:2px 6px;border-radius:4px;font-weight:600">${pct}%</span>
+        </div>
+      </div>`;
+  }).join('');
+  container.innerHTML = `<div class="widget-title">Distribución geográfica</div>${items || '<div style="color:var(--muted);font-size:12px">Sin datos</div>'}`;
 }
 
 // ── Pipeline Kanban ──

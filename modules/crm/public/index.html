@@ -32,6 +32,9 @@
 .kpi-chip{display:inline-block;font-size:10px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;white-space:nowrap}
 .kpi-chip b{font-weight:700}
 .stat-label-top{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;text-align:center;margin-bottom:6px}
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:12px;margin-top:16px}
+.dash-widget{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px 16px}
+.dash-widget .widget-title{font-size:11px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:10px}
 #stats-pipeline .stat-card{padding:10px 12px}
 .funnel-row strong.ok{color:var(--success)} .funnel-row strong.warn{color:var(--warning)} .funnel-row strong.bad{color:var(--danger)} .funnel-row strong.na{color:var(--muted)}
 .filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
@@ -162,10 +165,16 @@
     <div class="main-body">
 
       <!-- Dashboard -->
-      <div class="page active" id="page-dashboard">
-        <div class="stats-row" id="stats-row"></div>
-        <div id="clientes-recientes"></div>
-      </div>
+<div class="page active" id="page-dashboard">
+  <div class="stats-row" id="stats-row"></div>
+  <div id="clientes-recientes"></div>
+  <div class="dash-grid">
+    <div class="dash-widget" id="widget-funnel"></div>
+    <div class="dash-widget" id="widget-vendedores"></div>
+    <div class="dash-widget" id="widget-tendencia"></div>
+    <div class="dash-widget" id="widget-ciudades"></div>
+  </div>
+</div>
 
       <!-- Leads -->
       <div class="page" id="page-leads">
