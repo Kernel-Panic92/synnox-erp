@@ -958,15 +958,14 @@
   <div class="modal" style="max-width:700px">
     <h3 id="modal-lead-title">Nuevo Lead</h3>
     <input type="hidden" id="lead-id">
-    <div class="form-row">
-      <div class="form-group">
-        <label>Razon Social *</label>
-        <input type="text" id="lead-razon-social" required>
-      </div>
-      <div class="form-group">
-        <label>NIT / Identificacion</label>
-        <input type="text" id="lead-nit">
-      </div>
+    <div class="form-group">
+      <label>Razon Social *</label>
+      <input type="text" id="lead-razon-social" required>
+    </div>
+    <div style="display:grid;grid-template-columns:140px 1fr 90px;gap:10px">
+      <div class="form-group"><label>Tipo ID SIESA *</label><select id="lead-siesa-tipo"><option value="31">31 - NIT</option><option value="13">13 - Cédula</option><option value="22">22 - C. extranjería</option><option value="41">41 - Pasaporte</option></select></div>
+      <div class="form-group"><label>NIT / Identificación *</label><input type="text" id="lead-nit" placeholder="800123456 sin puntos"></div>
+      <div class="form-group"><label>DV</label><input type="text" id="lead-siesa-dv" maxlength="1" placeholder="0-9"></div>
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -1023,18 +1022,11 @@
       <label>Notas</label>
       <textarea id="lead-notas"></textarea>
     </div>
-    <details style="margin-top:12px;border:1px solid var(--border);border-radius:8px;padding:10px;background:var(--surface2)">
-      <summary style="cursor:pointer;font-size:12px;font-weight:600;color:var(--muted)">Datos SIESA Hub (DIAN) — opcional</summary>
-      <div style="display:grid;grid-template-columns:1fr 100px;gap:10px;margin-top:10px">
-        <div class="form-group"><label>Tipo identificación SIESA</label><select id="lead-siesa-tipo"><option value="31">31 - NIT</option><option value="13">13 - Cédula</option><option value="22">22 - Cédula extranjería</option></select></div>
-        <div class="form-group"><label>DV</label><input type="text" id="lead-siesa-dv" maxlength="1" placeholder="0-9"></div>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-        <div class="form-group"><label>Régimen</label><select id="lead-siesa-regimen"><option value="48">48 - No responsable IVA</option><option value="49">49 - Responsable IVA</option></select></div>
-        <div class="form-group"><label>Responsabilidad fiscal</label><input type="text" id="lead-siesa-resp" placeholder="R-99-PN" value="R-99-PN"></div>
-      </div>
-      <div class="form-group"><label>CIIU</label><input type="text" id="lead-siesa-ciiu" placeholder="4723" value="4723"></div>
-    </details>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+      <div class="form-group"><label>Régimen DIAN</label><select id="lead-siesa-regimen"><option value="48">48 - No responsable IVA</option><option value="49">49 - Responsable IVA</option></select></div>
+      <div class="form-group"><label>Responsabilidad fiscal</label><input type="text" id="lead-siesa-resp" placeholder="R-99-PN" value="R-99-PN"></div>
+    </div>
+    <div class="form-group"><label>CIIU (4 dígitos)</label><input type="text" id="lead-siesa-ciiu" placeholder="4723" value="4723"></div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="hideModal('modal-lead')">Cancelar</button>
       <button class="btn btn-primary" onclick="guardarLead()">Guardar</button>
