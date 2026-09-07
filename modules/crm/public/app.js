@@ -201,8 +201,8 @@ async function cargarPipeline() {
       <div class="kanban-col" data-etapa="${etapa.id}" ondragover="allowDrop(event)" ondrop="dropOportunidad(event, '${etapa.id}')" ondragleave="dragLeave(event)">
         <h4>
           <span>${etapa.label}</span>
-          <span>
-            <span class="total">$${formatMoney(stats[etapa.id]?.total || 0)}</span>
+          <span title="Total: $${formatMoney(stats[etapa.id]?.total || 0)}">
+            <span class="total">${formatMoneyShort(stats[etapa.id]?.total || 0)}</span>
             <span class="count">${stats[etapa.id]?.count || 0}</span>
           </span>
         </h4>
@@ -736,6 +736,15 @@ function onVendedorOportunidadSelect(){
 
 function formatMoney(n) {
   return Number(n).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+// Montos compactos para encabezados Kanban (ej. $152,3 M) con valor completo en title
+function formatMoneyShort(n) {
+  const v = Number(n) || 0;
+  if (Math.abs(v) >= 100000000) {
+    const m = (v / 1000000).toLocaleString('es-CO', { minimumFractionDigits: 0, maximumFractionDigits: 1 });
+    return `$${m} M`;
+  }
+  return '$' + formatMoney(v);
 }
 
 // Lee un campo del extra_data (JSONB del maestro ERP) y lo muestra legible, saltando vacíos
