@@ -199,6 +199,7 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil(
             orden_compra, centro_operacion, bodega, condicion_pago, fecha_entrega,
             unidad_negocio, punto_envio, motivo, facturar_a, despachar_a, lista_precios } = req.body;
     if (!cliente_id) return res.status(400).json({ error: 'El cliente es obligatorio' });
+    if (!condicion_pago || !String(condicion_pago).trim()) return res.status(400).json({ error: 'La condicion de pago es obligatoria (viene del cliente o debe ingresarse manualmente)' });
 
     // Vendedor asignado al cliente tiene prioridad: la venta queda a nombre de él
     const cliInfo = await client.query(`SELECT vendedor_codigo, asesor_comercial, lista_precio_codigo, lista_precios FROM crm.clientes WHERE id=$1`, [cliente_id]);
@@ -512,7 +513,23 @@ router.post('/:id/enviar-erp', requirePermiso('crear_cotizacion', 'crm'), requir
     const { id } = req.params;
     const existing = await pool.query(`SELECT id, numero, documento_erp FROM crm.cotizaciones WHERE id = $1`, [id]);
     if (!existing.rows.length) return res.status(404).json({ error: 'Cotizacion no encontrada' });
-    if (existing.rows[0].documento_erp) return res.status(400).json({ error: 'Esta cotizacion ya tiene CPV del ERP' });
+    if (existing.rows[0].documento_erp) return res.status(409).json({ error: 'Esta cotizacion ya tiene CPV del ERP', documento_erp: existing.rows[0].documento_erp });
+    // Validar mapeos SIESA antes de enviar (422 si falta)
+    const cot = await pool.query(`SELECT condicion_pago, bodega, centro_operacion FROM crm.cotizaciones WHERE id=$1`, [id]);
+    const cp = String(cot.rows[0]?.condicion_pago || '').trim();
+    if (cp) {
+      const m = await pool.query(`SELECT 1 FROM crm.siesa_mapeos WHERE tipo='condicion_pago' AND (crm_codigo=$1 OR descripcion=$1)`, [cp]);
+      if (!m.rowCount) return res.status(422).json({ error: `condicion_pago '${cp}' sin mapeo en siesa_mapeos. Configura Admin → SIESA Hub → Mapeos` });
+    }
+    const bod = String(cot.rows[0]?.bodega || '').trim();
+    const co = String(cot.rows[0]?.centro_operacion || '').trim();
+    if (bod) {
+      const mb = await pool.query(`SELECT 1 FROM crm.siesa_mapeos WHERE tipo='bodega_co' AND crm_codigo=$1`, [bod]);
+      if (!mb.rowCount) return res.status(422).json({ error: `bodega '${bod}' sin mapeo en siesa_mapeos` });
+    } else if (co) {
+      const mb2 = await pool.query(`SELECT 1 FROM crm.siesa_mapeos WHERE tipo='bodega_co' AND crm_codigo=$1`, [co]);
+      // bodega por CO es opcional, solo warning — no bloquea
+    }
     const result = await enviarPedidoAlHub({ cotizacionId: id });
     await auditarEvento({ accion: 'enviar_erp', entidad: 'cotizacion', entidad_id: id, usuario_id: req.user.id, metadata: { numero: existing.rows[0].numero, documento_erp: result.documento_erp, mock: result.mock } });
     res.json({ ok: true, documento_erp: result.documento_erp, estado_erp: result.estado_erp, mock: result.mock, message: result.mock ? `Mock Hub: ${result.documento_erp} asignado` : 'Enviado al Hub' });
