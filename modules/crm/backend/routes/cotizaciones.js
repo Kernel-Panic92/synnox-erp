@@ -72,7 +72,7 @@ router.get('/proximo-numero', requirePermiso('crear_cotizacion', 'crm'), async (
 });
 
 function buildCotizacionesWhere(req) {
-  const { cliente_id, estado, search } = req.query;
+  const { cliente_id, estado, search, centro, bodega } = req.query;
   const conditions = [];
   const params = [];
   let paramIdx = 1;
@@ -84,6 +84,14 @@ function buildCotizacionesWhere(req) {
   if (estado) {
     conditions.push(`c.estado = $${paramIdx++}`);
     params.push(estado);
+  }
+  if (centro) {
+    conditions.push(`c.centro_operacion = $${paramIdx++}`);
+    params.push(centro);
+  }
+  if (bodega) {
+    conditions.push(`c.bodega = $${paramIdx++}`);
+    params.push(bodega);
   }
   if (search) {
     conditions.push(`(c.numero ILIKE $${paramIdx} OR cl.nombre ILIKE $${paramIdx})`);
@@ -606,6 +614,14 @@ router.post('/:id/descuento', requirePermiso('crear_cotizacion', 'crm'), require
 
     const cfg = await pool.query(`SELECT valor FROM crm.configuracion WHERE clave = 'descuento_umbral_aprobacion'`);
     const umbral = parseFloat(cfg.rows[0]?.valor || '10');
+    // Valida descuento global contra perfil (rango3 y permite_global)
+    const perfilCfgDesc = await getPerfilConfigForUser(req.user.id, req.user.rol);
+    if (perfilCfgDesc) {
+      const maxG = perfilCfgDesc?.descuentos?.rango3 ?? 70;
+      const tmpPct = tipo === 'porcentaje' ? parseFloat(valor_descuento || 0) : (parseFloat(valor_descuento || 0) / Math.max(1, parseFloat(cot.rows[0].valor_subtotal || 1))) * 100;
+      if (tmpPct > maxG) return res.status(403).json({ error: `Descuento ${tmpPct.toFixed(1)}% supera máximo perfil (${maxG}%)` });
+      if (perfilCfgDesc?.descuentos?.permite_global === false) return res.status(403).json({ error: `Descuento global no permitido por tu perfil` });
+    }
 
     let montoDescuento = 0;
     if (tipo === 'porcentaje') {

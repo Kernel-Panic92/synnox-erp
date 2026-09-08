@@ -3448,8 +3448,15 @@ function actualizarTotalesCotizacion() {
   }
   const descPct = parseFloat(document.getElementById('cotizacion-descuento')?.value || 0);
   const descuento = subtotal * (descPct / 100);
+  // IVA por renglon tras descuento global (proporcional), respeta exento
+  let iva = 0;
+  for (const it of _cotizacionItems) {
+    const baseLine = (it.cantidad || 1) * (it.precio_unitario || 0) * (1 - (it.descuento_pct || 0) / 100);
+    const baseLineGlobal = baseLine * (1 - descPct / 100);
+    const porcIva = it.porc_iva != null ? parseFloat(it.porc_iva) : (it.es_exento ? 0 : 19);
+    iva += baseLineGlobal * (porcIva / 100);
+  }
   const baseDesc = subtotal - descuento;
-  const iva = baseDesc * 0.19;
   const total = baseDesc + iva;
 
   document.getElementById('cotizacion-totales').innerHTML = `
