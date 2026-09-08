@@ -171,7 +171,7 @@
   .dash-logout:hover{color:var(--danger);border-color:var(--danger);}
   .dash-back{font-size:var(--fs);color:var(--muted);cursor:pointer;transition:color 0.2s;}
   .dash-back:hover{color:var(--text);}
-  .dash-body{padding:32px;max-width:1200px;margin:0 auto;}
+  .dash-body{padding:32px;width:100% !important;max-width:100% !important;box-sizing:border-box !important;}
   .dash-body h2{font-size:22px;font-weight:700;margin-bottom:4px;}
   .dash-body p{font-size:var(--fs);color:var(--muted);margin-bottom:8px;}
 
@@ -594,7 +594,7 @@
       <input type="hidden" id="centro-form-id">
       <input type="hidden" id="centro-form-lat">
       <input type="hidden" id="centro-form-lng">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;width:100%">
         <div style="grid-column:1/-1">
           <label>Nombre *</label>
           <input type="text" id="centro-form-nombre" placeholder="Ej: BOGOTA, MEDELLIN...">
