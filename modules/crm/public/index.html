@@ -44,6 +44,8 @@
 .sidebar.collapsed .nav-item:not(.active):hover .icon{transform:scale(1.12);filter:brightness(1.2)}
 .sidebar-divider{height:1px;background:var(--border);margin:12px 14px;opacity:0.6}
 .sidebar.collapsed .sidebar-divider{margin:12px 10px}
+#sidebar-nav{display:flex;flex-direction:column;height:100%}
+.nav-item.admin-item{margin-top:auto;margin-bottom:12px}
 .sidebar-footer{margin-top:auto;padding-bottom:12px;display:flex;flex-direction:column;gap:6px}
 .sidebar.collapsed .sidebar-footer{gap:4px}
 .sidebar.collapsed .btn-logout{width:42px;height:42px;margin:4px auto;border-radius:8px;justify-content:center;padding:0}
@@ -196,7 +198,7 @@
     <button class="nav-item" data-page="productos" onclick="navigate('productos')" title="Productos" data-tooltip="Productos"><span class="icon">📦</span> <span class="nav-text">Productos</span></button>
     <button class="nav-item" data-page="inventario" onclick="navigate('inventario')" title="Inventario" data-tooltip="Inventario"><span class="icon">📊</span> <span class="nav-text">Inventario</span></button>
     <div class="sidebar-divider"></div>
-    <button class="nav-item" data-page="admin" onclick="navigate('admin')" title="Admin" data-tooltip="Admin"><span class="icon">⚙️</span> <span class="nav-text">Admin</span></button>
+    <button class="nav-item admin-item" data-page="admin" onclick="navigate('admin')" title="Admin" data-tooltip="Admin"><span class="icon">⚙️</span> <span class="nav-text">Admin</span></button>
   </nav>
   <div class="sidebar-footer">
     <a class="sidebar-home" href="/" title="Home" data-tooltip="Home"><span class="icon">🏠</span> <span>Home</span></a>
@@ -217,8 +219,8 @@
       <div style="display:flex;align-items:center;gap:8px;margin-left:8px">
         <button class="btn btn-sm btn-secondary" onclick="volverDesdeAdmin()" id="btn-volver-admin" style="display:none">← Volver a Admin</button>
       </div>
-      <div class="header-actions">
-        <button class="btn btn-sm btn-secondary" onclick="toggleTheme()" id="theme-btn" title="Cambiar tema">☀️</button>
+      <div class="header-actions" style="display:flex;align-items:center;padding-right:16px;height:100%">
+        <button class="btn btn-sm btn-secondary" onclick="toggleTheme()" id="theme-btn" title="Cambiar tema" style="display:flex;align-items:center;justify-content:center;margin-top:0">☀️</button>
       </div>
     </div>
     <div class="main-body">

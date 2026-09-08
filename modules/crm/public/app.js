@@ -418,7 +418,7 @@ function renderVentasPorAsesor(vendedores, containerId) {
   if(!vendedores.length){ c.innerHTML='<div class="widget-title">Ventas por asesor</div><div style="color:var(--muted);font-size:12px">Sin datos</div>'; return; }
   const maxMonto=Math.max(1, ...vendedores.map(v=>Number(v.monto_ganado)||0));
   const nombreV=(id)=>{ const f=_pipelineVendedorCache.find(u=>String(u.id)===String(id)); return f?f.nombre:'ID '+id; };
-  c.innerHTML=`<div class="widget-title">Ventas por asesor</div><div style="display:flex;flex-direction:column;gap:10px;margin-top:4px;max-height:190px;overflow-y:auto;padding-right:4px">${vendedores.map(v=>{
+  c.innerHTML=`<div class="widget-title">Ventas por asesor</div><div style="display:flex;flex-direction:column;gap:6px;margin-top:4px;max-height:190px;overflow-y:auto;padding-right:4px">${vendedores.map(v=>{
     const pct=maxMonto>0? (Number(v.monto_ganado)/maxMonto*100).toFixed(1):0;
     return `<div><div style="position:relative;z-index:2;display:flex;justify-content:space-between;align-items:center;font-size:11.5px;margin-bottom:4px"><span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%">${esc(nombreV(v.vendedor_id))}</span><span style="font-weight:700;color:var(--success)">$${formatMoney(v.monto_ganado)} <small style="color:var(--muted);font-weight:400;font-size:10px">(${pct}%)</small></span></div><div style="width:100%;height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:2px"><div style="width:${pct}%;height:100%;background:var(--success);border-radius:2px"></div></div></div>`;
   }).join('')}</div>`;
