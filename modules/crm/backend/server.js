@@ -150,7 +150,15 @@ app.get('/api/dashboard/analytics', protect, async (req, res) => {
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     const addCond = (sql) => conds.length ? `${conds.join(' AND ')} AND ${sql}` : `WHERE ${sql}`;
 
-    const [acv, lossReason, repeatPurchase, velocity, pipelineTotal, slippage, ticketFuente, forecastPonderado, convAsesor] = await Promise.all([
+    // Lead → Cliente real requiere tabla leads (params separados por ::date con alias l.)
+    const leadConds = [];
+    const leadParams = [];
+    let lpi = 1;
+    if (desde) { leadConds.push(`l.creado_en >= $${lpi}::date`); leadParams.push(desde); lpi++; }
+    if (hasta) { leadConds.push(`l.creado_en < $${lpi}::date + INTERVAL '1 day'`); leadParams.push(hasta); lpi++; }
+    const leadWhere = leadConds.length ? `WHERE ${leadConds.join(' AND ')}` : '';
+
+    const [acv, lossReason, repeatPurchase, velocity, pipelineTotal, slippage, ticketFuente, forecastPonderado, convAsesor, leadConv] = await Promise.all([
       // ACV: monto promedio por negocio ganado
       pool.query(`SELECT COUNT(*) as n, COALESCE(AVG(monto_esperado),0) as acv, COALESCE(SUM(monto_esperado),0) as total FROM crm.oportunidades o ${addCond(`o.etapa='ganada'`)}`, params),
       // Pérdida por causal (% de cada motivo dentro de PERDIDA)
@@ -182,7 +190,11 @@ app.get('/api/dashboard/analytics', protect, async (req, res) => {
       pool.query(`SELECT o.vendedor_id, COUNT(*) as total, COUNT(*) FILTER (WHERE o.etapa='ganada') as ganadas,
         ROUND(100.0*COUNT(*) FILTER (WHERE o.etapa='ganada')/NULLIF(COUNT(*),0),1) as conv_pct
         FROM crm.oportunidades o ${conds.length ? `WHERE ${conds.join(' AND ')} AND o.vendedor_id IS NOT NULL` : `WHERE o.vendedor_id IS NOT NULL`}
-        GROUP BY o.vendedor_id HAVING COUNT(*)>=1 ORDER BY conv_pct DESC, ganadas DESC LIMIT 10`, params)
+        GROUP BY o.vendedor_id HAVING COUNT(*)>=1 ORDER BY conv_pct DESC, ganadas DESC LIMIT 10`, params),
+      // Lead → Cliente real: prospectos convertidos
+      pool.query(`SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE l.estado='convertido' OR l.cliente_convertido=TRUE) as convertidos,
+        ROUND(100.0*COUNT(*) FILTER (WHERE l.estado='convertido' OR l.cliente_convertido=TRUE)/NULLIF(COUNT(*),0),1) as conv_pct
+        FROM crm.leads l ${leadWhere}`, leadParams)
     ]);
 
     res.json({
@@ -203,6 +215,7 @@ app.get('/api/dashboard/analytics', protect, async (req, res) => {
       ticket_por_fuente: ticketFuente.rows,
       forecast_ponderado: parseFloat(forecastPonderado.rows[0].ponderado),
       conversion_asesor: convAsesor.rows,
+      lead_conversion: { total: parseInt(leadConv.rows[0].total)||0, convertidos: parseInt(leadConv.rows[0].convertidos)||0, pct: parseFloat(leadConv.rows[0].conv_pct)||0 },
       desde: desde || null,
       hasta: hasta || null
     });

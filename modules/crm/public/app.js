@@ -145,6 +145,7 @@ async function cargarAnalitica() {
     renderRepeatPurchase(d.repeat_purchase || { nuevos: 0, recurrentes: 0 }, 'widget-repeat');
     renderTicketFuente(d.ticket_por_fuente || [], 'widget-fuente');
     renderConversionAsesor(d.conversion_asesor || [], 'widget-conv-asesor');
+    renderLeadConversion(d.lead_conversion || { total:0, convertidos:0, pct:0 }, 'widget-lead-conv');
     renderLtv(d.acv || { promedio: 0 }, d.repeat_purchase || { nuevos: 0, recurrentes: 0 }, 'widget-ltv');
   } catch (err) { console.error('Analitica error:', err); }
 }
@@ -272,6 +273,19 @@ function renderLtv(acv, rp, containerId) {
     <div class="metric-big">$${formatMoney(ltv)}</div>
     <div class="metric-sub">ACV $${formatMoney(acv?.promedio || 0)} × recurrencia ${recurrencia.toFixed(1)}x</div>
     <div style="font-size:11px;color:var(--muted);margin-top:8px">Proyección de ingreso por cuenta a lo largo de la relación.</div>`;
+}
+
+function renderLeadConversion(lc, containerId) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  const pct = Number(lc.pct) || 0;
+  const color = pct >= 30 ? 'var(--success)' : pct >= 15 ? 'var(--warning)' : 'var(--danger)';
+  c.innerHTML = `
+    <div class="widget-title">Lead → Cliente real</div>
+    <div class="metric-big" style="color:${color}">${pct}%</div>
+    <div class="metric-sub">${lc.convertidos||0} convertidos · ${lc.total||0} prospectos</div>
+    <div class="coverage-bar"><span style="width:${Math.min(100,pct)}%;background:${color}"></span></div>
+    <div style="font-size:11px;color:var(--muted);margin-top:8px">Tasa de conversión de prospecto a cliente real (estado convertido / cliente_convertido).</div>`;
 }
 
 function renderConversionAsesor(rows, containerId) {
