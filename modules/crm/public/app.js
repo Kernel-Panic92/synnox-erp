@@ -381,13 +381,13 @@ function renderFunnelChart(data, containerId) {
   const maxMonto = Math.max(1, ...data.map(e => Number(e.monto) || 0));
   const etapaColor = { lead:'var(--accent)', calificado:'#4aa8d8', propuesta:'var(--accent2)', negociacion:'#b983d1', ganada:'var(--success)', perdida:'#a0aec0' };
   const label = { lead:'Lead', calificado:'Calificado', propuesta:'Propuesta', negociacion:'Negociación', ganada:'Ganada', perdida:'Perdida' };
-  const w = 360, h = 210;
+  const w = 360, h = 185;
   const maxW = w * 0.52;
   const minFrac = 0.18;
-  const gap = 5;
+  const gap = 4;
   const rowH = (h - gap * (data.length - 1)) / data.length;
   const cx = w / 2;
-  let svg = `<svg viewBox="0 0 ${w} ${h}" style="width:100%;overflow:visible;display:block">`;
+  let svg = `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:165px;overflow:visible;display:block">`;
   data.forEach((item, i) => {
     const frac = Math.max(minFrac, Number(item.monto) / maxMonto);
     const wCur = maxW * frac;
