@@ -36,6 +36,14 @@
 .dash-widget{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;overflow:visible;height:auto}
 .nav-text{font-size:13px;font-weight:500;white-space:nowrap}
 .sidebar.collapsed .nav-text{display:none !important}
+.sidebar.collapsed .nav-item{position:relative}
+.sidebar.collapsed .nav-item::after{content:attr(data-tooltip);position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%) translateX(-8px);background:#1e293b;color:#f8fafc;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap;border:1px solid #334155;box-shadow:0 4px 12px rgba(0,0,0,0.3);opacity:0;pointer-events:none;transition:all .2s ease;z-index:100}
+.sidebar.collapsed .nav-item:hover::after{opacity:1;transform:translateY(-50%) translateX(0)}
+.sidebar .nav-item .icon{transition:transform .2s ease, filter .2s ease}
+.sidebar.collapsed .nav-item:not(.active):hover .icon{transform:scale(1.12);filter:brightness(1.2)}
+.sidebar-divider{height:1px;background:var(--border);margin:12px 14px;opacity:0.6}
+.sidebar.collapsed .sidebar-divider{margin:12px 10px}
+.sidebar-footer{margin-top:auto;padding-bottom:12px}
 .sidebar-header{display:flex;justify-content:flex-end;align-items:center;padding:12px 12px 8px;min-height:44px;box-sizing:border-box}
 .sidebar.collapsed .sidebar-header{justify-content:center;padding:12px 0}
 .sidebar-toggle{width:32px;height:32px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s ease;flex-shrink:0;font-size:14px}
@@ -174,16 +182,17 @@
     <div class="role" id="user-role"></div>
   </div>
   <nav id="sidebar-nav">
-    <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')" title="Dashboard"><span class="icon">📊</span> <span class="nav-text">Dashboard</span></button>
-    <button class="nav-item" data-page="pipeline" onclick="navigate('pipeline')" title="Pipeline"><span class="icon">📈</span> <span class="nav-text">Pipeline</span></button>
-    <button class="nav-item" data-page="leads" onclick="navigate('leads')" title="Clientes Potenciales"><span class="icon">🎯</span> <span class="nav-text">Clientes Potenciales</span></button>
-    <button class="nav-item" data-page="clientes" onclick="navigate('clientes')" title="Clientes"><span class="icon">🏢</span> <span class="nav-text">Clientes</span></button>
-    <button class="nav-item" data-page="contactos" onclick="navigate('contactos')" title="Contactos"><span class="icon">👤</span> <span class="nav-text">Contactos</span></button>
-    <button class="nav-item" data-page="visitas" onclick="navigate('visitas')" title="Actividades"><span class="icon">📋</span> <span class="nav-text">Actividades</span></button>
-    <button class="nav-item" data-page="cotizaciones" onclick="navigate('cotizaciones')" title="Cotizaciones"><span class="icon">📄</span> <span class="nav-text">Cotizaciones</span></button>
-    <button class="nav-item" data-page="productos" onclick="navigate('productos')" title="Productos"><span class="icon">📦</span> <span class="nav-text">Productos</span></button>
-    <button class="nav-item" data-page="inventario" onclick="navigate('inventario')" title="Inventario"><span class="icon">📊</span> <span class="nav-text">Inventario</span></button>
-    <button class="nav-item" data-page="admin" onclick="navigate('admin')" title="Admin"><span class="icon">⚙️</span> <span class="nav-text">Admin</span></button>
+    <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')" title="Dashboard" data-tooltip="Dashboard"><span class="icon">📊</span> <span class="nav-text">Dashboard</span></button>
+    <button class="nav-item" data-page="pipeline" onclick="navigate('pipeline')" title="Pipeline" data-tooltip="Pipeline"><span class="icon">📈</span> <span class="nav-text">Pipeline</span></button>
+    <button class="nav-item" data-page="leads" onclick="navigate('leads')" title="Clientes Potenciales" data-tooltip="Clientes Potenciales"><span class="icon">🎯</span> <span class="nav-text">Clientes Potenciales</span></button>
+    <button class="nav-item" data-page="clientes" onclick="navigate('clientes')" title="Clientes" data-tooltip="Clientes"><span class="icon">🏢</span> <span class="nav-text">Clientes</span></button>
+    <button class="nav-item" data-page="contactos" onclick="navigate('contactos')" title="Contactos" data-tooltip="Contactos"><span class="icon">👤</span> <span class="nav-text">Contactos</span></button>
+    <button class="nav-item" data-page="visitas" onclick="navigate('visitas')" title="Actividades" data-tooltip="Actividades"><span class="icon">📋</span> <span class="nav-text">Actividades</span></button>
+    <button class="nav-item" data-page="cotizaciones" onclick="navigate('cotizaciones')" title="Cotizaciones" data-tooltip="Cotizaciones"><span class="icon">📄</span> <span class="nav-text">Cotizaciones</span></button>
+    <button class="nav-item" data-page="productos" onclick="navigate('productos')" title="Productos" data-tooltip="Productos"><span class="icon">📦</span> <span class="nav-text">Productos</span></button>
+    <button class="nav-item" data-page="inventario" onclick="navigate('inventario')" title="Inventario" data-tooltip="Inventario"><span class="icon">📊</span> <span class="nav-text">Inventario</span></button>
+    <div class="sidebar-divider"></div>
+    <button class="nav-item" data-page="admin" onclick="navigate('admin')" title="Admin" data-tooltip="Admin"><span class="icon">⚙️</span> <span class="nav-text">Admin</span></button>
   </nav>
   <div class="sidebar-footer">
     <a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a>
