@@ -415,19 +415,22 @@ function renderGraficoSVG(historico, containerId) {
   if (!container) return;
   if (!historico.length) { container.innerHTML = '<div class="widget-title">Tendencia mensual</div><div style="color:var(--muted);font-size:12px">Sin datos</div>'; return; }
   const maxVenta = Math.max(1, ...historico.map(h => Number(h.monto) || 0));
-  const height = 140, width = 360;
-  const px = (i) => (historico.length > 1 ? (i / (historico.length - 1)) : 0) * (width - 40) + 20;
-  const py = (m) => height - ((Number(m) / maxVenta) * (height - 40) + 20);
+  const vbW = 360, vbH = 165, chartH = 115, padL = 20, padR = 20, topY = 10;
+  const px = (i) => (historico.length > 1 ? (i / (historico.length - 1)) : 0.5) * (vbW - padL - padR) + padL;
+  const py = (m) => topY + chartH - ((Number(m) / maxVenta) * (chartH - 10));
   const puntos = historico.map((h, i) => `${px(i)},${py(h.monto)}`).join(' ');
   const mesCorto = (m) => { try { return new Date(m + '-01').toLocaleDateString('es-CO',{month:'short'}); } catch { return m.slice(5); } };
-  const line = historico.length > 1 ? `<polyline fill="none" stroke="var(--accent)" stroke-width="3" points="${puntos}"/>` : '';
+  const area = historico.length > 1 ? `${puntos} ${px(historico.length-1)},${topY+chartH} ${px(0)},${topY+chartH}` : '';
+  const line = historico.length > 1 ? `<polyline fill="none" stroke="var(--accent)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" points="${puntos}"/>` : '';
   container.innerHTML = `
     <div class="widget-title">Tendencia mensual</div>
-    <svg viewBox="0 0 ${width} ${height}" style="width:100%;overflow:visible">
+    <svg viewBox="0 0 ${vbW} ${vbH}" style="width:100%;height:140px;display:block">
+      <line x1="${padL}" y1="${topY+chartH}" x2="${vbW-padR}" y2="${topY+chartH}" stroke="var(--border)" stroke-width="1" opacity="0.5"/>
+      ${area ? `<polygon points="${area}" fill="var(--accent)" opacity="0.08"/>` : ''}
       ${line}
       ${historico.map((h, i) => `
-        <circle cx="${px(i)}" cy="${py(h.monto)}" r="4" fill="var(--accent)"><title>${h.mes}: $${formatMoney(h.monto)}</title></circle>
-        <text x="${px(i)}" y="${height + 14}" font-size="10" fill="var(--muted)" text-anchor="middle">${mesCorto(h.mes)}</text>`).join('')}
+        <circle cx="${px(i)}" cy="${py(h.monto)}" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="1.5"><title>${h.mes}: $${formatMoney(h.monto)}</title></circle>
+        <text x="${px(i)}" y="${topY+chartH+18}" font-size="10" fill="var(--muted)" text-anchor="middle">${mesCorto(h.mes)}</text>`).join('')}
     </svg>`;
 }
 function renderDistribucionCiudades(ciudadesData, containerId) {
