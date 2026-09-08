@@ -37,13 +37,17 @@
 .nav-text{font-size:13px;font-weight:500;white-space:nowrap}
 .sidebar.collapsed .nav-text{display:none !important}
 .sidebar.collapsed .nav-item{position:relative}
-.sidebar.collapsed .nav-item::after{content:attr(data-tooltip);position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%) translateX(-8px);background:#1e293b;color:#f8fafc;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap;border:1px solid #334155;box-shadow:0 4px 12px rgba(0,0,0,0.3);opacity:0;pointer-events:none;transition:all .2s ease;z-index:100}
-.sidebar.collapsed .nav-item:hover::after{opacity:1;transform:translateY(-50%) translateX(0)}
+.sidebar.collapsed .nav-item::after, .sidebar.collapsed .btn-logout::after, .sidebar.collapsed .sidebar-home::after{content:attr(data-tooltip);position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%) translateX(-8px);background:#1e293b;color:#f8fafc;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap;border:1px solid #334155;box-shadow:0 4px 12px rgba(0,0,0,0.3);opacity:0;pointer-events:none;transition:all .2s ease;z-index:100}
+.sidebar.collapsed .nav-item:hover::after, .sidebar.collapsed .btn-logout:hover::after, .sidebar.collapsed .sidebar-home:hover::after{opacity:1;transform:translateY(-50%) translateX(0)}
+.sidebar.collapsed .btn-logout, .sidebar.collapsed .sidebar-home{position:relative}
 .sidebar .nav-item .icon{transition:transform .2s ease, filter .2s ease}
 .sidebar.collapsed .nav-item:not(.active):hover .icon{transform:scale(1.12);filter:brightness(1.2)}
 .sidebar-divider{height:1px;background:var(--border);margin:12px 14px;opacity:0.6}
 .sidebar.collapsed .sidebar-divider{margin:12px 10px}
-.sidebar-footer{margin-top:auto;padding-bottom:12px}
+.sidebar-footer{margin-top:auto;padding-bottom:12px;display:flex;flex-direction:column;gap:6px}
+.sidebar.collapsed .sidebar-footer{gap:4px}
+.sidebar.collapsed .btn-logout{width:42px;height:42px;margin:4px auto;border-radius:8px;justify-content:center;padding:0}
+.sidebar.collapsed .btn-logout .nav-text{display:none !important}
 .sidebar-header{display:flex;justify-content:flex-end;align-items:center;padding:12px 12px 8px;min-height:44px;box-sizing:border-box}
 .sidebar.collapsed .sidebar-header{justify-content:center;padding:12px 0}
 .sidebar-toggle{width:32px;height:32px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s ease;flex-shrink:0;font-size:14px}
@@ -195,12 +199,12 @@
     <button class="nav-item" data-page="admin" onclick="navigate('admin')" title="Admin" data-tooltip="Admin"><span class="icon">⚙️</span> <span class="nav-text">Admin</span></button>
   </nav>
   <div class="sidebar-footer">
-    <a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a>
+    <a class="sidebar-home" href="/" title="Home" data-tooltip="Home"><span class="icon">🏠</span> <span>Home</span></a>
     <div class="user-name" id="sidebar-user-name"></div>
     <div class="user-role" id="sidebar-user-role"></div>
     <div class="version"><div id="app-version">v—</div></div>
-    <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesion">
-      <span style="font-size:18px">⏻</span> Cerrar sesion
+    <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesion" data-tooltip="Cerrar sesion">
+      <span class="icon" style="font-size:18px">⏻</span> <span class="nav-text">Cerrar sesion</span>
     </button>
   </div>
 </aside>
