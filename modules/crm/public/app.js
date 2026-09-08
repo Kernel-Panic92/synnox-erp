@@ -211,7 +211,7 @@ function renderCoverage(pipelineAbierto, containerId) {
   c.innerHTML = `
     <div class="widget-title">Pipeline coverage <span style="cursor:pointer;margin-left:4px" title="Editar meta" onclick="const v=prompt('Meta mensual COP:',${meta}); if(v!==null){window._metaMensual=parseFloat(v)||0; renderCoverage(${pipelineAbierto},'widget-coverage'); renderForecast(${window._forecastActual||0},'widget-forecast')}">✎</span></div>
     <div class="metric-big" style="color:${ratioColor}">${ratio.toFixed(1)}x</div>
-    <div class="metric-sub">Meta $${formatMoneyShort(meta)} (3x ideal)</div>
+    <div class="metric-sub">Meta ${formatMoneyShort(meta)} (3x ideal)</div>
     <div class="coverage-bar"><span style="width:${Math.min(100, pct)}%;background:${ratioColor}"></span></div>`;
 }
 
@@ -262,7 +262,7 @@ function renderLtv(acv, rp, containerId) {
   const ltv = (acv?.promedio || 0) * recurrencia;
   c.innerHTML = `
     <div class="widget-title">LTV estimado</div>
-    <div class="metric-big">$${formatMoneyShort(ltv)}</div>
+    <div class="metric-big">${formatMoneyShort(ltv)}</div>
     <div class="metric-sub">ACV × ${recurrencia.toFixed(1)}x</div>`;
 }
 
