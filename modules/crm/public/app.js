@@ -154,10 +154,9 @@ function renderAcv(acv, containerId) {
   const c = document.getElementById(containerId);
   if (!c) return;
   c.innerHTML = `
-    <div class="widget-title">Valor promedio de venta (ACV)</div>
+    <div class="widget-title">Valor promedio venta (ACV)</div>
     <div class="metric-big">$${formatMoney(acv?.promedio || 0)}</div>
-    <div class="metric-sub">${acv?.n || 0} negocios ganados · total $${formatMoney(acv?.total || 0)}</div>
-    <div style="font-size:11px;color:var(--muted);margin-top:8px">Monto promedio por cierre en etapa Ganada. Detecta si la fuerza apunta a cuentas de mayor valor.</div>`;
+    <div class="metric-sub">${acv?.n || 0} negocios ganados</div>`;
 }
 
 function renderForecast(ponderado, containerId) {
@@ -170,10 +169,8 @@ function renderForecast(ponderado, containerId) {
   c.innerHTML = `
     <div class="widget-title">Forecast ponderado</div>
     <div class="metric-big">$${formatMoney(ponderado)}</div>
-    <div class="metric-sub">Proyección estimada vs meta $${formatMoney(meta)}</div>
-    <div class="coverage-bar"><span style="width:${Math.min(100, pct)}%;background:${color}"></span></div>
-    <div style="font-size:11px;font-weight:700;text-align:right;margin-top:4px;color:var(--muted)">${pct}% alcanzado del forecast</div>
-    <div style="font-size:11px;color:var(--muted);margin-top:4px">Σ monto × probabilidad en etapas abiertas.</div>`;
+    <div class="metric-sub">${pct}% alcanzado</div>
+    <div class="coverage-bar"><span style="width:${Math.min(100, pct)}%;background:${color}"></span></div>`;
 }
 
 function renderSlippage(sl, containerId) {
@@ -182,11 +179,10 @@ function renderSlippage(sl, containerId) {
   const pct = sl.pct || 0;
   const color = pct >= 40 ? 'var(--danger)' : pct >= 20 ? 'var(--warning)' : 'var(--success)';
   c.innerHTML = `
-    <div class="widget-title">Slippage (estancamiento)</div>
+    <div class="widget-title">Slippage</div>
     <div class="metric-big" style="color:${color}">${pct}%</div>
-    <div class="metric-sub">${sl.vencidas || 0} de ${sl.abiertas || 0} oportunidades con cierre vencido</div>
-    <div class="coverage-bar"><span style="width:${Math.min(100, pct)}%;background:${color}"></span></div>
-    <div style="font-size:11px;color:var(--muted);margin-top:8px">% de pipeline abierto cuya fecha estimada ya pasó — alerta de forecast optimista.</div>`;
+    <div class="metric-sub">${sl.vencidas || 0} de ${sl.abiertas || 0} vencidas</div>
+    <div class="coverage-bar"><span style="width:${Math.min(100, pct)}%;background:${color}"></span></div>`;
 }
 
 function renderTicketFuente(fuentes, containerId) {
@@ -211,15 +207,12 @@ function renderCoverage(pipelineAbierto, containerId) {
   const meta = window._metaMensual || 5000000;
   const ratio = meta > 0 ? (pipelineAbierto / meta) : 0;
   const pct = Math.min(100, Math.round(ratio * 100));
-  const healthy = ratio >= 3 && ratio <= 4;
   const ratioColor = ratio >= 3 ? 'var(--success)' : ratio >= 1 ? 'var(--warning)' : 'var(--danger)';
   c.innerHTML = `
-    <div class="widget-title">Pipeline coverage</div>
+    <div class="widget-title">Pipeline coverage <span style="cursor:pointer;margin-left:4px" title="Editar meta" onclick="const v=prompt('Meta mensual COP:',${meta}); if(v!==null){window._metaMensual=parseFloat(v)||0; renderCoverage(${pipelineAbierto},'widget-coverage'); renderForecast(${window._forecastActual||0},'widget-forecast')}">✎</span></div>
     <div class="metric-big" style="color:${ratioColor}">${ratio.toFixed(1)}x</div>
-    <div class="metric-sub">Pipeline $${formatMoney(pipelineAbierto)} vs meta $${formatMoney(meta)}</div>
-    <div class="coverage-bar"><span style="width:${Math.min(100, pct)}%;background:${ratioColor}"></span></div>
-    <div style="font-size:11px;color:var(--muted);margin-top:6px">${healthy ? 'Saludable (3x-4x).' : ratio < 1 ? '⚠️ Crítico — por debajo de la meta.' : 'Por debajo de lo ideal (meta 3x-4x).'} Meta editable: </div>
-    <input type="number" id="coverage-meta-input" value="${meta}" style="width:100%;margin-top:6px;padding:6px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px" onchange="window._metaMensual=parseFloat(this.value)||0; renderCoverage(${pipelineAbierto}, 'widget-coverage'); renderForecast(${window._forecastActual || 0}, 'widget-forecast')">`;
+    <div class="metric-sub">Meta $${formatMoneyShort(meta)} (3x ideal)</div>
+    <div class="coverage-bar"><span style="width:${Math.min(100, pct)}%;background:${ratioColor}"></span></div>`;
 }
 
 function renderStageVelocity(vel, containerId) {
@@ -256,10 +249,9 @@ function renderRepeatPurchase(rp, containerId) {
   const total = (rp.nuevos || 0) + (rp.recurrentes || 0);
   const pct = total > 0 ? Math.round((rp.recurrentes || 0) / total * 100) : 0;
   c.innerHTML = `
-    <div class="widget-title">Recurrencia de clientes</div>
+    <div class="widget-title">Recurrencia</div>
     <div class="metric-big">${pct}%</div>
-    <div class="metric-sub">${rp.recurrentes || 0} recurrentes · ${rp.nuevos || 0} nuevos</div>
-    <div style="font-size:11px;color:var(--muted);margin-top:8px">Oportunidades ganadas de clientes con compra previa vs clientes nuevos.</div>`;
+    <div class="metric-sub">${rp.recurrentes || 0} recurr. · ${rp.nuevos || 0} nuevos</div>`;
 }
 
 function renderLtv(acv, rp, containerId) {
@@ -270,9 +262,8 @@ function renderLtv(acv, rp, containerId) {
   const ltv = (acv?.promedio || 0) * recurrencia;
   c.innerHTML = `
     <div class="widget-title">LTV estimado</div>
-    <div class="metric-big">$${formatMoney(ltv)}</div>
-    <div class="metric-sub">ACV $${formatMoney(acv?.promedio || 0)} × recurrencia ${recurrencia.toFixed(1)}x</div>
-    <div style="font-size:11px;color:var(--muted);margin-top:8px">Proyección de ingreso por cuenta a lo largo de la relación.</div>`;
+    <div class="metric-big">$${formatMoneyShort(ltv)}</div>
+    <div class="metric-sub">ACV × ${recurrencia.toFixed(1)}x</div>`;
 }
 
 function renderLeadConversion(lc, containerId, perAsesor) {
