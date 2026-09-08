@@ -314,7 +314,7 @@ function renderConversionAsesor(rows, containerId) {
         </div>
       </div>`;
   }).join('');
-  c.innerHTML = `<div class="widget-title">Conversión por asesor</div>${html || '<div style="color:var(--muted);font-size:12px">Sin datos</div>'}`;
+  c.innerHTML = `<div class="widget-title">Conversión por asesor</div><div style="max-height:180px;overflow-y:auto;padding-right:4px">${html || '<div style="color:var(--muted);font-size:12px">Sin datos</div>'}</div>`;
 }
 
 function dashMesActual() {
