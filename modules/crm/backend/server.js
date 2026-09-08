@@ -158,7 +158,7 @@ app.get('/api/dashboard/analytics', protect, async (req, res) => {
     if (hasta) { leadConds.push(`l.creado_en < $${lpi}::date + INTERVAL '1 day'`); leadParams.push(hasta); lpi++; }
     const leadWhere = leadConds.length ? `WHERE ${leadConds.join(' AND ')}` : '';
 
-    const [acv, lossReason, repeatPurchase, velocity, pipelineTotal, slippage, ticketFuente, forecastPonderado, convAsesor, leadConv] = await Promise.all([
+    const [acv, lossReason, repeatPurchase, velocity, pipelineTotal, slippage, ticketFuente, forecastPonderado, convAsesor, leadConv, leadConvAsesor] = await Promise.all([
       // ACV: monto promedio por negocio ganado
       pool.query(`SELECT COUNT(*) as n, COALESCE(AVG(monto_esperado),0) as acv, COALESCE(SUM(monto_esperado),0) as total FROM crm.oportunidades o ${addCond(`o.etapa='ganada'`)}`, params),
       // Pérdida por causal (% de cada motivo dentro de PERDIDA)
@@ -194,7 +194,12 @@ app.get('/api/dashboard/analytics', protect, async (req, res) => {
       // Lead → Cliente real: prospectos convertidos
       pool.query(`SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE l.estado='convertido' OR l.cliente_convertido=TRUE) as convertidos,
         ROUND(100.0*COUNT(*) FILTER (WHERE l.estado='convertido' OR l.cliente_convertido=TRUE)/NULLIF(COUNT(*),0),1) as conv_pct
-        FROM crm.leads l ${leadWhere}`, leadParams)
+        FROM crm.leads l ${leadWhere}`, leadParams),
+      // Lead conversión por asesor
+      pool.query(`SELECT COALESCE(NULLIF(TRIM(l.asesor_comercial),''),'Sin asesor') as asesor, COUNT(*) as total,
+        COUNT(*) FILTER (WHERE l.estado='convertido' OR l.cliente_convertido=TRUE) as convertidos,
+        ROUND(100.0*COUNT(*) FILTER (WHERE l.estado='convertido' OR l.cliente_convertido=TRUE)/NULLIF(COUNT(*),0),1) as conv_pct
+        FROM crm.leads l ${leadWhere} GROUP BY asesor HAVING COUNT(*)>=3 ORDER BY conv_pct DESC, convertidos DESC LIMIT 8`, leadParams)
     ]);
 
     res.json({
@@ -216,6 +221,7 @@ app.get('/api/dashboard/analytics', protect, async (req, res) => {
       forecast_ponderado: parseFloat(forecastPonderado.rows[0].ponderado),
       conversion_asesor: convAsesor.rows,
       lead_conversion: { total: parseInt(leadConv.rows[0].total)||0, convertidos: parseInt(leadConv.rows[0].convertidos)||0, pct: parseFloat(leadConv.rows[0].conv_pct)||0 },
+      lead_conversion_asesor: leadConvAsesor.rows,
       desde: desde || null,
       hasta: hasta || null
     });

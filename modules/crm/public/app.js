@@ -145,7 +145,7 @@ async function cargarAnalitica() {
     renderRepeatPurchase(d.repeat_purchase || { nuevos: 0, recurrentes: 0 }, 'widget-repeat');
     renderTicketFuente(d.ticket_por_fuente || [], 'widget-fuente');
     renderConversionAsesor(d.conversion_asesor || [], 'widget-conv-asesor');
-    renderLeadConversion(d.lead_conversion || { total:0, convertidos:0, pct:0 }, 'widget-lead-conv');
+    renderLeadConversion(d.lead_conversion || { total:0, convertidos:0, pct:0 }, 'widget-lead-conv', d.lead_conversion_asesor || []);
     renderLtv(d.acv || { promedio: 0 }, d.repeat_purchase || { nuevos: 0, recurrentes: 0 }, 'widget-ltv');
   } catch (err) { console.error('Analitica error:', err); }
 }
@@ -275,17 +275,30 @@ function renderLtv(acv, rp, containerId) {
     <div style="font-size:11px;color:var(--muted);margin-top:8px">Proyección de ingreso por cuenta a lo largo de la relación.</div>`;
 }
 
-function renderLeadConversion(lc, containerId) {
+function renderLeadConversion(lc, containerId, perAsesor) {
   const c = document.getElementById(containerId);
   if (!c) return;
   const pct = Number(lc.pct) || 0;
   const color = pct >= 30 ? 'var(--success)' : pct >= 15 ? 'var(--warning)' : 'var(--danger)';
+  const maxPct = Math.max(1, ...(perAsesor||[]).map(r=>Number(r.conv_pct)||0));
+  const rows = (perAsesor||[]).slice(0,5).map(r=>{
+    const p = Number(r.conv_pct)||0;
+    const clr = p >= 30 ? 'var(--success)' : p >= 15 ? 'var(--warning)' : 'var(--danger)';
+    return `
+      <div style="display:flex;justify-content:space-between;font-size:11px;font-weight:600;margin:4px 0 2px;color:var(--text)">
+        <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%">${esc(r.asesor)}</span><span style="color:${clr}">${p}%</span><span style="font-size:10px;color:var(--muted);font-weight:400">${r.convertidos}/${r.total}</span>
+      </div>
+      <div style="background:var(--surface2);border-radius:5px;height:6px;overflow:hidden;margin-bottom:6px">
+        <div style="width:${Math.round(p/maxPct*100)}%;background:${clr};height:100%;border-radius:5px"></div>
+      </div>`;
+  }).join('');
   c.innerHTML = `
     <div class="widget-title">Lead → Cliente real</div>
     <div class="metric-big" style="color:${color}">${pct}%</div>
     <div class="metric-sub">${lc.convertidos||0} convertidos · ${lc.total||0} prospectos</div>
     <div class="coverage-bar"><span style="width:${Math.min(100,pct)}%;background:${color}"></span></div>
-    <div style="font-size:11px;color:var(--muted);margin-top:8px">Tasa de conversión de prospecto a cliente real (estado convertido / cliente_convertido).</div>`;
+    ${rows ? `<div style="margin-top:10px;border-top:1px dashed var(--border);padding-top:8px"><div style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Por asesor</div>${rows}</div>` : ''}
+    <div style="font-size:11px;color:var(--muted);margin-top:8px">Tasa global de prospecto a cliente real; desglose por asesor (≥3 leads).</div>`;
 }
 
 function renderConversionAsesor(rows, containerId) {
