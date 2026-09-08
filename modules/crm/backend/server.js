@@ -113,19 +113,23 @@ app.get('/api/dashboard', protect, async (req, res) => {
     const tendDesde = desde || `TO_CHAR(NOW() - INTERVAL '5 months','YYYY-MM-01')`;
     const tendHasta = hasta || `TO_CHAR(NOW(),'YYYY-MM-01')`;
 
-    const [funnelEtapas, rankingVendedores, tendenciaMensual, distribucionCiudades] = await Promise.all([
+    const [funnelEtapas, rankingVendedores, tendenciaMensual, distribucionCiudades, ultimosMovs] = await Promise.all([
       pool.query(`SELECT etapa, COUNT(*) as cantidad, COALESCE(SUM(monto_esperado),0) as monto FROM crm.oportunidades o ${opWhere} GROUP BY etapa ORDER BY CASE etapa WHEN 'lead' THEN 1 WHEN 'calificado' THEN 2 WHEN 'propuesta' THEN 3 WHEN 'negociacion' THEN 4 WHEN 'ganada' THEN 5 WHEN 'perdida' THEN 6 END`, params),
       pool.query(`SELECT o.vendedor_id, COUNT(*) FILTER (WHERE o.etapa NOT IN ('ganada','perdida')) as ops_abiertas, COUNT(*) FILTER (WHERE o.etapa='ganada') as ops_ganadas, COALESCE(SUM(o.monto_esperado) FILTER (WHERE o.etapa='ganada'),0) as monto_ganado FROM crm.oportunidades o ${opWhereVendedor} GROUP BY o.vendedor_id HAVING COUNT(*) > 0 ORDER BY monto_ganado DESC, ops_abiertas DESC LIMIT 10`, params),
       pool.query(`SELECT TO_CHAR(mes,'YYYY-MM') as mes, COUNT(o.id) as cantidad, COALESCE(SUM(o.monto_esperado),0) as monto
         FROM generate_series(${tendDesde}::date, ${tendHasta}::date, INTERVAL '1 month') mes
         LEFT JOIN crm.oportunidades o ON DATE_TRUNC('month', o.creado_en) = DATE_TRUNC('month', mes)
         GROUP BY mes ORDER BY mes`),
-      pool.query(`SELECT COALESCE(ciudad,'Sin ciudad') as ciudad, COUNT(*) as cantidad FROM crm.clientes ${cliWhere} GROUP BY ciudad ORDER BY cantidad DESC LIMIT 8`, params)
+      pool.query(`SELECT COALESCE(ciudad,'Sin ciudad') as ciudad, COUNT(*) as cantidad FROM crm.clientes ${cliWhere} GROUP BY ciudad ORDER BY cantidad DESC LIMIT 8`, params),
+      pool.query(`SELECT o.id, o.nombre as oportunidad, COALESCE(c.nombre, l.raison_social, '—') as cliente, o.monto_esperado as valor, o.etapa, COALESCE(c.ciudad,'—') as ciudad, o.creado_en as fecha, o.vendedor_id
+        FROM crm.oportunidades o LEFT JOIN crm.clientes c ON c.id=o.cliente_id LEFT JOIN crm.leads l ON l.id=o.lead_id
+        ${opWhere} ORDER BY o.creado_en DESC LIMIT 8`, params)
     ]);
 
     res.json({
       ok: true,
       funnel: funnelEtapas.rows,
+      ultimos_movimientos: ultimosMovs.rows,
       ranking_vendedores: rankingVendedores.rows,
       tendencia_mensual: tendenciaMensual.rows,
       distribucion_ciudades: distribucionCiudades.rows,

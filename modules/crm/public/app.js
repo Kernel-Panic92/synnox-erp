@@ -108,11 +108,13 @@ async function cargarDashboard() {
     if (!r.ok) return;
     const d = r.data;
     if (!_pipelineVendedorCache.length) cargarVendedoresPipelineFilter();
+    renderResumenKpis(d.funnel || []);
     renderFunnelChart(d.funnel || [], 'widget-funnel');
     if (!_pipelineVendedorCache.length) await cargarVendedoresPipelineFilter();
     renderTablaVendedores(d.ranking_vendedores || [], 'widget-vendedores');
     renderGraficoSVG(d.tendencia_mensual || [], 'widget-tendencia');
     renderDistribucionCiudades(d.distribucion_ciudades || [], 'widget-ciudades');
+    renderUltimosMovs(d.ultimos_movimientos || [], 'widget-ultimos-movs');
     if (document.getElementById('dash-analitica')?.style.display !== 'none') cargarAnalitica();
   } catch (err) { console.error('Dashboard error:', err); }
 }
@@ -266,6 +268,29 @@ function renderLtv(acv, rp, containerId) {
     <div class="metric-sub">ACV × ${recurrencia.toFixed(1)}x</div>`;
 }
 
+function renderResumenKpis(funnel) {
+  const byEtapa = Object.fromEntries(funnel.map(e=>[e.etapa, e]));
+  const ganada = byEtapa.ganada || {cantidad:0, monto:0};
+  const pipeline = funnel.filter(e=>!['ganada','perdida'].includes(e.etapa)).reduce((a,c)=>a+Number(c.monto||0),0);
+  const total = funnel.reduce((a,c)=>a+Number(c.cantidad||0),0);
+  const gan = Number(ganada.cantidad||0), per = Number((byEtapa.perdida||{cantidad:0}).cantidad||0);
+  const tasa = (gan+per)>0 ? Math.round(gan/(gan+per)*1000)/10 : 0;
+  const ticket = gan>0 ? Number(ganada.monto||0)/gan : 0;
+  const set = (id, title, value, sub) => { const el=document.getElementById(id); if(el) el.innerHTML=`<div class="widget-title">${title}</div><div class="metric-big">${value}</div><div class="metric-sub">${sub}</div>`; };
+  set('resumen-kpi-ganado','Total ganado',`$${formatMoney(ganada.monto||0)}`,`${gan} ganadas`);
+  set('resumen-kpi-pipeline','Pipeline activo',`$${formatMoney(pipeline)}`,`abierto`);
+  set('resumen-kpi-total','Oport. totales',`${total}`,`en periodo`);
+  set('resumen-kpi-tasa','Tasa cierre',`${tasa}%`,`gan/(gan+per)`);
+  set('resumen-kpi-ticket','Ticket promedio',`$${formatMoney(ticket)}`,`por ganada`);
+}
+function renderUltimosMovs(rows, containerId) {
+  const c=document.getElementById(containerId);
+  if(!c) return;
+  if(!rows.length){ c.innerHTML='<div class="widget-title">Últimos movimientos</div><div style="color:var(--muted);font-size:12px">Sin movimientos</div>'; return; }
+  const nombreV = (id)=>{ const f=_pipelineVendedorCache.find(u=>String(u.id)===String(id)); return f?f.nombre:'ID '+id; };
+  const etapaColor = {lead:'#6c757d',calificado:'#17a2b8',propuesta:'#ffc107',negociacion:'#fd7e14',ganada:'#00A86B',perdida:'#dc3545'};
+  c.innerHTML=`<div class="widget-title">Últimos movimientos</div><div class="tbl-wrap"><table class="tbl"><thead><tr><th>Oportunidad / Cliente</th><th>Asesor</th><th>Valor</th><th>Etapa</th><th>Ciudad</th><th>Fecha</th></tr></thead><tbody>${rows.map(r=>`<tr><td><strong>${esc(r.oportunidad)}</strong><br><small style="color:var(--muted)">${esc(r.cliente)}</small></td><td>${esc(nombreV(r.vendedor_id))}</td><td style="font-weight:700">$${formatMoney(r.valor||0)}</td><td><span style="background:${etapaColor[r.etapa]||'#6c757d'};color:#fff;padding:2px 8px;border-radius:10px;font-size:11px">${esc(r.etapa)}</span></td><td>${esc(r.ciudad)}</td><td>${formatDate(r.fecha)}</td></tr>`).join('')}</tbody></table></div>`;
+}
 function renderLeadConversion(lc, containerId, perAsesor) {
   const c = document.getElementById(containerId);
   if (!c) return;

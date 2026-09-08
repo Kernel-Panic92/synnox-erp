@@ -202,11 +202,21 @@
     <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosDash()">✕ Limpiar</button>
   </div>
   <div id="dash-resumen">
-    <div class="dash-grid">
-      <div class="dash-widget" id="widget-funnel"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
-      <div class="dash-widget" id="widget-vendedores"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
-      <div class="dash-widget" id="widget-tendencia"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-card"></div></div>
-      <div class="dash-widget" id="widget-ciudades"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
+    <div class="kpi-strip" id="resumen-kpi-strip">
+      <div class="kpi-banner" id="resumen-kpi-ganado"><div class="skeleton skeleton-text"></div></div>
+      <div class="kpi-banner" id="resumen-kpi-pipeline"><div class="skeleton skeleton-text"></div></div>
+      <div class="kpi-banner" id="resumen-kpi-total"><div class="skeleton skeleton-text"></div></div>
+      <div class="kpi-banner" id="resumen-kpi-tasa"><div class="skeleton skeleton-text"></div></div>
+      <div class="kpi-banner" id="resumen-kpi-ticket"><div class="skeleton skeleton-text"></div></div>
+    </div>
+    <div class="analytics-row">
+      <div class="chart-card" id="widget-funnel"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div></div>
+      <div class="chart-card" id="widget-vendedores"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div></div>
+      <div class="chart-card" id="widget-tendencia"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-card"></div></div>
+      <div class="chart-card" id="widget-ciudades"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div></div>
+    </div>
+    <div class="detail-row" style="margin-top:12px">
+      <div class="table-card" id="widget-ultimos-movs"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
     </div>
   </div>
   <div id="dash-analitica" style="display:none;margin-bottom:20px">
