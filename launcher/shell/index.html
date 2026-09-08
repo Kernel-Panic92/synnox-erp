@@ -171,7 +171,12 @@
   .dash-logout:hover{color:var(--danger);border-color:var(--danger);}
   .dash-back{font-size:var(--fs);color:var(--muted);cursor:pointer;transition:color 0.2s;}
   .dash-back:hover{color:var(--text);}
-  .dash-body{padding:32px;width:100% !important;max-width:100% !important;box-sizing:border-box !important;}
+  #launcher-screen{width:100% !important;max-width:100% !important;box-sizing:border-box !important}
+  .dash-body{width:100% !important;max-width:100% !important;padding:32px 48px !important;box-sizing:border-box !important}
+  .grid{display:grid !important;grid-template-columns:repeat(auto-fill,minmax(200px,1fr)) !important;gap:20px !important;width:100% !important;margin-top:24px !important}
+  .card{width:100% !important;box-sizing:border-box !important;padding:28px 16px 20px !important;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease !important}
+  .card-title{font-size:var(--fs,15px) !important;font-weight:700 !important;white-space:nowrap !important;overflow:hidden !important;text-overflow:ellipsis !important}
+  .card-desc{font-size:12px !important;line-height:1.4 !important}
   .dash-body h2{font-size:22px;font-weight:700;margin-bottom:4px;}
   .dash-body p{font-size:var(--fs);color:var(--muted);margin-bottom:8px;}
 
