@@ -308,22 +308,38 @@ const _ETAPA_LABEL = { lead:'Lead', calificado:'Calificado', propuesta:'Propuest
 function renderFunnelChart(data, containerId) {
   const container = document.getElementById(containerId);
   if (!container) return;
-  const maxMonto = Math.max(0, ...data.map(e => Number(e.monto) || 0));
-  const barColor = (etapa) => etapa === 'perdida' ? '#a0aec0' : 'var(--accent)';
-  const html = data.map(item => {
-    const pct = maxMonto > 0 ? (Number(item.monto) / maxMonto) * 100 : 0;
-    return `
-      <div style="margin-bottom:10px">
-        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:4px;color:var(--text)">
-          <span>${esc(_ETAPA_LABEL[item.etapa] || item.etapa)} (${item.cantidad})</span>
-          <span>$${formatMoney(item.monto)}</span>
-        </div>
-        <div style="background:var(--surface2);border-radius:6px;height:18px;overflow:hidden">
-          <div style="width:${pct}%;background:${barColor(item.etapa)};height:100%;transition:width .4s ease;border-radius:6px"></div>
-        </div>
-      </div>`;
-  }).join('');
-  container.innerHTML = `<div class="widget-title">Embudo de ventas</div>${html || '<div style="color:var(--muted);font-size:12px">Sin datos</div>'}`;
+  if (!data.length) { container.innerHTML = '<div class="widget-title">Embudo de ventas</div><div style="color:var(--muted);font-size:12px">Sin datos</div>'; return; }
+  const maxMonto = Math.max(1, ...data.map(e => Number(e.monto) || 0));
+  const etapaColor = { lead:'var(--accent)', calificado:'#4aa8d8', propuesta:'var(--accent2)', negociacion:'#b983d1', ganada:'var(--success)', perdida:'#a0aec0' };
+  const label = { lead:'Lead', calificado:'Calificado', propuesta:'Propuesta', negociacion:'Negociación', ganada:'Ganada', perdida:'Perdida' };
+  // Centro del svg a 50% del ancho, anchos proporcionales al monto
+  const w = 360, h = 190;
+  const maxW = w * 0.86;      // ancho máximo (tope)
+  const minW = w * 0.22;      // ancho mínimo para no colapsar a cero
+  const gap = 4;
+  const rowH = (h - gap * (data.length - 1)) / data.length;
+  let svg = `<svg viewBox="0 0 ${w} ${h}" style="width:100%;overflow:visible;display:block">`;
+  data.forEach((item, i) => {
+    const frac = Math.max(0.12, Number(item.monto) / maxMonto);
+    const wTop = maxW * frac;
+    const wBot = i < data.length - 1 ? Math.max(minW, maxW * Math.max(0.12, Number(data[i + 1].monto) / maxMonto)) : wTop;
+    const cx = w / 2;
+    const y = i * (rowH + gap);
+    const x1 = cx - wTop / 2, x2 = cx + wTop / 2;
+    const x3 = cx + wBot / 2, x4 = cx - wBot / 2;
+    const yBot = y + rowH;
+    const col = etapaColor[item.etapa] || 'var(--accent)';
+    svg += `
+      <g>
+        <polygon points="${x1},${y} ${x2},${y} ${x3},${yBot} ${x4},${yBot}" fill="${col}" opacity="0.9" ${item.etapa === 'perdida' ? 'stroke="#a0aec0" stroke-width="1" stroke-dasharray="3 2"' : ''}>
+          <title>${label[item.etapa] || item.etapa}: $${formatMoney(item.monto)} (${item.cantidad})</title>
+        </polygon>
+        <text x="${cx - wTop / 2 - 6}" y="${y + rowH / 2 + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${esc(label[item.etapa] || item.etapa)}</text>
+        <text x="${cx + wTop / 2 + 6}" y="${y + rowH / 2 + 4}" text-anchor="start" font-size="11" font-weight="700" fill="var(--text)">$${formatMoneyShort(item.monto)}</text>
+      </g>`;
+  });
+  svg += '</svg>';
+  container.innerHTML = `<div class="widget-title">Embudo de ventas</div>${svg}`;
 }
 function renderTablaVendedores(vendedores, containerId) {
   const container = document.getElementById(containerId);
