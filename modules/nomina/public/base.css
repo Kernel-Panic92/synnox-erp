@@ -109,6 +109,13 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
 .sidebar .sidebar-footer .user-name { font-weight: 600; font-size: 13px; color: var(--text); margin-top: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .sidebar .sidebar-footer .user-role { font-size: 11px; color: var(--muted); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
+.app-container{display:grid;grid-template-columns:220px 1fr;min-height:100vh;transition:grid-template-columns .3s cubic-bezier(.4,0,.2,1)}
+.app-container:has(.sidebar.collapsed){grid-template-columns:64px 1fr}
+.app-container.sidebar-collapsed{grid-template-columns:64px 1fr}
+.app-container .main{margin-left:0 !important;width:100% !important;min-width:0;overflow-x:hidden}
+.sidebar{height:100vh !important;position:sticky !important;top:0 !important;display:flex !important;flex-direction:column !important;overflow:hidden !important;box-sizing:border-box !important}
+#sidebar-nav{flex:1;overflow-y:auto;overflow-x:hidden}
+
 /* ── Sidebar collapsed ── */
 .sidebar.collapsed { width: 68px; }
 .sidebar.collapsed .logo span,
