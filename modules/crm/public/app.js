@@ -111,6 +111,7 @@ async function cargarDashboard() {
     renderResumenKpis(d.funnel || []);
     renderFunnelChart(d.funnel || [], 'widget-funnel');
     if (!_pipelineVendedorCache.length) await cargarVendedoresPipelineFilter();
+    renderVentasPorAsesor(d.ranking_vendedores || [], 'widget-ventas-asesor');
     renderTablaVendedores(d.ranking_vendedores || [], 'widget-vendedores');
     renderGraficoSVG(d.tendencia_mensual || [], 'widget-tendencia');
     renderDistribucionCiudades(d.distribucion_ciudades || [], 'widget-ciudades');
@@ -411,6 +412,17 @@ function renderFunnelChart(data, containerId) {
   });
   svg += '</svg>';
   container.innerHTML = `<div class="widget-title">Embudo de ventas</div>${svg}`;
+}
+function renderVentasPorAsesor(vendedores, containerId) {
+  const c=document.getElementById(containerId);
+  if(!c) return;
+  if(!vendedores.length){ c.innerHTML='<div class="widget-title">Ventas por asesor</div><div style="color:var(--muted);font-size:12px">Sin datos</div>'; return; }
+  const maxMonto=Math.max(1, ...vendedores.map(v=>Number(v.monto_ganado)||0));
+  const nombreV=(id)=>{ const f=_pipelineVendedorCache.find(u=>String(u.id)===String(id)); return f?f.nombre:'ID '+id; };
+  c.innerHTML=`<div class="widget-title">Ventas por asesor</div><div style="display:flex;flex-direction:column;gap:10px;margin-top:4px">${vendedores.slice(0,5).map(v=>{
+    const pct=maxMonto>0? (Number(v.monto_ganado)/maxMonto*100).toFixed(1):0;
+    return `<div><div style="display:flex;justify-content:space-between;align-items:center;font-size:11.5px;margin-bottom:3px"><span style="font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:55%">${esc(nombreV(v.vendedor_id))}</span><span style="font-weight:700;color:var(--success)">$${formatMoney(v.monto_ganado)} <small style="color:var(--muted);font-weight:400;font-size:10px">(${pct}%)</small></span></div><div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden"><div style="width:${pct}%;height:100%;background:var(--success);border-radius:3px"></div></div></div>`;
+  }).join('')}</div>`;
 }
 function renderTablaVendedores(vendedores, containerId) {
   const container = document.getElementById(containerId);
