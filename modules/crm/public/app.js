@@ -312,30 +312,32 @@ function renderFunnelChart(data, containerId) {
   const maxMonto = Math.max(1, ...data.map(e => Number(e.monto) || 0));
   const etapaColor = { lead:'var(--accent)', calificado:'#4aa8d8', propuesta:'var(--accent2)', negociacion:'#b983d1', ganada:'var(--success)', perdida:'#a0aec0' };
   const label = { lead:'Lead', calificado:'Calificado', propuesta:'Propuesta', negociacion:'Negociación', ganada:'Ganada', perdida:'Perdida' };
-  // Centro del svg a 50% del ancho, anchos proporcionales al monto
-  const w = 360, h = 190;
-  const maxW = w * 0.86;      // ancho máximo (tope)
-  const minW = w * 0.22;      // ancho mínimo para no colapsar a cero
-  const gap = 4;
+  const w = 360, h = 210;
+  const maxW = w * 0.52;
+  const minFrac = 0.18;
+  const gap = 5;
   const rowH = (h - gap * (data.length - 1)) / data.length;
+  const cx = w / 2;
   let svg = `<svg viewBox="0 0 ${w} ${h}" style="width:100%;overflow:visible;display:block">`;
   data.forEach((item, i) => {
-    const frac = Math.max(0.12, Number(item.monto) / maxMonto);
-    const wTop = maxW * frac;
-    const wBot = i < data.length - 1 ? Math.max(minW, maxW * Math.max(0.12, Number(data[i + 1].monto) / maxMonto)) : wTop;
-    const cx = w / 2;
+    const frac = Math.max(minFrac, Number(item.monto) / maxMonto);
+    const wCur = maxW * frac;
+    // trapezoide independiente con leve estrechamiento, sin depender del siguiente (evita inversión)
+    const taper = 0.92;
+    const wTop = wCur;
+    const wBot = wCur * taper;
     const y = i * (rowH + gap);
+    const yBot = y + rowH;
     const x1 = cx - wTop / 2, x2 = cx + wTop / 2;
     const x3 = cx + wBot / 2, x4 = cx - wBot / 2;
-    const yBot = y + rowH;
     const col = etapaColor[item.etapa] || 'var(--accent)';
     svg += `
       <g>
-        <polygon points="${x1},${y} ${x2},${y} ${x3},${yBot} ${x4},${yBot}" fill="${col}" opacity="0.9" ${item.etapa === 'perdida' ? 'stroke="#a0aec0" stroke-width="1" stroke-dasharray="3 2"' : ''}>
+        <polygon points="${x1},${y} ${x2},${y} ${x3},${yBot} ${x4},${yBot}" fill="${col}" opacity="0.92" rx="2" ${item.etapa === 'perdida' ? 'stroke="var(--border)" stroke-width="1" stroke-dasharray="4 3"' : ''}>
           <title>${label[item.etapa] || item.etapa}: $${formatMoney(item.monto)} (${item.cantidad})</title>
         </polygon>
-        <text x="${cx - wTop / 2 - 6}" y="${y + rowH / 2 + 4}" text-anchor="end" font-size="11" fill="var(--muted)">${esc(label[item.etapa] || item.etapa)}</text>
-        <text x="${cx + wTop / 2 + 6}" y="${y + rowH / 2 + 4}" text-anchor="start" font-size="11" font-weight="700" fill="var(--text)">$${formatMoneyShort(item.monto)}</text>
+        <text x="8" y="${y + rowH / 2 + 4}" text-anchor="start" font-size="10.5" fill="var(--muted)">${esc(label[item.etapa] || item.etapa)}</text>
+        <text x="${w - 8}" y="${y + rowH / 2 + 4}" text-anchor="end" font-size="10.5" font-weight="700" fill="var(--text)">$${formatMoney(item.monto)}</text>
       </g>`;
   });
   svg += '</svg>';
