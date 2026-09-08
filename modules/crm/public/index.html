@@ -49,7 +49,11 @@
 .app-container{display:grid;grid-template-columns:220px 1fr;min-height:100vh;transition:grid-template-columns .3s cubic-bezier(.4,0,.2,1)}
 .app-container:has(.sidebar.collapsed){grid-template-columns:64px 1fr}
 .main{margin-left:0 !important;width:100% !important;min-width:0;overflow-x:hidden}
-.sidebar{width:100% !important;min-width:0 !important;position:relative !important;height:auto;min-height:100vh}
+.sidebar{width:100% !important;min-width:0 !important;height:100vh;position:sticky !important;top:0;display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box}
+#sidebar-nav{flex:1;overflow-y:auto;overflow-x:hidden}
+#sidebar-nav::-webkit-scrollbar{width:4px}
+#sidebar-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px}
+.sidebar-header{flex-shrink:0}
 .sidebar-footer{margin-top:auto;padding-bottom:12px;display:flex;flex-direction:column;gap:6px}
 .sidebar.collapsed .sidebar-footer{gap:4px}
 .sidebar.collapsed .btn-logout{width:42px;height:42px;margin:4px auto;border-radius:8px;justify-content:center;padding:0}
