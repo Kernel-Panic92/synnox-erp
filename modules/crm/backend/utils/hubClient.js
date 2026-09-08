@@ -1,4 +1,8 @@
 import pool from '../config/db.js';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 async function mapSiesa(tipo, crmCodigo) {
   if (!crmCodigo) return crmCodigo;
@@ -144,28 +148,110 @@ export async function toSiesaPayload(payloadCrm) {
   };
 }
 
-function daneFromCiudad(ciudad, depto){
-  const c = String(ciudad||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
-  const d = String(depto||'').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
-  const map = {
-    'BOGOTA': { pais:'170', depto:'11', ciudad:'11001' },
-    'BOGOTA D.C.': { pais:'170', depto:'11', ciudad:'11001' },
-    'MEDELLIN': { pais:'170', depto:'05', ciudad:'05001' },
-    'CALI': { pais:'170', depto:'76', ciudad:'76001' },
-    'BARRANQUILLA': { pais:'170', depto:'08', ciudad:'08001' },
-    'CARTAGENA': { pais:'170', depto:'13', ciudad:'13001' },
-    'BUCARAMANGA': { pais:'170', depto:'68', ciudad:'68001' },
-    'ITAGUI': { pais:'170', depto:'05', ciudad:'05360' },
-    'ENVIGADO': { pais:'170', depto:'05', ciudad:'05266' },
-  };
-  if(map[c]) return map[c];
-  if(c.includes('BOGOTA')) return map['BOGOTA'];
-  // fallback por depto
-  const deptoMap = { 'CUNDINAMARCA':'25', 'ANTIOQUIA':'05', 'VALLE':'76', 'ATLANTICO':'08', 'SANTANDER':'68' };
-  for(const k in deptoMap) if(d.includes(k)) return { pais:'170', depto:deptoMap[k], ciudad: deptoMap[k]+'001' };
-  return { pais:'170', depto:'11', ciudad:'11001' }; // default Bogotá
+let _daneCache=null;
+function getDaneCache(){
+  if(_daneCache) return _daneCache;
+  try{
+    const p = path.join(__dirname, '..', '..', 'public', 'data', 'colombia.json');
+    const j = JSON.parse(fs.readFileSync(p,'utf8'));
+    const cityByNorm = new Map();
+    const deptoByNorm = new Map();
+    const cityNames = new Set();
+    const deptoNames = new Set();
+    for(const dep of j.departamentos){
+      const depNorm = dep.nombre.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+      deptoByNorm.set(depNorm, dep.codigo_dane);
+      deptoNames.add(depNorm);
+      for(const m of dep.municipios){
+        const cNorm = m.nombre.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+        cityByNorm.set(cNorm, { pais:'170', depto: dep.codigo_dane, ciudad: m.codigo_dane });
+        // también clave compuesta "BELLO|05"
+        cityByNorm.set(cNorm+'|'+dep.codigo_dane, { pais:'170', depto: dep.codigo_dane, ciudad: m.codigo_dane });
+        cityNames.add(cNorm);
+      }
+    }
+    _daneCache={ cityByNorm, deptoByNorm, cityNames, deptoNames };
+  }catch(e){ _daneCache={ cityByNorm:new Map(), deptoByNorm:new Map(), cityNames:new Set(), deptoNames:new Set() }; }
+  return _daneCache;
 }
-function cleanDir(dir){ return String(dir||'').trim().replace(/,+$/,'').replace(/\s+,/g,',').slice(0,200); }
+function daneFromCiudad(ciudad, depto){
+  const rawC = String(ciudad||'').trim();
+  const rawD = String(depto||'').trim();
+  // Si ya vienen códigos DANE (numéricos), úsalos directo
+  if(/^\d{5}$/.test(rawC)){
+    const depFromCity = rawC.slice(0, rawC.length===5?2:2);
+    // si depto también es código, respétalo; si no, deriva del city
+    let depCode = /^\d{1,2}$/.test(rawD) ? rawD.padStart(2,'0') : depFromCity;
+    if(/^\d{5}$/.test(rawC)) depCode = rawC.slice(0,2);
+    return { pais:'170', depto: depCode, ciudad: rawC };
+  }
+  if(/^\d{2}$/.test(rawD) && /^\d{5}$/.test(rawC)){
+    return { pais:'170', depto: rawD.padStart(2,'0'), ciudad: rawC };
+  }
+  const c = rawC.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  const d = rawD.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+  const cache=getDaneCache();
+  // Intento exacto por nombre
+  if(cache.cityByNorm.has(c)) {
+    // si hay depto, verifica que coincida; si no, retorna el primero encontrado
+    const hit = cache.cityByNorm.get(c);
+    // si el city existe en varios deptos (p.ej. La Unión), prioriza el depto recibido
+    const keyWithDepto = c+'|'+d;
+    // d puede ser código o nombre -> normaliza a código
+    let depCodeFromName = cache.deptoByNorm.get(d);
+    if(!depCodeFromName && /^\d{2}$/.test(d)) depCodeFromName=d;
+    if(depCodeFromName && cache.cityByNorm.has(c+'|'+depCodeFromName)) return cache.cityByNorm.get(c+'|'+depCodeFromName);
+    return hit;
+  }
+  if(c.includes('BOGOTA')) {
+    const b = cache.cityByNorm.get('BOGOTA');
+    if(b) return b;
+  }
+  // Fallback por depto
+  const depCode = cache.deptoByNorm.get(d) || ( /^\d{2}$/.test(d) ? d : null );
+  if(depCode){
+    // intenta capital del depto
+    const cap = [...cache.cityByNorm.values()].find(v=> v.depto===depCode && v.ciudad.endsWith('001'));
+    if(cap) return cap;
+    return { pais:'170', depto:depCode, ciudad: depCode+'001' };
+  }
+  // último fallback: intenta por substring
+  for(const [k,v] of cache.cityByNorm.entries()){
+    if(k.includes(c) || c.includes(k)) return v;
+  }
+  return { pais:'170', depto:'11', ciudad:'11001' };
+}
+function cleanDir(dir){
+  let s=String(dir||'').trim().replace(/,+$/,'').replace(/\s+,/g,',');
+  if(!s) return '';
+  // Quita redundancia de ciudad/depto/país: conserva solo vía + barrio
+  // Ej: "Cra. 62b #72a-25, Villa del Sol, Bello, Antioquia, Colombia" → "Cra. 62b #72a-25, Villa del Sol"
+  const parts=s.split(',').map(p=>p.trim()).filter(Boolean);
+  if(parts.length>2){
+    try{
+      const cache=getDaneCache();
+      // detecta qué partes son ciudad/depto/país
+      const isGeo = (p)=>{
+        const n=p.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
+        return n==='COLOMBIA' || n==='CO' || cache.deptoNames.has(n) || cache.cityNames.has(n);
+      };
+      // Mantén solo partes no geo al inicio; si las 2 primeras ya son geo, conserva al menos la primera (vía)
+      let keep=[];
+      for(let i=0;i<parts.length;i++){
+        if(keep.length<2 && !isGeo(parts[i])) keep.push(parts[i]);
+        else if(keep.length>=2) break;
+        else if(keep.length===1 && !isGeo(parts[i])) keep.push(parts[i]);
+      }
+      // Si no se pudo filtrar, fallback a primeras 2 partes no vacías que no sean solo país/depto
+      if(keep.length) s=keep.join(', ');
+      else s=parts.slice(0,2).join(', ');
+    }catch{ s=parts.slice(0,2).join(', '); }
+  }
+  // Límite SIESA: 80 caracteres (algunas versiones 40) — usamos 80 para no truncar vía+barrio
+  s=s.replace(/\s+/g,' ').trim();
+  if(s.length>80) s=s.slice(0,80).trim().replace(/,+$/,'');
+  return s;
+}
 export function buildTerceroPayload(lead){
   const dane = daneFromCiudad(lead.ciudad, lead.departamento);
   const dirClean = cleanDir(lead.direccion);
