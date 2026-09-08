@@ -1160,8 +1160,8 @@ async function cargarClientes() {
   const tbody = document.getElementById('tbody-clientes');
   const data = r.data.data || [];
   tbody.innerHTML = data.map(e => {
-      const esSiesa = e.origen === 'siesa';
-      const editable = !esSiesa || (usuario?.rol === 'admin' || usuario?.rol === 'gerente');
+      const esSiesa = e.origen === 'siesa' || e.siesa_id || e.erp_tercero_id;
+      const editable = !esSiesa;
       return `
       <tr>
         <td><input type="checkbox" class="row-check cb-cliente" value="${e.id}" onchange="updateBulkBar()"></td>
@@ -1249,8 +1249,8 @@ async function verCliente(id) {
   const cotizaciones = cotR.ok ? (cotR.data.data || []) : [];
 
   document.getElementById('detalle-cliente-title').textContent = e.nombre;
-  const esSiesaCliente = e.origen === 'siesa';
-  const editableSuc = !esSiesaCliente || (usuario?.rol === 'admin' || usuario?.rol === 'gerente');
+  const esSiesaCliente = e.origen === 'siesa' || e.siesa_id || e.erp_tercero_id;
+  const editableSuc = !esSiesaCliente;
   document.getElementById('detalle-cliente-title').innerHTML = `${esc(e.nombre)}${esSiesaCliente ? ' <span class="badge badge-muted" title="Gestionado en el ERP SIESA">🔒 ERP</span>' : ''}`;
   document.getElementById('detalle-cliente-content').innerHTML = `
     <div style="display:flex;gap:12px;border-bottom:1px solid var(--border);margin-bottom:16px;flex-wrap:wrap">

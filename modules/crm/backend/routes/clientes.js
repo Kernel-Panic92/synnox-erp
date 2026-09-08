@@ -184,11 +184,9 @@ router.delete('/seleccionados', requirePermiso('eliminar_contacto', 'crm'), asyn
   try {
     const { ids } = req.body;
     if (!ids?.length) return res.status(400).json({ error: 'Sin IDs' });
-    if (req.user?.rol !== 'admin' && req.user?.rol !== 'gerente') {
-      const siesa = await pool.query(`SELECT COUNT(*) AS c FROM crm.clientes WHERE id = ANY($1) AND origen = 'siesa'`, [ids]);
-      if (parseInt(siesa.rows[0].c) > 0) return res.status(403).json({ error: 'No se pueden eliminar clientes del ERP SIESA (solo lectura). Gestiona los terceros en el ERP.' });
-    }
-    const result = await pool.query(`UPDATE crm.clientes SET activo = FALSE WHERE id = ANY($1) RETURNING id`, [ids]);
+    const siesa = await pool.query(`SELECT COUNT(*) AS c FROM crm.clientes WHERE id = ANY($1) AND (origen = 'siesa' OR siesa_id IS NOT NULL OR erp_tercero_id IS NOT NULL)`, [ids]);
+    if (parseInt(siesa.rows[0].c) > 0) return res.status(403).json({ error: 'No se pueden eliminar clientes del ERP SIESA (solo lectura). Gestiona los terceros en el ERP.' });
+    const result = await pool.query(`UPDATE crm.clientes SET activo = FALSE WHERE id = ANY($1) AND (origen IS DISTINCT FROM 'siesa' AND siesa_id IS NULL AND erp_tercero_id IS NULL) RETURNING id`, [ids]);
 
     await auditarEvento({ accion: 'eliminar', entidad: 'cliente', usuario_id: req.user.id, metadata: { count: result.rowCount } });
 
@@ -205,7 +203,7 @@ router.delete('/todos', requirePermiso('eliminar_contacto', 'crm'), async (req, 
     if (req.user?.rol !== 'admin' && req.user?.rol !== 'gerente') {
       return res.status(403).json({ error: 'Solo admin/gerente pueden eliminar todos los clientes' });
     }
-    const result = await pool.query(`UPDATE crm.clientes SET activo = FALSE WHERE activo = TRUE RETURNING id`);
+    const result = await pool.query(`UPDATE crm.clientes SET activo = FALSE WHERE activo = TRUE AND (origen IS DISTINCT FROM 'siesa' AND siesa_id IS NULL AND erp_tercero_id IS NULL) RETURNING id`);
     await auditarEvento({ accion: 'eliminar', entidad: 'cliente', usuario_id: req.user.id, metadata: { count: result.rowCount, tipo: 'todos' } });
     res.json({ ok: true, eliminados: result.rowCount });
   } catch (err) {
