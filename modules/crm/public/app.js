@@ -2176,7 +2176,7 @@ async function guardarLead() {
     direccion: document.getElementById('lead-direccion').value,
     telefono: document.getElementById('lead-telefono').value,
     email: document.getElementById('lead-email').value,
-    asesor_comercial: usuario?.nombre || document.getElementById('lead-asesor').value,
+    asesor_comercial: document.getElementById('lead-asesor').value || usuario?.nombre || '',
     canal: document.getElementById('lead-canal').value,
     tipo_negocio: document.getElementById('lead-tipo-negocio').value || null,
     lista_precios: document.getElementById('lead-lista-precios').value || null,
