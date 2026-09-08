@@ -213,6 +213,23 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil(
     if (perfilCfg) {
       if (!isMaestroPermitido(perfilCfg, 'centro_operacion', centro_operacion)) return res.status(403).json({ error: `Centro de operación no permitido por tu perfil de ventas` });
       if (!isMaestroPermitido(perfilCfg, 'bodega', bodega)) return res.status(403).json({ error: `Bodega no permitida por tu perfil de ventas` });
+      // Descuento por perfil: valida rango contra config.descuentos (rango1/2/3)
+      const maxDesc = perfilCfg?.descuentos?.rango3 ?? 70;
+      const itemsDesc = Array.isArray(items) ? items : [];
+      for (const it of itemsDesc) {
+        const d = parseFloat(it.descuento_pct || 0);
+        if (d > maxDesc) return res.status(403).json({ error: `Descuento ${d}% supera el máximo permitido por tu perfil (${maxDesc}%). Requiere aprobación` });
+        if (d > 0 && perfilCfg?.descuentos?.permite_global === false && parseFloat(descuento_pct || 0) > 0) return res.status(403).json({ error: `Descuento global no permitido por tu perfil` });
+      }
+      // Sucursal debe pertenecer al cliente
+      if (facturar_a) {
+        const s = await client.query(`SELECT 1 FROM crm.sucursales WHERE cliente_id=$1 AND codigo=$2`, [cliente_id, facturar_a]);
+        if (!s.rowCount) return res.status(400).json({ error: `Sucursal facturar_a '${facturar_a}' no pertenece al cliente` });
+      }
+      if (despachar_a) {
+        const s2 = await client.query(`SELECT 1 FROM crm.sucursales WHERE cliente_id=$1 AND codigo=$2`, [cliente_id, despachar_a]);
+        if (!s2.rowCount) return res.status(400).json({ error: `Sucursal despachar_a '${despachar_a}' no pertenece al cliente` });
+      }
       if (!isMaestroPermitido(perfilCfg, 'listas_precio', finalListaPrecios)) return res.status(403).json({ error: `Lista de precios no permitida por tu perfil de ventas` });
       if (!isMaestroPermitido(perfilCfg, 'motivo_venta', motivo || 'VENTAS')) return res.status(403).json({ error: `Motivo de venta no permitido por tu perfil de ventas` });
       if (unidad_negocio && !isMaestroPermitido(perfilCfg, 'unidad_negocio', unidad_negocio)) return res.status(403).json({ error: `Unidad de negocio no permitida por tu perfil de ventas` });
@@ -529,6 +546,13 @@ router.post('/:id/enviar-erp', requirePermiso('crear_cotizacion', 'crm'), requir
     } else if (co) {
       const mb2 = await pool.query(`SELECT 1 FROM crm.siesa_mapeos WHERE tipo='bodega_co' AND crm_codigo=$1`, [co]);
       // bodega por CO es opcional, solo warning — no bloquea
+    }
+    // Unidad negocio / centro costo: si viene y no tiene mapeo, 422
+    const cot2 = await pool.query(`SELECT unidad_negocio, punto_envio FROM crm.cotizaciones WHERE id=$1`, [id]);
+    const un = String(cot2.rows[0]?.unidad_negocio || '').trim();
+    if (un) {
+      const mu = await pool.query(`SELECT 1 FROM crm.siesa_mapeos WHERE tipo='unidad_negocio' AND crm_codigo=$1`, [un]);
+      if (!mu.rowCount) return res.status(422).json({ error: `unidad_negocio '${un}' sin mapeo en siesa_mapeos` });
     }
     const result = await enviarPedidoAlHub({ cotizacionId: id });
     await auditarEvento({ accion: 'enviar_erp', entidad: 'cotizacion', entidad_id: id, usuario_id: req.user.id, metadata: { numero: existing.rows[0].numero, documento_erp: result.documento_erp, mock: result.mock } });

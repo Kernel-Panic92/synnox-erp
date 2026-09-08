@@ -3230,6 +3230,7 @@ async function cargarSucursalesCotizacion(clienteId, facturarVal = null, despach
   }).join('');
   fSel.innerHTML = '<option value="">Seleccione sucursal</option>' + opts;
   dSel.innerHTML = '<option value="">Seleccione sucursal</option>' + opts;
+  if (!data.length) toast('Cliente sin sucursales — se usará 001 por defecto', 'warning');
   const principal = data.find(s => s.es_principal);
   if (principal) {
     if (!facturarVal) fSel.value = principal.codigo;
@@ -3426,7 +3427,9 @@ async function onReferenciaChange(idx, codigo) {
       _cotizacionItems[idx].unidad_medida = exact.unidad_medida || 'UND';
       _cotizacionItems[idx].precio_unitario = parseFloat(exact.precio_unitario || 0);
       _cotizacionItems[idx].referencia = exact.codigo;
-      toast('Producto ' + exact.codigo + ' cargado', 'success');
+      if (!exact.precio_unitario || parseFloat(exact.precio_unitario) === 0) toast('Precio no encontrado para lista ' + lista + ' — usando base (0)', 'warning');
+      else if (exact.lista_precio_codigo && String(exact.lista_precio_codigo) !== String(lista)) toast('Precio lista ' + lista + ' no encontrado — usando ' + exact.lista_precio_codigo, 'warning');
+      else toast('Producto ' + exact.codigo + ' cargado', 'success');
     }
   } catch {}
   renderItemsCotizacion();
