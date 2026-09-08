@@ -195,11 +195,11 @@ app.get('/api/dashboard/analytics', protect, async (req, res) => {
       pool.query(`SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE l.estado='convertido' OR l.cliente_convertido=TRUE) as convertidos,
         ROUND(100.0*COUNT(*) FILTER (WHERE l.estado='convertido' OR l.cliente_convertido=TRUE)/NULLIF(COUNT(*),0),1) as conv_pct
         FROM crm.leads l ${leadWhere}`, leadParams),
-      // Lead conversión por asesor
-      pool.query(`SELECT COALESCE(NULLIF(TRIM(l.asesor_comercial),''),'Sin asesor') as asesor, COUNT(*) as total,
+      // Lead conversión por asesor — normaliza para evitar duplicados por typo/espacios
+      pool.query(`SELECT MIN(TRIM(l.asesor_comercial)) as asesor, COUNT(*) as total,
         COUNT(*) FILTER (WHERE l.estado='convertido' OR l.cliente_convertido=TRUE) as convertidos,
         ROUND(100.0*COUNT(*) FILTER (WHERE l.estado='convertido' OR l.cliente_convertido=TRUE)/NULLIF(COUNT(*),0),1) as conv_pct
-        FROM crm.leads l ${leadWhere} GROUP BY asesor HAVING COUNT(*)>=3 ORDER BY conv_pct DESC, convertidos DESC LIMIT 8`, leadParams)
+        FROM crm.leads l ${leadWhere} GROUP BY COALESCE(NULLIF(TRIM(UPPER(l.asesor_comercial)),''),'SIN ASESOR') HAVING COUNT(*)>=3 ORDER BY conv_pct DESC, convertidos DESC LIMIT 8`, leadParams)
     ]);
 
     res.json({
