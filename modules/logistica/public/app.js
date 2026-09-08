@@ -179,11 +179,13 @@ function renderSidebar(usuario) {
   ];
   const nav = document.getElementById('sidebar-nav');
   if (!nav) return;
-  nav.innerHTML = items.filter(i => i.show).map((i, idx) =>
-    `<button class="nav-item${idx === 0 ? ' active' : ''}" data-page="${i.page}" onclick="navigate('${i.page}')" aria-label="${i.label}">
-      <span class="icon">${i.icon}</span> ${i.label}
-    </button>`
-  ).join('');
+  const visible = items.filter(i => i.show);
+  const firstAdminIdx = visible.findIndex(i => ['widetech','config'].includes(i.page));
+  nav.innerHTML = visible.map((i, idx) => {
+    const adminClass = (firstAdminIdx !== -1 && idx === firstAdminIdx) ? ' admin-item' : '';
+    const divider = (firstAdminIdx !== -1 && idx === firstAdminIdx) ? '<div class="sidebar-divider"></div>' : '';
+    return `${divider}<button class="nav-item${adminClass}${idx === 0 ? ' active' : ''}" data-page="${i.page}" onclick="navigate('${i.page}')" title="${i.label}" data-tooltip="${i.label}" aria-label="${i.label}"><span class="icon">${i.icon}</span> <span class="nav-text">${i.label}</span></button>`;
+  }).join('');
 }
 
 function injectSidebarHome(){
@@ -191,11 +193,33 @@ function injectSidebarHome(){
   if(!footer||footer.querySelector('.sidebar-home'))return;
   const a=document.createElement('a');
   a.href='/';a.className='sidebar-home';
+  a.title='Home';a.setAttribute('data-tooltip','Home');
   a.innerHTML='<span class="icon">🏠</span> <span>Home</span>';
   const btn=footer.querySelector('.btn-logout');
   if(btn){footer.insertBefore(a,btn);const s=document.createElement('div');s.className='sidebar-separator';footer.insertBefore(s,btn);}
   else footer.prepend(a);
 }
+
+function toggleSidebarCollapse() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+  const container = document.getElementById('app-container');
+  sidebar.classList.toggle('collapsed');
+  if (container) container.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+  localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
+  const toggle = sidebar.querySelector('.sidebar-toggle');
+  if (toggle) {
+    toggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+    toggle.setAttribute('aria-expanded', sidebar.classList.contains('collapsed') ? 'false' : 'true');
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('sidebar_collapsed') === 'true') {
+    document.getElementById('sidebar')?.classList.add('collapsed');
+    document.getElementById('app-container')?.classList.add('sidebar-collapsed');
+    const t = document.querySelector('.sidebar-toggle'); if (t) { t.textContent = '▶'; t.setAttribute('aria-expanded','false'); }
+  }
+});
 
 async function init() {
   if (localStorage.getItem('synnox_theme') !== 'dark') document.body.classList.add('light');

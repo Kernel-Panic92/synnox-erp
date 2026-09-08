@@ -2142,6 +2142,24 @@ function showAdminTab(tab) {
 
 }
 
+function toggleSidebarCollapse() {
+  const sidebar = document.getElementById('admin-sidebar');
+  const container = document.getElementById('app-container');
+  if (!sidebar) return;
+  sidebar.classList.toggle('collapsed');
+  if (container) container.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+  localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
+  const toggle = document.querySelector('.sidebar-toggle');
+  if (toggle) toggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+}
+document.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('sidebar_collapsed') === 'true') {
+    document.getElementById('admin-sidebar')?.classList.add('collapsed');
+    document.getElementById('app-container')?.classList.add('sidebar-collapsed');
+    const t = document.querySelector('.sidebar-toggle'); if (t) t.textContent = '▶';
+  }
+});
+
 async function loadAcercaDe() {
   const el = document.getElementById('acerca-de-content');
   el.innerHTML = '<div style="text-align:center;padding:40px;color:var(--muted);">Cargando...</div>';

@@ -169,6 +169,7 @@ function initFramework(opts = {}) {
   const sidebar = document.getElementById('sidebar');
   if (sidebar && localStorage.getItem('sidebar_collapsed') === 'true') {
     sidebar.classList.add('collapsed');
+    document.getElementById('app-container')?.classList.add('sidebar-collapsed');
     const toggle = sidebar.querySelector('.sidebar-toggle');
     if (toggle) toggle.textContent = '▶';
   }
@@ -265,13 +266,10 @@ async function api(path, opts = {}) {
   return data;
 }
 
-// ── Escaping ──
-function esc(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-
 // ── Action buttons (accessible, icon-only) — standard for tables ──
+// Usage: actionBtn({ icon:'✏️', title:'Editar cliente', ariaLabel:'Editar cliente ACME', onclick:"editarCliente('123')", variant:'secondary' })
+// variant: 'secondary' | 'primary' | 'danger' | 'success'  → maps to btn-secondary etc.
+// Returns HTML string for a 32x32 icon-only button with title + aria-label (required for a11y)
 function actionBtn({ icon, title, ariaLabel, onclick, variant = 'secondary', disabled = false }) {
   const v = ['secondary','primary','danger','success','outline'].includes(variant) ? variant : 'secondary';
   const dis = disabled ? ' disabled aria-disabled="true"' : '';
@@ -284,6 +282,12 @@ function actionGroup(buttons) {
   const btns = Array.isArray(buttons) ? buttons.filter(Boolean).join('') : (buttons || '');
   if (!btns) return '';
   return `<div class="tbl-actions">${btns}</div>`;
+}
+
+// ── Escaping ──
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 // ── Toast ──
@@ -438,7 +442,9 @@ function closeSidebar() {
 function toggleSidebarCollapse() {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
+  const container = document.getElementById('app-container');
   sidebar.classList.toggle('collapsed');
+  if (container) container.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
   localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
   const toggle = sidebar.querySelector('.sidebar-toggle');
   if (toggle) toggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';

@@ -528,6 +528,39 @@
   }
   @keyframes spin { to { transform: rotate(360deg); } }
 
+  /* ── Enterprise sidebar (CRM mirror) ── */
+  .nav-text{font-size:13px;font-weight:500;white-space:nowrap}
+  .sidebar.collapsed .nav-text{display:none !important}
+  .sidebar.collapsed .nav-item{position:relative}
+  .sidebar.collapsed .nav-item::after, .sidebar.collapsed .btn-logout::after, .sidebar.collapsed .sidebar-home::after{content:attr(data-tooltip);position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%) translateX(-8px);background:#1e293b;color:#f8fafc;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap;border:1px solid #334155;box-shadow:0 4px 12px rgba(0,0,0,0.3);opacity:0;pointer-events:none;transition:all .2s ease;z-index:100}
+  .sidebar.collapsed .nav-item:hover::after, .sidebar.collapsed .btn-logout:hover::after, .sidebar.collapsed .sidebar-home:hover::after{opacity:1;transform:translateY(-50%) translateX(0)}
+  .sidebar.collapsed .btn-logout, .sidebar.collapsed .sidebar-home{position:relative}
+  .sidebar .nav-item .icon{transition:transform .2s ease, filter .2s ease}
+  .sidebar.collapsed .nav-item:not(.active):hover .icon{transform:scale(1.12);filter:brightness(1.2)}
+  .sidebar-divider{height:1px;background:var(--border);margin:12px 14px;opacity:0.6}
+  .sidebar.collapsed .sidebar-divider{margin:12px 10px}
+  #sidebar-nav{display:flex;flex-direction:column;height:100%}
+  .nav-item.admin-item{margin-top:auto;margin-bottom:12px}
+  .app-container{display:grid;grid-template-columns:220px 1fr;min-height:100vh;transition:grid-template-columns .3s cubic-bezier(.4,0,.2,1)}
+  .app-container:has(.sidebar.collapsed){grid-template-columns:64px 1fr}
+  .main{margin-left:0 !important;width:100% !important;min-width:0;overflow-x:hidden}
+  .sidebar{width:100% !important;min-width:0 !important;height:100vh;position:sticky !important;top:0;display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box}
+  #sidebar-nav{flex:1;overflow-y:auto;overflow-x:hidden}
+  #sidebar-nav::-webkit-scrollbar{width:4px}
+  #sidebar-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px}
+  .sidebar-header{flex-shrink:0}
+  .sidebar-footer{margin-top:auto;padding-bottom:12px;display:flex;flex-direction:column;gap:6px}
+  .sidebar.collapsed .sidebar-footer{gap:4px}
+  .sidebar.collapsed .btn-logout{width:42px;height:42px;margin:4px auto;border-radius:8px;justify-content:center;padding:0}
+  .sidebar.collapsed .btn-logout .nav-text{display:none !important}
+  .sidebar-header{display:flex;justify-content:flex-end;align-items:center;padding:12px 12px 8px;min-height:44px;box-sizing:border-box}
+  .sidebar.collapsed .sidebar-header{justify-content:center;padding:12px 0}
+  .sidebar-toggle{width:32px;height:32px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s ease;flex-shrink:0;font-size:14px}
+  .sidebar-toggle:hover{background:var(--border);color:var(--text)}
+  .sidebar.collapsed .nav-item{width:100%;display:flex;justify-content:center;align-items:center;padding:8px 0 !important;margin:4px 0;gap:0 !important}
+  .sidebar.collapsed .nav-item .icon{margin:0 !important;padding:0 !important;display:block}
+  .sidebar.collapsed .nav-item.active{width:42px;height:42px;margin:4px auto;border-radius:8px;background:rgba(16,185,129,0.15) !important;border:1px solid #10b981 !important}
+
 </style>
 </head>
 <body>
@@ -539,8 +572,9 @@
 ══════════════════════════════════════════ -->
 <div id="app-screen">
   <div class="sidebar-overlay" onclick="closeSidebar()"></div>
+  <div class="app-container" id="app-container">
   <aside class="sidebar" id="sidebar">
-    <button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Menú" aria-expanded="true">◀</button>
+    <div class="sidebar-header"><button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Menú" aria-expanded="true">◀</button></div>
     <div class="logo" data-module-id="nomina">💰 <span data-module-name>SynnoxERP</span></div>
     <div class="user-info">
       <div class="name" id="user-name">—</div>
@@ -550,37 +584,38 @@
     <nav id="sidebar-nav">
       <div class="sidebar-section">
         <div class="sidebar-section-title">Operación</div>
-        <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')" aria-label="Dashboard"><span class="icon">📊</span> Dashboard</button>
-        <button class="nav-item" data-page="registro" onclick="navigate('registro')" aria-label="Registrar Novedades"><span class="icon">➕</span> Registrar Novedades</button>
-        <button class="nav-item" data-page="historial" onclick="navigate('historial')" aria-label="Historial"><span class="icon">📋</span> Historial</button>
-        <button class="nav-item" data-page="empleados" onclick="navigate('empleados')" aria-label="Empleados"><span class="icon">👥</span> Empleados</button>
+        <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')" title="Dashboard" data-tooltip="Dashboard"><span class="icon">📊</span> <span class="nav-text">Dashboard</span></button>
+        <button class="nav-item" data-page="registro" onclick="navigate('registro')" title="Registrar Novedades" data-tooltip="Registrar Novedades"><span class="icon">➕</span> <span class="nav-text">Registrar Novedades</span></button>
+        <button class="nav-item" data-page="historial" onclick="navigate('historial')" title="Historial" data-tooltip="Historial"><span class="icon">📋</span> <span class="nav-text">Historial</span></button>
+        <button class="nav-item" data-page="empleados" onclick="navigate('empleados')" title="Empleados" data-tooltip="Empleados"><span class="icon">👥</span> <span class="nav-text">Empleados</span></button>
       </div>
+      <div class="sidebar-divider"></div>
       <div class="sidebar-section">
         <div class="sidebar-section-title">Administración</div>
-        <button class="nav-item" data-page="usuarios" onclick="navigate('usuarios')" aria-label="Usuarios"><span class="icon">🔐</span> Usuarios</button>
-        <button class="nav-item" data-page="centros" onclick="navigate('centros')" aria-label="Centros de operación"><span class="icon">🏢</span> Centros de operación</button>
-        <button class="nav-item" data-page="tipos" onclick="navigate('tipos')" aria-label="Conceptos de Nómina"><span class="icon">🏷️</span> Conceptos de Nómina</button>
+        <button class="nav-item" data-page="usuarios" onclick="navigate('usuarios')" title="Usuarios" data-tooltip="Usuarios"><span class="icon">🔐</span> <span class="nav-text">Usuarios</span></button>
+        <button class="nav-item" data-page="centros" onclick="navigate('centros')" title="Centros de operación" data-tooltip="Centros de operación"><span class="icon">🏢</span> <span class="nav-text">Centros de operación</span></button>
+        <button class="nav-item" data-page="tipos" onclick="navigate('tipos')" title="Conceptos de Nómina" data-tooltip="Conceptos de Nómina"><span class="icon">🏷️</span> <span class="nav-text">Conceptos de Nómina</span></button>
       </div>
       <div class="sidebar-section">
         <div class="sidebar-section-title">Nómina</div>
-        <button class="nav-item" data-page="nominas" onclick="navigate('nomina')" aria-label="Períodos Nómina"><span class="icon">💰</span> Períodos Nómina</button>
-        <button class="nav-item" data-page="siesa" onclick="navigate('siesa')" aria-label="Exportar Siesa"><span class="icon">📤</span> Exportar Siesa</button>
+        <button class="nav-item" data-page="nominas" onclick="navigate('nomina')" title="Períodos Nómina" data-tooltip="Períodos Nómina"><span class="icon">💰</span> <span class="nav-text">Períodos Nómina</span></button>
+        <button class="nav-item" data-page="siesa" onclick="navigate('siesa')" title="Exportar Siesa" data-tooltip="Exportar Siesa"><span class="icon">📤</span> <span class="nav-text">Exportar Siesa</span></button>
       </div>
       <div class="sidebar-section">
         <div class="sidebar-section-title">Análisis</div>
-        <button class="nav-item" data-page="reportes" onclick="navigate('reportes')" aria-label="Reportes"><span class="icon">📈</span> Reportes</button>
-        <button class="nav-item" data-page="configuracion" onclick="navigate('configuracion')" aria-label="Configuración"><span class="icon">⚙️</span> Configuración</button>
+        <button class="nav-item" data-page="reportes" onclick="navigate('reportes')" title="Reportes" data-tooltip="Reportes"><span class="icon">📈</span> <span class="nav-text">Reportes</span></button>
+        <button class="nav-item" data-page="configuracion" onclick="navigate('configuracion')" title="Configuración" data-tooltip="Configuración"><span class="icon">⚙️</span> <span class="nav-text">Configuración</span></button>
       </div>
     </nav>
     <div class="sidebar-footer">
-      <a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a>
+      <a class="sidebar-home" href="/" title="Home" data-tooltip="Home"><span class="icon">🏠</span> <span class="nav-text">Home</span></a>
       <div class="user-name" id="sidebar-user-name"></div>
       <div class="user-role" id="sidebar-user-role"></div>
       <div class="version">
         <div id="app-version">v—</div>
       </div>
-      <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesion">
-        <span style="font-size:18px">&#x23FB;</span> Cerrar sesion
+      <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesion" data-tooltip="Cerrar sesion">
+        <span class="icon" style="font-size:18px">⏻</span> <span class="nav-text">Cerrar sesion</span>
       </button>
     </div>
   </aside>
@@ -1008,6 +1043,7 @@
       <div id="cfg-content">Cargando...</div>
     </div>
   </main>
+  </div>
 </div>
 
 <!-- MODAL ROL -->

@@ -169,6 +169,7 @@ function initFramework(opts = {}) {
   const sidebar = document.getElementById('sidebar');
   if (sidebar && localStorage.getItem('sidebar_collapsed') === 'true') {
     sidebar.classList.add('collapsed');
+    document.getElementById('app-container')?.classList.add('sidebar-collapsed');
     const toggle = sidebar.querySelector('.sidebar-toggle');
     if (toggle) toggle.textContent = '▶';
   }
@@ -441,7 +442,9 @@ function closeSidebar() {
 function toggleSidebarCollapse() {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
+  const container = document.getElementById('app-container');
   sidebar.classList.toggle('collapsed');
+  if (container) container.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
   localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
   const toggle = sidebar.querySelector('.sidebar-toggle');
   if (toggle) toggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';

@@ -90,9 +90,6 @@ let _canvasResizeTimer;
 function resizeAllCanvases() {
   document.querySelectorAll('canvas').forEach(canvas => {
     try {
-      // Some canvases are rendered manually and must not be reset here:
-      // assigning canvas.width clears their bitmap before their renderer runs.
-      if (canvas.dataset.resize === 'manual') return;
       const parent = canvas.parentElement;
       if (parent) {
         const rect = parent.getBoundingClientRect();
@@ -168,12 +165,13 @@ function initFramework(opts = {}) {
     this.classList.remove('show');
   });
 
-  // Restore sidebar collapse state
+  // Restore sidebar collapse state (CRM enterprise: handles app-container grid)
   const sidebar = document.getElementById('sidebar');
   if (sidebar && localStorage.getItem('sidebar_collapsed') === 'true') {
     sidebar.classList.add('collapsed');
+    document.getElementById('app-container')?.classList.add('sidebar-collapsed');
     const toggle = sidebar.querySelector('.sidebar-toggle');
-    if (toggle) toggle.textContent = '▶';
+    if (toggle) { toggle.textContent = '▶'; toggle.setAttribute('aria-expanded','false'); }
   }
 
   // Inject Home link into sidebar footer (if not already present)
@@ -228,6 +226,8 @@ function injectSidebarHome() {
   const homeLink = document.createElement('a');
   homeLink.href = '/';
   homeLink.className = 'sidebar-home';
+  homeLink.title = 'Home';
+  homeLink.setAttribute('data-tooltip', 'Home');
   homeLink.innerHTML = '<span class="icon">🏠</span> <span>Home</span>';
   const logoutBtn = footer.querySelector('.btn-logout');
   if (logoutBtn) {
@@ -266,6 +266,24 @@ async function api(path, opts = {}) {
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Error del servidor');
   return data;
+}
+
+// ── Action buttons (accessible, icon-only) — standard for tables ──
+// Usage: actionBtn({ icon:'✏️', title:'Editar cliente', ariaLabel:'Editar cliente ACME', onclick:"editarCliente('123')", variant:'secondary' })
+// variant: 'secondary' | 'primary' | 'danger' | 'success'  → maps to btn-secondary etc.
+// Returns HTML string for a 32x32 icon-only button with title + aria-label (required for a11y)
+function actionBtn({ icon, title, ariaLabel, onclick, variant = 'secondary', disabled = false }) {
+  const v = ['secondary','primary','danger','success','outline'].includes(variant) ? variant : 'secondary';
+  const dis = disabled ? ' disabled aria-disabled="true"' : '';
+  const safeOn = (onclick || '').replace(/"/g, '&quot;');
+  const t = esc(title || ariaLabel || '');
+  const al = esc(ariaLabel || title || '');
+  return `<button class="btn btn-sm btn-${v} btn-action" onclick="${safeOn}" title="${t}" aria-label="${al}"${dis}>${icon}</button>`;
+}
+function actionGroup(buttons) {
+  const btns = Array.isArray(buttons) ? buttons.filter(Boolean).join('') : (buttons || '');
+  if (!btns) return '';
+  return `<div class="tbl-actions">${btns}</div>`;
 }
 
 // ── Escaping ──
@@ -426,10 +444,15 @@ function closeSidebar() {
 function toggleSidebarCollapse() {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
+  const container = document.getElementById('app-container');
   sidebar.classList.toggle('collapsed');
+  if (container) container.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
   localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
   const toggle = sidebar.querySelector('.sidebar-toggle');
-  if (toggle) toggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+  if (toggle) {
+    toggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+    toggle.setAttribute('aria-expanded', sidebar.classList.contains('collapsed') ? 'false' : 'true');
+  }
 }
 
 // ── Navigation ──

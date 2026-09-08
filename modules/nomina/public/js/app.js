@@ -210,11 +210,22 @@ function closeSidebar() {
   document.querySelector('.sidebar-overlay')?.classList.remove('show');
 }
 function toggleSidebarCollapse() {
-  const s = document.getElementById('sidebar');
-  if (!s) return;
-  s.classList.toggle('collapsed');
-  localStorage.setItem('sidebar_collapsed', s.classList.contains('collapsed'));
+  const sidebar = document.getElementById('sidebar');
+  const container = document.getElementById('app-container');
+  if (!sidebar) return;
+  sidebar.classList.toggle('collapsed');
+  if (container) container.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+  localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
+  const toggle = document.querySelector('.sidebar-toggle');
+  if (toggle) toggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
 }
+document.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('sidebar_collapsed') === 'true') {
+    document.getElementById('sidebar')?.classList.add('collapsed');
+    document.getElementById('app-container')?.classList.add('sidebar-collapsed');
+    const t = document.querySelector('.sidebar-toggle'); if (t) t.textContent = '▶';
+  }
+});
 
 // Sidebar Home link
 function injectSidebarHome() {
@@ -303,6 +314,8 @@ async function iniciarApp() {
   const sidebar = document.getElementById('sidebar');
   if (sidebar && sidebarCollapsed) {
     sidebar.classList.add('collapsed');
+    document.getElementById('app-container')?.classList.add('sidebar-collapsed');
+    const t = document.querySelector('.sidebar-toggle'); if (t) t.textContent = '▶';
   }
   
   // Navigate to dashboard or from URL hash or last page
