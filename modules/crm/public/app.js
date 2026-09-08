@@ -315,8 +315,8 @@ function renderConversionAsesor(rows, containerId) {
     const color = pct >= 40 ? 'var(--success)' : pct >= 20 ? 'var(--warning)' : 'var(--danger)';
     return `
       <div style="margin-bottom:8px">
-        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:3px;color:var(--text)">
-          <span>${esc(nombreV(r.vendedor_id))}</span><span style="color:${color}">${pct}%</span><span style="font-size:10px;color:var(--muted);font-weight:400">${r.ganadas}/${r.total}</span>
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px;font-weight:600;margin-bottom:3px;color:var(--text);gap:6px">
+          <span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(nombreV(r.vendedor_id))}</span><span style="color:${color};margin-right:4px">${pct}%</span><span style="font-size:10px;color:var(--muted);font-weight:400;white-space:nowrap">${r.ganadas}/${r.total}</span>
         </div>
         <div style="background:var(--surface2);border-radius:5px;height:10px;overflow:hidden">
           <div style="width:${Math.round(pct/maxPct*100)}%;background:${color};height:100%;border-radius:5px"></div>
