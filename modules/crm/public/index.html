@@ -46,6 +46,10 @@
 .sidebar.collapsed .sidebar-divider{margin:12px 10px}
 #sidebar-nav{display:flex;flex-direction:column;height:100%}
 .nav-item.admin-item{margin-top:auto;margin-bottom:12px}
+.app-container{display:grid;grid-template-columns:220px 1fr;min-height:100vh;transition:grid-template-columns .3s cubic-bezier(.4,0,.2,1)}
+.app-container:has(.sidebar.collapsed){grid-template-columns:64px 1fr}
+.main{margin-left:0 !important;width:100% !important;min-width:0;overflow-x:hidden}
+.sidebar{width:100% !important;min-width:0 !important;position:relative !important;height:auto;min-height:100vh}
 .sidebar-footer{margin-top:auto;padding-bottom:12px;display:flex;flex-direction:column;gap:6px}
 .sidebar.collapsed .sidebar-footer{gap:4px}
 .sidebar.collapsed .btn-logout{width:42px;height:42px;margin:4px auto;border-radius:8px;justify-content:center;padding:0}
@@ -177,7 +181,7 @@
 <body>
 
 <div class="sidebar-overlay" onclick="closeSidebar()"></div>
-
+<div class="app-container" id="app-container">
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
     <button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Menu" aria-expanded="true">◀</button>
@@ -1633,6 +1637,7 @@
   <button class="btn btn-sm btn-secondary" onclick="clearSelection()" aria-label="Cancelar seleccion" title="Cancelar">✕</button>
 </div>
 
+</div><!-- /app-container -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="framework.js"></script>
 

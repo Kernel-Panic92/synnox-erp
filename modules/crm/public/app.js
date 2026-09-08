@@ -4314,11 +4314,20 @@ function toggleSidebar() { document.getElementById('sidebar').classList.toggle('
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.querySelector('.sidebar-overlay').classList.remove('open'); }
 function toggleSidebarCollapse() {
   const sidebar = document.getElementById('sidebar');
+  const container = document.getElementById('app-container');
   sidebar.classList.toggle('collapsed');
+  if (container) container.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
   localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
   const toggle = document.querySelector('.sidebar-toggle');
   if (toggle) toggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
 }
+document.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('sidebar_collapsed') === 'true') {
+    document.getElementById('sidebar')?.classList.add('collapsed');
+    document.getElementById('app-container')?.classList.add('sidebar-collapsed');
+    const t = document.querySelector('.sidebar-toggle'); if (t) t.textContent = '▶';
+  }
+});
 
 // ── Admin Perfiles Venta ──
 const CRM_PERMISOS = ['crear_cotizacion','aprobar_descuento','configurar','siesa_sync','ver_pipeline','editar_pipeline'];
