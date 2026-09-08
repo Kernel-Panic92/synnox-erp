@@ -406,7 +406,7 @@ function renderTablaVendedores(vendedores, containerId) {
   }).join('');
   container.innerHTML = `
     <div class="widget-title">Rendimiento de asesores</div>
-    <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Asesor</th><th style="text-align:center">Ops</th><th style="text-align:right">Ganado</th></tr></thead><tbody>
+    <div class="tbl-wrap" style="max-height:300px;overflow-y:auto"><table class="tbl"><thead><tr><th>Asesor</th><th style="text-align:center">Ops</th><th style="text-align:right">Ganado</th></tr></thead><tbody>
       ${filas || '<tr><td colspan="3" style="color:var(--muted);text-align:center">Sin datos</td></tr>'}
     </tbody></table></div>`;
 }
