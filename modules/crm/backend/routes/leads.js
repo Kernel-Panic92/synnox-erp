@@ -167,6 +167,15 @@ router.post('/', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
       if(req.body.siesa_dv) req.body.siesa_dv = String(req.body.siesa_dv).replace(/\D/g,'').slice(0,1);
     }
 
+    // Validar productos_interes: filtrar IDs inexistentes
+    if (req.body.productos_interes) {
+      const ids = String(req.body.productos_interes).split(',').map(s=>s.trim()).filter(Boolean);
+      if (ids.length) {
+        const existentes = await pool.query(`SELECT id FROM crm.productos WHERE id = ANY($1)`, [ids]);
+        const okIds = new Set(existentes.rows.map(r=>String(r.id)));
+        req.body.productos_interes = ids.filter(id => okIds.has(String(id))).join(',');
+      }
+    }
     // Normalización: fuente única siesa_* (si viene tipo_identificacion legacy, úsalo como fallback)
     const tipoSiesa = siesa_tipo_identificacion || (tipo_identificacion === 'NIT' ? '31' : tipo_identificacion) || '31';
     const result = await pool.query(`
@@ -207,6 +216,15 @@ router.put('/:id', requirePermiso('crear_contacto', 'crm'), async (req, res) => 
     if (req.body.siesa_tipo_identificacion) req.body.siesa_tipo_identificacion = String(req.body.siesa_tipo_identificacion).toUpperCase() === 'NIT' ? '31' : String(req.body.siesa_tipo_identificacion);
     if (req.body.numero_identificacion) req.body.numero_identificacion = String(req.body.numero_identificacion).replace(/\D/g, '');
     if (req.body.siesa_dv) req.body.siesa_dv = String(req.body.siesa_dv).replace(/\D/g, '').slice(0, 1);
+    // Validar productos_interes: filtrar IDs inexistentes
+    if (req.body.productos_interes !== undefined) {
+      const ids = String(req.body.productos_interes).split(',').map(s=>s.trim()).filter(Boolean);
+      if (ids.length) {
+        const existentes = await pool.query(`SELECT id FROM crm.productos WHERE id = ANY($1)`, [ids]);
+        const okIds = new Set(existentes.rows.map(r=>String(r.id)));
+        req.body.productos_interes = ids.filter(id => okIds.has(String(id))).join(',');
+      }
+    }
     // Validar DIAN si se envían campos relevantes
     const { numero_identificacion, siesa_dv, raison_social, siesa_tipo_identificacion, siesa_regimen, siesa_responsabilidad_fiscal, siesa_ciiu, email, direccion, ciudad, departamento } = req.body;
     const hasRelevantFields = numero_identificacion !== undefined || siesa_tipo_identificacion !== undefined || raison_social !== undefined || siesa_dv !== undefined;
