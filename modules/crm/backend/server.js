@@ -150,7 +150,7 @@ app.get('/api/dashboard/analytics', protect, async (req, res) => {
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     const addCond = (sql) => conds.length ? `${conds.join(' AND ')} AND ${sql}` : `WHERE ${sql}`;
 
-    const [acv, lossReason, repeatPurchase, velocity, pipelineTotal, slippage, ticketFuente, forecastPonderado] = await Promise.all([
+    const [acv, lossReason, repeatPurchase, velocity, pipelineTotal, slippage, ticketFuente, forecastPonderado, convAsesor] = await Promise.all([
       // ACV: monto promedio por negocio ganado
       pool.query(`SELECT COUNT(*) as n, COALESCE(AVG(monto_esperado),0) as acv, COALESCE(SUM(monto_esperado),0) as total FROM crm.oportunidades o ${addCond(`o.etapa='ganada'`)}`, params),
       // Pérdida por causal (% de cada motivo dentro de PERDIDA)
@@ -177,7 +177,12 @@ app.get('/api/dashboard/analytics', protect, async (req, res) => {
       // Ticket promedio por fuente/canal (ganadas)
       pool.query(`SELECT COALESCE(NULLIF(o.fuente,''),'otro') as fuente, COUNT(*) as n, ROUND(COALESCE(AVG(o.monto_esperado),0),0) as ticket FROM crm.oportunidades o ${addCond(`o.etapa='ganada'`)} GROUP BY fuente ORDER BY ticket DESC`, params),
       // Forecast ponderado: SUM(monto × probabilidad) en etapas abiertas
-      pool.query(`SELECT COALESCE(SUM(o.monto_esperado * COALESCE(o.probabilidad,0) / 100.0),0) as ponderado FROM crm.oportunidades o ${addCond(`o.etapa NOT IN ('ganada','perdida')`)}`, params)
+      pool.query(`SELECT COALESCE(SUM(o.monto_esperado * COALESCE(o.probabilidad,0) / 100.0),0) as ponderado FROM crm.oportunidades o ${addCond(`o.etapa NOT IN ('ganada','perdida')`)}`, params),
+      // Conversión por asesor: ganadas / total por vendedor
+      pool.query(`SELECT o.vendedor_id, COUNT(*) as total, COUNT(*) FILTER (WHERE o.etapa='ganada') as ganadas,
+        ROUND(100.0*COUNT(*) FILTER (WHERE o.etapa='ganada')/NULLIF(COUNT(*),0),1) as conv_pct
+        FROM crm.oportunidades o ${conds.length ? `WHERE ${conds.join(' AND ')} AND o.vendedor_id IS NOT NULL` : `WHERE o.vendedor_id IS NOT NULL`}
+        GROUP BY o.vendedor_id HAVING COUNT(*)>=1 ORDER BY conv_pct DESC, ganadas DESC LIMIT 10`, params)
     ]);
 
     res.json({
@@ -197,6 +202,7 @@ app.get('/api/dashboard/analytics', protect, async (req, res) => {
       },
       ticket_por_fuente: ticketFuente.rows,
       forecast_ponderado: parseFloat(forecastPonderado.rows[0].ponderado),
+      conversion_asesor: convAsesor.rows,
       desde: desde || null,
       hasta: hasta || null
     });

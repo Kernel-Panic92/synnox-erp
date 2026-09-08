@@ -144,6 +144,7 @@ async function cargarAnalitica() {
     renderSlippage(d.slippage_rate || { vencidas: 0, abiertas: 0, pct: 0 }, 'widget-slippage');
     renderRepeatPurchase(d.repeat_purchase || { nuevos: 0, recurrentes: 0 }, 'widget-repeat');
     renderTicketFuente(d.ticket_por_fuente || [], 'widget-fuente');
+    renderConversionAsesor(d.conversion_asesor || [], 'widget-conv-asesor');
     renderLtv(d.acv || { promedio: 0 }, d.repeat_purchase || { nuevos: 0, recurrentes: 0 }, 'widget-ltv');
   } catch (err) { console.error('Analitica error:', err); }
 }
@@ -271,6 +272,31 @@ function renderLtv(acv, rp, containerId) {
     <div class="metric-big">$${formatMoney(ltv)}</div>
     <div class="metric-sub">ACV $${formatMoney(acv?.promedio || 0)} × recurrencia ${recurrencia.toFixed(1)}x</div>
     <div style="font-size:11px;color:var(--muted);margin-top:8px">Proyección de ingreso por cuenta a lo largo de la relación.</div>`;
+}
+
+function renderConversionAsesor(rows, containerId) {
+  const c = document.getElementById(containerId);
+  if (!c) return;
+  if (!rows.length) { c.innerHTML = '<div class="widget-title">Conversión por asesor</div><div style="color:var(--muted);font-size:12px">Sin datos</div>'; return; }
+  const maxPct = Math.max(1, ...rows.map(r => Number(r.conv_pct) || 0));
+  const nombreV = (id) => {
+    const f = _pipelineVendedorCache.find(u => String(u.id) === String(id));
+    return f ? f.nombre : 'ID ' + id;
+  };
+  const html = rows.map(r => {
+    const pct = Number(r.conv_pct) || 0;
+    const color = pct >= 40 ? 'var(--success)' : pct >= 20 ? 'var(--warning)' : 'var(--danger)';
+    return `
+      <div style="margin-bottom:8px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:3px;color:var(--text)">
+          <span>${esc(nombreV(r.vendedor_id))}</span><span style="color:${color}">${pct}%</span><span style="font-size:10px;color:var(--muted);font-weight:400">${r.ganadas}/${r.total}</span>
+        </div>
+        <div style="background:var(--surface2);border-radius:5px;height:10px;overflow:hidden">
+          <div style="width:${Math.round(pct/maxPct*100)}%;background:${color};height:100%;border-radius:5px"></div>
+        </div>
+      </div>`;
+  }).join('');
+  c.innerHTML = `<div class="widget-title">Conversión por asesor</div>${html || '<div style="color:var(--muted);font-size:12px">Sin datos</div>'}`;
 }
 
 function dashMesActual() {
