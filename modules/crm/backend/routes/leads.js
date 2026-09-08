@@ -1,10 +1,42 @@
 import express from 'express';
+import multer from 'multer';
+import path from 'path';
+import fs from 'fs';
+import { fileURLToPath } from 'url';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
 import { auditarEvento } from '../../../../framework/audit.js';
 import { crearTerceroHub } from '../utils/hubClient.js';
 
 const router = express.Router();
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const uploadDirLeads = path.join(__dirname, '..', 'uploads', 'leads');
+fs.mkdirSync(uploadDirLeads, { recursive: true });
+const storageLeads = multer.diskStorage({
+  destination: (req, file, cb) => {
+    const leadId = req.params.id;
+    const dir = path.join(uploadDirLeads, String(leadId));
+    fs.mkdirSync(dir, { recursive: true });
+    cb(null, dir);
+  },
+  filename: (req, file, cb) => {
+    const safe = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 80);
+    cb(null, `${Date.now()}-${Math.random().toString(36).slice(2, 7)}-${safe}`);
+  }
+});
+const ALLOWED_LEAD_MIMES = new Set([
+  'application/pdf','image/jpeg','image/png','image/webp','image/gif',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet','application/vnd.ms-excel',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document','application/msword','text/csv'
+]);
+const uploadLeads = multer({
+  storage: storageLeads,
+  limits: { fileSize: 20 * 1024 * 1024 },
+  fileFilter: (req, file, cb) => {
+    if (ALLOWED_LEAD_MIMES.has(file.mimetype) || file.originalname.match(/\.(pdf|jpe?g|png|webp|gif|xlsx?|docx?|csv)$/i)) cb(null, true);
+    else cb(new Error('Tipo no permitido: usa PDF, JPG, PNG, WebP, XLSX, DOCX o CSV'));
+  }
+});
 
 function buildLeadsWhere(req) {
   const { estado, asesor, search } = req.query;
@@ -164,10 +196,26 @@ router.put('/:id', requirePermiso('crear_contacto', 'crm'), async (req, res) => 
     const { id } = req.params;
     // Normalización fuente única siesa_*: si viene siesa, sincroniza legacy y viceversa
     if (req.body.siesa_tipo_identificacion !== undefined && req.body.tipo_identificacion === undefined) {
-      req.body.tipo_identificacion = req.body.siesa_tipo_identificacion;
+      const t = String(req.body.siesa_tipo_identificacion).toUpperCase();
+      req.body.tipo_identificacion = t === 'NIT' ? '31' : t;
+      req.body.siesa_tipo_identificacion = t === 'NIT' ? '31' : t;
     } else if (req.body.tipo_identificacion !== undefined && req.body.siesa_tipo_identificacion === undefined) {
       const t = String(req.body.tipo_identificacion).toUpperCase();
       req.body.siesa_tipo_identificacion = t === 'NIT' ? '31' : t;
+      req.body.tipo_identificacion = t === 'NIT' ? '31' : t;
+    }
+    if (req.body.siesa_tipo_identificacion) req.body.siesa_tipo_identificacion = String(req.body.siesa_tipo_identificacion).toUpperCase() === 'NIT' ? '31' : String(req.body.siesa_tipo_identificacion);
+    if (req.body.numero_identificacion) req.body.numero_identificacion = String(req.body.numero_identificacion).replace(/\D/g, '');
+    if (req.body.siesa_dv) req.body.siesa_dv = String(req.body.siesa_dv).replace(/\D/g, '').slice(0, 1);
+    // Validar DIAN si se envían campos relevantes
+    const { numero_identificacion, siesa_dv, raison_social, siesa_tipo_identificacion, siesa_regimen, siesa_responsabilidad_fiscal, siesa_ciiu, email, direccion, ciudad, departamento } = req.body;
+    const hasRelevantFields = numero_identificacion !== undefined || siesa_tipo_identificacion !== undefined || raison_social !== undefined || siesa_dv !== undefined;
+    if (hasRelevantFields) {
+      const existing = await pool.query(`SELECT * FROM crm.leads WHERE id = $1`, [id]);
+      if (!existing.rows.length) return res.status(404).json({ error: 'Lead no encontrado' });
+      const merged = { ...existing.rows[0], ...req.body };
+      const dianErrs = validarLeadDIAN(merged, true);
+      if (dianErrs.length) return res.status(400).json({ error: dianErrs[0], detalles: dianErrs });
     }
     const fields = ['raison_social', 'numero_identificacion', 'tipo_identificacion', 'nombre_establecimiento',
       'direccion', 'ciudad', 'departamento', 'email', 'telefono', 'canal', 'segmento', 'tipo_negocio',
@@ -352,4 +400,67 @@ router.put('/:id/enviar', requirePermiso('crear_contacto', 'crm'), async (req, r
   }
 });
 
+// ── Adjuntos Lead — RUT, cert bancario, cámara, etc. (20MB, max 10/lead)
+router.get('/:id/adjuntos', requirePermiso('ver', 'crm'), async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT id, lead_id, nombre_original, ruta, mime, size, tipo, subido_por, creado_en FROM crm.lead_adjuntos WHERE lead_id=$1 ORDER BY creado_en DESC`, [req.params.id]);
+    res.json({ ok: true, data: r.rows });
+  } catch (e) { console.error('[CRM] list adjuntos', e.message); res.status(500).json({ error: 'Error al listar adjuntos' }); }
+});
+router.post('/:id/adjuntos', requirePermiso('crear_contacto', 'crm'), uploadLeads.array('archivos', 10), async (req, res) => {
+  try {
+    const leadId = req.params.id;
+    const exists = await pool.query(`SELECT id FROM crm.leads WHERE id=$1`, [leadId]);
+    if (!exists.rows.length) {
+      for (const f of req.files||[]) try{ fs.unlinkSync(f.path); }catch{}
+      return res.status(404).json({ error: 'Lead no encontrado' });
+    }
+    const count = await pool.query(`SELECT COUNT(*) FROM crm.lead_adjuntos WHERE lead_id=$1`, [leadId]);
+    const ya = parseInt(count.rows[0].count);
+    if (ya + (req.files?.length||0) > 10) {
+      for (const f of req.files||[]) try{ fs.unlinkSync(f.path); }catch{}
+      return res.status(400).json({ error: `Máximo 10 archivos por lead (ya tienes ${ya})` });
+    }
+    const tipo = String(req.body.tipo||'otro');
+    const tipoOk = ['rut','cert_bancario','camara_comercio','cedula','otro'].includes(tipo) ? tipo : 'otro';
+    const rows = [];
+    for (const f of req.files||[]) {
+      const rel = `/crm/uploads/leads/${leadId}/${path.basename(f.path)}`;
+      // Si se subieron múltiples con tipos distintos, el frontend envía tipo por archivo via tipo[]
+      const r = await pool.query(`INSERT INTO crm.lead_adjuntos (lead_id, nombre_original, nombre_guardado, ruta, mime, size, tipo, subido_por) VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING *`,
+        [leadId, f.originalname, path.basename(f.path), rel, f.mimetype, f.size, tipoOk, req.user.id]);
+      rows.push(r.rows[0]);
+    }
+    if (rows.length) await auditarEvento({ accion:'adjuntar', entidad:'lead', entidad_id:leadId, usuario_id:req.user.id, metadata:{ archivos: rows.map(x=>x.nombre_original), tipo: tipoOk } });
+    res.status(201).json({ ok:true, data: rows });
+  } catch (e) {
+    console.error('[CRM] upload adjuntos', e.message);
+    // multer fileFilter/size errors
+    if (e.code==='LIMIT_FILE_SIZE') return res.status(400).json({ error:'Archivo supera 20MB' });
+    res.status(500).json({ error: e.message||'Error al subir' });
+  }
+});
+router.get('/:id/adjuntos/:adjId/descargar', requirePermiso('ver', 'crm'), async (req, res) => {
+  try {
+    const r = await pool.query(`SELECT * FROM crm.lead_adjuntos WHERE id=$1 AND lead_id=$2`, [req.params.adjId, req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error:'Adjunto no encontrado' });
+    const a = r.rows[0];
+    const abs = path.join(uploadDirLeads, String(a.lead_id), a.nombre_guardado);
+    if (!fs.existsSync(abs)) return res.status(404).json({ error:'Archivo no existe en disco' });
+    res.download(abs, a.nombre_original);
+  } catch (e) { res.status(500).json({ error:'Error al descargar' }); }
+});
+router.delete('/:id/adjuntos/:adjId', requirePermiso('crear_contacto', 'crm'), async (req, res) => {
+  try {
+    const r = await pool.query(`DELETE FROM crm.lead_adjuntos WHERE id=$1 AND lead_id=$2 RETURNING *`, [req.params.adjId, req.params.id]);
+    if (!r.rows.length) return res.status(404).json({ error:'Adjunto no encontrado' });
+    const a = r.rows[0];
+    const abs = path.join(uploadDirLeads, String(a.lead_id), a.nombre_guardado);
+    try{ if(fs.existsSync(abs)) fs.unlinkSync(abs); }catch{}
+    await auditarEvento({ accion:'eliminar_adjunto', entidad:'lead', entidad_id:req.params.id, usuario_id:req.user.id, metadata:{ archivo:a.nombre_original } });
+    res.json({ ok:true });
+  } catch (e) { res.status(500).json({ error:'Error al eliminar' }); }
+});
+
 export default router;
+export { uploadDirLeads };
