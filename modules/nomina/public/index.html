@@ -138,6 +138,9 @@
 
   /* ── EMPLOYEE CARDS ── */
   .emp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;width:100%}
+ #page-empleados, .main-content, div[class*="employees"]{width:100% !important;max-width:100% !important;box-sizing:border-box !important}
+ .main-body{width:100% !important;max-width:100% !important}
+ .emp-grid, div[class*="grid"]{display:grid !important;grid-template-columns:repeat(auto-fill,minmax(340px,1fr)) !important;gap:16px !important;width:100% !important}
  #page-empleados{width:100%;max-width:100%;box-sizing:border-box}
   .emp-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;transition:border-color 0.2s;}
   .emp-card:hover{border-color:var(--accent);}
