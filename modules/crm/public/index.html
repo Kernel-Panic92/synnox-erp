@@ -32,8 +32,14 @@
 .kpi-chip{display:inline-block;font-size:10px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;white-space:nowrap}
 .kpi-chip b{font-weight:700}
 .stat-label-top{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;text-align:center;margin-bottom:6px}
-.dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px;margin-top:16px;grid-auto-rows:1fr;align-items:stretch}
-.dash-widget{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;overflow:visible;height:100%}
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px;margin-top:16px;grid-auto-rows:auto;align-items:start}
+.dash-widget{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;overflow:visible;height:auto}
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:12px}
+.kpi-row .kpi-compact{padding:12px 16px}
+.analytics-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;align-items:start}
+.kpi-detailed{min-height:220px;padding:16px}
+@media(max-width:1100px){.kpi-row{grid-template-columns:repeat(2,1fr)} .analytics-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){.kpi-row{grid-template-columns:1fr} .analytics-grid{grid-template-columns:1fr} .analytics-grid [style*="span 2"]{grid-column:span 1 !important}}
 .dash-widget .widget-title{flex-shrink:0;font-size:12px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:5px;color:var(--text)}
 .dash-tabs{display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:0}
 .dash-tab{background:transparent;border:none;border-bottom:2px solid transparent;padding:8px 14px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-radius:8px 8px 0 0}
@@ -196,22 +202,25 @@
     </div>
   </div>
   <div id="dash-analitica" style="display:none">
-    <div class="dash-grid">
-      <!-- Fila 1: Valor y Forecast -->
-      <div class="dash-widget" id="widget-acv"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
-      <div class="dash-widget" id="widget-coverage"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
-      <div class="dash-widget" id="widget-forecast"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
-      <!-- Fila 2: Eficiencia y Riesgo -->
-      <div class="dash-widget" id="widget-velocity"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
-      <div class="dash-widget" id="widget-loss"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
-      <div class="dash-widget" id="widget-slippage"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
-      <!-- Fila 3: Origen y Conversión -->
-      <div class="dash-widget" id="widget-fuente"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
-      <div class="dash-widget" id="widget-conv-asesor"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
-      <div class="dash-widget" id="widget-lead-conv"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
-      <div class="dash-widget" id="widget-repeat"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
-      <div class="dash-widget" id="widget-ltv"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
-      <div class="dash-widget" id="widget-acciones" style="background:linear-gradient(135deg,var(--surface),var(--surface2));border-style:dashed"><div class="widget-title">🤖 Acciones recomendadas</div><div style="font-size:12px;color:var(--muted);line-height:1.5">Próximamente: alertas automáticas y recomendaciones IA basadas en slippage, coverage y conversión por asesor.</div></div>
+    <!-- Fila 1: KPIs compactos -->
+    <div class="kpi-row">
+      <div class="dash-widget kpi-compact" id="widget-acv"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
+      <div class="dash-widget kpi-compact" id="widget-coverage"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
+      <div class="dash-widget kpi-compact" id="widget-forecast"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
+      <div class="dash-widget kpi-compact" id="widget-slippage"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
+      <div class="dash-widget kpi-compact" id="widget-ltv"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
+    </div>
+    <!-- Fila 2-3: Bloques densos -->
+    <div class="analytics-grid">
+      <div style="grid-column: span 2; display:flex; flex-direction:column; gap:12px">
+        <div class="dash-widget kpi-detailed" id="widget-loss"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
+        <div class="dash-widget kpi-detailed" id="widget-fuente"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
+      </div>
+      <div class="dash-widget kpi-detailed" id="widget-velocity"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
+      <div class="dash-widget kpi-detailed" id="widget-conv-asesor"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
+      <div class="dash-widget kpi-detailed" id="widget-lead-conv"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
+      <div class="dash-widget kpi-detailed" id="widget-repeat"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
+      <div class="dash-widget kpi-detailed" id="widget-acciones" style="background:linear-gradient(135deg,var(--surface),var(--surface2));border-style:dashed"><div class="widget-title">🤖 Acciones recomendadas</div><div style="font-size:12px;color:var(--muted);line-height:1.5">Próximamente: alertas automáticas y recomendaciones IA basadas en slippage, coverage y conversión por asesor.</div></div>
     </div>
   </div>
 </div>
