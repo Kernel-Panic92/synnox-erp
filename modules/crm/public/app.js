@@ -4312,7 +4312,13 @@ function toggleSelectAll(checkbox, tipo) {
 
 function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.querySelector('.sidebar-overlay').classList.toggle('open'); }
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.querySelector('.sidebar-overlay').classList.remove('open'); }
-function toggleSidebarCollapse() { document.getElementById('sidebar').classList.toggle('collapsed'); }
+function toggleSidebarCollapse() {
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.toggle('collapsed');
+  localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
+  const toggle = document.querySelector('.sidebar-toggle');
+  if (toggle) toggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+}
 
 // ── Admin Perfiles Venta ──
 const CRM_PERMISOS = ['crear_cotizacion','aprobar_descuento','configurar','siesa_sync','ver_pipeline','editar_pipeline'];

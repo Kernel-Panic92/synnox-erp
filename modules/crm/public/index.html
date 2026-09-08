@@ -34,6 +34,8 @@
 .stat-label-top{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;text-align:center;margin-bottom:6px}
 .dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px;margin-top:16px;grid-auto-rows:auto;align-items:start}
 .dash-widget{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;overflow:visible;height:auto}
+.nav-text{font-size:13px;font-weight:500;white-space:nowrap}
+.sidebar.collapsed .nav-text{display:none !important}
 .kpi-strip{display:grid;grid-template-columns:repeat(6,1fr);gap:10px;margin-bottom:12px}
 .kpi-banner{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;height:auto;min-height:72px;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box;overflow:hidden;position:relative}
 .kpi-banner::before{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;opacity:0.07}
@@ -163,16 +165,16 @@
     <div class="role" id="user-role"></div>
   </div>
   <nav id="sidebar-nav">
-    <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span> Dashboard</button>
-    <button class="nav-item" data-page="pipeline" onclick="navigate('pipeline')"><span class="icon">📈</span> Pipeline</button>
-    <button class="nav-item" data-page="leads" onclick="navigate('leads')"><span class="icon">🎯</span> Clientes Potenciales</button>
-    <button class="nav-item" data-page="clientes" onclick="navigate('clientes')"><span class="icon">🏢</span> Clientes</button>
-    <button class="nav-item" data-page="contactos" onclick="navigate('contactos')"><span class="icon">👤</span> Contactos</button>
-    <button class="nav-item" data-page="visitas" onclick="navigate('visitas')"><span class="icon">📋</span> Actividades</button>
-    <button class="nav-item" data-page="cotizaciones" onclick="navigate('cotizaciones')"><span class="icon">📄</span> Cotizaciones</button>
-    <button class="nav-item" data-page="productos" onclick="navigate('productos')"><span class="icon">📦</span> Productos</button>
-    <button class="nav-item" data-page="inventario" onclick="navigate('inventario')"><span class="icon">📊</span> Inventario</button>
-    <button class="nav-item" data-page="admin" onclick="navigate('admin')"><span class="icon">⚙️</span> Admin</button>
+    <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span> <span class="nav-text">Dashboard</span></button>
+    <button class="nav-item" data-page="pipeline" onclick="navigate('pipeline')"><span class="icon">📈</span> <span class="nav-text">Pipeline</span></button>
+    <button class="nav-item" data-page="leads" onclick="navigate('leads')"><span class="icon">🎯</span> <span class="nav-text">Clientes Potenciales</span></button>
+    <button class="nav-item" data-page="clientes" onclick="navigate('clientes')"><span class="icon">🏢</span> <span class="nav-text">Clientes</span></button>
+    <button class="nav-item" data-page="contactos" onclick="navigate('contactos')"><span class="icon">👤</span> <span class="nav-text">Contactos</span></button>
+    <button class="nav-item" data-page="visitas" onclick="navigate('visitas')"><span class="icon">📋</span> <span class="nav-text">Actividades</span></button>
+    <button class="nav-item" data-page="cotizaciones" onclick="navigate('cotizaciones')"><span class="icon">📄</span> <span class="nav-text">Cotizaciones</span></button>
+    <button class="nav-item" data-page="productos" onclick="navigate('productos')"><span class="icon">📦</span> <span class="nav-text">Productos</span></button>
+    <button class="nav-item" data-page="inventario" onclick="navigate('inventario')"><span class="icon">📊</span> <span class="nav-text">Inventario</span></button>
+    <button class="nav-item" data-page="admin" onclick="navigate('admin')"><span class="icon">⚙️</span> <span class="nav-text">Admin</span></button>
   </nav>
   <div class="sidebar-footer">
     <a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a>
