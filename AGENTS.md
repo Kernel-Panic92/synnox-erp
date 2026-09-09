@@ -1,5 +1,55 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (09 Sep 2026 — sesión 55 — build mode)
+
+### Cambios Sesión 55 — Installer hardening, sidebar gold standard y saldos iniciales
+
+Sesión en `feat/crm-module` (build). Instalación limpia en dev, restore de backup
+prod, importación de saldos iniciales SIESA y unificación del sidebar de los 5
+módulos con el CRM como referencia gold.
+
+#### Installer — Instalación limpia + restore prod
+- `install.sh`: converge password PG (`ALTER USER` contra `.env`, evita 28P01),
+  genera `INTERNAL_API_TOKEN`, git no-interactivo + `SKIP_GIT`, schema/extensiones/
+  migraciones CRM, log de migraciones con resumen (`ON_ERROR_STOP=1` en
+  `.install-migrations.log`), smoke test post-PM2 (health de los 5 módulos) y
+  bloque nginx `/api/admin/backup/restore` sin límite (evita 413).
+- Migración `030` reescrita idempotente (bloque `DO`: solo altera si la columna
+  aún es UUID, vía `::text`, no-nulos no numéricos → NULL). El 030 original
+  abortaba el auto-migrate y dejaba 031–036 sin aplicar en limpio.
+- `pnpm-workspace.yaml` + lockfile incluyen `modules/crm` (`csv-parse`/`xlsx`;
+  sin esto el CRM no montaba → 404 en `/crm/api/*`).
+- Restore de backup prod a dev verificado (10GB, multer a disco, PM2 restart).
+
+#### CRM — Importación saldos iniciales + auth FormData
+- `importar.js`: inventario acepta `xlsx,csv` (el backend ya parseaba CSV latin-1;
+  solo la etiqueta `extensiones` lo bloqueaba) y el validador acepta `referencia`
+  como clave de producto.
+- Saldos: `inventario.csv` (1035 filas) → 769 registros iniciales; 266 filas
+  (128 SKUs en bodegas x15/x90, 826.445 unds) sin maestro → se generó
+  `items_faltantes_saldos.csv` desde el propio inventario y se importó (1065
+  productos). Reimportar inventario rescata el resto (upsert idempotente).
+- `app.js`: los 5 POST FormData (importar, actividades, checkin/checkout,
+  adjuntos ×2) ahora mandan `Bearer` además de cookie (solo-cookie daba 401
+  'Token requerido' tras el restore) + manejo de errores HTTP sin colgar el
+  spinner SSE.
+
+#### Sidebar — CRM como gold standard del framework
+- Estándar: secciones `.sidebar-section-title`, tooltips `data-tooltip`, toggle
+  fantasma ❮/❯ (26px, sin óvalo), `aria-current`/`aria-expanded`/labels,
+  `focus-visible`, footer colapsado con geometría de nav-item, iconos 20px,
+  `Cerrar sesión` con tilde, `?v=` bump en scripts.
+- Aplicado a `framework/` (canon: `framework.js`, `base.css`, `init.sh`,
+  `README.md`) y replicado en logística (12 items → 4 secciones, mapa 🗺️→🧭),
+  proyectos (7 items → 3 secciones), nómina (fix `data-page nominas→nomina`) y
+  proveedores (secciones al canon 11px, badges intactos).
+- `scripts/genera_oportunidades.js`: modo `--dias N` (mes simulado: 50
+  `OPORT-*` 10-ago→9-sep, etapas coherentes con antigüedad, historial fechado,
+  `motivo_perdida` en perdidas). Limpieza: 3 DELETEs por `nombre LIKE 'OPORT-%'`.
+
+#### Commits sesión 55 (desde `471658e`)
+- `0f6746d` — `fix(installer): instalación limpia compatible con CRM y restore sin 413`
+
 ## Estado (07 Sep 2026 — sesión 54 — build mode)
 
 ### Cambios Sesión 54 — CRM: Places por proxy, Dashboard gerencial y Analítica Avanzada

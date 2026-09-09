@@ -582,6 +582,17 @@
   .sidebar.collapsed .sidebar-footer{gap:4px}
   .sidebar.collapsed .btn-logout{width:42px;height:42px;margin:4px auto;border-radius:8px;justify-content:center;padding:0}
   .sidebar.collapsed .btn-logout .nav-text{display:none !important}
+.sidebar-header{min-height:0 !important;padding:10px 12px 4px !important;justify-content:flex-end !important}
+.sidebar.collapsed .sidebar-header{justify-content:center !important;padding:10px 0 4px !important}
+/* Toggle fantasma (gold standard): sin óvalo, chevrón ❮/❯ */
+.sidebar-header .sidebar-toggle{width:26px !important;height:26px !important;background:transparent !important;border:none !important;box-shadow:none !important;font-size:12px !important}
+.sidebar-header .sidebar-toggle:hover{background:var(--surface2) !important;color:var(--text) !important}
+/* Footer colapsado: MISMA geometría que los nav-items (gold standard) */
+.sidebar.collapsed .sidebar-footer{padding:12px 0 !important}
+.sidebar.collapsed .sidebar-footer .sidebar-home,.sidebar.collapsed .sidebar-footer .btn-logout{width:100% !important;margin:4px 0 !important;padding:8px 0 !important;gap:0 !important;border-radius:0 !important;border:none !important;justify-content:center !important}
+.sidebar.collapsed .sidebar-home .nav-text{display:none !important}
+.sidebar.collapsed .sidebar-footer .sidebar-home .icon,.sidebar.collapsed .sidebar-footer .btn-logout .icon{font-size:20px !important;width:auto !important;margin:0 !important;text-align:center;line-height:1}
+.sidebar nav .nav-item:focus-visible,.sidebar-footer .btn-logout:focus-visible,.sidebar-footer .sidebar-home:focus-visible,.sidebar-header .sidebar-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
   .sidebar-header{display:flex;justify-content:flex-end;align-items:center;padding:12px 12px 8px;min-height:44px;box-sizing:border-box}
   .sidebar.collapsed .sidebar-header{justify-content:center;padding:12px 0}
   .sidebar-toggle{width:32px;height:32px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s ease;flex-shrink:0;font-size:14px}
@@ -603,17 +614,17 @@
   <div class="sidebar-overlay" onclick="closeSidebar()"></div>
   <div class="app-container" id="app-container">
   <aside class="sidebar" id="sidebar">
-    <div class="sidebar-header"><button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Menú" aria-expanded="true">◀</button></div>
+    <div class="sidebar-header"><button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Contraer menú" aria-expanded="true">❮</button></div>
     <div class="logo" data-module-id="nomina">💰 <span data-module-name>SynnoxERP</span></div>
     <div class="user-info">
       <div class="name" id="user-name">—</div>
       <div class="role" id="user-role">—</div>
       <span class="badge" id="user-badge">—</span>
     </div>
-    <nav id="sidebar-nav">
+    <nav id="sidebar-nav" aria-label="Navegación Nómina">
       <div class="sidebar-section">
         <div class="sidebar-section-title">Operación</div>
-        <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')" title="Dashboard" data-tooltip="Dashboard"><span class="icon">📊</span> <span class="nav-text">Dashboard</span></button>
+        <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')" title="Dashboard" data-tooltip="Dashboard" aria-current="page"><span class="icon">📊</span> <span class="nav-text">Dashboard</span></button>
         <button class="nav-item" data-page="registro" onclick="navigate('registro')" title="Registrar Novedades" data-tooltip="Registrar Novedades"><span class="icon">➕</span> <span class="nav-text">Registrar Novedades</span></button>
         <button class="nav-item" data-page="historial" onclick="navigate('historial')" title="Historial" data-tooltip="Historial"><span class="icon">📋</span> <span class="nav-text">Historial</span></button>
         <button class="nav-item" data-page="empleados" onclick="navigate('empleados')" title="Empleados" data-tooltip="Empleados"><span class="icon">👥</span> <span class="nav-text">Empleados</span></button>
@@ -627,7 +638,7 @@
       </div>
       <div class="sidebar-section">
         <div class="sidebar-section-title">Nómina</div>
-        <button class="nav-item" data-page="nominas" onclick="navigate('nomina')" title="Períodos Nómina" data-tooltip="Períodos Nómina"><span class="icon">💰</span> <span class="nav-text">Períodos Nómina</span></button>
+        <button class="nav-item" data-page="nomina" onclick="navigate('nomina')" title="Períodos Nómina" data-tooltip="Períodos Nómina"><span class="icon">💰</span> <span class="nav-text">Períodos Nómina</span></button>
         <button class="nav-item" data-page="siesa" onclick="navigate('siesa')" title="Exportar Siesa" data-tooltip="Exportar Siesa"><span class="icon">📤</span> <span class="nav-text">Exportar Siesa</span></button>
       </div>
       <div class="sidebar-section">
@@ -643,8 +654,8 @@
       <div class="version">
         <div id="app-version">v—</div>
       </div>
-      <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesion" data-tooltip="Cerrar sesion">
-        <span class="icon" style="font-size:18px">⏻</span> <span class="nav-text">Cerrar sesion</span>
+      <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesión" data-tooltip="Cerrar sesión">
+        <span class="icon">⏻</span> <span class="nav-text">Cerrar sesión</span>
       </button>
     </div>
   </aside>
@@ -1239,7 +1250,7 @@
 
 <script src="js/modules/configuracion.js?v=5"></script>
 <script src="js/modules/users.js?v=2"></script>
-<script src="js/app.js?v=15"></script>
+  <script src="js/app.js?v=16"></script>
 
 <!-- MODAL DETALLE REGISTRO -->
 <div class="modal-overlay" id="modal-detalle">

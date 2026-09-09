@@ -41,6 +41,17 @@ body.light thead th{background:#f0f2f7}
 .sidebar.collapsed .sidebar-footer{gap:4px}
 .sidebar.collapsed .btn-logout{width:42px;height:42px;margin:4px auto;border-radius:8px;justify-content:center;padding:0}
 .sidebar.collapsed .btn-logout .nav-text{display:none !important}
+.sidebar-header{min-height:0 !important;padding:10px 12px 4px !important;justify-content:flex-end !important}
+.sidebar.collapsed .sidebar-header{justify-content:center !important;padding:10px 0 4px !important}
+/* Toggle fantasma (gold standard): sin óvalo, chevrón ❮/❯ */
+.sidebar-header .sidebar-toggle{width:26px !important;height:26px !important;background:transparent !important;border:none !important;box-shadow:none !important;font-size:12px !important}
+.sidebar-header .sidebar-toggle:hover{background:var(--surface2) !important;color:var(--text) !important}
+/* Footer colapsado: MISMA geometría que los nav-items (gold standard) */
+.sidebar.collapsed .sidebar-footer{padding:12px 0 !important}
+.sidebar.collapsed .sidebar-footer .sidebar-home,.sidebar.collapsed .sidebar-footer .btn-logout{width:100% !important;margin:4px 0 !important;padding:8px 0 !important;gap:0 !important;border-radius:0 !important;border:none !important;justify-content:center !important}
+.sidebar.collapsed .sidebar-home .nav-text{display:none !important}
+.sidebar.collapsed .sidebar-footer .sidebar-home .icon,.sidebar.collapsed .sidebar-footer .btn-logout .icon{font-size:20px !important;width:auto !important;margin:0 !important;text-align:center;line-height:1}
+.sidebar nav .nav-item:focus-visible,.sidebar-footer .btn-logout:focus-visible,.sidebar-footer .sidebar-home:focus-visible,.sidebar-header .sidebar-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .sidebar-header{display:flex;justify-content:flex-end;align-items:center;padding:12px 12px 8px;min-height:44px;box-sizing:border-box}
 .sidebar.collapsed .sidebar-header{justify-content:center;padding:12px 0}
 .sidebar-toggle{width:32px;height:32px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s ease;flex-shrink:0;font-size:14px}
@@ -237,7 +248,7 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--ac
 <div class="app-container" id="app-container">
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Menú" aria-expanded="true">◀</button>
+      <button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Contraer menú" aria-expanded="true">❮</button>
     </div>
     <div class="logo" id="header-logo" data-module-id="proveedores">📋 <span data-module-name>SynnoxERP</span></div>
     <div class="user-info">
@@ -245,16 +256,16 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--ac
       <div class="role" id="user-role">—</div>
       <span class="badge" id="user-badge"></span>
     </div>
-    <nav id="sidebar-nav"></nav>
+    <nav id="sidebar-nav" aria-label="Navegación Proveedores"></nav>
     <div class="sidebar-footer">
-      <a class="sidebar-home" href="/" title="Home" data-tooltip="Home"><span class="icon">🏠</span> <span>Home</span></a>
+      <a class="sidebar-home" href="/" title="Home" data-tooltip="Home"><span class="icon">🏠</span> <span class="nav-text">Home</span></a>
       <div class="user-name" id="sidebar-user-name"></div>
       <div class="user-role" id="sidebar-user-role"></div>
       <div class="version">
         <div id="app-version"></div>
       </div>
-      <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesion" data-tooltip="Cerrar sesion">
-        <span class="icon" style="font-size:18px">⏻</span> <span class="nav-text">Cerrar sesion</span>
+      <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesión" data-tooltip="Cerrar sesión">
+        <span class="icon">⏻</span> <span class="nav-text">Cerrar sesión</span>
       </button>
     </div>
   </aside>
@@ -296,9 +307,9 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--ac
 
 <script>window.BASE = window.location.pathname.replace(/\/[^/]*$/,'').replace(/\/+$/,'') || '';</script>
 <script src="js/utils/api.js?v=5"></script>
-<script src="js/utils/helpers.js?v=1"></script>
+  <script src="js/utils/helpers.js?v=2"></script>
 <script src="js/components/modals.js?v=1"></script>
-<script src="js/modules/auth.js?v=1"></script>
+  <script src="js/modules/auth.js?v=2"></script>
 <script src="js/modules/dashboard.js?v=1"></script>
 <script src="js/modules/facturas.js?v=1"></script>
 <script src="js/modules/pendientes.js?v=1"></script>
@@ -309,7 +320,7 @@ input[type=checkbox]{width:16px;height:16px;cursor:pointer;accent-color:var(--ac
 <script src="js/modules/audit.js?v=1"></script>
 <script src="js/modules/backup.js?v=2"></script>
 <script src="js/modules/config.js?v=4"></script>
-<script src="app.js?v=3"></script>
+  <script src="app.js?v=4"></script>
 
 
 </body>

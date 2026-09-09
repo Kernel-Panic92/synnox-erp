@@ -34,8 +34,8 @@ async function init() {
     const r = await apiFetch('/auth/me');
     if (!r.ok) return mostrarLogin();
     usuario = r.data || r;
-    document.getElementById('user-name').textContent = usuario.nombre || usuario.email;
-    document.getElementById('user-role').textContent = usuario.rol || '';
+    const _un = document.getElementById('user-name'); if (_un) _un.textContent = usuario.nombre || usuario.email;
+    const _ur = document.getElementById('user-role'); if (_ur) _ur.textContent = usuario.rol || '';
     document.getElementById('sidebar-user-name').textContent = usuario.nombre || '';
     document.getElementById('sidebar-user-role').textContent = usuario.rol || '';
     // Terceros/cliente se gestionan en el ERP SIESA y se sincronizan. El CRM no los crea (ni admin).
@@ -62,7 +62,7 @@ function mostrarLogin() {
 }
 
 function mostrarLogoutConfirm() {
-  confirmar({ titulo: 'Cerrar sesion', mensaje: '¿Cerrar sesion?', icono: '⏻', onConfirm: () => {
+  confirmar({ titulo: 'Cerrar sesión', mensaje: '¿Cerrar sesión?', icono: '⏻', onConfirm: () => {
     document.cookie.split(';').forEach(c => { document.cookie = c.replace(/^ +/, '').replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/'); });
     localStorage.removeItem('launcher_jwt');
     window.location.href = '/';
@@ -74,11 +74,11 @@ const pages = ['dashboard', 'pipeline', 'leads', 'clientes', 'contactos', 'visit
 function navigate(page) {
   if (!pages.includes(page)) page = 'dashboard';
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => { n.classList.remove('active'); n.removeAttribute('aria-current'); });
   const el = document.getElementById('page-' + page);
   const nav = document.querySelector(`[data-page="${page}"]`);
   if (el) el.classList.add('active');
-  if (nav) nav.classList.add('active');
+  if (nav) { nav.classList.add('active'); nav.setAttribute('aria-current', 'page'); }
   const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', leads: 'Clientes Potenciales', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Actividades', cotizaciones: 'Cotizaciones', productos: 'Productos', inventario: 'Inventario', importar: 'Importar SIESA', descuentos: 'Descuentos', admin: 'Admin' };
   document.getElementById('page-title').textContent = titles[page] || 'CRM';
   if (page === 'dashboard') cargarDashboard();
@@ -1842,7 +1842,8 @@ async function subirLeadAdjuntos(){
   const btn=document.querySelector('button[onclick="subirLeadAdjuntos()"]');
   if(btn){ btn.disabled=true; btn.textContent='Subiendo...'; }
   try{
-    const r=await fetch(HF.API+'/leads/'+leadId+'/adjuntos',{ method:'POST', credentials:'include', body: fd });
+    const _authT3 = localStorage.getItem('launcher_jwt');
+    const r=await fetch(HF.API+'/leads/'+leadId+'/adjuntos',{ method:'POST', credentials:'include', headers: _authT3 ? { Authorization: 'Bearer ' + _authT3 } : {}, body: fd });
     const j=await r.json().catch(()=>({}));
     if(!r.ok) return toast(j.error||'Error al subir','error');
     toast(`${j.data.length} archivo(s) subido(s)`, 'success');
@@ -2210,7 +2211,8 @@ async function guardarLead() {
       fd.append('archivos', p.file);
       fd.append('tipo', p.tipo);
       try{
-        const rr=await fetch(HF.API+'/leads/'+newId+'/adjuntos',{ method:'POST', credentials:'include', body: fd });
+        const _authT4 = localStorage.getItem('launcher_jwt');
+        const rr=await fetch(HF.API+'/leads/'+newId+'/adjuntos',{ method:'POST', credentials:'include', headers: _authT4 ? { Authorization: 'Bearer ' + _authT4 } : {}, body: fd });
         const jj=await rr.json().catch(()=>({}));
         if(rr.ok) okCount+= jj.data?.length||1;
         else toast(`Error ${p.file.name}: ${jj.error||rr.status}`,'error');
@@ -2812,7 +2814,8 @@ async function guardarActividad() {
   if (foto) fd.append('foto', foto);
 
   btn.disabled = true; btn.textContent = 'Guardando...';
-  const r = await fetch(HF.API + '/actividades', { method: 'POST', credentials: 'include', body: fd });
+  const _authT = localStorage.getItem('launcher_jwt');
+  const r = await fetch(HF.API + '/actividades', { method: 'POST', credentials: 'include', headers: _authT ? { Authorization: 'Bearer ' + _authT } : {}, body: fd });
   const data = await r.json().catch(() => ({}));
   btn.disabled = false; btn.textContent = 'Guardar';
   if (!r.ok) return toast(data.error || 'Error al crear', 'error');
@@ -2921,9 +2924,11 @@ async function guardarVisita() {
   const foto = document.getElementById('visita-foto').files[0];
   if (foto) formData.append('foto', foto);
 
+  const _authT2 = localStorage.getItem('launcher_jwt');
   const r = await fetch(HF.API + '/visitas/' + tipo, {
     method: 'POST',
     credentials: 'include',
+    headers: _authT2 ? { Authorization: 'Bearer ' + _authT2 } : {},
     body: formData
   });
   const data = await r.json();
@@ -4241,7 +4246,27 @@ async function ejecutarImportacion() {
   `;
 
   try {
-    const response = await fetch(HF.API + '/importar', { method: 'POST', credentials: 'include', body: formData });
+    // Doble auth como el resto del CRM (apiFetch): cookie httpOnly + Bearer.
+    // El POST antes solo mandaba cookie y devolvía 401 'Token requerido'
+    // cuando la cookie faltaba/estaba vencida aunque hubiera token válido.
+    const authToken = localStorage.getItem('launcher_jwt');
+    const response = await fetch(HF.API + '/importar', {
+      method: 'POST',
+      credentials: 'include',
+      headers: authToken ? { Authorization: 'Bearer ' + authToken } : {},
+      body: formData
+    });
+    // Errores HTTP (400 validación, 401 auth, 413 tamaño) no son SSE:
+    // mostrar el mensaje y no dejar el spinner colgado.
+    if (!response.ok) {
+      const errBody = await response.text().catch(() => '');
+      let errMsg = 'Error ' + response.status;
+      try { errMsg = JSON.parse(errBody).error || errMsg; } catch { if (errBody) errMsg = errBody.slice(0, 300); }
+      btn.disabled = false; btn.textContent = 'Reintentar';
+      div.innerHTML = `<div style="padding:12px;background:#f8d7da;border-radius:8px;font-size:13px">❌ ${esc(errMsg)}</div>`;
+      toast(errMsg, 'error');
+      return;
+    }
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
@@ -4329,13 +4354,18 @@ function toggleSidebarCollapse() {
   if (container) container.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
   localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
   const toggle = document.querySelector('.sidebar-toggle');
-  if (toggle) toggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+  if (toggle) {
+    const col = sidebar.classList.contains('collapsed');
+    toggle.textContent = col ? '❯' : '❮';
+    toggle.setAttribute('aria-expanded', String(!col));
+    toggle.setAttribute('aria-label', col ? 'Expandir menú' : 'Contraer menú');
+  }
 }
 document.addEventListener('DOMContentLoaded', () => {
   if (localStorage.getItem('sidebar_collapsed') === 'true') {
     document.getElementById('sidebar')?.classList.add('collapsed');
     document.getElementById('app-container')?.classList.add('sidebar-collapsed');
-    const t = document.querySelector('.sidebar-toggle'); if (t) t.textContent = '▶';
+    const t = document.querySelector('.sidebar-toggle'); if (t) { t.textContent = '❯'; t.setAttribute('aria-expanded', 'false'); t.setAttribute('aria-label', 'Expandir menú'); }
   }
 });
 

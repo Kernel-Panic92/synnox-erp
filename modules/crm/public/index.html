@@ -62,6 +62,18 @@
 .sidebar.collapsed .sidebar-header{justify-content:center;padding:12px 0}
 .sidebar-toggle{width:32px;height:32px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s ease;flex-shrink:0;font-size:14px}
 .sidebar-toggle:hover{background:var(--border);color:var(--text)}
+/* Toggle fantasma dentro del riel (sin óvalo, sin solaparse al contenido) */
+.sidebar-header{min-height:0 !important;padding:10px 12px 4px !important;justify-content:flex-end !important}
+.sidebar-header .sidebar-toggle{position:static !important;width:26px !important;height:26px !important;font-size:12px;background:transparent;border:none !important;box-shadow:none !important;color:var(--muted);z-index:auto}
+.sidebar-header .sidebar-toggle:hover{background:var(--surface2);color:var(--text)}
+.sidebar.collapsed .sidebar-header{justify-content:center !important;padding:10px 0 4px !important}
+/* Footer colapsado: MISMA geometría que los nav-items (ancho total + padding idéntico).
+   Las cajas de 42px con márgenes negativos descentraban respecto al rail. */
+.sidebar.collapsed .sidebar-footer{padding:12px 0 !important}
+.sidebar.collapsed .sidebar-footer .sidebar-home,.sidebar.collapsed .sidebar-footer .btn-logout{width:100% !important;margin:4px 0 !important;padding:8px 0 !important;gap:0 !important;border-radius:0 !important;border:none !important;justify-content:center !important}
+.sidebar.collapsed .sidebar-home .nav-text{display:none !important}
+.sidebar.collapsed .sidebar-footer .sidebar-home .icon,.sidebar.collapsed .sidebar-footer .btn-logout .icon{font-size:20px !important;width:auto !important;margin:0 !important;text-align:center;line-height:1}
+.sidebar.collapsed .sidebar-home:hover,.sidebar.collapsed .btn-logout:hover{background:var(--surface2)}
 .sidebar.collapsed .nav-item{width:100%;display:flex;justify-content:center;align-items:center;padding:8px 0 !important;margin:4px 0;gap:0 !important}
 .sidebar.collapsed .nav-item .icon{margin:0 !important;padding:0 !important;display:block}
 .sidebar.collapsed .nav-item.active{width:42px;height:42px;margin:4px auto;border-radius:8px;background:rgba(16,185,129,0.15) !important;border:1px solid #10b981 !important}
@@ -188,33 +200,33 @@
 <div class="app-container" id="app-container">
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
-    <button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Menu" aria-expanded="true">◀</button>
+    <button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Contraer menú" aria-expanded="true">❮</button>
   </div>
   <div class="logo" data-module-id="crm">💼 <span data-module-name>SynnoxERP</span></div>
-  <div class="user-info">
-    <div class="name" id="user-name"></div>
-    <div class="role" id="user-role"></div>
-  </div>
-  <nav id="sidebar-nav">
-    <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')" title="Dashboard" data-tooltip="Dashboard"><span class="icon">📊</span> <span class="nav-text">Dashboard</span></button>
+  <nav id="sidebar-nav" aria-label="Navegación CRM">
+    <div class="sidebar-section-title">Comercial</div>
+    <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')" title="Dashboard" data-tooltip="Dashboard" aria-current="page"><span class="icon">📊</span> <span class="nav-text">Dashboard</span></button>
     <button class="nav-item" data-page="pipeline" onclick="navigate('pipeline')" title="Pipeline" data-tooltip="Pipeline"><span class="icon">📈</span> <span class="nav-text">Pipeline</span></button>
     <button class="nav-item" data-page="leads" onclick="navigate('leads')" title="Clientes Potenciales" data-tooltip="Clientes Potenciales"><span class="icon">🎯</span> <span class="nav-text">Clientes Potenciales</span></button>
+    <div class="sidebar-section-title">Clientes</div>
     <button class="nav-item" data-page="clientes" onclick="navigate('clientes')" title="Clientes" data-tooltip="Clientes"><span class="icon">🏢</span> <span class="nav-text">Clientes</span></button>
     <button class="nav-item" data-page="contactos" onclick="navigate('contactos')" title="Contactos" data-tooltip="Contactos"><span class="icon">👤</span> <span class="nav-text">Contactos</span></button>
     <button class="nav-item" data-page="visitas" onclick="navigate('visitas')" title="Actividades" data-tooltip="Actividades"><span class="icon">📋</span> <span class="nav-text">Actividades</span></button>
+    <div class="sidebar-section-title">Catálogo</div>
     <button class="nav-item" data-page="cotizaciones" onclick="navigate('cotizaciones')" title="Cotizaciones" data-tooltip="Cotizaciones"><span class="icon">📄</span> <span class="nav-text">Cotizaciones</span></button>
     <button class="nav-item" data-page="productos" onclick="navigate('productos')" title="Productos" data-tooltip="Productos"><span class="icon">📦</span> <span class="nav-text">Productos</span></button>
-    <button class="nav-item" data-page="inventario" onclick="navigate('inventario')" title="Inventario" data-tooltip="Inventario"><span class="icon">📊</span> <span class="nav-text">Inventario</span></button>
+    <button class="nav-item" data-page="inventario" onclick="navigate('inventario')" title="Inventario" data-tooltip="Inventario"><span class="icon">🏬</span> <span class="nav-text">Inventario</span></button>
     <div class="sidebar-divider"></div>
+    <div class="sidebar-section-title">Sistema</div>
     <button class="nav-item admin-item" data-page="admin" onclick="navigate('admin')" title="Admin" data-tooltip="Admin"><span class="icon">⚙️</span> <span class="nav-text">Admin</span></button>
   </nav>
   <div class="sidebar-footer">
-    <a class="sidebar-home" href="/" title="Home" data-tooltip="Home"><span class="icon">🏠</span> <span>Home</span></a>
+    <a class="sidebar-home" href="/" title="Home" data-tooltip="Home"><span class="icon">🏠</span> <span class="nav-text">Home</span></a>
     <div class="user-name" id="sidebar-user-name"></div>
     <div class="user-role" id="sidebar-user-role"></div>
     <div class="version"><div id="app-version">v—</div></div>
-    <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesion" data-tooltip="Cerrar sesion">
-      <span class="icon" style="font-size:18px">⏻</span> <span class="nav-text">Cerrar sesion</span>
+    <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesión" data-tooltip="Cerrar sesión">
+      <span class="icon">⏻</span> <span class="nav-text">Cerrar sesión</span>
     </button>
   </div>
 </aside>
@@ -1460,7 +1472,7 @@
         <option value="pedidos_erp">Pedidos ERP — vincula CPV (CSV)</option>
         <option value="pedidos_items">Pedidos por item ERP — completa items (CSV)</option>
         <option value="items">Items / Productos (XLSX/CSV)</option>
-        <option value="inventario">Inventario por Bodega (XLSX)</option>
+        <option value="inventario">Inventario por Bodega (XLSX/CSV)</option>
         <option value="codigos_barra">Códigos de Barras / EAN (CSV)</option>
         <option value="eans_gs1">Catálogo GS1 — EANGS1.xlsx (XLSX)</option>
         <option value="bodegas">Bodegas (CSV)</option>
@@ -1643,7 +1655,7 @@
 
 </div><!-- /app-container -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="framework.js"></script>
+<script src="framework.js?v=20260909a"></script>
 
 <!-- Generic confirm modal (used by framework's confirmar) -->
 <div id="modal-overlay" class="modal-overlay" style="display:none">
@@ -1656,6 +1668,6 @@
 </div>
 
 <script src="theme.js?v=20260907g"></script>
-<script src="app.js?v=20260907g"></script>
+<script src="app.js?v=20260909a"></script>
 </body>
 </html>

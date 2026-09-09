@@ -171,7 +171,7 @@ function initFramework(opts = {}) {
     sidebar.classList.add('collapsed');
     document.getElementById('app-container')?.classList.add('sidebar-collapsed');
     const toggle = sidebar.querySelector('.sidebar-toggle');
-    if (toggle) toggle.textContent = '▶';
+    if (toggle) { toggle.textContent = '❯'; toggle.setAttribute('aria-expanded', 'false'); toggle.setAttribute('aria-label', 'Expandir menú'); }
   }
 
   // Inject Home link into sidebar footer (if not already present)
@@ -447,7 +447,12 @@ function toggleSidebarCollapse() {
   if (container) container.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
   localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
   const toggle = sidebar.querySelector('.sidebar-toggle');
-  if (toggle) toggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+  if (toggle) {
+    const col = sidebar.classList.contains('collapsed');
+    toggle.textContent = col ? '❯' : '❮';
+    toggle.setAttribute('aria-expanded', String(!col));
+    toggle.setAttribute('aria-label', col ? 'Expandir menú' : 'Contraer menú');
+  }
 }
 
 // ── Navigation ──

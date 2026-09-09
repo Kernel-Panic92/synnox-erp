@@ -53,7 +53,8 @@ function injectSidebarHome(){
   if(!footer||footer.querySelector('.sidebar-home'))return;
   const a=document.createElement('a');
   a.href='/';a.className='sidebar-home';
-  a.innerHTML='<span class="icon">🏠</span> <span>Home</span>';
+  a.setAttribute('title','Home');a.setAttribute('data-tooltip','Home');
+  a.innerHTML='<span class="icon">🏠</span> <span class="nav-text">Home</span>';
   const btn=footer.querySelector('.btn-logout');
   if(btn){footer.insertBefore(a,btn);const s=document.createElement('div');s.className='sidebar-separator';footer.insertBefore(s,btn);}
   else footer.prepend(a);
@@ -61,8 +62,8 @@ function injectSidebarHome(){
 
 function goNav(v){closeSidebar();goTo(v)}
 function setNav(id){
-  document.querySelectorAll('.nav-item').forEach(e=>e.classList.remove('active'));
-  const e=$(`nv-${id}`);if(e)e.classList.add('active');
+  document.querySelectorAll('.nav-item').forEach(e=>{e.classList.remove('active');e.removeAttribute('aria-current')});
+  const e=$(`nv-${id}`);if(e){e.classList.add('active');e.setAttribute('aria-current','page')}
   const T={'dashboard':'Dashboard','facturas':'Facturas','pendientes':'Pendientes','aprobaciones':'Aprobaciones','causacion':'Causación','categorias':'Categorías','backup':'Backup'};
   $('content').parentElement.querySelector('.page-title')?.remove();
   $('content').parentElement.querySelector('.page-sub')?.remove();

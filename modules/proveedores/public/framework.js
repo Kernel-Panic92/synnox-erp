@@ -171,7 +171,7 @@ function initFramework(opts = {}) {
     sidebar.classList.add('collapsed');
     document.getElementById('app-container')?.classList.add('sidebar-collapsed');
     const toggle = sidebar.querySelector('.sidebar-toggle');
-    if (toggle) toggle.textContent = '▶';
+    if (toggle) { toggle.textContent = '❯'; toggle.setAttribute('aria-expanded', 'false'); toggle.setAttribute('aria-label', 'Expandir menú'); }
   }
 
   // Inject Home link into sidebar footer (if not already present)
@@ -226,7 +226,9 @@ function injectSidebarHome() {
   const homeLink = document.createElement('a');
   homeLink.href = '/';
   homeLink.className = 'sidebar-home';
-  homeLink.innerHTML = '<span class="icon">🏠</span> <span>Home</span>';
+  homeLink.setAttribute('title', 'Home');
+  homeLink.setAttribute('data-tooltip', 'Home');
+  homeLink.innerHTML = '<span class="icon">🏠</span> <span class="nav-text">Home</span>';
   const logoutBtn = footer.querySelector('.btn-logout');
   if (logoutBtn) {
     footer.insertBefore(homeLink, logoutBtn);
@@ -447,17 +449,22 @@ function toggleSidebarCollapse() {
   if (container) container.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
   localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
   const toggle = sidebar.querySelector('.sidebar-toggle');
-  if (toggle) toggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+  if (toggle) {
+    const col = sidebar.classList.contains('collapsed');
+    toggle.textContent = col ? '❯' : '❮';
+    toggle.setAttribute('aria-expanded', String(!col));
+    toggle.setAttribute('aria-label', col ? 'Expandir menú' : 'Contraer menú');
+  }
 }
 
 // ── Navigation ──
 function navigate(page) {
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => { n.classList.remove('active'); n.removeAttribute('aria-current'); });
   const pageEl = document.getElementById('page-' + page);
   if (pageEl) pageEl.classList.add('active');
   const navEl = document.querySelector('.nav-item[data-page="' + page + '"]');
-  if (navEl) navEl.classList.add('active');
+  if (navEl) { navEl.classList.add('active'); navEl.setAttribute('aria-current', 'page'); }
   closeSidebar();
 
   const titleEl = document.getElementById('page-title');

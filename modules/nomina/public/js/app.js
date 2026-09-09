@@ -146,9 +146,9 @@ async function navigate(page) {
   if (targetPage) targetPage.classList.add('active');
   
   // Update sidebar active state
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => { n.classList.remove('active'); n.removeAttribute('aria-current'); });
   const activeNav = document.querySelector(`.nav-item[data-page="${page}"]`);
-  if (activeNav) activeNav.classList.add('active');
+  if (activeNav) { activeNav.classList.add('active'); activeNav.setAttribute('aria-current', 'page'); }
   
   // Update URL
   history.pushState(null, '', '#' + page);
@@ -217,13 +217,18 @@ function toggleSidebarCollapse() {
   if (container) container.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
   localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
   const toggle = document.querySelector('.sidebar-toggle');
-  if (toggle) toggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+  if (toggle) {
+    const col = sidebar.classList.contains('collapsed');
+    toggle.textContent = col ? '❯' : '❮';
+    toggle.setAttribute('aria-expanded', String(!col));
+    toggle.setAttribute('aria-label', col ? 'Expandir menú' : 'Contraer menú');
+  }
 }
 document.addEventListener('DOMContentLoaded', () => {
   if (localStorage.getItem('sidebar_collapsed') === 'true') {
     document.getElementById('sidebar')?.classList.add('collapsed');
     document.getElementById('app-container')?.classList.add('sidebar-collapsed');
-    const t = document.querySelector('.sidebar-toggle'); if (t) t.textContent = '▶';
+    const t = document.querySelector('.sidebar-toggle'); if (t) { t.textContent = '❯'; t.setAttribute('aria-expanded', 'false'); t.setAttribute('aria-label', 'Expandir menú'); }
   }
 });
 
@@ -234,7 +239,9 @@ function injectSidebarHome() {
   const homeLink = document.createElement('a');
   homeLink.href = '/';
   homeLink.className = 'sidebar-home';
-  homeLink.innerHTML = '<span class="icon">🏠</span> <span>Home</span>';
+  homeLink.setAttribute('title', 'Home');
+  homeLink.setAttribute('data-tooltip', 'Home');
+  homeLink.innerHTML = '<span class="icon">🏠</span> <span class="nav-text">Home</span>';
   const logoutBtn = footer.querySelector('.btn-logout');
   if (logoutBtn) {
     footer.insertBefore(homeLink, logoutBtn);
@@ -315,7 +322,7 @@ async function iniciarApp() {
   if (sidebar && sidebarCollapsed) {
     sidebar.classList.add('collapsed');
     document.getElementById('app-container')?.classList.add('sidebar-collapsed');
-    const t = document.querySelector('.sidebar-toggle'); if (t) t.textContent = '▶';
+    const t = document.querySelector('.sidebar-toggle'); if (t) { t.textContent = '❯'; t.setAttribute('aria-expanded', 'false'); t.setAttribute('aria-label', 'Expandir menú'); }
   }
   
   // Navigate to dashboard or from URL hash or last page
