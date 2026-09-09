@@ -1,5 +1,41 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (09 Sep 2026 — sesión 56 — build mode)
+
+### Cambios Sesión 56 — Cotización a lead (simulación) + payloads SIESA para Gemini
+
+Sesión en `feat/crm-module` (build). Flujo completo oportunidad → cotización
+sintética con validaciones de perfil, y cotización a lead con envío bloqueado.
+
+#### Cotizaciones sintéticas fieles (`scripts/genera_cotizaciones.js`)
+- Réplica del POST real: permiso `crear_cotizacion`, centro/bodega/lista/motivo
+  contra config del perfil, precio desde `lista_precio_items` (sin fallback
+  inventado), totales como `recalcularTotales`, numero secuencial `COT-xxxxx`.
+- Solo crea las 100% limpias: omite oportunidades sin precio en lista.
+- Exporta payload dual a `scripts/payloads/` (ignorado en git) con flags
+  `missing`, `warnings` y `envio422` para validar con Gemini (f350/f351).
+- Hallazgos: 2/4 iniciales en $0 (sin precio en lista ni base); bodegas de
+  5 dígitos sin mapeo `bodega_co` → 422 (solo 4 mapeos a nivel CO); ruta
+  enviable hoy = bodega vacía + fallback por CO.
+- Limpieza: `DELETE items + cotizaciones WHERE notas LIKE 'Sintética de OPORT-%'`.
+
+#### Cotización a lead — Migración 037 + backend + UI
+- `037_crm_cotizacion_lead.sql`: `lead_id` en `cotizaciones` + índice.
+- `POST /cotizaciones`: `cliente_id` **o** `lead_id`; con lead usa asesor/lista
+  del lead y omite validación de sucursales. `PUT`/list/detail/stats con
+  `lead_nombre`.
+- Envío bloqueado con 422 claro en ruta y `enviarPedidoAlHub` (convertir lead
+  a cliente formal). Preview arma tercero desde el lead.
+- UI sin toggle (confundía): búsqueda unificada clientes+leads, aviso ámbar
+  de simulación al elegir lead, prefill desde oportunidad con lead, badge
+  `lead` en tabla y detalle.
+
+#### Próxima sesión
+- Verificar flujo lead end-to-end en UI (requiere `pm2 restart` por migración 037).
+- Completar mapeos `bodega_co` (24 bodegas) con códigos SIESA.
+- Completar `Precios por item` (SKUs en $0).
+- Validar payloads con Gemini contra spec f350/f351 del Hub.
+
 ## Estado (09 Sep 2026 — sesión 55 — build mode)
 
 ### Cambios Sesión 55 — Installer hardening, sidebar gold standard y saldos iniciales

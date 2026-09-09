@@ -349,6 +349,7 @@ export async function enviarPedidoAlHub({ cotizacionId }, client = pool) {
   if (!cotR.rows.length) throw new Error('Cotización no encontrada');
   const cot = cotR.rows[0];
   if (cot.documento_erp) throw new Error('Ya tiene CPV');
+  if (cot.lead_id && !cot.cliente_id) throw new Error('Cotización a lead (simulación): convierte el lead en cliente formal para crear el tercero en el ERP');
 
   const itemsR = await client.query(`
     SELECT ci.*, p.tasa_impuesto, p.precio_unitario as precio_lista

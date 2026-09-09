@@ -1329,10 +1329,11 @@
     <div id="tab-cotizacion-datos">
       <div class="form-row">
         <div class="form-group">
-          <label>Cliente * <small style="font-weight:400;color:var(--muted)">— busca por NIT o nombre</small></label>
-          <input type="text" id="cotizacion-cliente-search" placeholder="Buscar por NIT o nombre..." autocomplete="off" oninput="filtrarCotizacionClientes(this.value)">
+          <label>Cliente o Lead * <small style="font-weight:400;color:var(--muted)">— busca por NIT o nombre (incluye potenciales)</small></label>
+          <input type="text" id="cotizacion-cliente-search" placeholder="Buscar cliente o lead por NIT o nombre..." autocomplete="off" oninput="filtrarCotizacionTerceros(this.value)">
           <select id="cotizacion-cliente" required size="5" style="width:100%;margin-top:6px;display:none;max-height:140px"></select>
           <div id="cotizacion-cliente-selected" style="margin-top:6px;font-size:13px;color:var(--accent);display:none"></div>
+          <div id="cotizacion-lead-aviso" style="display:none;margin-top:8px;padding:10px 12px;border-radius:8px;font-size:12px;background:#fff8e1;border:1px solid #f0c36d;color:#7a5b00">⚠️ <strong>Simulación de venta:</strong> estás cotizando a un <strong>lead</strong> (cliente potencial). Podrás simular la venta completa, pero <strong>no se podrá enviar al ERP</strong> a menos que el lead sea convertido en cliente formal.</div>
           <div id="cotizacion-vendedor-info" style="margin-top:6px;font-size:11px;color:var(--muted);display:none"></div>
         </div>
         <div class="form-group">

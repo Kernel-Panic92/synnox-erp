@@ -2977,7 +2977,7 @@ async function cargarCotizaciones() {
       <tr class="${sinCPV ? 'row-no-erp' : ''}">
         <td><input type="checkbox" class="row-check cb-cotizacion" value="${c.id}" onchange="updateBulkBar()"></td>
         <td><a href="#" onclick="verCotizacion('${c.id}');return false" style="color:var(--accent);text-decoration:underline">${esc(c.numero)}</a></td>
-        <td>${esc(c.cliente_nombre || '—')}</td>
+        <td>${c.cliente_nombre ? esc(c.cliente_nombre) : (c.lead_nombre ? esc(c.lead_nombre) + ' <span class="badge badge-info">lead</span>' : '—')}</td>
         <td><span class="badge badge-${c.estado}">${esc(c.estado)}</span></td>
         <td>${c.total_items || 0}</td>
         <td><strong>$${formatMoney(c.valor_total || 0)}</strong></td>
@@ -3063,7 +3063,8 @@ async function abrirModalCotizacion(cotizacion = null) {
   document.getElementById('cotizacion-condicion-pago').value = cotizacion?.condicion_pago || '';
   document.getElementById('cotizacion-fecha-entrega').value = cotizacion?.fecha_entrega ? cotizacion.fecha_entrega.split('T')[0] : '';
 
-  // Reset cliente searchable y sucursales
+  // Reset cliente/lead searchable y sucursales
+  setCotizacionTipoTercero('cliente');
   document.getElementById('cotizacion-cliente-search').value = '';
   document.getElementById('cotizacion-cliente').style.display = 'none';
   document.getElementById('cotizacion-cliente').innerHTML = '';
@@ -3110,9 +3111,9 @@ async function abrirModalCotizacion(cotizacion = null) {
       }
     }
   }
-  // si no hay cliente, default lista del perfil (o 200)
+  // si no hay cliente ni lead, default lista del perfil (o 200)
   const defLista = await getPerfilListaDefault();
-  if (!cotizacion?.cliente_id && !cotizacion?.lista_precios) {
+  if (!cotizacion?.cliente_id && !cotizacion?.lead_id && !cotizacion?.lista_precios) {
     document.getElementById('cotizacion-lista-precios').value = defLista + ' — GENERAL HORECA';
     window._cotizacionListaPrecio = defLista;
   } else if (cotizacion?.lista_precios && !document.getElementById('cotizacion-lista-precios').value) {
@@ -3120,6 +3121,15 @@ async function abrirModalCotizacion(cotizacion = null) {
     window._cotizacionListaPrecio = cotizacion.lista_precios;
   }
   await cargarOportunidadesSelect('cotizacion-oportunidad', cotizacion?.oportunidad_id);
+  // Edición de cotización a lead: activa modo lead y precarga
+  if (cotizacion?.lead_id && !cotizacion?.cliente_id) {
+    setCotizacionTipoTercero('lead');
+    const rl = await apiFetch('/leads/' + cotizacion.lead_id);
+    if (rl.ok) {
+      const l = rl.data.data || rl.data;
+      await setLeadCotizacion(l.id, `${l.raison_social} — ${l.numero_identificacion || ''}`);
+    }
+  }
   await cargarCentrosCotizacion(cotizacion?.centro_operacion || null);
   await cargarBodegasCotizacion(cotizacion?.bodega || null);
 
@@ -3144,69 +3154,143 @@ function cambiarTabCotizacion(tab, btn) {
 }
 
 let _cotClienteTimer = null;
-async function filtrarCotizacionClientes(q) {
+// ── Cotización a Lead (simulación comercial; el envío al ERP se bloquea con 422) ──
+// Sin toggle: la búsqueda es unificada (clientes + leads) y al elegir un lead
+// el CRM advierte que es simulación. El modo lo define lo seleccionado.
+window._cotizacionTipoTercero = 'cliente';
+window._cotizacionLeadId = null;
+let _cotTerceroTimer = null;
+
+function setCotizacionTipoTercero(t) {
+  window._cotizacionTipoTercero = t;
+  window._cotizacionLeadId = null;
+  window._cotizacionClienteId = null;
+  document.getElementById('cotizacion-lead-aviso').style.display = t === 'lead' ? '' : 'none';
+  if (t === 'cliente') {
+    document.getElementById('cotizacion-contacto').innerHTML = '<option value="">Sin contacto</option>';
+    document.getElementById('cotizacion-facturar-a').innerHTML = '<option value="">Seleccione sucursal</option>';
+    document.getElementById('cotizacion-despachar-a').innerHTML = '<option value="">Seleccione sucursal</option>';
+    document.getElementById('cotizacion-vendedor-info').style.display = 'none';
+  }
+}
+
+// Búsqueda unificada clientes + leads para cotizar (el asesor no decide el
+// tipo por adelantado; si elige lead, se advierte la simulación)
+async function filtrarCotizacionTerceros(q) {
   const sel = document.getElementById('cotizacion-cliente');
   const inp = document.getElementById('cotizacion-cliente-search');
   if (inp && inp.readOnly) return;
   const qq = (q || '').trim();
   if (!qq || qq.length < 2) { sel.style.display = 'none'; sel.innerHTML = ''; return; }
-  clearTimeout(_cotClienteTimer);
-  _cotClienteTimer = setTimeout(async () => {
-    const r = await apiFetch('/clientes?search=' + encodeURIComponent(qq) + '&limit=20');
-    if (!r.ok) return;
-    const data = r.data.data || [];
-    if (!data.length) { sel.innerHTML = '<option>No hay resultados</option>'; sel.style.display = ''; sel.size=Math.min(6,1); return; }
-    sel.innerHTML = data.map(c => `<option value="${c.id}">${esc(c.nombre)} — ${esc(c.nit || '')}</option>`).join('');
-    sel.style.display = ''; sel.size=Math.min(6,data.length+1);
+  clearTimeout(_cotTerceroTimer);
+  _cotTerceroTimer = setTimeout(async () => {
+    const [rc, rl] = await Promise.all([
+      apiFetch('/clientes?search=' + encodeURIComponent(qq) + '&limit=10'),
+      apiFetch('/leads?search=' + encodeURIComponent(qq) + '&limit=10')
+    ]);
+    const clientes = rc.ok ? (rc.data.data || []) : [];
+    const leads = rl.ok ? (rl.data.data || []) : [];
+    if (!clientes.length && !leads.length) { sel.innerHTML = '<option>No hay resultados</option>'; sel.style.display = ''; sel.size = 1; return; }
+    sel.innerHTML =
+      clientes.map(c => `<option value="c:${c.id}">${esc(c.nombre)} — ${esc(c.nit || '')}</option>`).join('') +
+      leads.map(l => `<option value="l:${l.id}">🎯 ${esc(l.raison_social)} — ${esc(l.numero_identificacion || '')} (lead)</option>`).join('');
+    sel.style.display = ''; sel.size = Math.min(8, clientes.length + leads.length + 1);
     sel.onchange = async () => {
       const opt = sel.options[sel.selectedIndex];
       if (!opt || !opt.value || opt.textContent === 'No hay resultados') return;
-      inp.value = opt.textContent; inp.readOnly = true; inp.title = 'Seleccionado — clic para cambiar';
-      inp.onclick = () => { inp.value=''; inp.readOnly=false; inp.placeholder='Buscar por NIT o nombre...'; sel.value=''; sel.innerHTML=''; sel.style.display='none'; document.getElementById('cotizacion-contacto').innerHTML='<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').innerHTML='<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-vendedor-info').style.display='none'; inp.onclick=null; (async()=>{const d=await getPerfilListaDefault(); document.getElementById('cotizacion-lista-precios').value=d+' — GENERAL HORECA'; window._cotizacionListaPrecio=d;})(); };
-      sel.style.display = 'none';
-      const sd=document.getElementById('cotizacion-cliente-selected'); if(sd) sd.style.display='none';
-      await cargarContactosCotizacion(opt.value);
-      await cargarSucursalesCotizacion(opt.value);
-      // trae defaults del cliente: condicion pago y lista precios
-      try {
-        const cr = await apiFetch('/clientes/' + opt.value);
-        if (cr.ok) {
-          const c = cr.data.data;
-          let lp = c.lista_precio_codigo || c.lista_precios;
-          if (!lp) lp = await getPerfilListaDefault();
-          const lpDesc = c.lista_precios && c.lista_precios !== lp ? c.lista_precios : (lp === (await getPerfilListaDefault()) ? 'GENERAL HORECA' : '');
-          // fallback to resolve name if needed
-          let lpLabel = lpDesc ? `${lp} — ${lpDesc}` : lp;
-          // try to resolve name from maestro cache if desc is just code
-          if (!lpDesc || lpDesc === lp) {
-            try {
-              const cache = window._maestroCache?.['perfil-maestro-lista_precio'];
-              const found = cache?.find(x=> String(x.codigo)===String(lp));
-              if (found) lpLabel = `${lp} — ${found.nombre}`;
-            } catch {}
-          }
-          document.getElementById('cotizacion-lista-precios').value = lpLabel;
-          window._cotizacionListaPrecio = lp;
-          let vend = c.razon_social_vendedor || '';
-          if (!vend && c.vendedor_codigo) {
-            try {
-              const vr = await apiFetch('/perfiles-venta/vendedores');
-              const vmap = new Map((vr.ok && vr.data.data || vr.data || []).map(v=>[String(v.codigo), v.nombre]));
-              const vname = vmap.get(String(c.vendedor_codigo));
-              vend = vname ? `${vname} (${c.vendedor_codigo})` : `Vendedor ${c.vendedor_codigo}`;
-            } catch { vend = `Vendedor ${c.vendedor_codigo}`; }
-          }
-          const vInfo = document.getElementById('cotizacion-vendedor-info');
-          if (vend) { vInfo.textContent = `Vendedor asignado: ${vend} — la venta quedará a su nombre`; vInfo.style.display = ''; }
-          else { vInfo.style.display = 'none'; }
-          // Condición de pago desde el maestro del tercero (medio_pago_desc)
-          const cond = c.medio_pago_desc || c.medio_pago || c.condicion_pago || '';
-          const condEl = document.getElementById('cotizacion-condicion-pago');
-          if (condEl) { condEl.value = cond; condEl.placeholder = cond ? cond : 'Ej: CREDITO 30 DIAS, CONTADO'; }
-        }
-      } catch {}
+      const [tipo, id] = opt.value.split(':');
+      if (tipo === 'l') {
+        setCotizacionTipoTercero('lead');
+        await setLeadCotizacion(id, opt.textContent.replace(/^🎯 /, '').replace(/ \(lead\)$/, ''));
+      } else {
+        setCotizacionTipoTercero('cliente');
+        window._cotizacionClienteId = id;
+        await seleccionarClienteCotizacion(id, opt.textContent);
+      }
     };
   }, 300);
+}
+
+async function filtrarCotizacionLeads(q) {
+  // Compat: redirige a la búsqueda unificada
+  return filtrarCotizacionTerceros(q);
+}
+
+// Selección de cliente formal en cotización (contactos, sucursales y defaults
+// del tercero: lista de precios, vendedor asignado y condición de pago)
+async function seleccionarClienteCotizacion(id, label) {
+  const sel = document.getElementById('cotizacion-cliente');
+  const inp = document.getElementById('cotizacion-cliente-search');
+  inp.value = label; inp.readOnly = true; inp.title = 'Seleccionado — clic para cambiar';
+  inp.onclick = () => { setCotizacionTipoTercero('cliente'); window._cotizacionClienteId = null; inp.value = ''; inp.readOnly = false; inp.placeholder = 'Buscar cliente o lead por NIT o nombre...'; sel.value = ''; sel.innerHTML = ''; sel.style.display = 'none'; document.getElementById('cotizacion-contacto').innerHTML = '<option value="">Sin contacto</option>'; document.getElementById('cotizacion-facturar-a').innerHTML = '<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-despachar-a').innerHTML = '<option value="">Seleccione sucursal</option>'; document.getElementById('cotizacion-vendedor-info').style.display = 'none'; inp.onclick = null; };
+  sel.style.display = 'none';
+  const sd = document.getElementById('cotizacion-cliente-selected'); if (sd) sd.style.display = 'none';
+  await cargarContactosCotizacion(id);
+  await cargarSucursalesCotizacion(id);
+  try {
+    const cr = await apiFetch('/clientes/' + id);
+    if (cr.ok) {
+      const c = cr.data.data;
+      let lp = c.lista_precio_codigo || c.lista_precios;
+      if (!lp) lp = await getPerfilListaDefault();
+      const lpDesc = c.lista_precios && c.lista_precios !== lp ? c.lista_precios : (lp === (await getPerfilListaDefault()) ? 'GENERAL HORECA' : '');
+      let lpLabel = lpDesc ? `${lp} — ${lpDesc}` : lp;
+      if (!lpDesc || lpDesc === lp) {
+        try {
+          const cache = window._maestroCache?.['perfil-maestro-lista_precio'];
+          const found = cache?.find(x => String(x.codigo) === String(lp));
+          if (found) lpLabel = `${lp} — ${found.nombre}`;
+        } catch {}
+      }
+      document.getElementById('cotizacion-lista-precios').value = lpLabel;
+      window._cotizacionListaPrecio = lp;
+      let vend = c.razon_social_vendedor || '';
+      if (!vend && c.vendedor_codigo) {
+        try {
+          const vr = await apiFetch('/perfiles-venta/vendedores');
+          const vmap = new Map((vr.ok && vr.data.data || vr.data || []).map(v => [String(v.codigo), v.nombre]));
+          const vname = vmap.get(String(c.vendedor_codigo));
+          vend = vname ? `${vname} (${c.vendedor_codigo})` : `Vendedor ${c.vendedor_codigo}`;
+        } catch { vend = `Vendedor ${c.vendedor_codigo}`; }
+      }
+      const vInfo = document.getElementById('cotizacion-vendedor-info');
+      if (vend) { vInfo.textContent = `Vendedor asignado: ${vend} — la venta quedará a su nombre`; vInfo.style.display = ''; }
+      else { vInfo.style.display = 'none'; }
+      const cond = c.medio_pago_desc || c.medio_pago || c.condicion_pago || '';
+      const condEl = document.getElementById('cotizacion-condicion-pago');
+      if (condEl) { condEl.value = cond; condEl.placeholder = cond ? cond : 'Ej: CREDITO 30 DIAS, CONTADO'; }
+    }
+  } catch {}
+}
+
+async function setLeadCotizacion(leadId, label) {
+  const r = await apiFetch('/leads/' + leadId);
+  if (!r.ok) { toast('Lead no encontrado', 'warning'); return; }
+  const l = r.data.data || r.data;
+  window._cotizacionLeadId = l.id;
+  window._cotizacionClienteId = null;
+  document.getElementById('cotizacion-cliente').value = '';
+  const inp = document.getElementById('cotizacion-cliente-search');
+  inp.value = label || `${l.raison_social} — ${l.numero_identificacion || ''}`;
+  inp.readOnly = true; inp.title = 'Lead seleccionado — clic para cambiar';
+  inp.onclick = () => { setCotizacionTipoTercero('cliente'); window._cotizacionLeadId = null; inp.value = ''; inp.readOnly = false; inp.placeholder = 'Buscar cliente o lead por NIT o nombre...'; inp.onclick = null; document.getElementById('cotizacion-cliente-selected').style.display = 'none'; };
+  document.getElementById('cotizacion-cliente').style.display = 'none';
+  const sd = document.getElementById('cotizacion-cliente-selected');
+  sd.textContent = '✓ Lead: ' + (l.raison_social || '') + ' — ' + (l.numero_identificacion || '');
+  sd.style.display = '';
+  // Defaults del lead: asesor, lista de precios, condición de pago
+  if (l.asesor_comercial) {
+    const vInfo = document.getElementById('cotizacion-vendedor-info');
+    vInfo.textContent = `Asesor: ${l.asesor_comercial} — simulación, la venta quedará a su nombre`;
+    vInfo.style.display = '';
+  }
+  if (l.lista_precios) {
+    document.getElementById('cotizacion-lista-precios').value = l.lista_precios;
+    window._cotizacionListaPrecio = l.lista_precios;
+  }
+  const cond = l.condicion_pago || '';
+  const condEl = document.getElementById('cotizacion-condicion-pago');
+  if (condEl && cond) condEl.value = cond;
 }
 
 async function cargarContactosCotizacion(clienteId, selectedId = null) {
@@ -3474,13 +3558,15 @@ function actualizarTotalesCotizacion() {
 
 async function guardarCotizacion() {
   const id = document.getElementById('cotizacion-id').value;
+  const esLead = window._cotizacionTipoTercero === 'lead';
   const facturarA = document.getElementById('cotizacion-facturar-a').value || null;
   const despacharA = document.getElementById('cotizacion-despachar-a').value || null;
-  if (!facturarA || !despacharA) return toast('Seleccione Facturar a y Despachar a (sucursal)', 'error');
+  if (!esLead && (!facturarA || !despacharA)) return toast('Seleccione Facturar a y Despachar a (sucursal)', 'error');
   const body = {
-    cliente_id: document.getElementById('cotizacion-cliente').value,
-    facturar_a: facturarA,
-    despachar_a: despacharA,
+    cliente_id: esLead ? null : (window._cotizacionClienteId || document.getElementById('cotizacion-cliente').value),
+    lead_id: esLead ? window._cotizacionLeadId : null,
+    facturar_a: esLead ? null : facturarA,
+    despachar_a: esLead ? null : despacharA,
     oportunidad_id: document.getElementById('cotizacion-oportunidad').value || null,
     validez_dias: parseInt(document.getElementById('cotizacion-validez').value) || 30,
     notas: document.getElementById('cotizacion-notas').value,
@@ -3494,7 +3580,7 @@ async function guardarCotizacion() {
     items: _cotizacionItems.filter(it => it.descripcion?.trim())
   };
 
-  if (!body.cliente_id) return toast('Seleccione un cliente', 'error');
+  if (!body.cliente_id && !body.lead_id) return toast('Seleccione un cliente o lead', 'error');
   if (!body.items.length) return toast('Agregue al menos un item', 'error');
 
   const r = id
@@ -3572,7 +3658,7 @@ async function verCotizacion(id) {
   document.getElementById('detalle-cotizacion-title').textContent = `Cotizacion ${c.numero}`;
   document.getElementById('detalle-cotizacion-content').innerHTML = `
     <div class="form-row" style="margin-bottom:12px">
-      <div><strong>Cliente:</strong> ${esc(c.cliente_nombre || '—')}</div>
+      <div><strong>Cliente:</strong> ${c.cliente_nombre ? esc(c.cliente_nombre) : (c.lead_nombre ? esc(c.lead_nombre) + ' <span class="badge badge-info">lead (simulación)</span>' : '—')}</div>
       <div><strong>Estado:</strong> <span class="badge badge-${c.estado}">${c.estado}</span></div>
     </div>
     <div class="form-row" style="margin-bottom:12px">
@@ -3723,15 +3809,18 @@ async function cargarOportunidadesSelect(selectId, selectedId) {
     _oportunidadesCache = data;
     const select = document.getElementById(selectId);
     select.innerHTML = '<option value="">Sin oportunidad</option>' +
-      data.map(o => `<option value="${o.id}" ${o.id === selectedId ? 'selected' : ''}>${esc(o.nombre)} — ${esc(o.cliente_nombre || '')}</option>`).join('');
+      data.map(o => `<option value="${o.id}" ${o.id === selectedId ? 'selected' : ''}>${esc(o.nombre)} — ${esc(o.cliente_nombre || o.lead_nombre || '')}</option>`).join('');
     // cuando se elige oportunidad, traer su cliente y sugerir productos
     if (selectId === 'cotizacion-oportunidad') {
       select.onchange = async () => {
         const oid = select.value;
         if (!oid) return;
         const opp = _oportunidadesCache.find(o => o.id === oid);
-        const clienteId = opp?.cliente_id || (await apiFetch('/oportunidades/' + oid).then(x=>x.ok?x.data.data.cliente_id||x.data.cliente_id:null).catch(()=>null));
+        const full = opp?.cliente_id || opp?.lead_id ? opp : await apiFetch('/oportunidades/' + oid).then(x => x.ok ? (x.data.data || x.data) : null).catch(() => null);
+        const clienteId = full?.cliente_id || null;
+        const leadId = full?.lead_id || null;
         if (clienteId) await setClienteCotizacion(clienteId);
+        else if (leadId) { setCotizacionTipoTercero('lead'); await setLeadCotizacion(leadId); }
         // Sugerir productos de la oportunidad al carrito
         try {
           const pr = await apiFetch('/oportunidades/' + oid + '/productos');

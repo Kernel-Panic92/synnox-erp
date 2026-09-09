@@ -94,7 +94,7 @@ function buildCotizacionesWhere(req) {
     params.push(bodega);
   }
   if (search) {
-    conditions.push(`(c.numero ILIKE $${paramIdx} OR cl.nombre ILIKE $${paramIdx})`);
+    conditions.push(`(c.numero ILIKE $${paramIdx} OR cl.nombre ILIKE $${paramIdx} OR l.raison_social ILIKE $${paramIdx})`);
     params.push(`%${search}%`);
     paramIdx++;
   }
@@ -114,6 +114,7 @@ router.get('/', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
     const countResult = await pool.query(`
       SELECT COUNT(*) FROM crm.cotizaciones c
       LEFT JOIN crm.clientes cl ON cl.id = c.cliente_id
+      LEFT JOIN crm.leads l ON l.id = c.lead_id
       ${where}
     `, params);
     const total = parseInt(countResult.rows[0].count);
@@ -124,10 +125,11 @@ router.get('/', requirePermiso('crear_cotizacion', 'crm'), async (req, res) => {
     const sortOrder = order.toLowerCase() === 'asc' ? 'ASC' : 'DESC';
 
     const result = await pool.query(`
-      SELECT c.*, cl.nombre AS cliente_nombre,
+      SELECT c.*, cl.nombre AS cliente_nombre, l.raison_social AS lead_nombre,
         (SELECT COUNT(*) FROM crm.cotizacion_items ci WHERE ci.cotizacion_id = c.id) AS total_items
       FROM crm.cotizaciones c
       LEFT JOIN crm.clientes cl ON cl.id = c.cliente_id
+      LEFT JOIN crm.leads l ON l.id = c.lead_id
       ${where}
       ORDER BY ${sortCol} ${sortOrder}
       LIMIT $${paramIdx++} OFFSET $${paramIdx++}
@@ -148,9 +150,9 @@ router.get('/stats', requirePermiso('crear_cotizacion', 'crm'), async (req, res)
     const montoWhere = where ? `${where} AND c.estado NOT IN ('rechazada','vencida')` : `WHERE c.estado NOT IN ('rechazada','vencida')`;
 
     const [total, porEstado, montoTotal, pendientes] = await Promise.all([
-      pool.query(`SELECT COUNT(*) FROM crm.cotizaciones c LEFT JOIN crm.clientes cl ON cl.id = c.cliente_id ${where}`, params),
-      pool.query(`SELECT c.estado, COUNT(*) AS total, COALESCE(SUM(c.valor_total), 0) AS monto FROM crm.cotizaciones c LEFT JOIN crm.clientes cl ON cl.id = c.cliente_id ${where} GROUP BY c.estado`, params),
-      pool.query(`SELECT COALESCE(SUM(c.valor_total), 0) AS total FROM crm.cotizaciones c LEFT JOIN crm.clientes cl ON cl.id = c.cliente_id ${montoWhere}`, params),
+      pool.query(`SELECT COUNT(*) FROM crm.cotizaciones c LEFT JOIN crm.clientes cl ON cl.id = c.cliente_id LEFT JOIN crm.leads l ON l.id = c.lead_id ${where}`, params),
+      pool.query(`SELECT c.estado, COUNT(*) AS total, COALESCE(SUM(c.valor_total), 0) AS monto FROM crm.cotizaciones c LEFT JOIN crm.clientes cl ON cl.id = c.cliente_id LEFT JOIN crm.leads l ON l.id = c.lead_id ${where} GROUP BY c.estado`, params),
+      pool.query(`SELECT COALESCE(SUM(c.valor_total), 0) AS total FROM crm.cotizaciones c LEFT JOIN crm.clientes cl ON cl.id = c.cliente_id LEFT JOIN crm.leads l ON l.id = c.lead_id ${montoWhere}`, params),
       pool.query(`SELECT COUNT(*) FROM crm.descuentos_solicitud WHERE estado = 'pendiente'`)
     ]);
 
@@ -173,9 +175,11 @@ router.get('/:id', requirePermiso('crear_cotizacion', 'crm'), async (req, res) =
     const { id } = req.params;
     const result = await pool.query(`
       SELECT c.*, cl.nombre AS cliente_nombre, cl.nit AS cliente_nit,
+        l.raison_social AS lead_nombre, l.numero_identificacion AS lead_nit,
         o.nombre AS oportunidad_nombre
       FROM crm.cotizaciones c
       LEFT JOIN crm.clientes cl ON cl.id = c.cliente_id
+      LEFT JOIN crm.leads l ON l.id = c.lead_id
       LEFT JOIN crm.oportunidades o ON o.id = c.oportunidad_id
       WHERE c.id = $1
     `, [id]);
@@ -203,18 +207,29 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil(
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
-    const { cliente_id, oportunidad_id, validez_dias, notas, items, descuento_pct,
+    const { cliente_id, lead_id, oportunidad_id, validez_dias, notas, items, descuento_pct,
             orden_compra, centro_operacion, bodega, condicion_pago, fecha_entrega,
             unidad_negocio, punto_envio, motivo, facturar_a, despachar_a, lista_precios } = req.body;
-    if (!cliente_id) return res.status(400).json({ error: 'El cliente es obligatorio' });
-    if (!condicion_pago || !String(condicion_pago).trim()) return res.status(400).json({ error: 'La condicion de pago es obligatoria (viene del cliente o debe ingresarse manualmente)' });
+    // Cotización a cliente formal O a lead (simulación comercial; el envío al
+    // ERP se bloquea con 422 hasta convertir el lead en cliente)
+    if (!cliente_id && !lead_id) return res.status(400).json({ error: 'El cliente o lead es obligatorio' });
 
-    // Vendedor asignado al cliente tiene prioridad: la venta queda a nombre de él
-    const cliInfo = await client.query(`SELECT vendedor_codigo, asesor_comercial, lista_precio_codigo, lista_precios FROM crm.clientes WHERE id=$1`, [cliente_id]);
-    if (!cliInfo.rows.length) return res.status(404).json({ error: 'Cliente no encontrado' });
-    const vendedorAsignado = cliInfo.rows[0].asesor_comercial?.trim() || (cliInfo.rows[0].vendedor_codigo ? `Vendedor ${cliInfo.rows[0].vendedor_codigo}` : null) || req.user.nombre || null;
-    const vendedor_nombre = vendedorAsignado;
-    const finalListaPrecios = lista_precios || cliInfo.rows[0].lista_precio_codigo || cliInfo.rows[0].lista_precios || '200';
+    // Vendedor asignado al cliente tiene prioridad: la venta queda a nombre de él.
+    // Con lead: el asesor comercial del lead.
+    let vendedor_nombre = null;
+    let finalListaPrecios = lista_precios || '200';
+    if (cliente_id) {
+      const cliInfo = await client.query(`SELECT vendedor_codigo, asesor_comercial, lista_precio_codigo, lista_precios FROM crm.clientes WHERE id=$1`, [cliente_id]);
+      if (!cliInfo.rows.length) return res.status(404).json({ error: 'Cliente no encontrado' });
+      vendedor_nombre = cliInfo.rows[0].asesor_comercial?.trim() || (cliInfo.rows[0].vendedor_codigo ? `Vendedor ${cliInfo.rows[0].vendedor_codigo}` : null) || req.user.nombre || null;
+      finalListaPrecios = lista_precios || cliInfo.rows[0].lista_precio_codigo || cliInfo.rows[0].lista_precios || '200';
+    } else {
+      const leadInfo = await client.query(`SELECT asesor_comercial, lista_precios FROM crm.leads WHERE id=$1`, [lead_id]);
+      if (!leadInfo.rows.length) return res.status(404).json({ error: 'Lead no encontrado' });
+      vendedor_nombre = leadInfo.rows[0].asesor_comercial?.trim() || req.user.nombre || null;
+      finalListaPrecios = lista_precios || leadInfo.rows[0].lista_precios || '200';
+    }
+    if (!condicion_pago || !String(condicion_pago).trim()) return res.status(400).json({ error: 'La condicion de pago es obligatoria (viene del cliente o debe ingresarse manualmente)' });
 
     // Validación por perfil de ventas (preparación SIESA Hub): si el perfil restringe maestras, bloquear valores fuera de lista
     const perfilCfg = await getPerfilConfigForUser(req.user.id, req.user.rol);
@@ -229,12 +244,12 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil(
         if (d > maxDesc) return res.status(403).json({ error: `Descuento ${d}% supera el máximo permitido por tu perfil (${maxDesc}%). Requiere aprobación` });
         if (d > 0 && perfilCfg?.descuentos?.permite_global === false && parseFloat(descuento_pct || 0) > 0) return res.status(403).json({ error: `Descuento global no permitido por tu perfil` });
       }
-      // Sucursal debe pertenecer al cliente
-      if (facturar_a) {
+      // Sucursal debe pertenecer al cliente (los leads no tienen sucursales)
+      if (facturar_a && cliente_id) {
         const s = await client.query(`SELECT 1 FROM crm.sucursales WHERE cliente_id=$1 AND codigo=$2`, [cliente_id, facturar_a]);
         if (!s.rowCount) return res.status(400).json({ error: `Sucursal facturar_a '${facturar_a}' no pertenece al cliente` });
       }
-      if (despachar_a) {
+      if (despachar_a && cliente_id) {
         const s2 = await client.query(`SELECT 1 FROM crm.sucursales WHERE cliente_id=$1 AND codigo=$2`, [cliente_id, despachar_a]);
         if (!s2.rowCount) return res.status(400).json({ error: `Sucursal despachar_a '${despachar_a}' no pertenece al cliente` });
       }
@@ -259,12 +274,12 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil(
     vencimiento.setDate(vencimiento.getDate() + (validez_dias || 30));
 
     const cot = await client.query(`
-      INSERT INTO crm.cotizaciones (numero, cliente_id, oportunidad_id, validez_dias, vencimiento, notas, creado_por,
+      INSERT INTO crm.cotizaciones (numero, cliente_id, lead_id, oportunidad_id, validez_dias, vencimiento, notas, creado_por,
         orden_compra, centro_operacion, bodega, condicion_pago, fecha_entrega,
         unidad_negocio, punto_envio, motivo, vendedor_nombre, propietario, facturar_a, despachar_a, lista_precios)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21)
       RETURNING *
-    `, [numero, cliente_id, oportunidad_id || null, validez_dias || 30, vencimiento.toISOString().split('T')[0],
+    `, [numero, cliente_id || null, lead_id || null, oportunidad_id || null, validez_dias || 30, vencimiento.toISOString().split('T')[0],
         notas || null, req.user.id,
         orden_compra || null, centro_operacion || null, bodega || null, condicion_pago || null,
         fecha_entrega || null, unidad_negocio || null, punto_envio || null, motivo || 'VENTAS',
@@ -289,7 +304,7 @@ router.post('/', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfil(
       await client.query(`
         INSERT INTO crm.descuentos_solicitud (cotizacion_id, cliente_id, solicitado_por, tipo, valor_descuento, monto_original, monto_final, estado, umbral_aplicado)
         VALUES ($1, $2, $3, 'porcentaje', $4, 0, 0, $5, $6)
-      `, [cotizacionId, cliente_id, req.user.id, descuento_pct, estadoDesc, umbral]);
+      `, [cotizacionId, cliente_id || null, req.user.id, descuento_pct, estadoDesc, umbral]);
     }
 
     const totales = await recalcularTotales(client, cotizacionId);
@@ -317,7 +332,7 @@ router.put('/:id', requirePermiso('crear_cotizacion', 'crm'), requireVentasPerfi
       return res.status(400).json({ error: 'No se puede editar una cotizacion aprobada o convertida' });
     }
 
-    const fields = ['cliente_id', 'oportunidad_id', 'validez_dias', 'notas', 'moneda',
+    const fields = ['cliente_id', 'lead_id', 'oportunidad_id', 'validez_dias', 'notas', 'moneda',
                     'orden_compra', 'centro_operacion', 'bodega', 'condicion_pago', 'fecha_entrega',
                     'unidad_negocio', 'punto_envio', 'motivo', 'vendedor_nombre', 'facturar_a', 'despachar_a', 'lista_precios'];
     const updates = [];
@@ -539,6 +554,11 @@ router.post('/:id/enviar-erp', requirePermiso('crear_cotizacion', 'crm'), requir
     const existing = await pool.query(`SELECT id, numero, documento_erp FROM crm.cotizaciones WHERE id = $1`, [id]);
     if (!existing.rows.length) return res.status(404).json({ error: 'Cotizacion no encontrada' });
     if (existing.rows[0].documento_erp) return res.status(409).json({ error: 'Esta cotizacion ya tiene CPV del ERP', documento_erp: existing.rows[0].documento_erp });
+    // Cotización a lead (simulación): sin tercero en el ERP no se puede enviar
+    const leadChk = await pool.query(`SELECT lead_id, cliente_id FROM crm.cotizaciones WHERE id=$1`, [id]);
+    if (leadChk.rows[0]?.lead_id && !leadChk.rows[0]?.cliente_id) {
+      return res.status(422).json({ error: 'Cotización a lead (simulación): convierte el lead en cliente formal para crear el tercero en el ERP y poder enviar' });
+    }
     // Validar mapeos SIESA antes de enviar (422 si falta)
     const cot = await pool.query(`SELECT condicion_pago, bodega, centro_operacion FROM crm.cotizaciones WHERE id=$1`, [id]);
     const cp = String(cot.rows[0]?.condicion_pago || '').trim();

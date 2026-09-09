@@ -64,7 +64,14 @@ router.get('/payload/:cotizacionId', requirePermiso('ver', 'crm'), async (req, r
     const cot = cotR.rows[0];
     const itemsR = await pool.query(`SELECT * FROM crm.cotizacion_items WHERE cotizacion_id = $1 ORDER BY orden`, [id]);
     const cliR = cot.cliente_id ? await pool.query(`SELECT * FROM crm.clientes WHERE id = $1`, [cot.cliente_id]) : { rows: [] };
-    const cliente = cliR.rows[0] || {};
+    let cliente = cliR.rows[0] || {};
+    if (!cot.cliente_id && cot.lead_id) {
+      // Simulación a lead: tercero con datos del potencial (sin codigo_siesa ni
+      // sucursales → f350_id_tercero queda vacío y el envío se bloquea con 422)
+      const leadR = await pool.query(`SELECT razon_social, numero_identificacion, asesor_comercial, ciudad, direccion, email, telefono, lista_precios FROM crm.leads WHERE id = $1`, [cot.lead_id]);
+      const l = leadR.rows[0];
+      if (l) cliente = { nit: l.numero_identificacion || '', nombre: l.raison_social || '', asesor_comercial: l.asesor_comercial || '', ciudad: l.ciudad || '', direccion: l.direccion || '', email: l.email || '', telefono: l.telefono || '', lista_precios: l.lista_precios || '' };
+    }
     // sucursales como en enviarPedidoAlHub (usa principal si no hay facturar_a)
     let sucFact = null, sucDesp = null;
     try {
