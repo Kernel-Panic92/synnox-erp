@@ -250,6 +250,12 @@
   #admin-screen #sidebar-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px}
   #admin-screen .nav-text{font-size:13px;font-weight:500;white-space:nowrap}
   #admin-screen .sidebar.collapsed .nav-text{display:none !important}
+  #admin-screen .sidebar.collapsed .sidebar-section-title,
+  #admin-screen .sidebar.collapsed .user-name,
+  #admin-screen .sidebar.collapsed .user-role,
+  #admin-screen .sidebar.collapsed .version,
+  #admin-screen .sidebar.collapsed .logo span{display:none !important}
+  #admin-screen .sidebar.collapsed .logo{justify-content:center;padding:20px 0}
   #admin-screen .sidebar.collapsed .nav-item{position:relative}
   #admin-screen .sidebar.collapsed .nav-item::after, #admin-screen .sidebar.collapsed .btn-logout::after, #admin-screen .sidebar.collapsed .sidebar-home::after{content:attr(data-tooltip);position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%) translateX(-8px);background:#1e293b;color:#f8fafc;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap;border:1px solid #334155;box-shadow:0 4px 12px rgba(0,0,0,0.3);opacity:0;pointer-events:none;transition:all .2s ease;z-index:100}
   #admin-screen .sidebar.collapsed .nav-item:hover::after, #admin-screen .sidebar.collapsed .btn-logout:hover::after, #admin-screen .sidebar.collapsed .sidebar-home:hover::after{opacity:1;transform:translateY(-50%) translateX(0)}
