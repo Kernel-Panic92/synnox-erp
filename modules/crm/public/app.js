@@ -235,14 +235,14 @@ function renderDonutChart(containerId, title, slices, centerBig, centerSub, empt
   const valid = (slices || []).filter(s => (Number(s.value) || 0) > 0);
   if (!valid.length) { c.innerHTML = `<div class="widget-title">${title}</div><div style="color:var(--muted);font-size:12px">${emptyMsg || 'Sin datos'}</div>`; return; }
   const total = valid.reduce((a, s) => a + (Number(s.value) || 0), 0);
-  const R = 44, CX = 55, CY = 55, CIRC = 2 * Math.PI * R;
+  const R = 56, CX = 70, CY = 70, CIRC = 2 * Math.PI * R;
   let acc = 0;
   const segs = valid.map(s => {
     const frac = (Number(s.value) || 0) / total;
     const dash = Math.max(0, frac * CIRC - 2);
     const off = acc;
     acc += frac * CIRC;
-    return `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${s.color}" stroke-width="18" stroke-dasharray="${dash} ${CIRC - dash}" stroke-dashoffset="${-off + CIRC / 4}" opacity="0.92"><title>${esc(s.label)}: ${s.pct != null ? s.pct + '% · ' : ''}${s.value}</title></circle>`;
+    return `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${s.color}" stroke-width="22" stroke-dasharray="${dash} ${CIRC - dash}" stroke-dashoffset="${-off + CIRC / 4}" opacity="0.92"><title>${esc(s.label)}: ${s.pct != null ? s.pct + '% · ' : ''}${s.value}</title></circle>`;
   }).join('');
   const legend = valid.map(s => `
     <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;margin-bottom:3px;min-width:0">
@@ -253,11 +253,11 @@ function renderDonutChart(containerId, title, slices, centerBig, centerSub, empt
   c.innerHTML = `
     <div class="widget-title">${title}</div>
     <div style="display:flex;align-items:center;gap:10px">
-      <svg viewBox="0 0 110 110" style="width:104px;height:104px;flex-shrink:0;display:block">
-        <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="var(--surface2)" stroke-width="18"/>
+      <svg viewBox="0 0 140 140" style="width:132px;height:132px;flex-shrink:0;display:block">
+        <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="var(--surface2)" stroke-width="22"/>
         ${segs}
-        <text x="${CX}" y="${CY - 2}" text-anchor="middle" font-size="16" font-weight="800" fill="var(--text)">${centerBig}</text>
-        <text x="${CX}" y="${CY + 13}" text-anchor="middle" font-size="8.5" fill="var(--muted)">${centerSub || ''}</text>
+        <text x="${CX}" y="${CY - 1}" text-anchor="middle" font-size="19" font-weight="800" fill="var(--text)">${centerBig}</text>
+        <text x="${CX}" y="${CY + 16}" text-anchor="middle" font-size="10" fill="var(--muted)">${centerSub || ''}</text>
       </svg>
       <div style="flex:1;min-width:0">${legend}</div>
     </div>`;
