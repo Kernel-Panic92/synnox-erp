@@ -4522,6 +4522,7 @@ async function cargarAdmin(){
   }
   const cards=[
     {icon:'👥',titulo:'Perfiles de Venta',desc:'Crear/editar perfiles y asignar vendedores',seccion:'perfiles',perm:true},
+    {icon:'🎯',titulo:'Presupuestos',desc:'Asignar meta mensual por asesor',seccion:'presupuestos',perm:puedeConfigurar},
     {icon:'📥',titulo:'Importar SIESA',desc:'Cargar datos desde archivos del ERP/CRM',seccion:'importar',perm:puedeConfigurar},
     {icon:'💰',titulo:'Descuentos pendientes',desc:'Solicitudes por aprobar',seccion:'descuentos',perm:puedeAprobar},
     {icon:'🔄',titulo:'Sincronizar ERP',desc:'SIESA Hub (cuando esté disponible)',seccion:'siesa',perm:puedeConfigurar},
@@ -4574,10 +4575,74 @@ async function adminAbrirSeccion(seccion){
   if(seccion==='perfiles'){
     cont.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px"><h3 style="margin:0">Perfiles de Venta</h3><button class="btn btn-sm btn-primary" onclick="abrirModalPerfilVenta()">+ Nuevo Perfil</button></div><p style="color:var(--muted);font-size:12px">Si un usuario no está asignado a ningún perfil, no podrá crear cotizaciones (solo lectura).</p><div id="perfiles-venta-list" style="display:grid;gap:12px"></div>';
     cargarPerfilesVenta();
+  } else if(seccion==='presupuestos'){
+    const ahora = new Date();
+    const per = `${ahora.getFullYear()}-${String(ahora.getMonth()+1).padStart(2,'0')}`;
+    cont.innerHTML=`<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px"><h3 style="margin:0">Presupuestos por asesor</h3><div style="display:flex;gap:8px;align-items:center"><input type="month" id="pres-periodo" value="${per}" onchange="cargarPresupuestos()" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)"></div></div><p style="color:var(--muted);font-size:12px">Meta mensual en COP por asesor. El cumplimiento se calcula vivo desde oportunidades ganadas.</p><div style="display:grid;grid-template-columns:1fr 1fr auto;gap:8px;margin-bottom:12px;align-items:end"><label>Asesor<select id="pres-asesor" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)"><option value="">Cargando...</option></select></label><label>Presupuesto COP<input type="number" id="pres-monto" min="0" step="1000" placeholder="5000000" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)"></label><button class="btn btn-primary btn-sm" onclick="guardarPresupuesto()">Asignar</button></div><div id="pres-list" style="display:grid;gap:8px"><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>`;
+    cargarAsesoresPresupuesto();
+    cargarPresupuestos();
   } else if(seccion==='siesa'){
     cont.innerHTML='<h3 style="margin:0 0 12px">SIESA Hub — Mock listo</h3><p style="color:var(--muted);font-size:12px">Mock activo: <code>Enviar al ERP</code> genera <code>CPV-MOCK-xxxxx</code> sin credenciales. Cuando SIESA entregue docs, desactiva mock y guarda URL/OAuth.</p><div style="display:grid;gap:12px;max-width:640px"><label style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="hub-mock"> <span>Mock activo (sin Hub real)</span></label><label style="display:block">Base URL Hub<input type="text" id="hub-base-url" placeholder="https://hub.siesa.com/api" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;margin-top:4px"></label><div style="display:grid;grid-template-columns:1fr 1fr;gap:10px"><label>Client ID<input type="text" id="hub-client-id" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;margin-top:4px"></label><label>Client Secret<input type="password" id="hub-client-secret" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;margin-top:4px"></label></div><div style="display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="guardarHubConfig()">Guardar</button><button class="btn btn-secondary btn-sm" onclick="probarHubSync()">Probar sync</button></div><div id="hub-config-msg" style="font-size:12px;color:var(--muted)"></div><hr style="border:none;border-top:1px solid var(--border)"><h4 style="margin:0">Últimos envíos</h4><div id="hub-envios-list" style="font-size:12px;color:var(--muted)">Cargando...</div></div>';
     cargarHubConfig();
   }
+}
+async function cargarAsesoresPresupuesto(){
+  try{
+    let r = await apiFetch('/perfiles-venta/asesores');
+    if(!r.ok) r = await apiFetch('/perfiles-venta/usuarios-all');
+    if(!r.ok) return;
+    const data = r.data.data || r.data || [];
+    const sel = document.getElementById('pres-asesor');
+    if(sel) sel.innerHTML = '<option value="">Seleccione asesor...</option>' + data.map(u => `<option value="${u.id}">${esc(u.nombre)}</option>`).join('');
+  }catch{}
+}
+async function cargarPresupuestos(){
+  try{
+    const per = document.getElementById('pres-periodo')?.value || '';
+    const r = await apiFetch('/presupuestos' + (per ? '?periodo=' + per : ''));
+    const list = document.getElementById('pres-list');
+    if(!list) return;
+    if(!r.ok){ list.innerHTML = `<p style="color:var(--danger)">${esc(r.data?.error || 'Error')}</p>`; return; }
+    const rows = r.data.data || [];
+    const nombres = {};
+    for(const o of _pipelineVendedorCache) nombres[String(o.id)] = o.nombre;
+    list.innerHTML = rows.length ? rows.map(p => `
+      <div style="display:flex;gap:8px;align-items:center;border:1px solid var(--border);border-radius:8px;padding:8px 10px">
+        <strong style="flex:1">${esc(nombres[String(p.usuario_id)] || ('ID ' + p.usuario_id))}</strong>
+        <span style="font-size:11px;color:var(--muted)">${esc(p.periodo)}${p.centro ? ' · ' + esc(p.centro) : ''}</span>
+        <input type="number" value="${p.presupuesto}" min="0" step="1000" id="pres-monto-${p.id}" style="width:150px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px">
+        <button class="btn btn-sm btn-secondary" onclick="editarPresupuesto('${p.id}')">💾</button>
+        <button class="btn btn-sm btn-danger" onclick="eliminarPresupuesto('${p.id}')">🗑️</button>
+      </div>`).join('') : '<p style="color:var(--muted);font-size:12px">Sin presupuestos en este periodo.</p>';
+  }catch{}
+}
+async function guardarPresupuesto(){
+  const usuario_id = document.getElementById('pres-asesor')?.value;
+  const periodo = document.getElementById('pres-periodo')?.value;
+  const presupuesto = parseFloat(document.getElementById('pres-monto')?.value || 0);
+  if(!usuario_id) return toast('Seleccione un asesor', 'warning');
+  if(!periodo) return toast('Seleccione el periodo', 'warning');
+  if(!(presupuesto > 0)) return toast('Ingrese un monto mayor a 0', 'warning');
+  const r = await apiFetch('/presupuestos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usuario_id: parseInt(usuario_id), periodo, presupuesto }) });
+  if(!r.ok) return toast(r.data?.error || 'Error', 'error');
+  toast('Presupuesto asignado', 'success');
+  document.getElementById('pres-monto').value = '';
+  cargarPresupuestos();
+}
+async function editarPresupuesto(id){
+  const v = parseFloat(document.getElementById('pres-monto-' + id)?.value || 0);
+  if(!(v >= 0)) return toast('Monto inválido', 'warning');
+  const r = await apiFetch('/presupuestos/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ presupuesto: v }) });
+  if(!r.ok) return toast(r.data?.error || 'Error', 'error');
+  toast('Presupuesto actualizado', 'success');
+  cargarPresupuestos();
+}
+async function eliminarPresupuesto(id){
+  if(!confirm('¿Eliminar este presupuesto?')) return;
+  const r = await apiFetch('/presupuestos/' + id, { method: 'DELETE' });
+  if(!r.ok) return toast(r.data?.error || 'Error', 'error');
+  toast('Presupuesto eliminado', 'success');
+  cargarPresupuestos();
 }
 async function cargarHubConfig(){
   try{
