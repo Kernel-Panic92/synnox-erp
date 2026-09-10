@@ -314,6 +314,7 @@ async function cargarMiCumplimiento(desde, hasta) {
       return;
     }
     const c = r.data.data[0];
+    cargarMotorReglas(periodo, c);
     const pct = parseFloat(c.pct) || 0;
     const color = pct >= 100 ? 'var(--success)' : pct >= 70 ? 'var(--warning)' : 'var(--danger)';
     banner.style.display = '';
@@ -322,6 +323,61 @@ async function cargarMiCumplimiento(desde, hasta) {
       <div class="metric-big" style="color:${color}">${pct}%</div>
       <div class="metric-sub">$${formatMoney(c.real)} de $${formatMoney(c.presupuesto)}</div>
       <div class="coverage-bar"><span style="width:${Math.min(100, pct)}%;background:${color}"></span></div>`;
+  } catch {}
+}
+async function cargarMotorReglas(periodo, actual) {
+  const row = document.getElementById('row-mi-proyeccion');
+  const box = document.getElementById('widget-mi-proyeccion');
+  if (!row || !box) return;
+  try {
+    const [Y, M] = periodo.split('-').map(Number);
+    const diasMes = new Date(Y, M, 0).getDate();
+    const hoy = new Date();
+    const esMesActual = Y === hoy.getFullYear() && M === hoy.getMonth() + 1;
+    const esFuturo = Y > hoy.getFullYear() || (Y === hoy.getFullYear() && M > hoy.getMonth() + 1);
+    const transcurridos = esFuturo ? 0 : esMesActual ? hoy.getDate() : diasMes;
+    const restantes = esMesActual ? Math.max(0, diasMes - hoy.getDate()) : 0;
+    const real = parseFloat(actual.real) || 0;
+    const meta = parseFloat(actual.presupuesto) || 0;
+    const ritmo = transcurridos > 0 ? real / transcurridos : 0;
+    const proyeccion = esMesActual ? ritmo * diasMes : real;
+    const proyPct = meta > 0 ? Math.round(proyeccion / meta * 1000) / 10 : 0;
+    const faltante = Math.max(0, meta - real);
+    const necesarioDia = restantes > 0 ? faltante / restantes : (faltante > 0 ? Infinity : 0);
+    // Tendencia vs mes anterior
+    let deltaTxt = 'sin mes anterior';
+    try {
+      const pm = M === 1 ? `${Y - 1}-12` : `${Y}-${String(M - 1).padStart(2, '0')}`;
+      const rp = await apiFetch('/presupuestos/cumplimiento?periodo=' + pm);
+      const prev = rp.ok ? (rp.data.data || [])[0] : null;
+      if (prev) {
+        const d = (parseFloat(actual.pct) || 0) - (parseFloat(prev.pct) || 0);
+        deltaTxt = (d >= 0 ? '+' : '') + (Math.round(d * 10) / 10) + ' pts vs ' + pm;
+      }
+    } catch {}
+    // Consejos automáticos
+    const consejos = [];
+    if (!meta) consejos.push('Sin meta asignada — pide a dirección comercial que te asigne presupuesto.');
+    else if ((parseFloat(actual.pct) || 0) >= 100) consejos.push(`Meta cumplida al ${actual.pct}% — enfócate en pipeline del próximo mes.`);
+    else if (esFuturo) consejos.push('Periodo futuro: el ritmo se calculará cuando inicie el mes.');
+    else {
+      if (proyPct >= 100) consejos.push(`Vas en ritmo: proyección ${proyPct}% ($${formatMoney(proyeccion)}) a fin de mes.`);
+      else {
+        consejos.push(`Te faltan $${formatMoney(faltante)} para la meta.`);
+        if (restantes > 0) consejos.push(`Necesitas $${formatMoney(Math.round(necesarioDia))}/día los ${restantes} días restantes (ritmo actual $${formatMoney(Math.round(ritmo))}/día).`);
+        else consejos.push('Mes cerrado por debajo de la meta — revisa vencidas y conversión.');
+      }
+    }
+    const pColor = proyPct >= 100 ? 'var(--success)' : proyPct >= 70 ? 'var(--warning)' : 'var(--danger)';
+    row.hidden = false;
+    box.innerHTML = `
+      <div class="widget-title">📈 Mi proyección · ${esc(periodo)}</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin-bottom:10px">
+        <div><div style="font-size:11px;color:var(--muted)">Proyección fin de mes</div><div style="font-size:20px;font-weight:800;color:${pColor}">$${formatMoney(Math.round(proyeccion))}</div><div style="font-size:11px;color:var(--muted)">${proyPct}% de la meta · ${deltaTxt}</div></div>
+        <div><div style="font-size:11px;color:var(--muted)">Ritmo actual</div><div style="font-size:20px;font-weight:800">$${formatMoney(Math.round(ritmo))}<small style="font-size:11px;color:var(--muted)">/día</small></div><div style="font-size:11px;color:var(--muted)">${transcurridos} de ${diasMes} días</div></div>
+        <div><div style="font-size:11px;color:var(--muted)">Necesario/día</div><div style="font-size:20px;font-weight:800">${restantes > 0 ? '$' + formatMoney(Math.round(necesarioDia)) : '—'}</div><div style="font-size:11px;color:var(--muted)">${restantes > 0 ? restantes + ' días restantes' : 'mes cerrado'}</div></div>
+      </div>
+      <ul style="margin:0;padding-left:18px;font-size:12px;color:var(--text)">${consejos.map(x => `<li style="margin-bottom:4px">${esc(x)}</li>`).join('')}</ul>`;
   } catch {}
 }
 function renderResumenKpis(funnel) {
