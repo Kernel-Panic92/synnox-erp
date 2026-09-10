@@ -74,13 +74,15 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
 .sidebar .sidebar-toggle:hover { background: var(--accent); color: #fff; }
 .sidebar-header { display: flex; justify-content: flex-end; align-items: center; padding: 10px 12px 4px; min-height: 0; box-sizing: border-box; flex-shrink: 0; }
 .sidebar.collapsed .sidebar-header { justify-content: center; padding: 10px 0 4px; }
+/* Toggle fantasma dentro del riel (gold standard): sin óvalo, chevrón ❮/❯ */
 .sidebar-header .sidebar-toggle { position: static !important; right: auto !important; top: auto !important; width: 26px !important; height: 26px !important; border-radius: 50%; background: transparent; border: none !important; box-shadow: none !important; color: var(--muted); display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all .2s ease; flex-shrink: 0; font-size: 12px; z-index: auto; }
 .sidebar-header .sidebar-toggle:hover { background: var(--surface2); color: var(--text); }
 .sidebar nav .nav-item:focus-visible,
 .sidebar-footer .btn-logout:focus-visible,
 .sidebar-footer .sidebar-home:focus-visible,
 .sidebar-header .sidebar-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.sidebar .logo { padding: 20px; font-family: var(--font-head); font-size: 18px; font-weight: 700; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid var(--border); overflow: hidden; white-space: nowrap; }
+.sidebar .logo { padding: 16px 20px 14px; font-family: var(--font-head); font-size: 17px; font-weight: 700; display: flex; flex-direction: column; align-items: center; gap: 6px; text-align: center; border-bottom: 1px solid var(--border); overflow: hidden; white-space: nowrap; }
+.sidebar .logo img { height: 28px; }
 .sidebar .logo span { color: var(--accent); }
 .sidebar .user-info { padding: 16px 20px; border-bottom: 1px solid var(--border); overflow: hidden; }
 .sidebar .user-info .name { font-weight: 600; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -133,6 +135,8 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
 .sidebar.collapsed .logo { justify-content: center; padding: 20px 0; }
 .sidebar.collapsed nav .nav-item { justify-content: center; padding: 12px 0; gap: 0; min-width: 0; border-left: none; width: 100%; margin: 4px 0; }
 .sidebar.collapsed nav .nav-item .icon { font-size: 20px; width: auto; margin: 0 !important; }
+/* Footer colapsado: MISMA geometría que los nav-items (gold standard).
+   Las cajas de 42px con márgenes negativos descentraban respecto al rail. */
 .sidebar.collapsed .sidebar-footer { padding: 12px 0; }
 .sidebar.collapsed .sidebar-footer .sidebar-home,
 .sidebar.collapsed .sidebar-footer .btn-logout { justify-content: center; position: relative; width: 100%; margin: 4px 0; padding: 8px 0; gap: 0; border-radius: 0; border: none; }
