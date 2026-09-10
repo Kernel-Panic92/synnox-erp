@@ -228,32 +228,61 @@ function renderStageVelocity(vel, containerId) {
   c.innerHTML = `<div class="widget-title">Velocidad por etapa</div>${rows || '<div style="color:var(--muted);font-size:12px">Sin historial</div>'}`;
 }
 
-function renderLossReason(loss, containerId) {
+// Dona SVG nativa reutilizable: slices=[{label,value,pct,color}], centro=texto grande
+function renderDonutChart(containerId, title, slices, centerBig, centerSub, emptyMsg) {
   const c = document.getElementById(containerId);
   if (!c) return;
-  const labels = { precio:'Precio', competencia:'Competencia', sin_presupuesto:'Sin ppto', no_responde:'No responde', otro:'Otro', sin_motivo:'Sin motivo' };
-  const max = Math.max(1, ...loss.map(l => parseInt(l.total) || 0));
-  const rows = (loss || []).slice(0, 6).map(l => `
-    <div style="margin-bottom:8px">
-      <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:3px;color:var(--text)">
-        <span>${esc(labels[l.motivo] || l.motivo)}</span><span>${parseFloat(l.pct).toFixed(0)}% · ${l.total}</span>
-      </div>
-      <div style="background:var(--surface2);border-radius:5px;height:12px;overflow:hidden">
-        <div style="width:${Math.round((parseInt(l.total)||0)/max*100)}%;background:var(--danger);height:100%;border-radius:5px"></div>
-      </div>
+  const valid = (slices || []).filter(s => (Number(s.value) || 0) > 0);
+  if (!valid.length) { c.innerHTML = `<div class="widget-title">${title}</div><div style="color:var(--muted);font-size:12px">${emptyMsg || 'Sin datos'}</div>`; return; }
+  const total = valid.reduce((a, s) => a + (Number(s.value) || 0), 0);
+  const R = 44, CX = 55, CY = 55, CIRC = 2 * Math.PI * R;
+  let acc = 0;
+  const segs = valid.map(s => {
+    const frac = (Number(s.value) || 0) / total;
+    const dash = Math.max(0, frac * CIRC - 2);
+    const off = acc;
+    acc += frac * CIRC;
+    return `<circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="${s.color}" stroke-width="18" stroke-dasharray="${dash} ${CIRC - dash}" stroke-dashoffset="${-off + CIRC / 4}" opacity="0.92"><title>${esc(s.label)}: ${s.pct != null ? s.pct + '% · ' : ''}${s.value}</title></circle>`;
+  }).join('');
+  const legend = valid.map(s => `
+    <div style="display:flex;align-items:center;gap:5px;font-size:10.5px;margin-bottom:3px;min-width:0">
+      <span style="width:8px;height:8px;border-radius:50%;background:${s.color};flex-shrink:0"></span>
+      <span style="color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(s.label)}">${esc(s.label)}</span>
+      <span style="margin-left:auto;font-weight:700;color:var(--text);white-space:nowrap">${s.pct != null ? s.pct + '%' : s.value}</span>
     </div>`).join('');
-  c.innerHTML = `<div class="widget-title">Pérdida por causal</div>${rows || '<div style="color:var(--muted);font-size:12px">Sin pérdidas</div>'}`;
+  c.innerHTML = `
+    <div class="widget-title">${title}</div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <svg viewBox="0 0 110 110" style="width:104px;height:104px;flex-shrink:0;display:block">
+        <circle cx="${CX}" cy="${CY}" r="${R}" fill="none" stroke="var(--surface2)" stroke-width="18"/>
+        ${segs}
+        <text x="${CX}" y="${CY - 2}" text-anchor="middle" font-size="16" font-weight="800" fill="var(--text)">${centerBig}</text>
+        <text x="${CX}" y="${CY + 13}" text-anchor="middle" font-size="8.5" fill="var(--muted)">${centerSub || ''}</text>
+      </svg>
+      <div style="flex:1;min-width:0">${legend}</div>
+    </div>`;
+}
+
+const LOSS_COLORS = { precio:'#e5534b', competencia:'#f0883e', sin_presupuesto:'#d29922', no_responde:'#a371f7', otro:'#6e7681', sin_motivo:'#8b949e' };
+const LOSS_LABELS = { precio:'Precio', competencia:'Competencia', sin_presupuesto:'Sin ppto', no_responde:'No responde', otro:'Otro', sin_motivo:'Sin motivo' };
+function renderLossReason(loss, containerId) {
+  const slices = (loss || []).slice(0, 6).map(l => ({
+    label: LOSS_LABELS[l.motivo] || l.motivo,
+    value: parseInt(l.total) || 0,
+    pct: Math.round(parseFloat(l.pct) || 0),
+    color: LOSS_COLORS[l.motivo] || '#6e7681'
+  }));
+  const tot = slices.reduce((a, s) => a + s.value, 0);
+  renderDonutChart(containerId, 'Pérdida por causal', slices, tot, 'perdidas', 'Sin pérdidas');
 }
 
 function renderRepeatPurchase(rp, containerId) {
-  const c = document.getElementById(containerId);
-  if (!c) return;
   const total = (rp.nuevos || 0) + (rp.recurrentes || 0);
   const pct = total > 0 ? Math.round((rp.recurrentes || 0) / total * 100) : 0;
-  c.innerHTML = `
-    <div class="widget-title">Recurrencia</div>
-    <div class="metric-big">${pct}%</div>
-    <div class="metric-sub">${rp.recurrentes || 0} recurr. · ${rp.nuevos || 0} nuevos</div>`;
+  renderDonutChart(containerId, 'Recurrencia', [
+    { label: 'Recurrentes', value: rp.recurrentes || 0, pct, color: 'var(--success)' },
+    { label: 'Nuevos', value: rp.nuevos || 0, pct: 100 - pct, color: 'var(--surface2)' }
+  ], pct + '%', 'recurrencia', 'Sin ventas');
 }
 
 function renderLtv(acv, rp, containerId) {
