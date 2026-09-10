@@ -115,6 +115,7 @@ async function cargarDashboard() {
     renderGraficoSVG(d.tendencia_mensual || [], 'widget-tendencia');
     renderDistribucionCiudades(d.distribucion_ciudades || [], 'widget-ciudades');
     renderUltimosMovs(d.ultimos_movimientos || [], 'widget-ultimos-movs');
+    cargarMiCumplimiento(desde, hasta);
     if (document.getElementById('dash-analitica')?.style.display !== 'none') cargarAnalitica();
   } catch (err) { console.error('Dashboard error:', err); }
 }
@@ -297,6 +298,32 @@ function renderLtv(acv, rp, containerId) {
     <div class="metric-sub">ACV × ${recurrencia.toFixed(1)}x</div>`;
 }
 
+async function cargarMiCumplimiento(desde, hasta) {
+  const banner = document.getElementById('resumen-kpi-cumplimiento');
+  if (!banner) return;
+  // Gerencia/admin ven el detalle en Admin → Presupuestos; el banner es para el asesor
+  if (usuario?.rol === 'admin' || usuario?.rol === 'gerente') { banner.style.display = 'none'; return; }
+  try {
+    // Periodo desde el filtro (YYYY-MM-DD → YYYY-MM) o mes actual
+    const ref = desde || new Date().toISOString().slice(0, 10);
+    const periodo = String(ref).slice(0, 7);
+    const r = await apiFetch('/presupuestos/cumplimiento?periodo=' + periodo);
+    if (!r.ok || !(r.data.data || []).length) {
+      banner.style.display = '';
+      banner.innerHTML = `<div class="widget-title">Mi cumplimiento</div><div class="metric-sub">Sin meta asignada en ${periodo}</div>`;
+      return;
+    }
+    const c = r.data.data[0];
+    const pct = parseFloat(c.pct) || 0;
+    const color = pct >= 100 ? 'var(--success)' : pct >= 70 ? 'var(--warning)' : 'var(--danger)';
+    banner.style.display = '';
+    banner.innerHTML = `
+      <div class="widget-title">Mi cumplimiento · ${esc(c.periodo)}</div>
+      <div class="metric-big" style="color:${color}">${pct}%</div>
+      <div class="metric-sub">$${formatMoney(c.real)} de $${formatMoney(c.presupuesto)}</div>
+      <div class="coverage-bar"><span style="width:${Math.min(100, pct)}%;background:${color}"></span></div>`;
+  } catch {}
+}
 function renderResumenKpis(funnel) {
   const byEtapa = Object.fromEntries(funnel.map(e=>[e.etapa, e]));
   const ganada = byEtapa.ganada || {cantidad:0, monto:0};
@@ -4606,14 +4633,29 @@ async function cargarPresupuestos(){
     const rows = r.data.data || [];
     const nombres = {};
     for(const o of _pipelineVendedorCache) nombres[String(o.id)] = o.nombre;
-    list.innerHTML = rows.length ? rows.map(p => `
-      <div style="display:flex;gap:8px;align-items:center;border:1px solid var(--border);border-radius:8px;padding:8px 10px">
-        <strong style="flex:1">${esc(nombres[String(p.usuario_id)] || ('ID ' + p.usuario_id))}</strong>
-        <span style="font-size:11px;color:var(--muted)">${esc(p.periodo)}${p.centro ? ' · ' + esc(p.centro) : ''}</span>
-        <input type="number" value="${p.presupuesto}" min="0" step="1000" id="pres-monto-${p.id}" style="width:150px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px">
-        <button class="btn btn-sm btn-secondary" onclick="editarPresupuesto('${p.id}')">💾</button>
-        <button class="btn btn-sm btn-danger" onclick="eliminarPresupuesto('${p.id}')">🗑️</button>
-      </div>`).join('') : '<p style="color:var(--muted);font-size:12px">Sin presupuestos en este periodo.</p>';
+    // Cumplimiento del periodo para vista gerencial
+    let cump = {};
+    try {
+      const per = document.getElementById('pres-periodo')?.value;
+      const rc = await apiFetch('/presupuestos/cumplimiento' + (per ? '?periodo=' + per : ''));
+      if (rc.ok) for (const c of (rc.data.data || [])) cump[String(c.usuario_id)] = c;
+    } catch {}
+    const pctColor = (v) => v >= 100 ? 'var(--success)' : v >= 70 ? 'var(--warning)' : 'var(--danger)';
+    list.innerHTML = rows.length ? rows.map(p => {
+      const c = cump[String(p.usuario_id)];
+      const pct = c ? (parseFloat(c.pct) || 0) : null;
+      return `
+      <div style="border:1px solid var(--border);border-radius:8px;padding:8px 10px">
+        <div style="display:flex;gap:8px;align-items:center">
+          <strong style="flex:1">${esc(nombres[String(p.usuario_id)] || ('ID ' + p.usuario_id))}</strong>
+          <span style="font-size:11px;color:var(--muted)">${esc(p.periodo)}${p.centro ? ' · ' + esc(p.centro) : ''}</span>
+          <input type="number" value="${p.presupuesto}" min="0" step="1000" id="pres-monto-${p.id}" style="width:150px;padding:6px 8px;border:1px solid var(--border);border-radius:6px;background:var(--surface);color:var(--text);font-size:13px">
+          <button class="btn btn-sm btn-secondary" onclick="editarPresupuesto('${p.id}')">💾</button>
+          <button class="btn btn-sm btn-danger" onclick="eliminarPresupuesto('${p.id}')">🗑️</button>
+        </div>
+        ${c ? `<div style="display:flex;gap:8px;align-items:center;margin-top:6px"><div class="coverage-bar" style="flex:1;margin:0"><span style="width:${Math.min(100, pct)}%;background:${pctColor(pct)}"></span></div><span style="font-size:12px;font-weight:700;color:${pctColor(pct)}">${pct}%</span><span style="font-size:11px;color:var(--muted)">$${formatMoney(c.real)} / $${formatMoney(c.presupuesto)}</span></div>` : `<div style="font-size:11px;color:var(--muted);margin-top:4px">Sin ventas ganadas aún en el periodo.</div>`}
+      </div>`;
+    }).join('') : '<p style="color:var(--muted);font-size:12px">Sin presupuestos en este periodo.</p>';
   }catch{}
 }
 async function guardarPresupuesto(){

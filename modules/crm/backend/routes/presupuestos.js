@@ -28,6 +28,36 @@ router.get('/', requirePermiso('ver', 'crm'), async (req, res) => {
   }
 });
 
+// GET /api/presupuestos/cumplimiento?periodo=YYYY-MM — real (ganado CRM) vs presupuesto por asesor
+router.get('/cumplimiento', requirePermiso('ver', 'crm'), async (req, res) => {
+  try {
+    const d = new Date();
+    const periodo = /^\d{4}-(0[1-9]|1[0-2])$/.test(req.query.periodo || '') ? req.query.periodo : `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    const soloMio = !(req.user?.rol === 'admin' || req.user?.rol === 'gerente');
+    const params = [periodo];
+    let filtro = '';
+    if (soloMio) { filtro = `AND p.usuario_id = $2`; params.push(req.user.id); }
+    else if (req.query.usuario_id) { filtro = `AND p.usuario_id = $2`; params.push(parseInt(req.query.usuario_id)); }
+    const r = await pool.query(`
+      SELECT p.id, p.usuario_id, p.periodo, p.presupuesto, p.centro,
+        COALESCE(g.real, 0) AS real, COALESCE(g.n, 0) AS ganadas,
+        ROUND(100.0 * COALESCE(g.real, 0) / NULLIF(p.presupuesto, 0), 1) AS pct
+      FROM crm.presupuestos p
+      LEFT JOIN (
+        SELECT o.vendedor_id, COUNT(*) AS n, SUM(o.monto_esperado) AS real
+        FROM crm.oportunidades o
+        WHERE o.etapa = 'ganada' AND TO_CHAR(o.creado_en, 'YYYY-MM') = $1 AND o.vendedor_id IS NOT NULL
+        GROUP BY o.vendedor_id
+      ) g ON g.vendedor_id = p.usuario_id
+      WHERE p.periodo = $1 ${filtro}
+      ORDER BY pct DESC NULLS LAST`, params);
+    res.json({ ok: true, periodo, data: r.rows });
+  } catch (err) {
+    console.error('[CRM] Error cumplimiento:', err);
+    res.status(500).json({ error: 'Error al calcular cumplimiento' });
+  }
+});
+
 // POST /api/presupuestos — asignar presupuesto (dirección comercial)
 router.post('/', requirePermiso('configurar', 'crm'), requireVentasPerfil('configurar'), async (req, res) => {
   try {
