@@ -2815,7 +2815,7 @@ async function guardarActividad() {
 
   btn.disabled = true; btn.textContent = 'Guardando...';
   const _authT = localStorage.getItem('launcher_jwt');
-  const r = await fetch(HF.API + '/actividades', { method: 'POST', credentials: 'include', headers: _authT ? { Authorization: 'Bearer ' + _authT } : {}, body: fd });
+  const r = await fetch(HF.API + '/visitas/actividades', { method: 'POST', credentials: 'include', headers: _authT ? { Authorization: 'Bearer ' + _authT } : {}, body: fd });
   const data = await r.json().catch(() => ({}));
   btn.disabled = false; btn.textContent = 'Guardar';
   if (!r.ok) return toast(data.error || 'Error al crear', 'error');
