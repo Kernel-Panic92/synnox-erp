@@ -1245,6 +1245,16 @@ async function cargarStatsClientes() {
       <div class="stat-card"><div class="stat-value" style="font-size:18px;line-height:1.3">${topCiudad}</div><div class="stat-label">Top ciudades</div></div>
       <div class="stat-card"><div class="stat-value">${d.recientes?.length || 0}</div><div class="stat-label">Recientes</div></div>
     `;
+    const TIPO_COLORS = { real:'#2f855a', potencial:'#d69e2e', siesa:'#2b6cb0' };
+    const totT = (d.por_tipo || []).reduce((a, t) => a + (parseInt(t.total) || 0), 0) || 1;
+    renderDonutChart('widget-cli-tipo', 'Por tipo',
+      (d.por_tipo || []).map(t => ({ label: t.tipo || 'Sin tipo', value: parseInt(t.total) || 0, pct: Math.round((parseInt(t.total) || 0) / totT * 100), color: TIPO_COLORS[t.tipo] || '#6e7681' })),
+      d.total || 0, 'clientes', 'Sin datos');
+    const CIU_COLORS = ['#2b6cb0', '#2f855a', '#d69e2e', '#9f7aea', '#ed64a6', '#38b2ac', '#e53e3e', '#dd6b20', '#718096', '#4a5568'];
+    const totC = (d.por_ciudad || []).reduce((a, c) => a + (parseInt(c.total) || 0), 0) || 1;
+    renderDonutChart('widget-cli-ciudad', 'Top ciudades',
+      (d.por_ciudad || []).slice(0, 8).map((c, i) => ({ label: c.ciudad, value: parseInt(c.total) || 0, pct: Math.round((parseInt(c.total) || 0) / totC * 100), color: CIU_COLORS[i % CIU_COLORS.length] })),
+      (d.por_ciudad || []).length, 'ciudades', 'Sin datos');
   } catch {}
 }
 
