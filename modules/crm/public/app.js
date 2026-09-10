@@ -3191,10 +3191,12 @@ async function filtrarCotizacionTerceros(q) {
     const clientes = rc.ok ? (rc.data.data || []) : [];
     const leads = rl.ok ? (rl.data.data || []) : [];
     if (!clientes.length && !leads.length) { sel.innerHTML = '<option>No hay resultados</option>'; sel.style.display = ''; sel.size = 1; return; }
+    const leadOpts = leads.map(l => `<option value="l:${l.id}">🎯 ${esc(l.raison_social)} — ${esc(l.numero_identificacion || '')} (lead)</option>`).join('');
+    const cliOpts = clientes.map(c => `<option value="c:${c.id}">${esc(c.nombre)} — ${esc(c.nit || '')}</option>`).join('');
     sel.innerHTML =
-      clientes.map(c => `<option value="c:${c.id}">${esc(c.nombre)} — ${esc(c.nit || '')}</option>`).join('') +
-      leads.map(l => `<option value="l:${l.id}">🎯 ${esc(l.raison_social)} — ${esc(l.numero_identificacion || '')} (lead)</option>`).join('');
-    sel.style.display = ''; sel.size = Math.min(8, clientes.length + leads.length + 1);
+      (leads.length ? `<option disabled>── LEADS (${leads.length}) ──</option>` + leadOpts : '') +
+      (clientes.length ? `<option disabled>── CLIENTES (${clientes.length}) ──</option>` + cliOpts : '');
+    sel.style.display = ''; sel.size = Math.min(10, clientes.length + leads.length + 2);
     sel.onchange = async () => {
       const opt = sel.options[sel.selectedIndex];
       if (!opt || !opt.value || opt.textContent === 'No hay resultados') return;
