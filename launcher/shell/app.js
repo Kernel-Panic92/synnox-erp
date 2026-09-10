@@ -2116,7 +2116,8 @@ async function toggleModuloEmailNotif(modulo, habilitado) {
 
 // ── Admin tab router ──
 function showAdminTab(tab) {
-  document.querySelectorAll('#admin-sidebar .nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === tab));
+  document.querySelectorAll('#admin-sidebar .nav-item').forEach(n => { n.classList.toggle('active', n.dataset.page === tab); n.removeAttribute('aria-current'); });
+  document.querySelector('#admin-sidebar .nav-item[data-page="' + tab + '"]')?.setAttribute('aria-current', 'page');
   document.querySelectorAll('#admin-screen .tab-content').forEach(t => t.classList.toggle('active', t.id === 'tab-' + tab));
   if (tab === 'usuarios') loadUsers();
   else if (tab === 'perfiles') loadPerfiles();
@@ -2150,13 +2151,18 @@ function toggleSidebarCollapse() {
   if (container) container.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
   localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
   const toggle = document.querySelector('.sidebar-toggle');
-  if (toggle) toggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+  if (toggle) {
+    const col = sidebar.classList.contains('collapsed');
+    toggle.textContent = col ? '❯' : '❮';
+    toggle.setAttribute('aria-expanded', String(!col));
+    toggle.setAttribute('aria-label', col ? 'Expandir menú' : 'Contraer menú');
+  }
 }
 document.addEventListener('DOMContentLoaded', () => {
   if (localStorage.getItem('sidebar_collapsed') === 'true') {
     document.getElementById('admin-sidebar')?.classList.add('collapsed');
     document.getElementById('app-container')?.classList.add('sidebar-collapsed');
-    const t = document.querySelector('.sidebar-toggle'); if (t) t.textContent = '▶';
+    const t = document.querySelector('.sidebar-toggle'); if (t) { t.textContent = '❯'; t.setAttribute('aria-expanded', 'false'); t.setAttribute('aria-label', 'Expandir menú'); }
   }
 });
 
