@@ -565,6 +565,8 @@ function renderTablaVendedores(vendedores, containerId) {
     <div class="tbl-wrap" style="max-height:300px;overflow-y:auto"><table class="tbl"><thead><tr><th>Asesor</th><th style="text-align:center">Ops</th><th style="text-align:right">Ganado</th></tr></thead><tbody>
       ${filas || '<tr><td colspan="3" style="color:var(--muted);text-align:center">Sin datos</td></tr>'}
     </tbody></table></div>`;
+
+  formatearTablasParaMovil();
 }
 function renderGraficoSVG(historico, containerId) {
   const container = document.getElementById(containerId);
@@ -1299,6 +1301,7 @@ async function cargarClientes() {
       </tr>
     `;}).join('');
   renderPagination('pag-clientes', r.data.total, _clientesPage, clientesLimit, (p) => { _clientesPage = p; cargarClientes(); });
+  formatearTablasParaMovil();
   // Cargar ciudades para filtro
   const ciudades = [...new Set(data.map(e => e.ciudad).filter(Boolean))];
   const sel = document.getElementById('filtro-cliente-ciudad');
@@ -1765,6 +1768,7 @@ async function cargarLeads() {
     `).join('');
 
     renderPagination('pag-leads', r.data.total, _leadsPage, _limit, (p) => { _leadsPage = p; cargarLeads(); });
+  formatearTablasParaMovil();
     cargarStatsLeads();
   } catch (err) { console.error('Error cargar leads:', err); }
 }
@@ -2432,6 +2436,7 @@ async function cargarContactos() {
     </tr>
   `).join('');
   renderPagination('pag-contactos', r.data.total, _contactosPage, _limit, (p) => { _contactosPage = p; cargarContactos(); });
+  formatearTablasParaMovil();
   // Cargar clientes en select de filtro
   await cargarClientesSelect('filtro-contacto-cliente', clienteId);
   cargarStatsContactos();
@@ -3125,6 +3130,7 @@ async function cargarCotizaciones() {
     `}).join('');
 
     renderPagination('pag-cotizaciones', r.data.total, _cotizacionesPage, _limit, (p) => { _cotizacionesPage = p; cargarCotizaciones(); });
+  formatearTablasParaMovil();
     cargarStatsCotizaciones();
   } catch (err) { console.error('Error cargar cotizaciones:', err); }
 }
@@ -3902,6 +3908,7 @@ async function cargarDescuentos() {
         </td>
       </tr>
     `).join('');
+  formatearTablasParaMovil();
   } catch (err) { console.error('Error cargar descuentos:', err); }
 }
 
@@ -4043,6 +4050,7 @@ async function cargarProductos() {
     `).join('');
 
     renderPagination('pag-productos', r.data.total, _productosPage, 50, (p) => { _productosPage = p; cargarProductos(); });
+  formatearTablasParaMovil();
     cargarStatsProductos();
   } catch (err) { console.error('Error cargar productos:', err); }
 }
@@ -4331,6 +4339,7 @@ async function cargarInventario() {
     }).join('');
 
     renderPagination('pag-inventario', r.data.total, _invPage, _invLimit, (p) => { _invPage = p; cargarInventario(); });
+  formatearTablasParaMovil();
     cargarBodegasSelect();
     cargarStatsInventario();
   } catch (err) { console.error('Error cargar inventario:', err); }
@@ -5155,3 +5164,24 @@ async function guardarPerfilVentaUsuarios(){
   if(!r.ok) return toast(r.data?.error||'Error','error');
   toast('Asignaciones guardadas','success'); hideModal('modal-perfil-venta-usuarios'); cargarPerfilesVenta();
 }
+
+// Función para convertir tablas en tarjetas (Mobile View)
+function formatearTablasParaMovil() {
+  if (window.innerWidth > 768) return; // Solo ejecutar en pantallas móviles
+  const tablas = document.querySelectorAll('.tbl');
+  tablas.forEach(tabla => {
+    const cabeceras = Array.from(tabla.querySelectorAll('thead th')).map(th => th.innerText.trim());
+    const filas = tabla.querySelectorAll('tbody tr:not(.filter-row)');
+    filas.forEach(fila => {
+      const celdas = fila.querySelectorAll('td');
+      celdas.forEach((celda, index) => {
+        if (celda.querySelector('input[type="checkbox"]')) return;
+        if (cabeceras[index] && !celda.getAttribute('data-label')) {
+          celda.setAttribute('data-label', cabeceras[index]);
+        }
+      });
+    });
+  });
+}
+window.addEventListener('resize', formatearTablasParaMovil);
+document.addEventListener('DOMContentLoaded', formatearTablasParaMovil);
