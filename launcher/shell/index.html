@@ -289,14 +289,23 @@
   #admin-screen .sidebar.collapsed .sidebar-home .icon{font-size:20px;width:auto;margin:0;text-align:center;line-height:1}
   #admin-screen .sidebar.collapsed .sidebar-home:hover,#admin-screen .sidebar.collapsed .btn-logout:hover{background:var(--surface2)}
   .header-actions{display:flex;align-items:center;justify-content:center;padding-right:16px;height:100%}
+  html,body{overflow-x:clip}
   @media(max-width:768px){
     #admin-screen .app-container{grid-template-columns:1fr !important}
     #admin-screen .sidebar{transform:translateX(-100%);transition:transform 0.25s;position:fixed !important;top:0;left:0;bottom:0;height:100vh;z-index:100}
     #admin-screen .sidebar.open{transform:translateX(0);}
+    #admin-screen .sidebar,#admin-screen .sidebar.collapsed{max-width:80vw !important}
+    #admin-screen .sidebar-toggle{display:none !important}
+    #admin-screen .sidebar.collapsed .nav-text,#admin-screen .sidebar.collapsed .logo span{display:inline-block !important}
+    #admin-screen .sidebar.collapsed .nav-item,#admin-screen .sidebar.collapsed .btn-logout,#admin-screen .sidebar.collapsed .sidebar-home{width:100% !important;justify-content:flex-start !important;padding:8px 16px !important;border-radius:0 !important;background:transparent !important;border:none !important}
+    #admin-screen .sidebar.collapsed .nav-item .icon,#admin-screen .sidebar.collapsed .btn-logout .icon,#admin-screen .sidebar.collapsed .sidebar-home .icon{margin-right:12px !important;font-size:inherit !important}
     .admin-main{margin-left:0;}
     .admin-main .hamburger{display:flex;}
     table{min-width:600px}
     .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  }
+  @media(max-width:480px){
+    .modal{width:100% !important;max-width:100% !important;max-height:100dvh !important;height:100dvh !important;margin:0 !important;border-radius:0 !important;padding:16px !important}
   }
 
   .perm-grupo{margin-bottom:20px;}
