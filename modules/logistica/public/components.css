@@ -288,3 +288,11 @@ body.light .cli-card { background: #fff; border-color: #d0d4e4; box-shadow: 0 1p
   .btn { padding: 10px 16px; font-size: 13px; }
   .btn-sm { padding: 8px 12px; font-size: 12px; }
 }
+
+/* ── Module overrides (restaurado: estilos propios del módulo) ── */
+.stats-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+.stat-card .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.stat-card .stat-value { font-size: 28px; font-weight: 700; font-family: var(--font-head); margin: 4px 0; }
+.stat-card .stat-sub { font-size: 12px; color: var(--muted); }
+.tbl td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; }

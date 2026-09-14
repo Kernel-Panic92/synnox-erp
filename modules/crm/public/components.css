@@ -288,3 +288,57 @@ body.light .cli-card { background: #fff; border-color: #d0d4e4; box-shadow: 0 1p
   .btn { padding: 10px 16px; font-size: 13px; }
   .btn-sm { padding: 8px 12px; font-size: 12px; }
 }
+
+/* ── CRM overrides (restaurado: estilos propios del módulo) ── */
+.stats-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 24px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
+.stat-card .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
+.stat-card .stat-value { font-size: 28px; font-weight: 700; font-family: var(--font-head); margin: 4px 0; }
+.stat-card .stat-sub { font-size: 12px; color: var(--muted); }
+.tbl td:last-child { white-space: nowrap; }
+.tbl td:last-child .btn { display: inline-flex; width: 32px; height: 32px; padding: 0; justify-content: center; align-items: center; line-height: 1; vertical-align: middle; }
+.row-no-erp { background: rgba(220,38,38,0.07); }
+.row-no-erp:hover { background: rgba(220,38,38,0.11); }
+.row-no-erp td:first-child { border-left: 3px solid var(--danger); }
+
+/* Tablas scrollables con header fijo y responsive */
+.tbl-scrollable { max-height: 420px; overflow-y: auto; overflow-x: hidden; container-type: inline-size; container-name: tbl-responsive; }
+.tbl-scrollable .tbl { width: 100%; table-layout: fixed; }
+.tbl-scrollable .tbl thead th { position: sticky; top: 0; background: var(--surface2); z-index: 1; }
+.tbl-scrollable .tbl th,
+.tbl-scrollable .tbl td { overflow-wrap: break-word; word-break: break-word; }
+.tbl-scrollable .tbl td:last-child { white-space: nowrap; text-align: right; }
+.tbl-scrollable .tbl td:last-child .btn { width: 28px; height: 28px; }
+
+/* Anchos de columnas para tabla de sucursales */
+.tbl-scrollable .tbl th:nth-child(1),
+.tbl-scrollable .tbl td:nth-child(1) { width: 52px; }
+.tbl-scrollable .tbl th:nth-child(2),
+.tbl-scrollable .tbl td:nth-child(2) { width: 20%; }
+.tbl-scrollable .tbl th:nth-child(3),
+.tbl-scrollable .tbl td:nth-child(3) { width: 24%; }
+.tbl-scrollable .tbl th:nth-child(4),
+.tbl-scrollable .tbl td:nth-child(4) { width: 12%; }
+.tbl-scrollable .tbl th:nth-child(5),
+.tbl-scrollable .tbl td:nth-child(5) { width: 12%; }
+.tbl-scrollable .tbl th:nth-child(6),
+.tbl-scrollable .tbl td:nth-child(6) { width: 13%; }
+.tbl-scrollable .tbl th:nth-child(7),
+.tbl-scrollable .tbl td:nth-child(7) { width: 10%; }
+.tbl-scrollable .tbl th:nth-child(8),
+.tbl-scrollable .tbl td:nth-child(8) { width: 76px; }
+
+@container tbl-responsive (max-width: 680px) {
+  .tbl-scrollable .tbl th:nth-child(5),
+  .tbl-scrollable .tbl td:nth-child(5) { display: none; }
+}
+@container tbl-responsive (max-width: 560px) {
+  .tbl-scrollable .tbl th:nth-child(4),
+  .tbl-scrollable .tbl td:nth-child(4) { display: none; }
+}
+
+/* Touch targets en tablas del CRM (F1.2) */
+@media (pointer: coarse) {
+  .tbl td:last-child .btn { width: 40px; height: 40px; }
+  .tbl-scrollable .tbl td:last-child .btn { width: 40px; height: 40px; }
+}
