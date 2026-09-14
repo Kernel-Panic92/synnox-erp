@@ -296,6 +296,13 @@ html,body{overflow-x:clip}
   .empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
   .empty-state .icon{font-size:48px;margin-bottom:16px;opacity:0.4}
   .empty-state p{font-size:14px;line-height:1.5;font-weight:500}
+  #page-visitas .stats-row{display:flex !important;flex-wrap:nowrap !important;overflow-x:auto !important;gap:12px !important;padding-bottom:8px !important;margin-bottom:4px !important;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  #page-visitas .stats-row::-webkit-scrollbar{display:none}
+  #page-visitas .stat-card{flex:0 0 auto !important;min-width:140px !important;height:60px !important;padding:8px 12px !important;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;border-radius:12px !important}
+  #page-visitas .stat-card .stat-value{font-size:20px !important;margin-bottom:2px}
+  #page-visitas .stat-card .stat-label{font-size:9px !important;text-align:left !important}
+  #page-visitas .stat-card::before{top:-10px;right:-10px;width:50px;height:50px}
+  .calendar-strip{padding-top:4px !important;padding-bottom:12px !important}
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 }
