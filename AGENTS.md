@@ -1,5 +1,86 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (14 Sep 2026 — sesión 57 — build mode)
+
+### Cambios Sesión 57 — PWA móvil del CRM + presupuestos por asesor + sidebar launcher
+
+Sesión larga en `feat/crm-module` (build). Tres frentes: sidebar launcher al
+gold standard, presupuestos por asesor F1→F3, y conversión PWA del CRM con
+feedback iterativo de Gemini (layout, drawer, dock, tablas-tarjeta, agenda).
+
+#### Sidebar launcher + logo módulos
+- Launcher quedó fuera del gold `bb55cf6`; sincronizado en `76db3c3`
+  (toggle fantasma ❮/❯, footer full-width, aria, `?v=` bump) + `050a6f1`
+  (oculta secciones/usuario/logo-texto al colapsar).
+- Logo SynnoxERP (`/media/LogoERP.png`) en los 5 sidebars como en admin
+  (`82cf902`), apilado encima del nombre al expandir (`f8575a4`), 28px vía
+  CSS sin inline (`0f94b51`). El nombre sigue dinámico (`data-module-name`).
+
+#### Actividades 404 + CORS (`5233122`)
+- `POST /crm/api/actividades` → 404: el router vive en `/api/visitas` y el
+  endpoint real es `/api/visitas/actividades`; corregido `guardarActividad`.
+- CORS `http://localhost:3002/api/shell/config`: `theme.js` del CRM tenía el
+  fallback hardcodeado (roto en prod además); ahora `window.location.origin`
+  como en proyectos.
+
+#### Donas SVG nativas (`96ffcef`, `6be8973`, `1cee952`)
+- Helper `renderDonutChart()` reutilizable (dasharray, centro total, leyenda,
+  tooltips). Convertidos: Pérdida por causal, Recurrencia (analítica) y Por
+  tipo + Top ciudades (clientes). Tamaño 132px. Sin backend nuevo.
+
+#### Presupuestos por asesor F1→F3 (`6217979`, `72377da`, `ba1bbe4`)
+- **F1**: mig `038_crm_presupuestos.sql` (`usuario_id, periodo YYYY-MM,
+  presupuesto, centro`, unique), CRUD `/api/presupuestos` (configurar+ventas,
+  upsert), Admin → Presupuestos con month picker. Excel de gerencia quedó
+  como **referencia estructural** (sin importar ni mapear nombres).
+- **F2**: `GET /cumplimiento` (join ganado CRM, scope por rol), banner Mi
+  cumplimiento para asesor, barras por fila en Admin.
+- **F3**: motor de reglas local (proyección lineal, ritmo necesario/día,
+  tendencia vs mes anterior, consejos) en widget solo-asesor. Sin LLM.
+
+#### PWA móvil (30+ commits, feedback Gemini por captura)
+- **F1 quick wins** (`205b2b4`): theme-color, touch 40px `pointer:coarse`,
+  modal full-screen, tbl 640px, `lsGet/lsSet/lsDel`. **OJO**: el `cp` de
+  `components.css` pisó estilos propios → restaurados como override
+  (`56e5e56`). Lección: sync solo si idéntico, si no merge por bloques.
+- **Layout**: `bfd42ab` grid 1fr + sidebar fixed ≤768px (el sticky ocupaba la
+  pista 220px invisible); `8939d4a`/`03b36c6` kpi minmax + svg auto + filtros
+  chips; `f39d8d1` carrusel estricto; `4a7fd46` respiro widgets.
+- **Drawer**: `863da25` overlay `.show` (el JS usaba `.open` inexistente) +
+  botón ✕; luego solo-chevron que cierra en móvil (`9e982c8`, `210577b`);
+  tras debate se ocultó en móvil (`1cf6c78`). Swipe abrir/cerrar
+  (`e89a00c`, `2d7acd0`, umbrales 50/75, predominio horizontal).
+- **Dock iOS26** (`0a8a0ef`→`481ef25`): solo-móvil, Inicio/Ventas/+/
+  Clientes/Ruta, `+` central a cotización, flotante glassmorphism con tinte
+  acento (refuerzo en oscuro), `navigate()` sincroniza active.
+- **Header**: sticky→fixed (`92c6c5a`, el sticky moría por overflow-x hidden),
+  breadcrumb CRM + campana notif (`a2a2fa0`, incluye fix `notifApi` sin `/crm`),
+  theme al sidebar (`ab57b82`).
+- **Tablas-tarjeta** (`5217619`+`91abe4a`+`51ecac2`): thead oculto, filas como
+  cards con `data-label` (inyectado en 8 renders), título destacado, apilado
+  etiqueta-arriba/valor-abajo. Scopado con `:has(checkbox)` para no romper
+  tablas de widgets.
+- **Kanban carrusel** (`40b743b`): 85vw snap centrado, scroll interno 60vh.
+- **Bottom-sheet** (`1833f5f`+`71ca35b`): radius 24px + grabber + slideUp;
+  btn-row sticky al fondo (sin colchón 80px que la dejaba flotando).
+- **Agenda Actividades** (`eb755f7`+`a868e24`+`59577d8`+`6317c9c`): weekly
+  strip −15/+30 con picker 📅 nativo (label+z-index para iOS), timeline con
+  **datos reales** del caché, haptic 40ms, stats como chips, fechas sin desfase
+  TZ (constructor local, no toISOString).
+- **Persistencia** (`fbe435c`): `synnox_ultima_pagina` en `navigate()` +
+  restore post-auth en `init()` (con los helpers seguros).
+- **Replicado** a nómina/logística/proyectos/proveedores/launcher (`57af9f6`).
+
+#### Cotización leads (`8273a7b`)
+- Los leads SÍ llegaban (10/10, 200 OK) pero quedaban enterrados tras 9
+  clientes en un select de 140px. Ahora leads primero con separadores
+  `── LEADS/CLINTES ──`, max-height 220px. Diagnosticado vía Network tab.
+
+#### Pendiente próxima sesión
+- Probar PWA en dispositivo real (iPhone 402px + Android).
+- Permisos y privilegios de usuarios (pospuesto explícitamente).
+- `pm2 restart` en servidor tras `git pull` (PM2 corre como root).
+
 ## Estado (09 Sep 2026 — sesión 56 — build mode)
 
 ### Cambios Sesión 56 — Cotización a lead (simulación) + payloads SIESA para Gemini
