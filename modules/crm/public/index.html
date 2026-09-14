@@ -269,6 +269,10 @@ html,body{overflow-x:clip}
   .kanban{display:flex;flex-wrap:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;padding-bottom:24px !important;min-height:auto !important;width:100vw;margin-left:-12px;padding-left:12px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scroll-padding:12px}
   .kanban::-webkit-scrollbar{display:none}
   .kanban-col{flex:0 0 85vw !important;min-width:85vw !important;max-width:85vw !important;margin-right:12px !important;scroll-snap-align:center;box-sizing:border-box;border-radius:16px !important;max-height:60vh;overflow-y:auto}
+  .modal{padding-bottom:80px !important}
+  .modal select[size]{max-height:180px !important;border-radius:12px !important;background:var(--surface) !important;box-shadow:0 8px 24px rgba(0,0,0,0.12) !important;border:1px solid var(--border) !important;padding:0 !important}
+  .modal select[size] option{padding:14px 12px !important;min-height:44px !important;border-bottom:1px solid var(--border);font-size:13px}
+  .modal select[size] option:last-child{border-bottom:none}
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 }
@@ -1748,7 +1752,7 @@ html,body{overflow-x:clip}
 <nav class="mobile-dock" aria-label="Navegación rápida">
   <button class="dock-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span><span class="text">Inicio</span></button>
   <button class="dock-item" data-page="pipeline" onclick="navigate('pipeline')"><span class="icon">📈</span><span class="text">Ventas</span></button>
-  <button class="dock-item dock-item-main" onclick="abrirModalCotizacion()" aria-label="Nueva cotización"><span class="icon">+</span></button>
+  <button class="dock-item dock-item-main" onclick="abrirModalOportunidad()" aria-label="Nueva oportunidad"><span class="icon">+</span></button>
   <button class="dock-item" data-page="clientes" onclick="navigate('clientes')"><span class="icon">🏢</span><span class="text">Clientes</span></button>
   <button class="dock-item" data-page="visitas" onclick="navigate('visitas')"><span class="icon">📋</span><span class="text">Ruta</span></button>
 </nav>
