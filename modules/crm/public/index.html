@@ -266,6 +266,12 @@ html,body{overflow-x:clip}
   .tbl td{display:flex !important;justify-content:space-between !important;align-items:center !important;text-align:right !important;padding:8px 0 !important;border-bottom:1px dashed var(--surface2) !important}
   .tbl td:last-child{border-bottom:none !important;justify-content:flex-end !important;gap:8px}
   .tbl td::before{content:attr(data-label);font-weight:600;font-size:11px;color:var(--muted);text-transform:uppercase;text-align:left;margin-right:15px}
+  .tbl tr:has(td:first-child input[type="checkbox"]){position:relative;padding-top:40px !important}
+  .tbl tr:has(td:first-child input[type="checkbox"]) td:nth-child(2){position:absolute;top:14px;left:14px;width:calc(100% - 50px) !important;border:none !important;font-size:15px !important;font-weight:700 !important;color:var(--accent) !important;padding:0 !important;justify-content:flex-start !important}
+  .tbl tr:has(td:first-child input[type="checkbox"]) td:nth-child(2)::before{display:none !important}
+  .tbl tr:has(td:first-child input[type="checkbox"]) td:nth-child(1){position:absolute;top:14px;right:14px;width:auto !important;border:none !important;padding:0 !important}
+  .tbl tr:has(td:first-child input[type="checkbox"]) td:last-child{margin-top:8px;padding-top:12px !important;border-top:1px solid var(--border) !important;justify-content:center !important}
+  .tbl tr:has(td:first-child input[type="checkbox"]) td:last-child::before{display:none !important}
   .kanban{display:flex;flex-wrap:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;padding-bottom:24px !important;min-height:auto !important;width:100vw;margin-left:-12px;padding-left:12px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scroll-padding:12px}
   .kanban::-webkit-scrollbar{display:none}
   .kanban-col{flex:0 0 85vw !important;min-width:85vw !important;max-width:85vw !important;margin-right:12px !important;scroll-snap-align:center;box-sizing:border-box;border-radius:16px !important;max-height:60vh;overflow-y:auto}
