@@ -266,6 +266,9 @@ html,body{overflow-x:clip}
   .tbl td{display:flex !important;justify-content:space-between !important;align-items:center !important;text-align:right !important;padding:8px 0 !important;border-bottom:1px dashed var(--surface2) !important}
   .tbl td:last-child{border-bottom:none !important;justify-content:flex-end !important;gap:8px}
   .tbl td::before{content:attr(data-label);font-weight:600;font-size:11px;color:var(--muted);text-transform:uppercase;text-align:left;margin-right:15px}
+  .kanban{display:flex;flex-wrap:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;padding-bottom:24px !important;min-height:auto !important;width:100vw;margin-left:-12px;padding-left:12px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scroll-padding:12px}
+  .kanban::-webkit-scrollbar{display:none}
+  .kanban-col{flex:0 0 85vw !important;min-width:85vw !important;max-width:85vw !important;margin-right:12px !important;scroll-snap-align:center;box-sizing:border-box;border-radius:16px !important;max-height:60vh;overflow-y:auto}
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 }
