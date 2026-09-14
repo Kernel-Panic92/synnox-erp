@@ -4568,7 +4568,7 @@ function toggleSidebar() {
   document.querySelector('.sidebar-overlay').classList.toggle('show');
   if (isMobileView()) {
     const t = document.querySelector('.sidebar-toggle');
-    if (t) { t.textContent = '❯'; t.setAttribute('aria-label', 'Cerrar menú'); }
+    if (t) { t.textContent = '❮'; t.setAttribute('aria-label', 'Cerrar menú'); }
   }
 }
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.querySelector('.sidebar-overlay').classList.remove('show'); }
