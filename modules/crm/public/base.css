@@ -207,8 +207,10 @@ input[type=checkbox] { width: auto; padding: 0; accent-color: var(--accent); cur
 
 /* ── Responsive ── */
 @media (max-width: 768px) {
-  .sidebar { transform: translateX(-100%); width: 260px; }
-  .sidebar.open { transform: translateX(0); }
+  .app-container { grid-template-columns: 1fr !important; }
+  .app-container:has(.sidebar.collapsed) { grid-template-columns: 1fr !important; }
+  .app-container .sidebar { transform: translateX(-100%); width: 260px; position: fixed !important; top: 0; left: 0; bottom: 0; height: 100vh; z-index: 100; }
+  .app-container .sidebar.open { transform: translateX(0); }
   .hamburger { display: inline-flex; }
   .sidebar-overlay { display: none; }
   .sidebar-overlay.show { display: block; }

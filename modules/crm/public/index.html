@@ -147,6 +147,10 @@
   .stats-row{grid-template-columns:repeat(2,1fr)}
   .form-row{grid-template-columns:1fr}
   .kanban{min-height:auto}
+  .app-container{grid-template-columns:1fr !important}
+  .app-container:has(.sidebar.collapsed){grid-template-columns:1fr !important}
+  .sidebar{position:fixed !important;top:0;left:0;bottom:0;height:100vh;transform:translateX(-100%);width:260px;z-index:100}
+  .sidebar.open{transform:translateX(0)}
 }
 .kanban{display:flex;gap:12px;overflow-x:auto;overflow-y:hidden;padding-bottom:12px;min-height:400px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
 .kanban::-webkit-scrollbar{height:6px}
