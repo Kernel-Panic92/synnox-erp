@@ -5215,7 +5215,7 @@ function renderCalendarStrip(baseDateStr = null) {
   const activeDateStr = baseDateStr || window._visitaDiaSel || fechaLocalStr(new Date());
   if (!window._visitaDiaSel) window._visitaDiaSel = activeDateStr;
   const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-  let html = `<div class="calendar-day" style="border:1px dashed var(--accent);position:relative;overflow:hidden;flex:0 0 54px" title="Elegir fecha lejana"><span class="day-number" style="font-size:20px">📅</span><span class="day-name" style="margin-top:2px">Mes</span><input type="date" onchange="renderCalendarStrip(this.value)" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer"></div>`;
+  let html = `<label class="calendar-day" style="border:1px dashed var(--accent);position:relative;overflow:hidden;flex:0 0 54px;margin:0;cursor:pointer" title="Elegir fecha lejana"><span class="day-number" style="font-size:20px">📅</span><span class="day-name" style="margin-top:2px">Mes</span><input type="date" onchange="renderCalendarStrip(this.value)" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0.01;cursor:pointer;z-index:10;padding:0;margin:0"></label>`;
   for (let i = -15; i <= 30; i++) {
     const fecha = new Date(baseDate);
     fecha.setDate(baseDate.getDate() + i);
