@@ -96,7 +96,7 @@ function navigate(page) {
   if (page === 'leads') cargarLeads();
   if (page === 'clientes') cargarClientes();
   if (page === 'contactos') cargarContactos();
-  if (page === 'visitas') cargarVisitas();
+  if (page === 'visitas') { renderCalendarStrip(); cargarVisitas(); }
   if (page === 'cotizaciones') cargarCotizaciones();
   if (page === 'productos') cargarProductos();
   if (page === 'inventario') cargarInventario();
@@ -2619,6 +2619,8 @@ async function cargarVisitas() {
 
   // Agrupar pares por cliente
   const todos = [...pares, ...sinPar];
+  window._visitasTodos = todos;
+  if (window.innerWidth <= 768) renderTimelineVisitas();
   const grupos = {};
   for (const v of todos) {
     const key = v.cliente_nombre || 'Sin cliente';
@@ -5187,3 +5189,77 @@ function formatearTablasParaMovil() {
 }
 window.addEventListener('resize', formatearTablasParaMovil);
 document.addEventListener('DOMContentLoaded', formatearTablasParaMovil);
+
+// ── Agenda móvil Actividades: Weekly Strip + Timeline + Haptic ──
+function esVistaMovil() { return window.innerWidth <= 768; }
+
+function renderCalendarStrip() {
+  const strip = document.getElementById('calendar-strip-container');
+  const timeline = document.getElementById('visitas-timeline');
+  const agrupadas = document.getElementById('visitas-agrupadas');
+  const filtros = document.getElementById('filtros-visitas-desktop');
+  if (!strip || !timeline || !agrupadas) return;
+  if (!esVistaMovil()) { // restore desktop
+    strip.style.display = 'none'; timeline.style.display = 'none';
+    agrupadas.style.display = ''; if (filtros) filtros.style.display = '';
+    return;
+  }
+  strip.style.display = 'flex'; timeline.style.display = 'block';
+  agrupadas.style.display = 'none'; if (filtros) filtros.style.display = 'none';
+  const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+  const hoy = new Date();
+  let sel = window._visitaDiaSel;
+  if (!sel) { sel = hoy.toISOString().split('T')[0]; window._visitaDiaSel = sel; }
+  let html = '';
+  for (let i = -7; i <= 7; i++) {
+    const fecha = new Date(hoy);
+    fecha.setDate(hoy.getDate() + i);
+    const ds = fecha.toISOString().split('T')[0];
+    html += `<div class="calendar-day ${ds === sel ? 'active' : ''}" data-date="${ds}" onclick="seleccionarDiaCalendario(this,'${ds}')"><span class="day-name">${diasSemana[fecha.getDay()]}</span><span class="day-number">${fecha.getDate()}</span></div>`;
+  }
+  strip.innerHTML = html;
+  setTimeout(() => { const a = strip.querySelector('.active'); if (a) a.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); }, 300);
+  renderTimelineVisitas();
+}
+
+function seleccionarDiaCalendario(el, fechaStr) {
+  if (navigator.vibrate) navigator.vibrate(40);
+  document.querySelectorAll('.calendar-day').forEach(x => x.classList.remove('active'));
+  el.classList.add('active');
+  el.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+  window._visitaDiaSel = fechaStr;
+  const d = document.getElementById('filtro-visitas-desde');
+  const h = document.getElementById('filtro-visitas-hasta');
+  if (d) d.value = fechaStr;
+  if (h) h.value = fechaStr;
+  cargarVisitas();
+}
+
+function renderTimelineVisitas() {
+  const timeline = document.getElementById('visitas-timeline');
+  if (!timeline || !esVistaMovil()) return;
+  const dia = window._visitaDiaSel || new Date().toISOString().split('T')[0];
+  const items = (window._visitasTodos || [])
+    .filter(v => String(v.fecha || '').slice(0, 10) === dia)
+    .sort((a, b) => String(a.fecha).localeCompare(String(b.fecha)));
+  if (!items.length) {
+    timeline.innerHTML = `<div class="empty-state"><div class="icon">☕</div><p>No tienes actividades programadas para este día.<br>¡Tómate un descanso o busca nuevos leads!</p></div>`;
+    return;
+  }
+  timeline.innerHTML = items.map(v => {
+    const payload = JSON.stringify({ ...v, checkout: v.checkout || null }).replace(/"/g, '&quot;');
+    return `<div class="timeline-item" style="cursor:pointer" onclick="verDetalleVisita(${payload})">
+      <div class="timeline-time">${formatDateTime(v.fecha)}${v.checkout ? ' → ' + formatDateTime(v.checkout.fecha) : ' · En curso'}</div>
+      <div class="timeline-title">${esc(v.cliente_nombre || 'Sin cliente')}</div>
+      <div class="timeline-client">⏱️ ${esc(v.duracion || '—')}${v.latitud ? ` · <a href="https://www.google.com/maps?q=${v.latitud},${v.longitud}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📍 Maps</a>` : ''}${v.evidencia_foto ? ` · <a href="${v.evidencia_foto}" target="_blank" rel="noopener" onclick="event.stopPropagation()">📷</a>` : ''}</div>
+      ${v.notas ? `<div style="font-size:12px;color:var(--muted);margin-top:6px">${esc(v.notas)}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+window.addEventListener('resize', () => {
+  if (document.getElementById('page-visitas')?.classList.contains('active')) renderCalendarStrip();
+});
+document.addEventListener('DOMContentLoaded', () => {
+  if (document.getElementById('page-visitas')?.classList.contains('active')) renderCalendarStrip();
+});

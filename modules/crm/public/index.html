@@ -280,6 +280,22 @@ html,body{overflow-x:clip}
   .modal select[size]{max-height:180px !important;border-radius:12px !important;background:var(--surface) !important;box-shadow:0 8px 24px rgba(0,0,0,0.12) !important;border:1px solid var(--border) !important;padding:0 !important}
   .modal select[size] option{padding:14px 12px !important;min-height:44px !important;border-bottom:1px solid var(--border);font-size:13px}
   .modal select[size] option:last-child{border-bottom:none}
+  .calendar-strip{display:flex;overflow-x:auto;gap:12px;padding:10px 12px 20px 12px;-webkit-overflow-scrolling:touch;border-bottom:1px solid var(--border);margin:0 -12px 16px -12px;scrollbar-width:none}
+  .calendar-strip::-webkit-scrollbar{display:none}
+  .calendar-day{flex:0 0 54px;height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:24px;background:var(--surface);border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all 0.2s ease;user-select:none}
+  .calendar-day.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 4px 10px rgba(16,185,129,0.3);transform:translateY(-2px)}
+  .calendar-day .day-name{font-size:10px;text-transform:uppercase;font-weight:700;margin-bottom:4px}
+  .calendar-day .day-number{font-size:18px;font-weight:800}
+  .timeline{position:relative;padding-left:20px;margin-top:16px;padding-bottom:24px}
+  .timeline::before{content:'';position:absolute;top:0;left:6px;width:2px;height:100%;background:var(--border)}
+  .timeline-item{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 4px 12px rgba(0,0,0,0.03)}
+  .timeline-item::before{content:'';position:absolute;top:20px;left:-19px;width:10px;height:10px;border-radius:50%;background:var(--accent);border:3px solid var(--surface2)}
+  .timeline-time{font-size:11px;font-weight:800;color:var(--accent);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px}
+  .timeline-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px}
+  .timeline-client{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+  .empty-state .icon{font-size:48px;margin-bottom:16px;opacity:0.4}
+  .empty-state p{font-size:14px;line-height:1.5;font-weight:500}
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 }
@@ -615,7 +631,7 @@ html,body{overflow-x:clip}
             <button class="btn btn-sm btn-primary" onclick="abrirModalCrearActividad()">+ Nueva Actividad</button>
           </div>
         </div>
-        <div class="filters">
+        <div class="filters" id="filtros-visitas-desktop">
           <select id="filtro-visitas-vendedor" onchange="cargarVisitas()">
             <option value="">Todos los vendedores</option>
           </select>
@@ -623,8 +639,10 @@ html,body{overflow-x:clip}
           <input type="date" id="filtro-visitas-hasta" onchange="cargarVisitas()">
           <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosVisitas()">✕ Limpiar</button>
         </div>
+        <div id="calendar-strip-container" class="calendar-strip" style="display:none"></div>
         <div id="visitas-resumen" style="margin-bottom:16px"></div>
         <div id="visitas-agrupadas"></div>
+        <div id="visitas-timeline" class="timeline" style="display:none"></div>
       </div>
 
       <!-- Cotizaciones -->
