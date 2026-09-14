@@ -55,6 +55,7 @@
 #sidebar-nav::-webkit-scrollbar{width:4px}
 #sidebar-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px}
 .sidebar-header{flex-shrink:0}
+.sidebar-close{display:none}
 .sidebar-footer{margin-top:auto;padding-bottom:12px;display:flex;flex-direction:column;gap:6px}
 .sidebar.collapsed .sidebar-footer{gap:4px}
 .sidebar.collapsed .btn-logout{width:42px;height:42px;margin:4px auto;border-radius:8px;justify-content:center;padding:0}
@@ -217,6 +218,8 @@ html,body{overflow-x:clip}
   .chart-card > div,.chart-card .progress-bar,.chart-card table{max-width:100% !important;box-sizing:border-box}
   .sidebar{width:260px !important}
   .sidebar-toggle{display:none !important}
+  .sidebar-close{display:flex !important;width:32px;height:32px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--muted);align-items:center;justify-content:center;cursor:pointer;font-size:14px}
+  .sidebar-header{justify-content:flex-end !important}
   .sidebar.collapsed .nav-text,.sidebar.collapsed .logo span{display:inline-block !important}
   .sidebar.collapsed .nav-item,.sidebar.collapsed .btn-logout,.sidebar.collapsed .sidebar-home{width:100% !important;justify-content:flex-start !important;padding:8px 16px !important;border-radius:0 !important;background:transparent !important;border:none !important}
   .sidebar.collapsed .nav-item .icon,.sidebar.collapsed .btn-logout .icon,.sidebar.collapsed .sidebar-home .icon{margin-right:12px !important;font-size:inherit !important}
@@ -232,6 +235,7 @@ html,body{overflow-x:clip}
 <aside class="sidebar" id="sidebar">
   <div class="sidebar-header">
     <button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Contraer menú" aria-expanded="true">❮</button>
+    <button class="sidebar-close" onclick="closeSidebar()" aria-label="Cerrar menú">✕</button>
   </div>
   <div class="logo" data-module-id="crm"><img src="/media/LogoERP.png" alt="Logo"> <span data-module-name>SynnoxERP</span></div>
   <nav id="sidebar-nav" aria-label="Navegación CRM">
