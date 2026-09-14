@@ -5193,7 +5193,10 @@ document.addEventListener('DOMContentLoaded', formatearTablasParaMovil);
 // ── Agenda móvil Actividades: Weekly Strip + Timeline + Haptic ──
 function esVistaMovil() { return window.innerWidth <= 768; }
 
-function renderCalendarStrip() {
+function fechaLocalStr(d) {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+function renderCalendarStrip(baseDateStr = null) {
   const strip = document.getElementById('calendar-strip-container');
   const timeline = document.getElementById('visitas-timeline');
   const agrupadas = document.getElementById('visitas-agrupadas');
@@ -5206,20 +5209,28 @@ function renderCalendarStrip() {
   }
   strip.style.display = 'flex'; timeline.style.display = 'block';
   agrupadas.style.display = 'none'; if (filtros) filtros.style.display = 'none';
+  // Fecha base: la elegida en el picker, o la del día seleccionado, o hoy (T12 evita desfase horario)
+  const baseDate = baseDateStr ? new Date(baseDateStr + 'T12:00:00')
+    : window._visitaDiaSel ? new Date(window._visitaDiaSel + 'T12:00:00') : new Date();
+  const activeDateStr = baseDateStr || window._visitaDiaSel || fechaLocalStr(new Date());
+  if (!window._visitaDiaSel) window._visitaDiaSel = activeDateStr;
   const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-  const hoy = new Date();
-  let sel = window._visitaDiaSel;
-  if (!sel) { sel = hoy.toISOString().split('T')[0]; window._visitaDiaSel = sel; }
-  let html = '';
-  for (let i = -7; i <= 7; i++) {
-    const fecha = new Date(hoy);
-    fecha.setDate(hoy.getDate() + i);
-    const ds = fecha.toISOString().split('T')[0];
-    html += `<div class="calendar-day ${ds === sel ? 'active' : ''}" data-date="${ds}" onclick="seleccionarDiaCalendario(this,'${ds}')"><span class="day-name">${diasSemana[fecha.getDay()]}</span><span class="day-number">${fecha.getDate()}</span></div>`;
+  let html = `<div class="calendar-day" style="border:1px dashed var(--accent);position:relative;overflow:hidden;flex:0 0 54px" title="Elegir fecha lejana"><span class="day-number" style="font-size:20px">📅</span><span class="day-name" style="margin-top:2px">Mes</span><input type="date" onchange="renderCalendarStrip(this.value)" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0;cursor:pointer"></div>`;
+  for (let i = -15; i <= 30; i++) {
+    const fecha = new Date(baseDate);
+    fecha.setDate(baseDate.getDate() + i);
+    const ds = fechaLocalStr(fecha);
+    html += `<div class="calendar-day ${ds === activeDateStr ? 'active' : ''}" data-date="${ds}" onclick="seleccionarDiaCalendario(this,'${ds}')"><span class="day-name">${diasSemana[fecha.getDay()]}</span><span class="day-number">${fecha.getDate()}</span></div>`;
   }
   strip.innerHTML = html;
-  setTimeout(() => { const a = strip.querySelector('.active'); if (a) a.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); }, 300);
-  renderTimelineVisitas();
+  setTimeout(() => { const a = strip.querySelector('.active'); if (a) a.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' }); }, 100);
+  if (baseDateStr) {
+    const nodo = strip.querySelector('.active');
+    if (nodo) seleccionarDiaCalendario(nodo, baseDateStr);
+    else renderTimelineVisitas();
+  } else {
+    renderTimelineVisitas();
+  }
 }
 
 function seleccionarDiaCalendario(el, fechaStr) {
