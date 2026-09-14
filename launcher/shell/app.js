@@ -4364,7 +4364,7 @@ function toggleAdminSidebar() {
 }
 (function initAdminSidebarSwipe() {
   let _sx = null, _sy = null;
-  const EDGE = 28, MIN_DX = 60, MAX_DY = 50;
+  const EDGE = 40, MIN_DX = 50, MAX_DY = 75;
   document.addEventListener('touchstart', (e) => {
     if (e.touches.length !== 1) { _sx = null; return; }
     _sx = e.touches[0].clientX; _sy = e.touches[0].clientY;
@@ -4376,8 +4376,9 @@ function toggleAdminSidebar() {
     const dx = t.clientX - startX, dy = Math.abs(t.clientY - _sy);
     const sb = document.getElementById('admin-sidebar');
     _sx = null;
-    if (!sb || dy > MAX_DY) return;
-    if (startX <= EDGE && dx > MIN_DX && !sb.classList.contains('open')
-        && document.getElementById('admin-screen')?.style.display !== 'none') openAdminSidebar();
+    if (!sb || dy > MAX_DY || Math.abs(dx) <= dy) return;
+    if (document.getElementById('admin-screen')?.style.display === 'none') return;
+    if (dx > MIN_DX && startX <= EDGE && !sb.classList.contains('open')) openAdminSidebar();
+    else if (dx < -MIN_DX && sb.classList.contains('open')) closeAdminSidebar();
   }, { passive: true });
 })();
