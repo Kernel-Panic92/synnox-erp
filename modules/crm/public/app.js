@@ -4562,9 +4562,18 @@ function toggleSelectAll(checkbox, tipo) {
   document.querySelectorAll(`.select-${tipo}`).forEach(cb => { cb.checked = checkbox.checked; });
 }
 
-function toggleSidebar() { document.getElementById('sidebar').classList.toggle('open'); document.querySelector('.sidebar-overlay').classList.toggle('show'); }
+const isMobileView = () => window.matchMedia('(max-width: 768px)').matches;
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.querySelector('.sidebar-overlay').classList.toggle('show');
+  if (isMobileView()) {
+    const t = document.querySelector('.sidebar-toggle');
+    if (t) { t.textContent = '❯'; t.setAttribute('aria-label', 'Cerrar menú'); }
+  }
+}
 function closeSidebar() { document.getElementById('sidebar').classList.remove('open'); document.querySelector('.sidebar-overlay').classList.remove('show'); }
 function toggleSidebarCollapse() {
+  if (isMobileView()) { closeSidebar(); return; }
   const sidebar = document.getElementById('sidebar');
   const container = document.getElementById('app-container');
   sidebar.classList.toggle('collapsed');
