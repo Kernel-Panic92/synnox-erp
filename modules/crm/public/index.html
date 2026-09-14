@@ -263,9 +263,10 @@ html,body{overflow-x:clip}
   .tbl,.table-card table,.tbl tbody,.tbl tr,.tbl td{display:block !important;width:100% !important;min-width:0 !important;box-sizing:border-box}
   .tbl thead{display:none !important}
   .tbl tr{margin-bottom:16px !important;background:var(--surface) !important;border:1px solid var(--border) !important;border-radius:12px !important;padding:12px !important;box-shadow:0 4px 12px rgba(0,0,0,0.03)}
-  .tbl td{display:flex !important;justify-content:space-between !important;align-items:center !important;text-align:right !important;padding:8px 0 !important;border-bottom:1px dashed var(--surface2) !important}
+  .tbl td{display:flex !important;flex-direction:column !important;align-items:flex-start !important;text-align:left !important;padding:8px 0 !important;border-bottom:1px dashed var(--surface2) !important;font-size:14px !important;color:var(--text) !important}
   .tbl td:last-child{border-bottom:none !important;justify-content:flex-end !important;gap:8px}
-  .tbl td::before{content:attr(data-label);font-weight:600;font-size:11px;color:var(--muted);text-transform:uppercase;text-align:left;margin-right:15px}
+  .tbl td::before{content:attr(data-label);font-weight:700;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;text-align:left;margin-right:0 !important;margin-bottom:4px}
+  .tbl td:last-child{flex-direction:row !important;justify-content:center !important;padding-top:16px !important;margin-top:8px;border-top:1px solid var(--border) !important}
   .tbl tr:has(td:first-child input[type="checkbox"]){position:relative;padding-top:40px !important}
   .tbl tr:has(td:first-child input[type="checkbox"]) td:nth-child(2){position:absolute;top:14px;left:14px;width:calc(100% - 50px) !important;border:none !important;font-size:15px !important;font-weight:700 !important;color:var(--accent) !important;padding:0 !important;justify-content:flex-start !important}
   .tbl tr:has(td:first-child input[type="checkbox"]) td:nth-child(2)::before{display:none !important}
