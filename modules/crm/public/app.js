@@ -50,7 +50,8 @@ async function init() {
       const vd = await v.json();
       document.getElementById('app-version').textContent = 'v' + (vd.version || '?');
     } catch {}
-    navigate('dashboard');
+    const ultima = lsGet('synnox_ultima_pagina');
+    navigate(pages.includes(ultima) ? ultima : 'dashboard');
   } catch { mostrarLogin(); }
 }
 
@@ -79,6 +80,7 @@ function mostrarLogoutConfirm() {
 const pages = ['dashboard', 'pipeline', 'leads', 'clientes', 'contactos', 'visitas', 'cotizaciones', 'productos', 'inventario', 'importar', 'descuentos', 'admin'];
 function navigate(page) {
   if (!pages.includes(page)) page = 'dashboard';
+  lsSet('synnox_ultima_pagina', page);
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   document.querySelectorAll('.nav-item').forEach(n => { n.classList.remove('active'); n.removeAttribute('aria-current'); });
   document.querySelectorAll('.dock-item[data-page]').forEach(d => d.classList.remove('active'));
