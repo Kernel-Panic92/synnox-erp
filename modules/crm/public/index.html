@@ -233,7 +233,7 @@ html,body{overflow-x:clip}
   .main-body{padding-bottom:calc(100px + env(safe-area-inset-bottom)) !important}
   .bulk-bar{bottom:calc(89px + env(safe-area-inset-bottom)) !important}
   .page-actions .btn-primary{bottom:calc(89px + env(safe-area-inset-bottom)) !important}
-  .mobile-dock{display:flex;position:fixed;bottom:0;left:0;width:100%;background:var(--surface);border-top:1px solid var(--border);justify-content:space-around;align-items:center;padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -2px 10px rgba(0,0,0,0.05);z-index:200;height:65px}
+  .mobile-dock{display:flex;position:fixed;bottom:calc(10px + env(safe-area-inset-bottom));left:12px;right:12px;width:auto;background:color-mix(in srgb, var(--surface) 82%, transparent);-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);border:1px solid var(--border);border-radius:22px;justify-content:space-around;align-items:center;padding:6px 8px calc(6px + env(safe-area-inset-bottom));box-shadow:0 8px 28px rgba(0,0,0,0.28);z-index:200;min-height:65px}
   .dock-item{display:flex;flex-direction:column;align-items:center;justify-content:center;background:transparent;border:none;color:var(--muted);flex:1;height:100%;cursor:pointer;transition:color 0.2s;font-family:inherit;padding:0}
   .dock-item .icon{font-size:20px;margin-bottom:4px;transition:transform 0.2s;line-height:1}
   .dock-item .text{font-size:10px;font-weight:600}
@@ -277,6 +277,7 @@ html,body{overflow-x:clip}
     <button class="nav-item admin-item" data-page="admin" onclick="navigate('admin')" title="Admin" data-tooltip="Admin"><span class="icon">⚙️</span> <span class="nav-text">Admin</span></button>
   </nav>
   <div class="sidebar-footer">
+    <button class="sidebar-home" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema" data-tooltip="Cambiar tema" style="background:none;border:none;width:100%;cursor:pointer;font-family:inherit;font-size:inherit"><span class="icon">☀️</span> <span class="nav-text">Tema</span></button>
     <a class="sidebar-home" href="/" title="Home" data-tooltip="Home"><span class="icon">🏠</span> <span class="nav-text">Home</span></a>
     <div class="user-name" id="sidebar-user-name"></div>
     <div class="user-role" id="sidebar-user-role"></div>
@@ -296,7 +297,6 @@ html,body{overflow-x:clip}
         <button class="btn btn-sm btn-secondary" onclick="volverDesdeAdmin()" id="btn-volver-admin" style="display:none">← Volver a Admin</button>
       </div>
       <div class="header-actions" style="display:flex;align-items:center;padding-right:16px;height:100%">
-        <button class="btn btn-sm btn-secondary" onclick="toggleTheme()" id="theme-btn" title="Cambiar tema" style="display:flex;align-items:center;justify-content:center;margin-top:0">☀️</button>
       </div>
     </div>
     <div class="main-body">
@@ -1721,7 +1721,7 @@ html,body{overflow-x:clip}
 <nav class="mobile-dock" aria-label="Navegación rápida">
   <button class="dock-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span><span class="text">Inicio</span></button>
   <button class="dock-item" data-page="pipeline" onclick="navigate('pipeline')"><span class="icon">📈</span><span class="text">Ventas</span></button>
-  <button class="dock-item dock-item-main" onclick="abrirModalLead()" aria-label="Nuevo lead"><span class="icon">+</span></button>
+  <button class="dock-item dock-item-main" onclick="abrirModalCotizacion()" aria-label="Nueva cotización"><span class="icon">+</span></button>
   <button class="dock-item" data-page="clientes" onclick="navigate('clientes')"><span class="icon">🏢</span><span class="text">Clientes</span></button>
   <button class="dock-item" data-page="visitas" onclick="navigate('visitas')"><span class="icon">📋</span><span class="text">Ruta</span></button>
 </nav>
