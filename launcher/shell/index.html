@@ -290,7 +290,13 @@
   #admin-screen .sidebar.collapsed .sidebar-home:hover,#admin-screen .sidebar.collapsed .btn-logout:hover{background:var(--surface2)}
   .header-actions{display:flex;align-items:center;justify-content:center;padding-right:16px;height:100%}
   html,body{overflow-x:clip}
+  #admin-screen .admin-topbar{display:none;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface)}
+  #admin-screen .admin-topbar .hamburger{display:none;background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;padding:4px;line-height:1}
+  #admin-screen #admin-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99}
+  #admin-screen #admin-overlay.show{display:block}
   @media(max-width:768px){
+    #admin-screen .admin-topbar{display:flex}
+    #admin-screen .admin-topbar .hamburger{display:inline-flex}
     #admin-screen .app-container{grid-template-columns:1fr !important}
     #admin-screen .sidebar{transform:translateX(-100%);transition:transform 0.25s;position:fixed !important;top:0;left:0;bottom:0;height:100vh;z-index:100}
     #admin-screen .sidebar.open{transform:translateX(0);}
@@ -568,6 +574,11 @@
     </div>
   </aside>
   <div class="admin-main">
+    <div class="admin-topbar">
+      <button class="hamburger" onclick="toggleAdminSidebar()" aria-label="Abrir menú">☰</button>
+      <strong>Administración</strong>
+    </div>
+    <div class="sidebar-overlay" id="admin-overlay" onclick="closeAdminSidebar()"></div>
     <div class="dash-body">
   <div class="tab-content active" id="tab-usuarios">
     <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">

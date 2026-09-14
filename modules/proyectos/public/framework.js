@@ -750,3 +750,27 @@ function activarNotificaciones() {
     }
   });
 }
+
+// ── Gestos táctiles: swipe desde borde izquierdo abre el sidebar ──
+function openSidebar() {
+  document.getElementById('sidebar')?.classList.add('open');
+  document.querySelector('.sidebar-overlay')?.classList.add('show');
+}
+(function initSidebarSwipe() {
+  let _sx = null, _sy = null;
+  const EDGE = 28, MIN_DX = 60, MAX_DY = 50;
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) { _sx = null; return; }
+    _sx = e.touches[0].clientX; _sy = e.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (_sx === null) return;
+    const startX = _sx;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - startX, dy = Math.abs(t.clientY - _sy);
+    const sb = document.getElementById('sidebar');
+    _sx = null;
+    if (!sb || dy > MAX_DY) return;
+    if (startX <= EDGE && dx > MIN_DX && !sb.classList.contains('open')) openSidebar();
+  }, { passive: true });
+})();
