@@ -231,7 +231,7 @@ html,body{overflow-x:clip}
   .sidebar,.sidebar.collapsed{max-width:80vw !important}
   .page-actions .btn-primary{position:fixed !important;bottom:max(24px, env(safe-area-inset-bottom));right:20px;width:56px;height:56px;border-radius:50% !important;font-size:0 !important;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:90;display:flex;align-items:center;justify-content:center;padding:0 !important}
   .page-actions .btn-primary::after{content:'+';font-size:32px;font-weight:300;line-height:1;color:#fff}
-  .modal .btn-row{position:sticky;bottom:-16px;background:var(--surface);padding:16px;margin:16px -16px -16px -16px;border-top:1px solid var(--border);z-index:10}
+  .modal .btn-row{position:sticky;bottom:0 !important;margin:24px -16px 0 -16px !important;padding:16px 16px calc(16px + env(safe-area-inset-bottom)) !important;background:var(--surface) !important;border-top:1px solid var(--border);box-shadow:0 -4px 16px rgba(0,0,0,0.06);z-index:200;border-radius:0}
   .main-body{padding-bottom:calc(100px + env(safe-area-inset-bottom)) !important}
   .bulk-bar{bottom:calc(89px + env(safe-area-inset-bottom)) !important}
   .page-actions .btn-primary{bottom:calc(89px + env(safe-area-inset-bottom)) !important}
@@ -269,7 +269,7 @@ html,body{overflow-x:clip}
   .kanban{display:flex;flex-wrap:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;padding-bottom:24px !important;min-height:auto !important;width:100vw;margin-left:-12px;padding-left:12px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scroll-padding:12px}
   .kanban::-webkit-scrollbar{display:none}
   .kanban-col{flex:0 0 85vw !important;min-width:85vw !important;max-width:85vw !important;margin-right:12px !important;scroll-snap-align:center;box-sizing:border-box;border-radius:16px !important;max-height:60vh;overflow-y:auto}
-  .modal{padding-bottom:80px !important}
+  .modal{padding-bottom:0 !important}
   .modal select[size]{max-height:180px !important;border-radius:12px !important;background:var(--surface) !important;box-shadow:0 8px 24px rgba(0,0,0,0.12) !important;border:1px solid var(--border) !important;padding:0 !important}
   .modal select[size] option{padding:14px 12px !important;min-height:44px !important;border-bottom:1px solid var(--border);font-size:13px}
   .modal select[size] option:last-child{border-bottom:none}
