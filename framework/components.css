@@ -17,6 +17,14 @@ button, .btn {
 .btn-icon { width: 36px; height: 36px; padding: 0; justify-content: center; border-radius: 8px; }
 .btn-action { width: 32px; height: 32px; padding: 0; justify-content: center; align-items: center; display: inline-flex; line-height: 1; vertical-align: middle; border-radius: 8px; }
 
+/* ── Touch targets (solo táctil, desktop intacto) ── */
+@media (pointer: coarse) {
+  .btn-action { width: 40px; height: 40px; }
+  .btn-sm { padding: 10px 16px; font-size: 14px; }
+  .btn-icon { width: 44px; height: 44px; }
+  .tbl-actions { gap: 8px; }
+}
+
 /* ── Table actions group (icon-only, accessible) ── */
 .tbl-actions { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
 
@@ -54,6 +62,7 @@ button, .btn {
 /* ── Tables ── */
 .tbl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; overflow-x: auto; }
 .tbl { width: 100%; border-collapse: collapse; }
+.tbl-wrap .tbl { min-width: 640px; }
 .tbl th { text-align: left; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; padding: 10px 12px; border-bottom: 1px solid var(--border); font-weight: 600; }
 .tbl th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
 .tbl th.sortable:hover { color: var(--text); }

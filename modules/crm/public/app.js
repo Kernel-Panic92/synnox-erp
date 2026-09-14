@@ -1,4 +1,8 @@
 let usuario = null;
+// localStorage seguro (modo privado iOS/Android puede lanzar)
+function lsGet(k) { try { return localStorage.getItem(k); } catch { return null; } }
+function lsSet(k, v) { try { localStorage.setItem(k, v); } catch {} }
+function lsDel(k) { try { localStorage.removeItem(k); } catch {} }
 let _clientesPage = 1;
 let clientesLimit = 20;
 let _contactosPage = 1;
@@ -11,7 +15,7 @@ async function cargarNombreModulo() {
   const nombreEl = logo?.querySelector('[data-module-name]');
   if (!logo || !nombreEl) return;
   try {
-    const token = localStorage.getItem('launcher_jwt');
+    const token = lsGet('launcher_jwt');
     const headers = token ? { Authorization: 'Bearer ' + token } : {};
     const res = await fetch('/api/modulos', { credentials: 'include', headers });
     if (!res.ok) return;
@@ -64,7 +68,7 @@ function mostrarLogin() {
 function mostrarLogoutConfirm() {
   confirmar({ titulo: 'Cerrar sesión', mensaje: '¿Cerrar sesión?', icono: '⏻', onConfirm: () => {
     document.cookie.split(';').forEach(c => { document.cookie = c.replace(/^ +/, '').replace(/=.*/, '=;expires=' + new Date().toUTCString() + ';path=/'); });
-    localStorage.removeItem('launcher_jwt');
+    lsDel('launcher_jwt');
     window.location.href = '/';
   }});
 }
@@ -1964,7 +1968,7 @@ async function subirLeadAdjuntos(){
   const btn=document.querySelector('button[onclick="subirLeadAdjuntos()"]');
   if(btn){ btn.disabled=true; btn.textContent='Subiendo...'; }
   try{
-    const _authT3 = localStorage.getItem('launcher_jwt');
+    const _authT3 = lsGet('launcher_jwt');
     const r=await fetch(HF.API+'/leads/'+leadId+'/adjuntos',{ method:'POST', credentials:'include', headers: _authT3 ? { Authorization: 'Bearer ' + _authT3 } : {}, body: fd });
     const j=await r.json().catch(()=>({}));
     if(!r.ok) return toast(j.error||'Error al subir','error');
@@ -2333,7 +2337,7 @@ async function guardarLead() {
       fd.append('archivos', p.file);
       fd.append('tipo', p.tipo);
       try{
-        const _authT4 = localStorage.getItem('launcher_jwt');
+        const _authT4 = lsGet('launcher_jwt');
         const rr=await fetch(HF.API+'/leads/'+newId+'/adjuntos',{ method:'POST', credentials:'include', headers: _authT4 ? { Authorization: 'Bearer ' + _authT4 } : {}, body: fd });
         const jj=await rr.json().catch(()=>({}));
         if(rr.ok) okCount+= jj.data?.length||1;
@@ -2936,7 +2940,7 @@ async function guardarActividad() {
   if (foto) fd.append('foto', foto);
 
   btn.disabled = true; btn.textContent = 'Guardando...';
-  const _authT = localStorage.getItem('launcher_jwt');
+  const _authT = lsGet('launcher_jwt');
   const r = await fetch(HF.API + '/visitas/actividades', { method: 'POST', credentials: 'include', headers: _authT ? { Authorization: 'Bearer ' + _authT } : {}, body: fd });
   const data = await r.json().catch(() => ({}));
   btn.disabled = false; btn.textContent = 'Guardar';
@@ -3046,7 +3050,7 @@ async function guardarVisita() {
   const foto = document.getElementById('visita-foto').files[0];
   if (foto) formData.append('foto', foto);
 
-  const _authT2 = localStorage.getItem('launcher_jwt');
+  const _authT2 = lsGet('launcher_jwt');
   const r = await fetch(HF.API + '/visitas/' + tipo, {
     method: 'POST',
     credentials: 'include',
@@ -4462,7 +4466,7 @@ async function ejecutarImportacion() {
     // Doble auth como el resto del CRM (apiFetch): cookie httpOnly + Bearer.
     // El POST antes solo mandaba cookie y devolvía 401 'Token requerido'
     // cuando la cookie faltaba/estaba vencida aunque hubiera token válido.
-    const authToken = localStorage.getItem('launcher_jwt');
+    const authToken = lsGet('launcher_jwt');
     const response = await fetch(HF.API + '/importar', {
       method: 'POST',
       credentials: 'include',
@@ -4565,7 +4569,7 @@ function toggleSidebarCollapse() {
   const container = document.getElementById('app-container');
   sidebar.classList.toggle('collapsed');
   if (container) container.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
-  localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
+  lsSet('sidebar_collapsed', sidebar.classList.contains('collapsed'));
   const toggle = document.querySelector('.sidebar-toggle');
   if (toggle) {
     const col = sidebar.classList.contains('collapsed');
@@ -4575,7 +4579,7 @@ function toggleSidebarCollapse() {
   }
 }
 document.addEventListener('DOMContentLoaded', () => {
-  if (localStorage.getItem('sidebar_collapsed') === 'true') {
+  if (lsGet('sidebar_collapsed') === 'true') {
     document.getElementById('sidebar')?.classList.add('collapsed');
     document.getElementById('app-container')?.classList.add('sidebar-collapsed');
     const t = document.querySelector('.sidebar-toggle'); if (t) { t.textContent = '❯'; t.setAttribute('aria-expanded', 'false'); t.setAttribute('aria-label', 'Expandir menú'); }

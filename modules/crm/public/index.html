@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#0d0f14">
 <title>CRM — SynnoxERP</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="base.css">
@@ -134,6 +135,7 @@
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;justify-content:center;align-items:center}
 .modal-overlay.active{display:flex}
 .modal{background:var(--surface);border-radius:12px;padding:24px;width:90%;max-width:600px;max-height:85vh;overflow-y:auto;border:1px solid var(--border)}
+@media(max-width:480px){.modal{width:100%;max-width:100%;max-height:100dvh;height:100dvh;margin:0;border-radius:0;padding:16px}}
 .modal h3{margin:0 0 16px;font-size:18px}
 .form-group{margin-bottom:14px}
 .form-group label{display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:var(--muted)}

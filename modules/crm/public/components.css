@@ -17,6 +17,14 @@ button, .btn {
 .btn-icon { width: 36px; height: 36px; padding: 0; justify-content: center; border-radius: 8px; }
 .btn-action { width: 32px; height: 32px; padding: 0; justify-content: center; align-items: center; display: inline-flex; line-height: 1; vertical-align: middle; border-radius: 8px; }
 
+/* ── Touch targets (solo táctil, desktop intacto) ── */
+@media (pointer: coarse) {
+  .btn-action { width: 40px; height: 40px; }
+  .btn-sm { padding: 10px 16px; font-size: 14px; }
+  .btn-icon { width: 44px; height: 44px; }
+  .tbl-actions { gap: 8px; }
+}
+
 /* ── Table actions group (icon-only, accessible) ── */
 .tbl-actions { display: inline-flex; gap: 6px; align-items: center; white-space: nowrap; }
 
@@ -28,12 +36,24 @@ button, .btn {
 }
 .btn-logout:hover { background: rgba(247,97,79,.15); border-color: var(--danger); }
 
-/* ── Stats Cards ── */
-.stats-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 14px; margin-bottom: 24px; }
-.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; }
-.stat-card .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; }
-.stat-card .stat-value { font-size: 28px; font-weight: 700; font-family: var(--font-head); margin: 4px 0; }
-.stat-card .stat-sub { font-size: 12px; color: var(--muted); }
+/* ── Stats Cards (Nómina-style, reusable) ── */
+.stats-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; margin-bottom: 12px; }
+.stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; position: relative; overflow: hidden; text-align: center; }
+.stat-card::before { content: ''; position: absolute; top: -20px; right: -20px; width: 80px; height: 80px; border-radius: 50%; opacity: 0.07; }
+.stat-card:nth-child(1)::before { background: var(--accent); }
+.stat-card:nth-child(2)::before { background: var(--accent2); }
+.stat-card:nth-child(3)::before { background: var(--success); }
+.stat-card:nth-child(4)::before { background: var(--warning); }
+.stat-card:nth-child(5)::before { background: #a06af7; }
+.stat-card:nth-child(6)::before { background: var(--accent); }
+.stat-card:nth-child(7)::before { background: var(--success); }
+.stat-card:nth-child(8)::before { background: var(--warning); }
+.stat-card .stat-label { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 2px; text-align: center; }
+.stat-card .stat-value { font-family: var(--font-body); font-size: 20px; font-weight: 700; letter-spacing: 0; line-height: 1.1; text-align: center; }
+.stat-card .stat-value.blue { color: var(--accent); } .stat-card .stat-value.orange { color: var(--accent2); }
+.stat-card .stat-value.green { color: var(--success); } .stat-card .stat-value.yellow { color: var(--warning); }
+.stat-card .stat-value.purple { color: #a06af7; } .stat-card .stat-value.red { color: var(--danger); }
+.stat-card .stat-sub { font-size: 10px; color: var(--muted); text-align: center; line-height: 1.2; }
 
 /* ── Cards ── */
 .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 18px; overflow: hidden; }
@@ -42,53 +62,13 @@ button, .btn {
 /* ── Tables ── */
 .tbl-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; overflow-x: auto; }
 .tbl { width: 100%; border-collapse: collapse; }
+.tbl-wrap .tbl { min-width: 640px; }
 .tbl th { text-align: left; font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; padding: 10px 12px; border-bottom: 1px solid var(--border); font-weight: 600; }
 .tbl th.sortable { cursor: pointer; user-select: none; white-space: nowrap; }
 .tbl th.sortable:hover { color: var(--text); }
 .tbl th .sort-indicator { font-size: 10px; margin-left: 2px; }
 .tbl td { padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 14px; vertical-align: middle; }
-.tbl td:last-child { white-space: nowrap; }
-.tbl td:last-child .btn { display: inline-flex; width: 32px; height: 32px; padding: 0; justify-content: center; align-items: center; line-height: 1; vertical-align: middle; }
 .tbl tr:hover { background: rgba(255,255,255,.02); }
-.row-no-erp { background: rgba(220,38,38,0.07); }
-.row-no-erp:hover { background: rgba(220,38,38,0.11); }
-.row-no-erp td:first-child { border-left: 3px solid var(--danger); }
-
-/* Tablas scrollables con header fijo y responsive */
-.tbl-scrollable { max-height: 420px; overflow-y: auto; overflow-x: hidden; container-type: inline-size; container-name: tbl-responsive; }
-.tbl-scrollable .tbl { width: 100%; table-layout: fixed; }
-.tbl-scrollable .tbl thead th { position: sticky; top: 0; background: var(--surface2); z-index: 1; }
-.tbl-scrollable .tbl th,
-.tbl-scrollable .tbl td { overflow-wrap: break-word; word-break: break-word; }
-.tbl-scrollable .tbl td:last-child { white-space: nowrap; text-align: right; }
-.tbl-scrollable .tbl td:last-child .btn { width: 28px; height: 28px; }
-
-/* Anchos de columnas para tabla de sucursales */
-.tbl-scrollable .tbl th:nth-child(1),
-.tbl-scrollable .tbl td:nth-child(1) { width: 52px; }
-.tbl-scrollable .tbl th:nth-child(2),
-.tbl-scrollable .tbl td:nth-child(2) { width: 20%; }
-.tbl-scrollable .tbl th:nth-child(3),
-.tbl-scrollable .tbl td:nth-child(3) { width: 24%; }
-.tbl-scrollable .tbl th:nth-child(4),
-.tbl-scrollable .tbl td:nth-child(4) { width: 12%; }
-.tbl-scrollable .tbl th:nth-child(5),
-.tbl-scrollable .tbl td:nth-child(5) { width: 12%; }
-.tbl-scrollable .tbl th:nth-child(6),
-.tbl-scrollable .tbl td:nth-child(6) { width: 13%; }
-.tbl-scrollable .tbl th:nth-child(7),
-.tbl-scrollable .tbl td:nth-child(7) { width: 10%; }
-.tbl-scrollable .tbl th:nth-child(8),
-.tbl-scrollable .tbl td:nth-child(8) { width: 76px; }
-
-@container tbl-responsive (max-width: 680px) {
-  .tbl-scrollable .tbl th:nth-child(5),
-  .tbl-scrollable .tbl td:nth-child(5) { display: none; }
-}
-@container tbl-responsive (max-width: 560px) {
-  .tbl-scrollable .tbl th:nth-child(4),
-  .tbl-scrollable .tbl td:nth-child(4) { display: none; }
-}
 
 /* ── Forms ── */
 .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 16px; }
