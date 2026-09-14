@@ -35,6 +35,8 @@
 .stat-label-top{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;text-align:center;margin-bottom:6px}
 .dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px;margin-top:16px;grid-auto-rows:auto;align-items:start}
 .dash-widget{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;overflow:visible;height:auto}
+.header-crumb{display:none;font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.6px;line-height:1;margin-bottom:1px}
+.main-header{position:sticky;top:0;z-index:150}
 .nav-text{font-size:13px;font-weight:500;white-space:nowrap}
 .sidebar.collapsed .nav-text{display:none !important}
 .sidebar.collapsed .nav-item{position:relative}
@@ -233,6 +235,8 @@ html,body{overflow-x:clip}
   .main-body{padding-bottom:calc(100px + env(safe-area-inset-bottom)) !important}
   .bulk-bar{bottom:calc(89px + env(safe-area-inset-bottom)) !important}
   .page-actions .btn-primary{bottom:calc(89px + env(safe-area-inset-bottom)) !important}
+  .header-crumb{display:block}
+  .main-header{padding:10px 12px}
   .mobile-dock{display:flex;position:fixed;bottom:calc(10px + env(safe-area-inset-bottom));left:12px;right:12px;width:auto;background:color-mix(in srgb, var(--accent) 10%, var(--surface2));-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);border:1px solid color-mix(in srgb, var(--accent) 22%, var(--border));border-radius:22px;justify-content:space-around;align-items:center;padding:6px 8px calc(6px + env(safe-area-inset-bottom));box-shadow:0 8px 28px rgba(0,0,0,0.28);z-index:200;min-height:65px}
   body:not(.light) .mobile-dock{background:color-mix(in srgb, var(--accent) 20%, #232a3a);border-color:color-mix(in srgb, var(--accent) 38%, #2a3045);box-shadow:0 8px 28px rgba(0,0,0,0.55),0 0 0 1px rgba(0,168,107,0.12)}
   .dock-item{display:flex;flex-direction:column;align-items:center;justify-content:center;background:transparent;border:none;color:var(--muted);flex:1;height:100%;cursor:pointer;transition:color 0.2s;font-family:inherit;padding:0}
@@ -293,7 +297,10 @@ html,body{overflow-x:clip}
   <div class="main">
     <div class="main-header">
       <button class="hamburger" onclick="toggleSidebar()">&#9776;</button>
-      <h2 id="page-title">Dashboard</h2>
+      <div class="header-title-wrap">
+        <div class="header-crumb">CRM</div>
+        <h2 id="page-title">Dashboard</h2>
+      </div>
       <div style="display:flex;align-items:center;gap:8px;margin-left:8px">
         <button class="btn btn-sm btn-secondary" onclick="volverDesdeAdmin()" id="btn-volver-admin" style="display:none">← Volver a Admin</button>
       </div>

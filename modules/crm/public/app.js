@@ -30,6 +30,8 @@ async function cargarNombreModulo() {
 document.addEventListener('DOMContentLoaded', () => {
   initFramework({ basePath: BASE, apiPrefix: '/api', themeKey: 'synnox_theme', tokenKey: 'launcher_jwt' });
   cargarNombreModulo();
+  injectNotificationBell(document.querySelector('.header-actions'));
+  initNotifications(30000);
   init();
 });
 

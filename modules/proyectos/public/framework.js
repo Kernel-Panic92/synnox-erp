@@ -617,7 +617,7 @@ function mostrarNotificacionBrowser(titulo, mensaje, url) {
 
 async function cargarNotificaciones() {
   try {
-    const notifApi = HF.API.replace(/\/proyectos\/api$/, '/api').replace(/\/logistica\/api$/, '/api').replace(/\/nomina\/api$/, '/api').replace(/\/proveedores\/api$/, '/api');
+    const notifApi = HF.API.replace(/\/[^/]+\/api$/, '/api');
     const res = await fetch(notifApi + '/notificaciones/no-leidas', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     if (!res.ok) return;
     const { count } = await res.json();
@@ -646,7 +646,7 @@ async function toggleNotifDropdown() {
   dd.classList.toggle('show');
   if (!isOpen) {
     try {
-      const notifApi = HF.API.replace(/\/proyectos\/api$/, '/api').replace(/\/logistica\/api$/, '/api').replace(/\/nomina\/api$/, '/api').replace(/\/proveedores\/api$/, '/api');
+      const notifApi = HF.API.replace(/\/[^/]+\/api$/, '/api');
       const res = await fetch(notifApi + '/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
       if (!res.ok) return;
       const { notificaciones } = await res.json();
@@ -679,7 +679,7 @@ async function marcarNotifLeida(id, url) {
     window.location.href = url;
   }
   try {
-    const notifApi = HF.API.replace(/\/proyectos\/api$/, '/api').replace(/\/logistica\/api$/, '/api').replace(/\/nomina\/api$/, '/api').replace(/\/proveedores\/api$/, '/api');
+    const notifApi = HF.API.replace(/\/[^/]+\/api$/, '/api');
     await fetch(notifApi + '/notificaciones/' + id + '/leer', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     cargarNotificaciones();
   } catch {}
@@ -687,7 +687,7 @@ async function marcarNotifLeida(id, url) {
 
 async function marcarTodasLeidas() {
   try {
-    const notifApi = HF.API.replace(/\/proyectos\/api$/, '/api').replace(/\/logistica\/api$/, '/api').replace(/\/nomina\/api$/, '/api').replace(/\/proveedores\/api$/, '/api');
+    const notifApi = HF.API.replace(/\/[^/]+\/api$/, '/api');
     await fetch(notifApi + '/notificaciones/leer-todas', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     cargarNotificaciones();
     toggleNotifDropdown();
