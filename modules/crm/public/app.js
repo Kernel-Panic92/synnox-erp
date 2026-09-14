@@ -503,7 +503,7 @@ function renderFunnelChart(data, containerId) {
   const gap = 4;
   const rowH = (h - gap * (data.length - 1)) / data.length;
   const cx = w / 2;
-  let svg = `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:165px;overflow:visible;display:block">`;
+  let svg = `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:auto;max-width:100%;overflow:visible;display:block">`;
   data.forEach((item, i) => {
     const frac = Math.max(minFrac, Number(item.monto) / maxMonto);
     const wCur = maxW * frac;
