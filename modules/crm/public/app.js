@@ -62,6 +62,17 @@ async function aplicarGatesDeSeguridadUI() {
       _misPermisosCache.perms.has('aprobar_descuento');
     const navAdmin = document.querySelector('.nav-item[data-page="admin"]');
     if (navAdmin) navAdmin.style.display = (puedeConfigurarUI() || _misPermisosCache.perms.has('aprobar_descuento')) ? '' : 'none';
+    // GATE: Gráfico Ventas por Asesor solo gerencia (al asesor le saldría 1 barra al 100%)
+    const widgetAsesor = document.getElementById('widget-ventas-asesor');
+    if (widgetAsesor) {
+      if (!puedeConfigurarUI()) {
+        widgetAsesor.style.display = 'none';
+        widgetAsesor.closest('.analytics-row')?.classList.add('layout-asesor');
+      } else {
+        widgetAsesor.style.display = '';
+        widgetAsesor.closest('.analytics-row')?.classList.remove('layout-asesor');
+      }
+    }
     // GATE: Exportar Excel solo gerencia/admin
     const btnExportar = document.querySelector('button[onclick="generarExcelCustom()"]');
     if (btnExportar) {
