@@ -350,6 +350,7 @@ html,body{overflow-x:clip}
     <button class="nav-item" data-page="cotizaciones" onclick="navigate('cotizaciones')" title="Cotizaciones" data-tooltip="Cotizaciones"><span class="icon">📄</span> <span class="nav-text">Cotizaciones</span></button>
     <button class="nav-item" data-page="productos" onclick="navigate('productos')" title="Productos" data-tooltip="Productos"><span class="icon">📦</span> <span class="nav-text">Productos</span></button>
     <button class="nav-item" data-page="inventario" onclick="navigate('inventario')" title="Inventario" data-tooltip="Inventario"><span class="icon">🏬</span> <span class="nav-text">Inventario</span></button>
+    <button class="nav-item" data-page="reportes" onclick="navigate('reportes')" title="Reportes" data-tooltip="Reportes"><span class="icon">📑</span> <span class="nav-text">Reportes</span></button>
     <div class="sidebar-divider"></div>
     <div class="sidebar-section-title">Sistema</div>
     <button class="nav-item admin-item" data-page="admin" onclick="navigate('admin')" title="Admin" data-tooltip="Admin"><span class="icon">⚙️</span> <span class="nav-text">Admin</span></button>
@@ -841,6 +842,42 @@ html,body{overflow-x:clip}
           </table>
         </div>
         <div class="pagination" id="pag-inventario"></div>
+      </div>
+
+      <!-- Reportes -->
+      <div class="page" id="page-reportes">
+        <div class="page-header">
+          <h3>Reportes</h3>
+          <p>Exporta a Excel con las columnas que elijas</p>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Módulo</label>
+            <select id="reporte-modulo" onchange="cargarColumnasReporte()">
+              <option value="">Seleccione módulo...</option>
+              <option value="cotizaciones">Cotizaciones</option>
+              <option value="leads">Clientes Potenciales</option>
+              <option value="visitas">Actividades</option>
+              <option value="clientes">Clientes</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Rango de fechas (opcional)</label>
+            <div style="display:flex;gap:8px">
+              <input type="date" id="reporte-desde">
+              <input type="date" id="reporte-hasta">
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Columnas <small style="font-weight:400">(<a href="#" onclick="marcarTodasColumnasReporte(true);return false">todas</a> / <a href="#" onclick="marcarTodasColumnasReporte(false);return false">ninguna</a>)</small></label>
+          <div id="reporte-columnas-container" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px">
+            <div style="color:var(--muted);font-size:12px;grid-column:1/-1;text-align:center;padding:20px 0">Selecciona un módulo primero 👆</div>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="generarExcelCustom()">📥 Exportar Excel</button>
+        </div>
       </div>
 
       <!-- Admin: Perfiles de Venta -->
@@ -1811,6 +1848,7 @@ html,body{overflow-x:clip}
 
 </div><!-- /app-container -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <script src="framework.js?v=20260909a"></script>
 
 <!-- Generic confirm modal (used by framework's confirmar) -->

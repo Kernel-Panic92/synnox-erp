@@ -77,7 +77,7 @@ function mostrarLogoutConfirm() {
 }
 
 // ── Navigation ──
-const pages = ['dashboard', 'pipeline', 'leads', 'clientes', 'contactos', 'visitas', 'cotizaciones', 'productos', 'inventario', 'importar', 'descuentos', 'admin'];
+const pages = ['dashboard', 'pipeline', 'leads', 'clientes', 'contactos', 'visitas', 'cotizaciones', 'productos', 'inventario', 'reportes', 'importar', 'descuentos', 'admin'];
 function navigate(page) {
   if (!pages.includes(page)) page = 'dashboard';
   lsSet('synnox_ultima_pagina', page);
@@ -89,7 +89,7 @@ function navigate(page) {
   if (el) el.classList.add('active');
   if (nav) { nav.classList.add('active'); nav.setAttribute('aria-current', 'page'); }
   document.querySelector(`.dock-item[data-page="${page}"]`)?.classList.add('active');
-  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', leads: 'Clientes Potenciales', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Actividades', cotizaciones: 'Cotizaciones', productos: 'Productos', inventario: 'Inventario', importar: 'Importar SIESA', descuentos: 'Descuentos', admin: 'Admin' };
+  const titles = { dashboard: 'Dashboard', pipeline: 'Pipeline', leads: 'Clientes Potenciales', clientes: 'Clientes', contactos: 'Contactos', visitas: 'Actividades', cotizaciones: 'Cotizaciones', productos: 'Productos', inventario: 'Inventario', reportes: 'Reportes', importar: 'Importar SIESA', descuentos: 'Descuentos', admin: 'Admin' };
   document.getElementById('page-title').textContent = titles[page] || 'CRM';
   if (page === 'dashboard') cargarDashboard();
   if (page === 'pipeline') cargarPipeline();
@@ -5362,4 +5362,113 @@ function accionPrincipalDock() {
       break;
   }
   if (navigator.vibrate) navigator.vibrate(50);
+}
+
+// ==========================================
+// MÓDULO DE REPORTES Y EXPORTACIÓN (MVP)
+// ==========================================
+const definicionColumnasReportes = {
+  cotizaciones: [
+    { id: 'numero', label: 'Número de Cotización', get: c => c.numero },
+    { id: 'cliente', label: 'Cliente', get: c => c.cliente_nombre || ((c.lead_nombre ? c.lead_nombre + ' (lead)' : null)) },
+    { id: 'estado', label: 'Estado', get: c => c.estado },
+    { id: 'total', label: 'Monto Total ($)', get: c => Number(c.valor_total || 0) },
+    { id: 'fecha', label: 'Fecha Creación', get: c => (c.creado_en || '').slice(0, 10) },
+    { id: 'vencimiento', label: 'Fecha Vencimiento', get: c => (c.vencimiento || '').slice(0, 10) },
+    { id: 'vendedor', label: 'Asesor / Vendedor', get: c => c.razon_social_vendedor || (c.vendedor_codigo ? 'Vendedor ' + c.vendedor_codigo : null) }
+  ],
+  leads: [
+    { id: 'razon_social', label: 'Razón Social', get: l => l.raison_social },
+    { id: 'nit', label: 'NIT / ID', get: l => l.numero_identificacion },
+    { id: 'ciudad', label: 'Ciudad', get: l => l.ciudad },
+    { id: 'estado', label: 'Estado del Lead', get: l => l.estado },
+    { id: 'canal', label: 'Canal / Fuente', get: l => l.canal },
+    { id: 'asesor', label: 'Asesor Asignado', get: l => l.asesor_comercial },
+    { id: 'fecha', label: 'Fecha Creación', get: l => (l.creado_en || '').slice(0, 10) }
+  ],
+  visitas: [
+    { id: 'asunto', label: 'Asunto / Actividad', get: v => v.asunto || v.cliente_nombre },
+    { id: 'tipo', label: 'Tipo', get: v => v.tipo_actividad || v.tipo },
+    { id: 'cliente', label: 'Cliente', get: v => v.cliente_nombre },
+    { id: 'estado', label: 'Estado', get: v => v.estado || (v.checkout ? 'realizada' : 'en_proceso') },
+    { id: 'fecha_inicio', label: 'Fecha Inicio', get: v => (v.fecha || '').slice(0, 10) },
+    { id: 'vendedor', label: 'Asesor', get: v => v.vendedor_nombre || v.propietario_nombre },
+    { id: 'lugar', label: 'Lugar', get: v => v.lugar }
+  ],
+  clientes: [
+    { id: 'nombre', label: 'Razón Social', get: c => c.nombre },
+    { id: 'nit', label: 'NIT', get: c => c.nit },
+    { id: 'tipo', label: 'Tipo de Cliente', get: c => c.tipo },
+    { id: 'canal', label: 'Canal', get: c => c.canal },
+    { id: 'ciudad', label: 'Ciudad', get: c => c.ciudad },
+    { id: 'telefono', label: 'Teléfono', get: c => c.telefono },
+    { id: 'email', label: 'Correo Electrónico', get: c => c.email }
+  ]
+};
+const reporteEndpoints = { cotizaciones: '/cotizaciones?limit=1000', leads: '/leads?limit=1000', visitas: '/visitas?limit=1000', clientes: '/clientes?limit=1000' };
+
+function cargarColumnasReporte() {
+  const modulo = document.getElementById('reporte-modulo').value;
+  const container = document.getElementById('reporte-columnas-container');
+  if (!modulo) {
+    container.innerHTML = '<div style="color:var(--muted);font-size:12px;grid-column:1/-1;text-align:center;padding:20px 0">Selecciona un módulo primero 👆</div>';
+    return;
+  }
+  const columnas = definicionColumnasReportes[modulo] || [];
+  container.innerHTML = columnas.map(col => `
+    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:6px">
+      <input type="checkbox" class="chk-columna-reporte" value="${col.id}" checked> ${col.label}
+    </label>`).join('');
+}
+
+function marcarTodasColumnasReporte(marcar) {
+  document.querySelectorAll('.chk-columna-reporte').forEach(chk => chk.checked = marcar);
+}
+
+async function generarExcelCustom() {
+  const modulo = document.getElementById('reporte-modulo').value;
+  const fechaDesde = document.getElementById('reporte-desde').value;
+  const fechaHasta = document.getElementById('reporte-hasta').value;
+  if (!modulo) return toast('Selecciona un módulo para exportar', 'warning');
+  const checkboxes = document.querySelectorAll('.chk-columna-reporte:checked');
+  if (!checkboxes.length) return toast('Selecciona al menos una columna', 'warning');
+  if (typeof XLSX === 'undefined') return toast('Librería Excel no cargada (revisa tu conexión)', 'error');
+  const defs = definicionColumnasReportes[modulo] || [];
+  const cols = Array.from(checkboxes).map(chk => defs.find(d => d.id === chk.value)).filter(Boolean);
+  toast('Descargando datos...', 'info');
+  const r = await apiFetch(reporteEndpoints[modulo]);
+  if (!r.ok) return toast('Error al obtener datos', 'error');
+  let datos = r.data.data || r.data || [];
+  if (!Array.isArray(datos)) datos = [];
+  if (fechaDesde || fechaHasta) {
+    datos = datos.filter(item => {
+      const f = item.fecha || item.fecha_inicio || item.creado_en;
+      if (!f) return true;
+      const t = new Date(f).getTime();
+      if (fechaDesde && t < new Date(fechaDesde + 'T00:00:00').getTime()) return false;
+      if (fechaHasta && t > new Date(fechaHasta + 'T23:59:59').getTime()) return false;
+      return true;
+    });
+  }
+  if (!datos.length) return toast('No hay registros para esas fechas', 'warning');
+  const filas = datos.map(item => {
+    const fila = {};
+    cols.forEach(col => {
+      let v = null;
+      try { v = col.get(item); } catch {}
+      fila[col.label] = (v === undefined || v === null || v === '') ? '—' : v;
+    });
+    return fila;
+  });
+  try {
+    const ws = XLSX.utils.json_to_sheet(filas);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, modulo.toUpperCase().slice(0, 31));
+    XLSX.writeFile(wb, `Reporte_${modulo.toUpperCase()}_${new Date().toISOString().split('T')[0]}.xlsx`);
+    toast(`${filas.length} filas exportadas`, 'success');
+    if (navigator.vibrate) navigator.vibrate([50, 50, 50]);
+  } catch (e) {
+    console.error('Error SheetJS:', e);
+    toast('Error al generar el Excel', 'error');
+  }
 }
