@@ -229,8 +229,7 @@ html,body{overflow-x:clip}
   .table-card{width:100% !important;box-sizing:border-box;overflow-x:auto !important;-webkit-overflow-scrolling:touch}
   .table-card table{min-width:550px !important}
   .sidebar,.sidebar.collapsed{max-width:80vw !important}
-  .page-actions .btn-primary{position:fixed !important;bottom:max(24px, env(safe-area-inset-bottom));right:20px;width:56px;height:56px;border-radius:50% !important;font-size:0 !important;box-shadow:0 4px 12px rgba(0,0,0,0.3);z-index:90;display:flex;align-items:center;justify-content:center;padding:0 !important}
-  .page-actions .btn-primary::after{content:'+';font-size:32px;font-weight:300;line-height:1;color:#fff}
+  .page-actions .btn-primary{display:none !important}
   .modal .btn-row{position:sticky;bottom:0 !important;margin:24px -16px 0 -16px !important;padding:16px 16px calc(16px + env(safe-area-inset-bottom)) !important;background:var(--surface) !important;border-top:1px solid var(--border);box-shadow:0 -4px 16px rgba(0,0,0,0.06);z-index:200;border-radius:0}
   .main-body{padding-bottom:calc(100px + env(safe-area-inset-bottom)) !important}
   .bulk-bar{bottom:calc(89px + env(safe-area-inset-bottom)) !important}
@@ -1789,7 +1788,7 @@ html,body{overflow-x:clip}
 <nav class="mobile-dock" aria-label="Navegación rápida">
   <button class="dock-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span><span class="text">Inicio</span></button>
   <button class="dock-item" data-page="pipeline" onclick="navigate('pipeline')"><span class="icon">📈</span><span class="text">Ventas</span></button>
-  <button class="dock-item dock-item-main" onclick="abrirModalCotizacion()" aria-label="Nueva cotización"><span class="icon">+</span></button>
+  <button class="dock-item dock-item-main" onclick="accionPrincipalDock()" aria-label="Crear nuevo"><span class="icon">+</span></button>
   <button class="dock-item" data-page="clientes" onclick="navigate('clientes')"><span class="icon">🏢</span><span class="text">Clientes</span></button>
   <button class="dock-item" data-page="visitas" onclick="navigate('visitas')"><span class="icon">📋</span><span class="text">Ruta</span></button>
 </nav>

@@ -5329,3 +5329,37 @@ function simplificarFiltrosMovil() {
 }
 window.addEventListener('resize', simplificarFiltrosMovil);
 document.addEventListener('DOMContentLoaded', simplificarFiltrosMovil);
+
+// Botón central del Dock: abre el modal según la página activa
+function accionPrincipalDock() {
+  const paginaActiva = document.querySelector('.page.active');
+  if (!paginaActiva) return;
+  const idPagina = paginaActiva.id;
+  switch (idPagina) {
+    case 'page-leads':
+      if (typeof abrirModalLead === 'function') abrirModalLead();
+      break;
+    case 'page-pipeline':
+      if (typeof abrirModalOportunidad === 'function') abrirModalOportunidad();
+      break;
+    case 'page-clientes':
+      if (typeof abrirModalCliente === 'function') abrirModalCliente();
+      break;
+    case 'page-contactos':
+      if (typeof abrirModalContacto === 'function') abrirModalContacto();
+      break;
+    case 'page-visitas':
+      if (typeof abrirModalCrearActividad === 'function') abrirModalCrearActividad();
+      break;
+    case 'page-cotizaciones':
+      if (typeof abrirModalCotizacion === 'function') abrirModalCotizacion();
+      break;
+    case 'page-productos':
+      if (typeof abrirModalProducto === 'function') abrirModalProducto();
+      break;
+    default:
+      if (typeof abrirModalCotizacion === 'function') abrirModalCotizacion();
+      break;
+  }
+  if (navigator.vibrate) navigator.vibrate(50);
+}
