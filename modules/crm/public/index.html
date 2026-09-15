@@ -205,6 +205,10 @@ html,body{overflow-x:clip}
 .bulk-bar{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 20px;display:flex;align-items:center;gap:12px;z-index:400;box-shadow:0 4px 20px rgba(0,0,0,.2);opacity:0;pointer-events:none;transition:opacity .2s}
 .bulk-bar.visible{opacity:1;pointer-events:auto}
 .pac-container{ z-index:10000 !important; font-family:inherit; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.15); }
+/* ── CHIPS BLINDADOS DE REPORTES (desktop + móvil) ── */
+#reporte-columnas-container{display:flex !important;flex-wrap:wrap !important;gap:12px !important;padding:16px !important;background:var(--surface2) !important;border-radius:12px !important;border:1px dashed var(--border) !important;overflow:visible !important}
+.chip-columna{flex:0 0 auto !important;width:max-content !important;display:inline-flex !important;align-items:center !important;gap:8px !important;font-size:13px !important;font-weight:500 !important;color:var(--text) !important;cursor:pointer !important;padding:8px 16px !important;background:var(--surface) !important;border-radius:20px !important;border:1px solid var(--border) !important;box-shadow:0 2px 4px rgba(0,0,0,0.02) !important;margin:0 !important}
+.chip-columna input[type="checkbox"]{width:16px !important;height:16px !important;margin:0 !important;flex-shrink:0 !important}
 /* ── PARCHES RESPONSIVENESS MÓVIL (≤768px) ── */
 @media (max-width: 768px) {
   #dash-filtros{display:flex !important;flex-direction:row !important;flex-wrap:nowrap !important;overflow-x:auto !important;justify-content:flex-start !important;align-items:center !important;width:100% !important;padding-bottom:12px !important;gap:8px !important;-webkit-overflow-scrolling:touch}
