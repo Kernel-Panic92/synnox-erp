@@ -313,14 +313,14 @@ html,body{overflow-x:clip}
   .page:not(#page-dashboard) .stat-card .stat-value{font-size:20px !important;margin-bottom:2px}
   .page:not(#page-dashboard) .stat-card .stat-label{font-size:9px !important;text-align:left !important}
   .page:not(#page-dashboard) .stat-card::before{top:-10px;right:-10px;width:60px;height:60px}
-  #tbl-cotizaciones tr:has(td:first-child input[type="checkbox"]){padding-top:60px !important}
-  #tbl-cotizaciones tr td:nth-child(2){font-size:13px !important;color:var(--muted) !important;top:12px}
-  #tbl-cotizaciones tr td:nth-child(4){position:absolute;top:10px;right:12px;border:none !important;padding:0 !important}
-  #tbl-cotizaciones tr td:nth-child(4)::before{display:none !important}
-  #tbl-cotizaciones tr td:nth-child(4) .badge{font-size:10px;padding:4px 8px}
-  #tbl-cotizaciones tr td:nth-child(6){position:absolute;top:30px;left:12px;border:none !important;padding:0 !important;font-size:22px !important;font-weight:800 !important;color:var(--text) !important}
-  #tbl-cotizaciones tr td:nth-child(6)::before{display:none !important}
-  #tbl-cotizaciones tr td:nth-child(1){top:auto;bottom:16px;right:16px}
+  #tbl-cotizaciones tr:has(td:first-child input[type="checkbox"]){padding-top:76px !important;position:relative !important}
+  #tbl-cotizaciones tr:has(td:first-child input[type="checkbox"]) td:nth-child(2){position:absolute !important;top:14px !important;left:16px !important;width:auto !important;font-size:13px !important;color:var(--muted) !important;border:none !important;padding:0 !important}
+  #tbl-cotizaciones tr:has(td:first-child input[type="checkbox"]) td:nth-child(4){position:absolute !important;top:12px !important;right:16px !important;left:auto !important;width:auto !important;border:none !important;padding:0 !important}
+  #tbl-cotizaciones tr:has(td:first-child input[type="checkbox"]) td:nth-child(4)::before{display:none !important}
+  #tbl-cotizaciones tr:has(td:first-child input[type="checkbox"]) td:nth-child(4) .badge{font-size:11px;padding:4px 10px}
+  #tbl-cotizaciones tr:has(td:first-child input[type="checkbox"]) td:nth-child(6){position:absolute !important;top:36px !important;left:16px !important;width:auto !important;border:none !important;padding:0 !important;font-size:26px !important;font-weight:800 !important;color:var(--text) !important}
+  #tbl-cotizaciones tr:has(td:first-child input[type="checkbox"]) td:nth-child(6)::before{display:none !important}
+  #tbl-cotizaciones tr:has(td:first-child input[type="checkbox"]) td:nth-child(1){position:absolute !important;top:auto !important;bottom:16px !important;right:16px !important;width:auto !important;border:none !important;padding:0 !important}
 }
 @keyframes spin{to{transform:rotate(360deg)}}
 }
