@@ -5205,6 +5205,7 @@ function renderCalendarStrip(baseDateStr = null) {
   if (!esVistaMovil()) { // restore desktop
     strip.style.display = 'none'; timeline.style.display = 'none';
     agrupadas.style.display = ''; if (filtros) filtros.style.display = '';
+    document.getElementById('mobile-cal-header')?.remove();
     return;
   }
   strip.style.display = 'flex'; timeline.style.display = 'block';
@@ -5214,8 +5215,22 @@ function renderCalendarStrip(baseDateStr = null) {
     : window._visitaDiaSel ? new Date(window._visitaDiaSel + 'T12:00:00') : new Date();
   const activeDateStr = baseDateStr || window._visitaDiaSel || fechaLocalStr(new Date());
   if (!window._visitaDiaSel) window._visitaDiaSel = activeDateStr;
+  // Header fijo con botón maestro (no se pierde con el scroll del strip)
+  let headerControls = document.getElementById('mobile-cal-header');
+  if (!headerControls) {
+    headerControls = document.createElement('div');
+    headerControls.id = 'mobile-cal-header';
+    headerControls.style.cssText = 'display:flex;justify-content:space-between;align-items:center;margin:0 0 12px 0';
+    headerControls.innerHTML = `
+      <div style="font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">Ruta del día</div>
+      <label class="btn btn-sm btn-secondary" style="position:relative;overflow:hidden;margin:0;display:flex;align-items:center;gap:6px;cursor:pointer;background:var(--surface);border:1px solid var(--border)">
+        <span style="font-size:14px">📅</span><span style="font-weight:600">Abrir calendario</span>
+        <input type="date" onchange="renderCalendarStrip(this.value)" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0.01;cursor:pointer;z-index:10;padding:0;margin:0">
+      </label>`;
+    strip.parentNode.insertBefore(headerControls, strip);
+  }
   const diasSemana = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
-  let html = `<label class="calendar-day" style="border:1px dashed var(--accent);position:relative;overflow:hidden;flex:0 0 54px;margin:0;cursor:pointer" title="Elegir fecha lejana"><span class="day-number" style="font-size:20px">📅</span><span class="day-name" style="margin-top:2px">Mes</span><input type="date" onchange="renderCalendarStrip(this.value)" style="position:absolute;top:0;left:0;width:100%;height:100%;opacity:0.01;cursor:pointer;z-index:10;padding:0;margin:0"></label>`;
+  let html = '';
   for (let i = -15; i <= 30; i++) {
     const fecha = new Date(baseDate);
     fecha.setDate(baseDate.getDate() + i);
