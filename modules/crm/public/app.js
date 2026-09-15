@@ -5534,6 +5534,11 @@ async function actualizarVistaPreviaReporte() {
     const agg = {};
     datos.forEach(x => { const k = x.estado || (x.checkout ? 'realizada' : 'Sin estado'); agg[k] = (agg[k] || 0) + 1; });
     opts = { series: Object.values(agg), labels: Object.keys(agg), chart: { type: 'pie', height: 280, background: 'transparent' }, theme: { mode: dark ? 'dark' : 'light' }, colors: ['#3b82f6', '#10b981', '#ef4444', '#f59e0b'] };
+  } else if (modulo === 'clientes') {
+    document.getElementById('titulo-grafico-reporte').innerText = 'Clientes por Tipo';
+    const agg = {};
+    datos.forEach(x => { const k = x.tipo || 'Sin tipo'; agg[k] = (agg[k] || 0) + 1; });
+    opts = { series: Object.values(agg), labels: Object.keys(agg), chart: { type: 'donut', height: 280, background: 'transparent' }, theme: { mode: dark ? 'dark' : 'light' }, colors: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#a06af7'] };
   } else {
     document.getElementById('chart-reporte-preview').innerHTML = '<span style="color:var(--muted);font-size:12px">Gráfico no disponible para este módulo</span>';
     return;
