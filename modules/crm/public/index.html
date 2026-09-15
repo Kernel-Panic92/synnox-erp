@@ -205,6 +205,7 @@ html,body{overflow-x:clip}
 .bulk-bar{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 20px;display:flex;align-items:center;gap:12px;z-index:400;box-shadow:0 4px 20px rgba(0,0,0,.2);opacity:0;pointer-events:none;transition:opacity .2s}
 .bulk-bar.visible{opacity:1;pointer-events:auto}
 .pac-container{ z-index:10000 !important; font-family:inherit; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.15); }
+.main-header{background:color-mix(in srgb, var(--surface) 80%, transparent) !important;-webkit-backdrop-filter:blur(12px) saturate(1.5);backdrop-filter:blur(12px) saturate(1.5);border-bottom:1px solid color-mix(in srgb, var(--border) 60%, transparent) !important}
 /* ── CHIPS BLINDADOS DE REPORTES (desktop + móvil) ── */
 #reporte-columnas-container{display:flex !important;flex-wrap:wrap !important;gap:12px !important;padding:16px !important;background:var(--surface2) !important;border-radius:12px !important;border:1px dashed var(--border) !important;overflow:visible !important}
 .chip-columna{flex:0 0 auto !important;width:max-content !important;display:inline-flex !important;align-items:center !important;gap:8px !important;font-size:13px !important;font-weight:500 !important;color:var(--text) !important;cursor:pointer !important;padding:8px 16px !important;background:var(--surface) !important;border-radius:20px !important;border:1px solid var(--border) !important;box-shadow:0 2px 4px rgba(0,0,0,0.02) !important;margin:0 !important}
@@ -310,6 +311,7 @@ html,body{overflow-x:clip}
   .filtros-avanzados-movil{display:none;width:100%;flex-wrap:nowrap;overflow-x:auto;gap:10px;padding:12px;background:var(--surface2);border-radius:12px;border:1px solid var(--border);-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-top:4px;animation:slideDownFade 0.2s ease-out}
   .filtros-avanzados-movil::-webkit-scrollbar{display:none}
   .filtros-avanzados-movil > *{flex:0 0 auto !important}
+  .filtros-avanzados-movil{background:color-mix(in srgb, var(--surface2) 75%, transparent) !important;-webkit-backdrop-filter:blur(16px) saturate(1.2);backdrop-filter:blur(16px) saturate(1.2);box-shadow:0 8px 32px rgba(0,0,0,0.08);border:1px solid color-mix(in srgb, var(--border) 50%, transparent) !important}
   @keyframes slideDownFade{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
   .page:not(#page-dashboard) .stats-row{display:flex !important;flex-wrap:nowrap !important;overflow-x:auto !important;gap:12px !important;padding-bottom:8px !important;margin-bottom:8px !important;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   .page:not(#page-dashboard) .stats-row::-webkit-scrollbar{display:none}
