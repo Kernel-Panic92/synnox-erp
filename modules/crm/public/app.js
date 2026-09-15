@@ -5416,8 +5416,8 @@ function cargarColumnasReporte() {
   }
   const columnas = definicionColumnasReportes[modulo] || [];
   container.innerHTML = columnas.map(col => `
-    <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--text);cursor:pointer;padding:6px 8px;background:var(--surface);border:1px solid var(--border);border-radius:6px">
-      <input type="checkbox" class="chk-columna-reporte" value="${col.id}" checked> ${col.label}
+    <label style="display:inline-flex;align-items:center;gap:8px;font-size:13px;font-weight:500;color:var(--text);cursor:pointer;padding:8px 16px;background:var(--surface);border:1px solid var(--border);border-radius:20px;white-space:nowrap;box-shadow:0 2px 4px rgba(0,0,0,0.02);transition:all 0.2s">
+      <input type="checkbox" class="chk-columna-reporte" value="${col.id}" checked style="margin:0"> ${col.label}
     </label>`).join('');
 }
 
