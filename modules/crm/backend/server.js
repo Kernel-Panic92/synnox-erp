@@ -110,6 +110,9 @@ app.get('/api/dashboard', protect, requirePermiso('ver', 'crm'), async (req, res
     let pi = 1;
     if (desde) { opFiltro.push(`o.creado_en >= $${pi}::date`); cliFiltro.push(`creado_en >= $${pi}::date`); params.push(desde); pi++; }
     if (hasta) { opFiltro.push(`o.creado_en < $${pi}::date + INTERVAL '1 day'`); cliFiltro.push(`creado_en < $${pi}::date + INTERVAL '1 day'`); params.push(hasta); pi++; }
+    // FASE 1 permisos: no-gerente ve solo sus oportunidades (clientes y ciudades son maestros compartidos)
+    const soloMioDash = !['admin', 'gerente'].includes(req.user?.rol);
+    if (soloMioDash) { opFiltro.push(`o.vendedor_id = $${pi++}`); params.push(req.user.id); }
     const opWhere = opFiltro.length ? `WHERE ${opFiltro.join(' AND ')}` : '';
     const cliWhere = cliFiltro.length ? `WHERE ${cliFiltro.join(' AND ')} AND activo = TRUE` : 'WHERE activo = TRUE';
     const opWhereVendedor = opFiltro.length ? `WHERE ${opFiltro.join(' AND ')} AND o.vendedor_id IS NOT NULL` : 'WHERE o.vendedor_id IS NOT NULL';
@@ -122,7 +125,7 @@ app.get('/api/dashboard', protect, requirePermiso('ver', 'crm'), async (req, res
       pool.query(`SELECT o.vendedor_id, COUNT(*) FILTER (WHERE o.etapa NOT IN ('ganada','perdida')) as ops_abiertas, COUNT(*) FILTER (WHERE o.etapa='ganada') as ops_ganadas, COALESCE(SUM(o.monto_esperado) FILTER (WHERE o.etapa='ganada'),0) as monto_ganado FROM crm.oportunidades o ${opWhereVendedor} GROUP BY o.vendedor_id HAVING COUNT(*) > 0 ORDER BY monto_ganado DESC, ops_abiertas DESC LIMIT 10`, params),
       pool.query(`SELECT TO_CHAR(mes,'YYYY-MM') as mes, COUNT(o.id) as cantidad, COALESCE(SUM(o.monto_esperado),0) as monto
         FROM generate_series(${tendDesde}::date, ${tendHasta}::date, INTERVAL '1 month') mes
-        LEFT JOIN crm.oportunidades o ON DATE_TRUNC('month', o.creado_en) = DATE_TRUNC('month', mes)
+        LEFT JOIN crm.oportunidades o ON DATE_TRUNC('month', o.creado_en) = DATE_TRUNC('month', mes)${soloMioDash ? ` AND o.vendedor_id = ${parseInt(req.user.id)}` : ''}
         GROUP BY mes ORDER BY mes`),
       pool.query(`SELECT COALESCE(ciudad,'Sin ciudad') as ciudad, COUNT(*) as cantidad FROM crm.clientes ${cliWhere} GROUP BY ciudad ORDER BY cantidad DESC LIMIT 8`, params),
       pool.query(`SELECT o.id, o.nombre as oportunidad, COALESCE(c.nombre, l.raison_social, '—') as cliente, o.monto_esperado as valor, o.etapa, COALESCE(c.ciudad,'—') as ciudad, o.creado_en as fecha, o.vendedor_id
@@ -155,6 +158,9 @@ app.get('/api/dashboard/analytics', protect, requirePermiso('ver', 'crm'), async
     let pi = 1;
     if (desde) { conds.push(`o.creado_en >= $${pi}::date`); params.push(desde); pi++; }
     if (hasta) { conds.push(`o.creado_en < $${pi}::date + INTERVAL '1 day'`); params.push(hasta); pi++; }
+    // FASE 1 permisos: no-gerente ve solo sus oportunidades (leads: bolsa compartida, sin scope)
+    const soloMio = !['admin', 'gerente'].includes(req.user?.rol);
+    if (soloMio) { conds.push(`o.vendedor_id = $${pi++}`); params.push(req.user.id); }
     const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     const addCond = (sql) => conds.length ? `${conds.join(' AND ')} AND ${sql}` : `WHERE ${sql}`;
 
@@ -180,6 +186,7 @@ app.get('/api/dashboard/analytics', protect, requirePermiso('ver', 'crm'), async
       pool.query(`SELECT h.etapa_nueva, ROUND(AVG(EXTRACT(EPOCH FROM (h.fecha - lag.fecha))/86400.0),1) as dias_promedio, COUNT(*) as muestras
         FROM crm.oportunidad_historial h
         JOIN LATERAL (SELECT MAX(fecha) as fecha FROM crm.oportunidad_historial h2 WHERE h2.oportunidad_id=h.oportunidad_id AND h2.fecha < h.fecha) lag ON true
+        ${soloMio ? `JOIN crm.oportunidades o ON o.id = h.oportunidad_id AND o.vendedor_id = ${parseInt(req.user.id)}` : ''}
         WHERE lag.fecha IS NOT NULL
         GROUP BY h.etapa_nueva
         ORDER BY CASE h.etapa_nueva WHEN 'lead' THEN 1 WHEN 'calificado' THEN 2 WHEN 'propuesta' THEN 3 WHEN 'negociacion' THEN 4 WHEN 'ganada' THEN 5 WHEN 'perdida' THEN 6 ELSE 7 END`),
