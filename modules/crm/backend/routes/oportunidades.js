@@ -34,6 +34,11 @@ router.get('/', requirePermiso('ver_pipeline', 'crm'), async (req, res) => {
       params.push(`%${search}%`);
       paramIdx++;
     }
+    // FASE 1 permisos: no-gerente ve solo lo propio
+    if (!['admin', 'gerente'].includes(req.user?.rol)) {
+      conditions.push(`o.vendedor_id = $${paramIdx++}`);
+      params.push(req.user.id);
+    }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
@@ -73,6 +78,8 @@ router.get('/pipeline', requirePermiso('ver_pipeline', 'crm'), async (req, res) 
     if (search) { conditions.push(`(o.nombre ILIKE $${paramIdx} OR e.nombre ILIKE $${paramIdx} OR l.raison_social ILIKE $${paramIdx})`); params.push(`%${search}%`); paramIdx++; }
     if (desde) { conditions.push(`o.fecha_cierre_estimada >= $${paramIdx++}`); params.push(desde); }
     if (hasta) { conditions.push(`o.fecha_cierre_estimada <= $${paramIdx++}`); params.push(hasta); }
+    // FASE 1 permisos: no-gerente ve solo lo propio en kanban
+    if (!['admin', 'gerente'].includes(req.user?.rol)) { conditions.push(`o.vendedor_id = $${paramIdx++}`); params.push(req.user.id); }
 
     const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
 
@@ -127,6 +134,8 @@ router.get('/stats', requirePermiso('ver_pipeline', 'crm'), async (req, res) => 
     if (search) { conds.push(`(o.nombre ILIKE $${pi} OR e.nombre ILIKE $${pi} OR l.raison_social ILIKE $${pi})`); vals.push(`%${search}%`); pi++; }
     if (desde) { conds.push(`o.fecha_cierre_estimada >= $${pi++}`); vals.push(desde); }
     if (hasta) { conds.push(`o.fecha_cierre_estimada <= $${pi++}`); vals.push(hasta); }
+    // FASE 1 permisos: no-gerente ve solo lo propio en stats
+    if (!['admin', 'gerente'].includes(req.user?.rol)) { conds.push(`o.vendedor_id = $${pi++}`); vals.push(req.user.id); }
     const whereBase = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
     // Para joins con cliente/lead en search
     const joinSearch = search ? ` LEFT JOIN crm.clientes e ON e.id=o.cliente_id LEFT JOIN crm.leads l ON l.id=o.lead_id` : '';

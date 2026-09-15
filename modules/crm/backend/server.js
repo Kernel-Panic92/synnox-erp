@@ -11,7 +11,7 @@ dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 dotenv.config({ path: path.join(__dirname, '..', '..', '..', '..', '.env') });
 dotenv.config();
 
-const { createProtect } = await import('../../../framework/auth.mjs');
+const { createProtect, requirePermiso } = await import('../../../framework/auth.mjs');
 const app = express();
 const PORT = process.env.PORT || 3008;
 const MODULE_ID = process.env.MODULE_ID || 'crm';
@@ -100,7 +100,7 @@ app.get('/api/auth/me', protect, async (req, res) => {
   }
 });
 
-app.get('/api/dashboard', protect, async (req, res) => {
+app.get('/api/dashboard', protect, requirePermiso('ver', 'crm'), async (req, res) => {
   try {
     const pool = (await import('./config/db.js')).default;
     const { desde, hasta } = req.query;
@@ -146,7 +146,7 @@ app.get('/api/dashboard', protect, async (req, res) => {
 });
 
 // GET /api/dashboard/analytics — Indicadores gerenciales avanzados
-app.get('/api/dashboard/analytics', protect, async (req, res) => {
+app.get('/api/dashboard/analytics', protect, requirePermiso('ver', 'crm'), async (req, res) => {
   try {
     const pool = (await import('./config/db.js')).default;
     const { desde, hasta } = req.query;

@@ -853,10 +853,23 @@ const defaultPermisosConfig = {
     ['aprobar_descuento', 'Aprobar solicitudes de descuento'],
     ['campanas', 'Gestionar campañas email'],
     ['reportes', 'Ver reportes y métricas'],
-    ['configurar', 'Configurar módulo'],
-    ['siesa_sync', 'Sincronizar datos con SIESA']
+    ['configurar', 'Configurar módulo']
   ]
 };
+// Grants CRM por perfil launcher (FASE 1 permisos: Comercial base para OPERADOR y ASESOR COMERCIAL)
+const seedCrmPerfilPermisos = [
+  // [perfil_id, permiso_id]
+  [2, 'ver'], [2, 'crear_contacto'], [2, 'editar_contacto'], [2, 'crear_oportunidad'],
+  [2, 'ver_pipeline'], [2, 'editar_pipeline'], [2, 'crear_cotizacion'],
+  [2, 'registrar_visita'], [2, 'ver_visitas'], [2, 'ver_mis_visitas'],
+  [2440, 'ver'], [2440, 'crear_contacto'], [2440, 'editar_contacto'], [2440, 'crear_oportunidad'],
+  [2440, 'ver_pipeline'], [2440, 'editar_pipeline'], [2440, 'crear_cotizacion'],
+  [2440, 'registrar_visita'], [2440, 'ver_visitas'], [2440, 'ver_mis_visitas'],
+];
+try {
+  const insGrant = db.prepare("INSERT OR IGNORE INTO modulos_permisos_perfil (perfil_id, modulo_id, permiso_id, activo) VALUES (?, 'crm', ?, 1)");
+  for (const [pid, perm] of seedCrmPerfilPermisos) insGrant.run(pid, perm);
+} catch (e) { console.error('[seed] crm perfil permisos:', e.message); }
 
 const insPermisoConfig = db.prepare(
   'INSERT OR IGNORE INTO modulos_permisos_config (modulo_id, permiso_id, label, tipo) VALUES (?, ?, ?, ?)'

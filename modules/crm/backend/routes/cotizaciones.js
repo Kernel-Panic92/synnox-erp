@@ -98,6 +98,11 @@ function buildCotizacionesWhere(req) {
     params.push(`%${search}%`);
     paramIdx++;
   }
+  // FASE 1 permisos: no-gerente ve solo lo propio (usa alias c. de las queries)
+  if (!['admin', 'gerente'].includes(req.user?.rol)) {
+    conditions.push(`c.creado_por = $${paramIdx++}`);
+    params.push(req.user.id);
+  }
 
   const where = conditions.length ? `WHERE ${conditions.join(' AND ')}` : '';
   return { where, params };

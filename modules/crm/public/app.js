@@ -4613,7 +4613,7 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // ── Admin Perfiles Venta ──
-const CRM_PERMISOS = ['crear_cotizacion','aprobar_descuento','configurar','siesa_sync','ver_pipeline','editar_pipeline'];
+const CRM_PERMISOS = ['crear_cotizacion','aprobar_descuento','configurar','ver_pipeline','editar_pipeline'];
 let _perfilesVentaCache=[];
 
 async function cargarAdmin(){
@@ -4621,7 +4621,7 @@ async function cargarAdmin(){
   const misPermisos = await apiFetch('/perfiles-venta/me/mis-permisos');
   const perms = new Set((misPermisos.ok && misPermisos.data?.permisos) || []);
   const esAdmin = usuario?.rol==='admin';
-  const puedeConfigurar = esAdmin || perms.has('configurar') || perms.has('siesa_sync');
+  const puedeConfigurar = esAdmin || perms.has('configurar');
   const puedeAprobar = esAdmin || perms.has('aprobar_descuento');
   const puedeVerAdmin = esAdmin || puedeConfigurar || puedeAprobar;
   // Ocultar/mostrar Admin en sidebar según permisos
