@@ -2,10 +2,10 @@
 
 ## Identificacion
 
-- **Nombre:** Seguridad y observabilidad
-- **Inicio:** 2026-08-20
-- **Branch:** `chore/open-issues-triage`
-- **Estado:** completado
+- **Nombre:** CRM — SIESA Hub & Pipeline comercial
+- **Inicio:** 2026-09-03
+- **Branch:** `feat/crm-module`
+- **Estado:** en curso (build mode)
 
 ## Objetivo
 

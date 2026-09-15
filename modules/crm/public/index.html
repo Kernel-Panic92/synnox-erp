@@ -3,15 +3,129 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta name="theme-color" content="#0d0f14">
 <title>CRM — SynnoxERP</title>
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="base.css">
 <link rel="stylesheet" href="components.css">
 <style>
-.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px}
-.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;text-align:center}
-.stat-card .stat-value{font-size:28px;font-weight:700;color:var(--accent)}
-.stat-card .stat-label{font-size:12px;color:var(--muted);margin-top:4px}
+.stats-row{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:8px;margin-bottom:12px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;position:relative;overflow:hidden;text-align:center}
+.stat-card::before{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;opacity:0.07;}
+.stat-card:nth-child(1)::before{background:var(--accent);}
+.stat-card:nth-child(2)::before{background:var(--accent2);}
+.stat-card:nth-child(3)::before{background:var(--success);}
+.stat-card:nth-child(4)::before{background:var(--warning);}
+.stat-card:nth-child(5)::before{background:#a06af7;}
+.stat-card:nth-child(6)::before{background:var(--accent);}
+.stat-card:nth-child(7)::before{background:var(--success);}
+.stat-card:nth-child(8)::before{background:var(--warning);}
+.stat-label{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:2px;text-align:center}
+.stat-value{font-family:var(--font-body);font-size:20px;font-weight:700;letter-spacing:0;line-height:1.1;text-align:center}
+.stat-value.blue{color:var(--accent);} .stat-value.orange{color:var(--accent2);}
+.stat-value.green{color:var(--success);} .stat-value.yellow{color:var(--warning);}
+.stat-value.purple{color:#a06af7;} .stat-value.red{color:var(--danger);}
+#stats-pipeline{display:flex;overflow-x:auto;gap:8px;padding-bottom:8px;scrollbar-width:thin;scroll-behavior:smooth;-webkit-overflow-scrolling:touch;scroll-padding-right:12px}
+#stats-pipeline .stat-card{flex:0 0 auto;min-width:168px;max-width:230px}
+.funnel-row{display:flex;justify-content:space-between;align-items:center;font-size:11px;color:var(--muted);padding:1px 0}
+.funnel-row strong{color:var(--accent);font-size:12px}
+.kpi-chips{display:flex;flex-wrap:wrap;gap:4px;justify-content:center;margin-top:4px}
+.kpi-chip{display:inline-block;font-size:10px;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;white-space:nowrap}
+.kpi-chip b{font-weight:700}
+.stat-label-top{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;text-align:center;margin-bottom:6px}
+.dash-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(360px,1fr));gap:14px;margin-top:16px;grid-auto-rows:auto;align-items:start}
+.dash-widget{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:12px 16px;display:flex;flex-direction:column;overflow:visible;height:auto}
+.header-crumb{display:none;font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.6px;line-height:1;margin-bottom:1px}
+.main-header{position:sticky;top:0;z-index:150}
+.nav-text{font-size:13px;font-weight:500;white-space:nowrap}
+.sidebar.collapsed .nav-text{display:none !important}
+.sidebar.collapsed .nav-item{position:relative}
+.sidebar.collapsed .nav-item::after, .sidebar.collapsed .btn-logout::after, .sidebar.collapsed .sidebar-home::after{content:attr(data-tooltip);position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%) translateX(-8px);background:#1e293b;color:#f8fafc;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap;border:1px solid #334155;box-shadow:0 4px 12px rgba(0,0,0,0.3);opacity:0;pointer-events:none;transition:all .2s ease;z-index:100}
+.sidebar.collapsed .nav-item:hover::after, .sidebar.collapsed .btn-logout:hover::after, .sidebar.collapsed .sidebar-home:hover::after{opacity:1;transform:translateY(-50%) translateX(0)}
+.sidebar.collapsed .btn-logout, .sidebar.collapsed .sidebar-home{position:relative}
+.sidebar .nav-item .icon{transition:transform .2s ease, filter .2s ease}
+.sidebar.collapsed .nav-item:not(.active):hover .icon{transform:scale(1.12);filter:brightness(1.2)}
+.sidebar-divider{height:1px;background:var(--border);margin:12px 14px;opacity:0.6}
+.sidebar.collapsed .sidebar-divider{margin:12px 10px}
+#sidebar-nav{display:flex;flex-direction:column;height:100%}
+.nav-item.admin-item{margin-top:auto;margin-bottom:12px}
+.app-container{display:grid;grid-template-columns:220px 1fr;min-height:100vh;transition:grid-template-columns .3s cubic-bezier(.4,0,.2,1)}
+.app-container:has(.sidebar.collapsed){grid-template-columns:64px 1fr}
+.main{margin-left:0 !important;width:100% !important;min-width:0;overflow-x:hidden}
+.sidebar{width:100% !important;min-width:0 !important;height:100vh;position:sticky !important;top:0;display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box}
+#sidebar-nav{flex:1;overflow-y:auto;overflow-x:hidden}
+#sidebar-nav::-webkit-scrollbar{width:4px}
+#sidebar-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px}
+.sidebar-header{flex-shrink:0}
+.sidebar-footer{margin-top:auto;padding-bottom:12px;display:flex;flex-direction:column;gap:6px}
+.sidebar.collapsed .sidebar-footer{gap:4px}
+.sidebar.collapsed .btn-logout{width:42px;height:42px;margin:4px auto;border-radius:8px;justify-content:center;padding:0}
+.sidebar.collapsed .btn-logout .nav-text{display:none !important}
+.sidebar-header{display:flex;justify-content:flex-end;align-items:center;padding:12px 12px 8px;min-height:44px;box-sizing:border-box}
+.sidebar.collapsed .sidebar-header{justify-content:center;padding:12px 0}
+.sidebar-toggle{width:32px;height:32px;border-radius:50%;background:var(--surface2);border:1px solid var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s ease;flex-shrink:0;font-size:14px}
+.sidebar-toggle:hover{background:var(--border);color:var(--text)}
+/* Toggle fantasma dentro del riel (sin óvalo, sin solaparse al contenido) */
+.sidebar-header{min-height:0 !important;padding:10px 12px 4px !important;justify-content:flex-end !important}
+.sidebar-header .sidebar-toggle{position:static !important;width:26px !important;height:26px !important;font-size:12px;background:transparent;border:none !important;box-shadow:none !important;color:var(--muted);z-index:auto}
+.sidebar-header .sidebar-toggle:hover{background:var(--surface2);color:var(--text)}
+.sidebar.collapsed .sidebar-header{justify-content:center !important;padding:10px 0 4px !important}
+/* Footer colapsado: MISMA geometría que los nav-items (ancho total + padding idéntico).
+   Las cajas de 42px con márgenes negativos descentraban respecto al rail. */
+.sidebar.collapsed .sidebar-footer{padding:12px 0 !important}
+.sidebar.collapsed .sidebar-footer .sidebar-home,.sidebar.collapsed .sidebar-footer .btn-logout{width:100% !important;margin:4px 0 !important;padding:8px 0 !important;gap:0 !important;border-radius:0 !important;border:none !important;justify-content:center !important}
+.sidebar.collapsed .sidebar-home .nav-text{display:none !important}
+.sidebar.collapsed .sidebar-footer .sidebar-home .icon,.sidebar.collapsed .sidebar-footer .btn-logout .icon{font-size:20px !important;width:auto !important;margin:0 !important;text-align:center;line-height:1}
+.sidebar.collapsed .sidebar-home:hover,.sidebar.collapsed .btn-logout:hover{background:var(--surface2)}
+.sidebar.collapsed .nav-item{width:100%;display:flex;justify-content:center;align-items:center;padding:8px 0 !important;margin:4px 0;gap:0 !important}
+.sidebar.collapsed .nav-item .icon{margin:0 !important;padding:0 !important;display:block}
+.sidebar.collapsed .nav-item.active{width:42px;height:42px;margin:4px auto;border-radius:8px;background:rgba(16,185,129,0.15) !important;border:1px solid #10b981 !important}
+.kpi-strip{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px;margin-bottom:12px}
+html,body{overflow-x:clip}
+.kpi-banner{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;height:auto;min-height:72px;display:flex;flex-direction:column;justify-content:space-between;box-sizing:border-box;overflow:hidden;position:relative}
+.kpi-banner::before{content:'';position:absolute;top:-20px;right:-20px;width:80px;height:80px;border-radius:50%;opacity:0.07}
+.kpi-strip .kpi-banner:nth-child(1)::before{background:var(--success)}
+.kpi-strip .kpi-banner:nth-child(2)::before{background:var(--accent2)}
+.kpi-strip .kpi-banner:nth-child(3)::before{background:#a06af7}
+.kpi-strip .kpi-banner:nth-child(4)::before{background:var(--success)}
+.kpi-strip .kpi-banner:nth-child(5)::before{background:var(--warning)}
+.kpi-strip .kpi-banner:nth-child(6)::before{background:var(--accent)}
+.kpi-banner .widget-title{flex-shrink:0;font-size:9.5px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.5px;margin:0;line-height:1.2;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.chart-card .widget-title, .table-card .widget-title{flex-shrink:0;font-size:11px;font-weight:800;color:var(--text);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px}
+.kpi-banner .metric-big{font-size:20px;font-weight:800;line-height:1.1;margin:2px 0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi-strip .kpi-banner:nth-child(1) .metric-big{color:var(--success)}
+.kpi-strip .kpi-banner:nth-child(2) .metric-big{color:var(--accent2)}
+.kpi-strip .kpi-banner:nth-child(3) .metric-big{color:#a06af7}
+.kpi-strip .kpi-banner:nth-child(4) .metric-big{color:var(--success)}
+.kpi-strip .kpi-banner:nth-child(5) .metric-big{color:var(--warning)}
+.kpi-strip .kpi-banner:nth-child(6) .metric-big{color:var(--accent)}
+.kpi-banner .metric-sub{font-size:9.5px;color:var(--muted);line-height:1.1;margin:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi-banner .coverage-bar{height:6px;margin:2px 0 0;flex-shrink:0}
+.analytics-row{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:14px}
+.analytics-row.layout-asesor{grid-template-columns:repeat(3,minmax(0,1fr)) !important}
+#widget-funnel{display:flex;flex-direction:column;align-items:center}
+#widget-funnel > *:not(.widget-title){width:100% !important;max-width:400px !important;max-height:170px !important;margin:auto !important}
+.chart-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:14px;height:240px;overflow:hidden;display:flex;flex-direction:column}
+.chart-card svg{max-width:100%}
+.chart-card .widget-title{flex-shrink:0}
+.detail-row{width:100%}
+.table-card{background:var(--surface);border:1px solid var(--border);border-radius:6px;padding:16px}
+@media(max-width:1100px){.kpi-strip{grid-template-columns:repeat(3,minmax(0,1fr))} .analytics-row{grid-template-columns:repeat(2,minmax(0,1fr))} .analytics-row.layout-asesor{grid-template-columns:repeat(2,minmax(0,1fr)) !important}}
+@media(max-width:640px){.kpi-strip{grid-template-columns:repeat(2,minmax(0,1fr))} .analytics-row{grid-template-columns:minmax(0,1fr)} .analytics-row.layout-asesor{grid-template-columns:minmax(0,1fr) !important}}
+#dash-filtros{flex-wrap:nowrap;overflow-x:auto;padding-bottom:8px;-webkit-overflow-scrolling:touch}
+#dash-filtros input[type="date"]{flex:1 0 150px}
+#dash-filtros .btn{flex-shrink:0;white-space:nowrap}}
+.dash-widget .widget-title{flex-shrink:0;font-size:12px;font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:5px;color:var(--text)}
+.dash-tabs{display:flex;gap:6px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:0}
+.dash-tab{background:transparent;border:none;border-bottom:2px solid transparent;padding:8px 14px;font-size:13px;font-weight:600;color:var(--muted);cursor:pointer;border-radius:8px 8px 0 0}
+.dash-tab:hover{color:var(--text)}
+.dash-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
+.metric-big{font-size:28px;font-weight:700;font-family:var(--font-head);margin:4px 0;color:var(--text);line-height:1.1}
+.metric-sub{font-size:12px;color:var(--muted);margin-top:2px}
+.coverage-bar{background:var(--surface2);border-radius:6px;height:14px;overflow:hidden;margin:8px 0}
+.coverage-bar>span{display:block;height:100%;background:var(--accent);border-radius:6px;transition:width .4s ease}
+#stats-pipeline .stat-card{padding:10px 12px}
+.funnel-row strong.ok{color:var(--success)} .funnel-row strong.warn{color:var(--warning)} .funnel-row strong.bad{color:var(--danger)} .funnel-row strong.na{color:var(--muted)}
 .filters{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:16px}
 .filters input,.filters select{padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:13px}
 .tbl-wrap{overflow-x:auto}
@@ -31,6 +145,7 @@
 .modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:300;justify-content:center;align-items:center}
 .modal-overlay.active{display:flex}
 .modal{background:var(--surface);border-radius:12px;padding:24px;width:90%;max-width:600px;max-height:85vh;overflow-y:auto;border:1px solid var(--border)}
+@media(max-width:480px){.modal{padding:16px}}
 .modal h3{margin:0 0 16px;font-size:18px}
 .form-group{margin-bottom:14px}
 .form-group label{display:block;font-size:12px;font-weight:600;margin-bottom:4px;color:var(--muted)}
@@ -41,11 +156,20 @@
 @media(max-width:768px){
   .stats-row{grid-template-columns:repeat(2,1fr)}
   .form-row{grid-template-columns:1fr}
-  .kanban{flex-direction:column;min-height:auto}
-  .kanban-col{min-width:100%}
+  .kanban{min-height:auto}
+  .app-container{grid-template-columns:1fr !important}
+  .app-container:has(.sidebar.collapsed){grid-template-columns:1fr !important}
+  .sidebar{position:fixed !important;top:0;left:0;bottom:0;height:100vh;transform:translateX(-100%);width:260px;z-index:100}
+  .sidebar.open{transform:translateX(0)}
 }
-.kanban{display:flex;gap:16px;overflow-x:auto;padding-bottom:16px;min-height:400px}
-.kanban-col{min-width:260px;flex:1;background:var(--surface2);border-radius:12px;padding:14px;border:1px solid var(--border)}
+.kanban{display:flex;gap:12px;overflow-x:auto;overflow-y:hidden;padding-bottom:12px;min-height:400px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
+@media(max-width:768px){.kanban{scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch}.kanban-col{scroll-snap-align:start;min-width:78vw}}
+.kanban::-webkit-scrollbar{height:6px}
+.kanban::-webkit-scrollbar-thumb{background:var(--border);border-radius:6px}
+.kanban-col{flex:1 1 0;min-width:180px;max-width:280px;background:var(--surface2);border-radius:12px;padding:12px;border:1px solid var(--border);display:flex;flex-direction:column}
+@media(max-width:1920px){.kanban-col{max-width:none}}
+@media(max-width:1400px){.kanban-col{min-width:160px;padding:10px}}
+@media(max-width:1100px){.kanban-col{min-width:150px}}
 .kanban-col.drag-over{background:rgba(0,168,107,.06);border-color:var(--accent)}
 .kanban-col h4{padding:6px 0;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;display:flex;justify-content:space-between;align-items:center;color:var(--muted);margin:0 0 10px}
 .kanban-col h4 .count{font-size:11px;background:var(--surface);padding:2px 8px;border-radius:10px;border:1px solid var(--border)}
@@ -80,8 +204,137 @@
 .visita-grupo-header:hover{background:var(--surface2)}
 .visita-grupo-icon{font-size:10px;color:var(--muted);width:16px;transition:transform .15s}
 .visita-grupo-body{border-top:1px solid var(--border)}
+.mobile-dock{display:none}
 .bulk-bar{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 20px;display:flex;align-items:center;gap:12px;z-index:400;box-shadow:0 4px 20px rgba(0,0,0,.2);opacity:0;pointer-events:none;transition:opacity .2s}
 .bulk-bar.visible{opacity:1;pointer-events:auto}
+.pac-container{ z-index:10000 !important; font-family:inherit; border-radius:8px; box-shadow:0 4px 20px rgba(0,0,0,0.15); }
+.main-header{background:color-mix(in srgb, var(--surface) 80%, transparent) !important;-webkit-backdrop-filter:blur(12px) saturate(1.5);backdrop-filter:blur(12px) saturate(1.5);border-bottom:1px solid color-mix(in srgb, var(--border) 60%, transparent) !important}
+/* ── CHIPS BLINDADOS DE REPORTES (desktop + móvil) ── */
+#reporte-columnas-container{display:flex !important;flex-wrap:wrap !important;gap:12px !important;padding:16px !important;background:var(--surface2) !important;border-radius:12px !important;border:1px dashed var(--border) !important;overflow:visible !important}
+.chip-columna{flex:0 0 auto !important;width:max-content !important;display:inline-flex !important;align-items:center !important;gap:8px !important;font-size:13px !important;font-weight:500 !important;color:var(--text) !important;cursor:pointer !important;padding:8px 16px !important;background:var(--surface) !important;border-radius:20px !important;border:1px solid var(--border) !important;box-shadow:0 2px 4px rgba(0,0,0,0.02) !important;margin:0 !important}
+.chip-columna input[type="checkbox"]{width:16px !important;height:16px !important;margin:0 !important;flex-shrink:0 !important}
+/* ── PARCHES RESPONSIVENESS MÓVIL (≤768px) ── */
+@media (max-width: 768px) {
+  #dash-filtros{display:flex !important;flex-direction:row !important;flex-wrap:nowrap !important;overflow-x:auto !important;justify-content:flex-start !important;align-items:center !important;width:100% !important;padding-bottom:12px !important;gap:8px !important;-webkit-overflow-scrolling:touch}
+  #dash-filtros > *{flex:0 0 auto !important;margin:0 !important}
+  #dash-filtros input[type="date"]{width:135px !important;height:34px !important;padding:4px 8px !important;box-sizing:border-box}
+  .kpi-strip{grid-template-columns:1fr !important;gap:12px}
+  .analytics-row{grid-template-columns:1fr !important}
+  .chart-card{width:100%;max-width:100vw;box-sizing:border-box;overflow:hidden !important}
+  .chart-card svg,.chart-card canvas{max-width:100% !important}
+  .table-card{padding:10px;width:100%;box-sizing:border-box;overflow-x:auto}
+  .dash-widget{width:100%;box-sizing:border-box}
+  .main-body{padding:12px !important;box-sizing:border-box;overflow-x:hidden;width:100%;max-width:100vw}
+  .chart-card{height:auto !important;min-height:240px;padding:12px !important;overflow-x:auto !important;overflow-y:hidden !important}
+  .chart-card > div,.chart-card .progress-bar,.chart-card table{max-width:100% !important;box-sizing:border-box}
+  .sidebar{width:260px !important}
+  .sidebar-toggle{display:none !important}
+  .sidebar-header{justify-content:flex-end !important}
+  .sidebar.collapsed .nav-text,.sidebar.collapsed .logo span{display:inline-block !important}
+  .sidebar.collapsed .nav-item,.sidebar.collapsed .btn-logout,.sidebar.collapsed .sidebar-home{width:100% !important;justify-content:flex-start !important;padding:8px 16px !important;border-radius:0 !important;background:transparent !important;border:none !important}
+  .sidebar.collapsed .nav-item .icon,.sidebar.collapsed .btn-logout .icon,.sidebar.collapsed .sidebar-home .icon{margin-right:12px !important;font-size:inherit !important}
+  .detail-row{width:100% !important;max-width:100vw !important;box-sizing:border-box;overflow:hidden !important}
+  .table-card{width:100% !important;box-sizing:border-box;overflow-x:auto !important;-webkit-overflow-scrolling:touch}
+  .table-card table{min-width:550px !important}
+  .sidebar,.sidebar.collapsed{max-width:80vw !important}
+  .page-actions .btn-primary{display:none !important}
+  .modal .btn-row{position:sticky;bottom:0 !important;margin:24px -16px 0 -16px !important;padding:16px 16px calc(16px + env(safe-area-inset-bottom)) !important;background:var(--surface) !important;border-top:1px solid var(--border);box-shadow:0 -4px 16px rgba(0,0,0,0.06);z-index:200;border-radius:0}
+  .main-body{padding-bottom:calc(100px + env(safe-area-inset-bottom)) !important}
+  .bulk-bar{bottom:calc(89px + env(safe-area-inset-bottom)) !important}
+  .page-actions .btn-primary{bottom:calc(89px + env(safe-area-inset-bottom)) !important}
+  .header-crumb{display:block}
+  .main-header{position:fixed !important;top:0;left:0;width:100%;z-index:200;background:var(--surface) !important;border-bottom:1px solid var(--border);box-sizing:border-box;padding:10px 12px !important}
+  .main-body{margin-top:60px !important;padding:12px 12px calc(100px + env(safe-area-inset-bottom)) !important}
+  .app-container{display:block !important}
+  .mobile-dock{display:flex;position:fixed;bottom:calc(10px + env(safe-area-inset-bottom));left:12px;right:12px;width:auto;background:color-mix(in srgb, var(--accent) 10%, var(--surface2));-webkit-backdrop-filter:blur(18px) saturate(1.4);backdrop-filter:blur(18px) saturate(1.4);border:1px solid color-mix(in srgb, var(--accent) 22%, var(--border));border-radius:22px;justify-content:space-around;align-items:center;padding:6px 8px calc(6px + env(safe-area-inset-bottom));box-shadow:0 8px 28px rgba(0,0,0,0.28);z-index:200;min-height:65px}
+  body:not(.light) .mobile-dock{background:color-mix(in srgb, var(--accent) 20%, #232a3a);border-color:color-mix(in srgb, var(--accent) 38%, #2a3045);box-shadow:0 8px 28px rgba(0,0,0,0.55),0 0 0 1px rgba(0,168,107,0.12)}
+  .dock-item{display:flex;flex-direction:column;align-items:center;justify-content:center;background:transparent;border:none;color:var(--muted);flex:1;height:100%;cursor:pointer;transition:color 0.2s;font-family:inherit;padding:0}
+  .dock-item .icon{font-size:20px;margin-bottom:4px;transition:transform 0.2s;line-height:1}
+  .dock-item .text{font-size:10px;font-weight:600}
+  .dock-item.active{color:var(--accent)}
+  .dock-item.active .icon{transform:translateY(-2px)}
+  .dock-item-main{flex:0 0 60px;position:relative;top:-15px}
+  .dock-item-main .icon{background:var(--accent);color:#fff;width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:28px;margin:0;box-shadow:0 4px 10px rgba(16,185,129,0.4)}
+  .nav-item:active,.catalogo-item:active,.btn:active,.kanban-card:active{transform:scale(0.98);opacity:0.8;transition:transform 0.1s,opacity 0.1s}
+  .tbl-wrap{width:100% !important;max-width:100vw !important;overflow-x:auto !important;-webkit-overflow-scrolling:touch;box-sizing:border-box;padding-bottom:8px}
+  .tbl{min-width:800px !important;width:100% !important}
+  .page{width:100% !important;max-width:100vw !important;box-sizing:border-box;overflow-x:hidden !important;padding:12px !important}
+  .modal-overlay{align-items:flex-end !important}
+  .modal{width:100% !important;max-width:100vw !important;max-height:90vh !important;margin:0 !important;border-radius:24px 24px 0 0 !important;padding-top:32px !important;position:relative;animation:slideUpModal 0.3s cubic-bezier(0.16,1,0.3,1) forwards}
+  .modal::before{content:'';position:absolute;top:12px;left:50%;transform:translateX(-50%);width:40px;height:5px;background:var(--border);border-radius:10px}
+  @keyframes slideUpModal{from{transform:translateY(100%)}to{transform:translateY(0)}}
+  .form-group input,.form-group select,.filters input,.filters select,.btn{min-height:44px !important;box-sizing:border-box}
+  .filters{display:flex !important;flex-wrap:nowrap !important;overflow-x:auto !important;padding-bottom:12px !important;gap:8px !important;-webkit-overflow-scrolling:touch;width:100%}
+  .filters > *{flex:0 0 auto !important;margin-bottom:0 !important}
+  .tbl-wrap{background:transparent !important;border:none !important;padding:0 !important}
+  .tbl,.table-card table,.tbl tbody,.tbl tr,.tbl td{display:block !important;width:100% !important;min-width:0 !important;box-sizing:border-box}
+  .tbl thead{display:none !important}
+  .tbl tr{margin-bottom:16px !important;background:var(--surface) !important;border:1px solid var(--border) !important;border-radius:12px !important;padding:12px !important;box-shadow:0 4px 12px rgba(0,0,0,0.03)}
+  .tbl td{display:flex !important;flex-direction:column !important;align-items:flex-start !important;text-align:left !important;padding:8px 0 !important;border-bottom:1px dashed var(--surface2) !important;font-size:14px !important;color:var(--text) !important}
+  .tbl td:last-child{border-bottom:none !important;justify-content:flex-end !important;gap:8px}
+  .tbl td::before{content:attr(data-label);font-weight:700;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;text-align:left;margin-right:0 !important;margin-bottom:4px}
+  .tbl td:last-child{flex-direction:row !important;justify-content:center !important;padding-top:16px !important;margin-top:8px;border-top:1px solid var(--border) !important}
+  .tbl tr:has(td:first-child input[type="checkbox"]){position:relative;padding-top:40px !important}
+  .tbl tr:has(td:first-child input[type="checkbox"]) td:nth-child(2){position:absolute;top:14px;left:14px;width:calc(100% - 50px) !important;border:none !important;font-size:15px !important;font-weight:700 !important;color:var(--accent) !important;padding:0 !important;justify-content:flex-start !important}
+  .tbl tr:has(td:first-child input[type="checkbox"]) td:nth-child(2)::before{display:none !important}
+  .tbl tr:has(td:first-child input[type="checkbox"]) td:nth-child(1){position:absolute;top:14px;right:14px;width:auto !important;border:none !important;padding:0 !important}
+  .tbl tr:has(td:first-child input[type="checkbox"]) td:last-child{margin-top:8px;padding-top:12px !important;border-top:1px solid var(--border) !important;justify-content:center !important}
+  .tbl tr:has(td:first-child input[type="checkbox"]) td:last-child::before{display:none !important}
+  .kanban{display:flex;flex-wrap:nowrap !important;overflow-x:auto !important;overflow-y:hidden !important;padding-bottom:24px !important;min-height:auto !important;width:100vw;margin-left:-12px;padding-left:12px;scroll-snap-type:x mandatory;-webkit-overflow-scrolling:touch;scroll-padding:12px}
+  .kanban::-webkit-scrollbar{display:none}
+  .kanban-col{flex:0 0 85vw !important;min-width:85vw !important;max-width:85vw !important;margin-right:12px !important;scroll-snap-align:center;box-sizing:border-box;border-radius:16px !important;max-height:60vh;overflow-y:auto}
+  .modal{padding-bottom:0 !important}
+  .modal select[size]{max-height:180px !important;border-radius:12px !important;background:var(--surface) !important;box-shadow:0 8px 24px rgba(0,0,0,0.12) !important;border:1px solid var(--border) !important;padding:0 !important}
+  .modal select[size] option{padding:14px 12px !important;min-height:44px !important;border-bottom:1px solid var(--border);font-size:13px}
+  .modal select[size] option:last-child{border-bottom:none}
+  .calendar-strip{display:flex;overflow-x:auto;gap:12px;padding:10px 12px 20px 12px;-webkit-overflow-scrolling:touch;border-bottom:1px solid var(--border);margin:0 -12px 16px -12px;scrollbar-width:none}
+  .calendar-strip::-webkit-scrollbar{display:none}
+  .calendar-day{flex:0 0 54px;height:70px;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:24px;background:var(--surface);border:1px solid var(--border);color:var(--muted);cursor:pointer;transition:all 0.2s ease;user-select:none}
+  .calendar-day.active{background:var(--accent);color:#fff;border-color:var(--accent);box-shadow:0 4px 10px rgba(16,185,129,0.3);transform:translateY(-2px)}
+  .calendar-day .day-name{font-size:10px;text-transform:uppercase;font-weight:700;margin-bottom:4px}
+  .calendar-day .day-number{font-size:18px;font-weight:800}
+  .timeline{position:relative;padding-left:20px;margin-top:16px;padding-bottom:24px}
+  .timeline::before{content:'';position:absolute;top:0;left:6px;width:2px;height:100%;background:var(--border)}
+  .timeline-item{position:relative;background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;margin-bottom:16px;box-shadow:0 4px 12px rgba(0,0,0,0.03)}
+  .timeline-item::before{content:'';position:absolute;top:20px;left:-19px;width:10px;height:10px;border-radius:50%;background:var(--accent);border:3px solid var(--surface2)}
+  .timeline-time{font-size:11px;font-weight:800;color:var(--accent);margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px}
+  .timeline-title{font-size:15px;font-weight:700;color:var(--text);margin-bottom:4px}
+  .timeline-client{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}
+  .empty-state{text-align:center;padding:60px 20px;color:var(--muted)}
+  .empty-state .icon{font-size:48px;margin-bottom:16px;opacity:0.4}
+  .empty-state p{font-size:14px;line-height:1.5;font-weight:500}
+  #page-visitas .stats-row{display:flex !important;flex-wrap:nowrap !important;overflow-x:auto !important;gap:12px !important;padding-bottom:8px !important;margin-bottom:4px !important;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  #page-visitas .stats-row::-webkit-scrollbar{display:none}
+  #page-visitas .stat-card{flex:0 0 auto !important;min-width:140px !important;height:60px !important;padding:8px 12px !important;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;border-radius:12px !important}
+  #page-visitas .stat-card .stat-value{font-size:20px !important;margin-bottom:2px}
+  #page-visitas .stat-card .stat-label{font-size:9px !important;text-align:left !important}
+  #page-visitas .stat-card::before{top:-10px;right:-10px;width:50px;height:50px}
+  .calendar-strip{padding-top:4px !important;padding-bottom:12px !important}
+  .filters:not(#dash-filtros){flex-wrap:wrap !important}
+  .filtros-avanzados-movil{display:none;width:100%;flex-wrap:nowrap;overflow-x:auto;gap:10px;padding:12px;background:var(--surface2);border-radius:12px;border:1px solid var(--border);-webkit-overflow-scrolling:touch;scrollbar-width:none;margin-top:4px;animation:slideDownFade 0.2s ease-out}
+  .filtros-avanzados-movil::-webkit-scrollbar{display:none}
+  .filtros-avanzados-movil > *{flex:0 0 auto !important}
+  .filtros-avanzados-movil{background:color-mix(in srgb, var(--surface2) 75%, transparent) !important;-webkit-backdrop-filter:blur(16px) saturate(1.2);backdrop-filter:blur(16px) saturate(1.2);box-shadow:0 8px 32px rgba(0,0,0,0.08);border:1px solid color-mix(in srgb, var(--border) 50%, transparent) !important}
+  @keyframes slideDownFade{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+  .page:not(#page-dashboard) .stats-row{display:flex !important;flex-wrap:nowrap !important;overflow-x:auto !important;gap:12px !important;padding-bottom:8px !important;margin-bottom:8px !important;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  .page:not(#page-dashboard) .stats-row::-webkit-scrollbar{display:none}
+  .page:not(#page-dashboard) .stat-card{flex:0 0 auto !important;min-width:150px !important;height:auto !important;min-height:64px !important;padding:10px 14px !important;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;border-radius:12px !important}
+  .page:not(#page-dashboard) .stat-card .kpi-chips{justify-content:flex-start !important;margin-top:8px !important;width:100%}
+  .page:not(#page-dashboard) .stat-card .stat-value{font-size:20px !important;margin-bottom:2px}
+  .page:not(#page-dashboard) .stat-card .stat-label{font-size:9px !important;text-align:left !important}
+  .page:not(#page-dashboard) .stat-card::before{top:-10px;right:-10px;width:60px;height:60px}
+  #tbl-cotizaciones tr:has(td:first-child input[type="checkbox"]){padding-top:76px !important;position:relative !important}
+  #tbl-cotizaciones tr:has(td:first-child input[type="checkbox"]) td:nth-child(2){position:absolute !important;top:14px !important;left:16px !important;width:auto !important;font-size:13px !important;color:var(--muted) !important;border:none !important;padding:0 !important}
+  #tbl-cotizaciones tr:has(td:first-child input[type="checkbox"]) td:nth-child(4){position:absolute !important;top:12px !important;right:16px !important;left:auto !important;width:auto !important;border:none !important;padding:0 !important}
+  #tbl-cotizaciones tr:has(td:first-child input[type="checkbox"]) td:nth-child(4)::before{display:none !important}
+  #tbl-cotizaciones tr:has(td:first-child input[type="checkbox"]) td:nth-child(4) .badge{font-size:11px;padding:4px 10px}
+  #tbl-cotizaciones tr:has(td:first-child input[type="checkbox"]) td:nth-child(6){position:absolute !important;top:36px !important;left:16px !important;width:auto !important;border:none !important;padding:0 !important;font-size:26px !important;font-weight:800 !important;color:var(--text) !important}
+  #tbl-cotizaciones tr:has(td:first-child input[type="checkbox"]) td:nth-child(6)::before{display:none !important}
+  #tbl-cotizaciones tr:has(td:first-child input[type="checkbox"]) td:nth-child(1){position:absolute !important;top:auto !important;bottom:16px !important;right:16px !important;width:auto !important;border:none !important;padding:0 !important}
+  input,select,textarea,.form-group input,.form-group select,.form-group textarea,.filters input,.filters select{font-size:16px !important}
+  #page-reportes #reporte-columnas-container{flex-wrap:nowrap !important;overflow-x:auto !important;padding-bottom:16px !important;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+  #page-reportes #reporte-columnas-container::-webkit-scrollbar{display:none}
+}
 @keyframes spin{to{transform:rotate(360deg)}}
 }
 </style>
@@ -89,33 +342,38 @@
 <body>
 
 <div class="sidebar-overlay" onclick="closeSidebar()"></div>
-
+<div class="app-container" id="app-container">
 <aside class="sidebar" id="sidebar">
-  <button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Menu" aria-expanded="true">◀</button>
-  <div class="logo" data-module-id="crm">💼 <span data-module-name>SynnoxERP</span></div>
-  <div class="user-info">
-    <div class="name" id="user-name"></div>
-    <div class="role" id="user-role"></div>
+  <div class="sidebar-header">
+    <button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Contraer menú" aria-expanded="true">❮</button>
   </div>
-  <nav id="sidebar-nav">
-    <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span> Dashboard</button>
-    <button class="nav-item" data-page="pipeline" onclick="navigate('pipeline')"><span class="icon">📈</span> Pipeline</button>
-    <button class="nav-item" data-page="leads" onclick="navigate('leads')"><span class="icon">🎯</span> Clientes Potenciales</button>
-    <button class="nav-item" data-page="clientes" onclick="navigate('clientes')"><span class="icon">🏢</span> Clientes</button>
-    <button class="nav-item" data-page="contactos" onclick="navigate('contactos')"><span class="icon">👤</span> Contactos</button>
-    <button class="nav-item" data-page="visitas" onclick="navigate('visitas')"><span class="icon">📋</span> Actividades</button>
-    <button class="nav-item" data-page="cotizaciones" onclick="navigate('cotizaciones')"><span class="icon">📄</span> Cotizaciones</button>
-    <button class="nav-item" data-page="productos" onclick="navigate('productos')"><span class="icon">📦</span> Productos</button>
-    <button class="nav-item" data-page="inventario" onclick="navigate('inventario')"><span class="icon">📊</span> Inventario</button>
-    <button class="nav-item" data-page="admin" onclick="navigate('admin')"><span class="icon">⚙️</span> Admin</button>
+  <div class="logo" data-module-id="crm"><img src="/media/LogoERP.png" alt="Logo"> <span data-module-name>SynnoxERP</span></div>
+  <nav id="sidebar-nav" aria-label="Navegación CRM">
+    <div class="sidebar-section-title">Comercial</div>
+    <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')" title="Dashboard" data-tooltip="Dashboard" aria-current="page"><span class="icon">📊</span> <span class="nav-text">Dashboard</span></button>
+    <button class="nav-item" data-page="pipeline" onclick="navigate('pipeline')" title="Pipeline" data-tooltip="Pipeline"><span class="icon">📈</span> <span class="nav-text">Pipeline</span></button>
+    <button class="nav-item" data-page="leads" onclick="navigate('leads')" title="Clientes Potenciales" data-tooltip="Clientes Potenciales"><span class="icon">🎯</span> <span class="nav-text">Clientes Potenciales</span></button>
+    <div class="sidebar-section-title">Clientes</div>
+    <button class="nav-item" data-page="clientes" onclick="navigate('clientes')" title="Clientes" data-tooltip="Clientes"><span class="icon">🏢</span> <span class="nav-text">Clientes</span></button>
+    <button class="nav-item" data-page="contactos" onclick="navigate('contactos')" title="Contactos" data-tooltip="Contactos"><span class="icon">👤</span> <span class="nav-text">Contactos</span></button>
+    <button class="nav-item" data-page="visitas" onclick="navigate('visitas')" title="Actividades" data-tooltip="Actividades"><span class="icon">📋</span> <span class="nav-text">Actividades</span></button>
+    <div class="sidebar-section-title">Catálogo</div>
+    <button class="nav-item" data-page="cotizaciones" onclick="navigate('cotizaciones')" title="Cotizaciones" data-tooltip="Cotizaciones"><span class="icon">📄</span> <span class="nav-text">Cotizaciones</span></button>
+    <button class="nav-item" data-page="productos" onclick="navigate('productos')" title="Productos" data-tooltip="Productos"><span class="icon">📦</span> <span class="nav-text">Productos</span></button>
+    <button class="nav-item" data-page="inventario" onclick="navigate('inventario')" title="Inventario" data-tooltip="Inventario"><span class="icon">🏬</span> <span class="nav-text">Inventario</span></button>
+    <button class="nav-item" data-page="reportes" onclick="navigate('reportes')" title="Reportes" data-tooltip="Reportes"><span class="icon">📑</span> <span class="nav-text">Reportes</span></button>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section-title">Sistema</div>
+    <button class="nav-item admin-item" data-page="admin" onclick="navigate('admin')" title="Admin" data-tooltip="Admin"><span class="icon">⚙️</span> <span class="nav-text">Admin</span></button>
   </nav>
   <div class="sidebar-footer">
-    <a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a>
+    <button class="sidebar-home" id="theme-btn" onclick="toggleTheme()" title="Cambiar tema" data-tooltip="Cambiar tema" style="background:none;border:none;width:100%;cursor:pointer;font-family:inherit;font-size:inherit"><span class="icon">☀️</span> <span class="nav-text">Tema</span></button>
+    <a class="sidebar-home" href="/" title="Home" data-tooltip="Home"><span class="icon">🏠</span> <span class="nav-text">Home</span></a>
     <div class="user-name" id="sidebar-user-name"></div>
     <div class="user-role" id="sidebar-user-role"></div>
     <div class="version"><div id="app-version">v—</div></div>
-    <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesion">
-      <span style="font-size:18px">⏻</span> Cerrar sesion
+    <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesión" data-tooltip="Cerrar sesión">
+      <span class="icon">⏻</span> <span class="nav-text">Cerrar sesión</span>
     </button>
   </div>
 </aside>
@@ -124,21 +382,81 @@
   <div class="main">
     <div class="main-header">
       <button class="hamburger" onclick="toggleSidebar()">&#9776;</button>
-      <h2 id="page-title">Dashboard</h2>
+      <div class="header-title-wrap">
+        <div class="header-crumb">CRM</div>
+        <h2 id="page-title">Dashboard</h2>
+      </div>
       <div style="display:flex;align-items:center;gap:8px;margin-left:8px">
         <button class="btn btn-sm btn-secondary" onclick="volverDesdeAdmin()" id="btn-volver-admin" style="display:none">← Volver a Admin</button>
       </div>
-      <div class="header-actions">
-        <button class="btn btn-sm btn-secondary" onclick="toggleTheme()" id="theme-btn" title="Cambiar tema">☀️</button>
+      <div class="header-actions" style="display:flex;align-items:center;padding-right:16px;height:100%">
       </div>
     </div>
     <div class="main-body">
 
       <!-- Dashboard -->
-      <div class="page active" id="page-dashboard">
-        <div class="stats-row" id="stats-row"></div>
-        <div id="clientes-recientes"></div>
-      </div>
+<div class="page active" id="page-dashboard">
+  <div class="dash-tabs">
+    <button class="dash-tab active" id="dash-tab-resumen" onclick="cambiarTabDash('resumen')">Resumen</button>
+    <button class="dash-tab" id="dash-tab-analitica" onclick="cambiarTabDash('analitica')">Analítica Avanzada</button>
+  </div>
+  <div class="filters" id="dash-filtros" style="gap:8px;margin-bottom:16px">
+    <label style="font-size:12px;font-weight:600;color:var(--muted)">Periodo:</label>
+    <input type="date" id="dash-desde" onchange="cargarDashboard()" title="Desde">
+    <input type="date" id="dash-hasta" onchange="cargarDashboard()" title="Hasta">
+    <button class="btn btn-sm btn-secondary" onclick="dashMesActual()" title="Mes actual">Mes actual</button>
+    <button class="btn btn-sm btn-secondary" onclick="dashMesAnterior()" title="Mes anterior">Mes anterior</button>
+    <button class="btn btn-sm btn-secondary" onclick="dashMesTrimestre()" title="Últimos 3 meses">Trimestre</button>
+    <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosDash()">✕ Limpiar</button>
+  </div>
+  <div id="dash-resumen" style="padding-bottom:24px">
+    <div class="kpi-strip" id="resumen-kpi-strip">
+      <div class="kpi-banner" id="resumen-kpi-ganado"><div class="skeleton skeleton-text"></div></div>
+      <div class="kpi-banner" id="resumen-kpi-pipeline"><div class="skeleton skeleton-text"></div></div>
+      <div class="kpi-banner" id="resumen-kpi-total"><div class="skeleton skeleton-text"></div></div>
+      <div class="kpi-banner" id="resumen-kpi-tasa"><div class="skeleton skeleton-text"></div></div>
+      <div class="kpi-banner" id="resumen-kpi-ticket"><div class="skeleton skeleton-text"></div></div>
+      <div class="kpi-banner" id="resumen-kpi-cumplimiento" style="display:none"><div class="skeleton skeleton-text"></div></div>
+    </div>
+    <div class="analytics-row">
+      <div class="chart-card" id="widget-funnel"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div></div>
+      <div class="chart-card" id="widget-ventas-asesor"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
+      <div class="chart-card" id="widget-tendencia"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-card"></div></div>
+      <div class="chart-card" id="widget-ciudades"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div></div>
+    </div>
+    <div class="detail-row" style="margin-top:12px" id="row-mi-proyeccion" hidden>
+      <div class="table-card" id="widget-mi-proyeccion"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div></div>
+    </div>
+    <div class="detail-row" style="margin-top:12px">
+      <div class="table-card" id="widget-ultimos-movs"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
+    </div>
+  </div>
+  <div id="dash-analitica" style="display:none;margin-bottom:20px">
+    <!-- Fila 1: Banquetas KPI delgadas (Horix strip) -->
+    <div class="kpi-strip">
+      <div class="kpi-banner" id="widget-acv"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
+      <div class="kpi-banner" id="widget-coverage"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
+      <div class="kpi-banner" id="widget-forecast"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
+      <div class="kpi-banner" id="widget-slippage"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
+      <div class="kpi-banner" id="widget-ltv"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
+      <div class="kpi-banner" id="widget-repeat"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
+    </div>
+    <!-- Fila 2: Gráficos altura fija -->
+    <div class="analytics-row">
+      <div class="chart-card" id="widget-loss"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
+      <div class="chart-card" id="widget-fuente"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
+      <div class="chart-card" id="widget-velocity"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
+      <div class="chart-card" id="widget-conv-asesor"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row"></div></div>
+    </div>
+    <!-- Fila 3: Bloque ancho detalle -->
+    <div class="detail-row">
+      <div class="table-card" id="widget-lead-conv"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-text-sm"></div></div>
+    </div>
+    <div class="detail-row" style="margin-top:12px">
+      <div class="table-card" id="widget-acciones" style="background:linear-gradient(135deg,var(--surface),var(--surface2));border-style:dashed"><div class="widget-title">🤖 Acciones recomendadas</div><div style="font-size:12px;color:var(--muted);line-height:1.5">Próximamente: alertas automáticas y recomendaciones IA basadas en slippage, coverage y conversión por asesor.</div></div>
+    </div>
+  </div>
+</div>
 
       <!-- Leads -->
       <div class="page" id="page-leads">
@@ -193,10 +511,41 @@
             <button class="btn btn-sm btn-primary" onclick="abrirModalOportunidad()">+ Nueva Oportunidad</button>
           </div>
         </div>
-        <div class="filters">
-          <select id="filtro-pipeline-vendedor" onchange="cargarPipeline()">
-            <option value="">Todos los vendedores</option>
+        <div class="filters" style="gap:8px">
+          <input type="text" id="filtro-pipeline-search" placeholder="Buscar oportunidad o cliente..." oninput="cargarPipeline()" style="min-width:200px">
+          <div style="min-width:220px;position:relative" id="pipeline-vendedor-wrap">
+            <input type="text" id="filtro-pipeline-vendedor-search" placeholder="Filtrar vendedor (asesor)..." oninput="filtrarPipelineVendedor(this.value)" onfocus="filtrarPipelineVendedor('')" autocomplete="off" style="width:100%;padding:8px 12px 8px 32px;border:1px solid var(--border);border-radius:8px;background:var(--surface)">
+            <span style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--muted);pointer-events:none">▾</span>
+            <input type="hidden" id="filtro-pipeline-vendedor" value="">
+            <div id="filtro-pipeline-vendedor-dropdown" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface2);border:1px solid var(--border);border-radius:9px;z-index:200;max-height:240px;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,0.4)"></div>
+            <div id="filtro-pipeline-vendedor-selected" style="display:none;margin-top:4px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:12px;position:relative;z-index:1"></div>
+          </div>
+          <select id="filtro-pipeline-etapa" onchange="cargarPipeline()">
+            <option value="">Todas las etapas</option>
+            <option value="lead">Lead</option>
+            <option value="calificado">Calificado</option>
+            <option value="propuesta">Propuesta</option>
+            <option value="negociacion">Negociación</option>
+            <option value="ganada">Ganada</option>
+            <option value="perdida">Perdida</option>
           </select>
+          <select id="filtro-pipeline-fuente" onchange="cargarPipeline()">
+            <option value="">Todas las fuentes</option>
+            <option value="web">Web</option>
+            <option value="referido">Referido</option>
+            <option value="llamada">Llamada</option>
+            <option value="feria">Feria</option>
+            <option value="otro">Otro</option>
+          </select>
+          <select id="filtro-pipeline-prioridad" onchange="cargarPipeline()">
+            <option value="">Todas prioridades</option>
+            <option value="baja">Baja</option>
+            <option value="media">Media</option>
+            <option value="alta">Alta</option>
+            <option value="critica">Crítica</option>
+          </select>
+          <input type="date" id="filtro-pipeline-desde" onchange="cargarPipeline()" title="Desde cierre">
+          <input type="date" id="filtro-pipeline-hasta" onchange="cargarPipeline()" title="Hasta cierre">
           <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosPipeline()">✕ Limpiar</button>
         </div>
         <div class="stats-row" id="stats-pipeline"></div>
@@ -241,6 +590,10 @@
           <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosClientes()">✕ Limpiar</button>
         </div>
         <div class="stats-row" id="stats-clientes"></div>
+        <div class="dash-grid" style="grid-template-columns:repeat(auto-fit,minmax(300px,1fr));margin-bottom:12px">
+          <div class="dash-widget" id="widget-cli-tipo"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div></div>
+          <div class="dash-widget" id="widget-cli-ciudad"><div class="skeleton skeleton-text"></div><div class="skeleton skeleton-row"></div></div>
+        </div>
         <div class="tbl-wrap">
           <table class="tbl" id="tbl-clientes">
             <thead>
@@ -317,7 +670,7 @@
             <button class="btn btn-sm btn-primary" onclick="abrirModalCrearActividad()">+ Nueva Actividad</button>
           </div>
         </div>
-        <div class="filters">
+        <div class="filters" id="filtros-visitas-desktop">
           <select id="filtro-visitas-vendedor" onchange="cargarVisitas()">
             <option value="">Todos los vendedores</option>
           </select>
@@ -325,8 +678,10 @@
           <input type="date" id="filtro-visitas-hasta" onchange="cargarVisitas()">
           <button class="btn btn-sm btn-secondary" onclick="limpiarFiltrosVisitas()">✕ Limpiar</button>
         </div>
+        <div id="calendar-strip-container" class="calendar-strip" style="display:none"></div>
         <div id="visitas-resumen" style="margin-bottom:16px"></div>
         <div id="visitas-agrupadas"></div>
+        <div id="visitas-timeline" class="timeline" style="display:none"></div>
       </div>
 
       <!-- Cotizaciones -->
@@ -356,12 +711,12 @@
             <thead>
               <tr>
                 <th><input type="checkbox" id="select-all-cotizacion" onchange="toggleAll('cotizacion', this.checked)"></th>
-                <th>Numero</th>
-                <th>Cliente</th>
-                <th>Estado</th>
+                <th class="sortable" onclick="sortCotizaciones('numero')">Numero <span class="sort-indicator" id="sort-cot-numero"></span></th>
+                <th class="sortable" onclick="sortCotizaciones('cliente')">Cliente <span class="sort-indicator" id="sort-cot-cliente"></span></th>
+                <th class="sortable" onclick="sortCotizaciones('estado')">Estado <span class="sort-indicator" id="sort-cot-estado"></span></th>
                 <th>Items</th>
-                <th>Total</th>
-                <th>Vencimiento</th>
+                <th class="sortable" onclick="sortCotizaciones('total')">Total <span class="sort-indicator" id="sort-cot-total"></span></th>
+                <th class="sortable" onclick="sortCotizaciones('vencimiento')">Vencimiento <span class="sort-indicator" id="sort-cot-vencimiento"></span></th>
                 <th>Estado ERP</th>
                 <th>Doc. ERP</th>
                 <th>Acciones</th>
@@ -498,6 +853,72 @@
           </table>
         </div>
         <div class="pagination" id="pag-inventario"></div>
+      </div>
+
+      <!-- Reportes -->
+      <div class="page" id="page-reportes">
+        <div class="page-header">
+          <h3>Reportes</h3>
+          <p>Exporta a Excel con las columnas que elijas</p>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>Módulo</label>
+            <select id="reporte-modulo" onchange="cargarColumnasReporte()" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--border);background:var(--surface);color:var(--text)">
+              <option value="">Seleccione un reporte...</option>
+              <optgroup label="Comercial y Ventas">
+                <option value="cotizaciones">Cotizaciones (Ingresos)</option>
+                <option value="oportunidades">Pipeline y Oportunidades</option>
+                <option value="perdidas">Motivos de Pérdida</option>
+              </optgroup>
+              <optgroup label="Catálogo y Finanzas">
+                <option value="productos">Rendimiento de Productos</option>
+                <option value="descuentos">Control de Descuentos</option>
+              </optgroup>
+              <optgroup label="Clientes y Rutas">
+                <option value="leads">Origen de Leads</option>
+                <option value="visitas">Estado de Actividades</option>
+                <option value="checkins">Auditoría de Check-ins (GPS)</option>
+                <option value="clientes">Clientes por Tipo</option>
+              </optgroup>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Rango de fechas (opcional)</label>
+            <div style="display:flex;gap:8px">
+              <input type="date" id="reporte-desde">
+              <input type="date" id="reporte-hasta">
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Columnas <small style="font-weight:400">(<a href="#" onclick="marcarTodasColumnasReporte(true);return false">todas</a> / <a href="#" onclick="marcarTodasColumnasReporte(false);return false">ninguna</a>)</small></label>
+          <div id="reporte-columnas-container" style="display:flex;flex-wrap:wrap;gap:10px;padding:16px;background:var(--surface2);border-radius:12px;border:1px dashed var(--border);min-height:80px;overflow-x:auto">
+            <div style="color:var(--muted);font-size:13px;width:100%;text-align:center;padding:10px 0">Selecciona un módulo primero 👆</div>
+          </div>
+        </div>
+        <div id="panel-vista-previa" style="display:none;margin-top:24px;padding-top:24px;border-top:1px solid var(--border)">
+          <h4 style="margin:0 0 16px 0;color:var(--accent);font-size:14px">4. Vista Previa de Datos</h4>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px">
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 4px 12px rgba(0,0,0,0.02)">
+              <h5 id="titulo-grafico-reporte" style="margin:0 0 12px 0;font-size:13px;color:var(--muted);text-transform:uppercase">Resumen</h5>
+              <div id="chart-reporte-preview" style="min-height:250px;display:flex;align-items:center;justify-content:center">
+                <span style="color:var(--muted);font-size:12px">Cargando gráfico...</span>
+              </div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;overflow-x:auto;box-shadow:0 4px 12px rgba(0,0,0,0.02)">
+              <h5 style="margin:0 0 12px 0;font-size:13px;color:var(--muted);text-transform:uppercase">Muestra (Top 5 Registros)</h5>
+              <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">
+                <thead id="tabla-preview-head" style="border-bottom:2px solid var(--border);color:var(--muted)"></thead>
+                <tbody id="tabla-preview-body"></tbody>
+              </table>
+              <div id="mensaje-preview-vacio" style="display:none;padding:20px;text-align:center;color:var(--muted);font-size:12px">No hay datos para esta selección.</div>
+            </div>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="generarExcelCustom()">📥 Exportar Excel</button>
+        </div>
       </div>
 
       <!-- Admin: Perfiles de Venta -->
@@ -657,8 +1078,10 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Cliente <small style="font-weight:400;color:var(--muted)">— o Lead</small></label>
-        <select id="oportunidad-cliente" onchange="onClienteOportunidadChange()"></select>
+        <label>Cliente <small style="font-weight:400;color:var(--muted)">— o Lead</small> — busca por NIT o nombre</label>
+        <input type="text" id="oportunidad-cliente-search" placeholder="Buscar por NIT o nombre..." oninput="filtrarOportunidadClientes(this.value)" autocomplete="off">
+        <select id="oportunidad-cliente" style="display:none;margin-top:4px" size="4" onchange="onOportunidadClienteSelect()"></select>
+        <div id="oportunidad-cliente-selected" style="display:none;margin-top:4px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:13px"></div>
       </div>
       <div class="form-group">
         <label>Contacto</label>
@@ -666,10 +1089,16 @@
       </div>
     </div>
     <div class="form-group">
-      <label>Cliente Potencial (Lead) <small style="font-weight:400;color:var(--muted)">— alternativo a cliente</small></label>
-      <select id="oportunidad-lead" onchange="onLeadOportunidadChange()"></select>
+      <label>Cliente Potencial (Lead) <small style="font-weight:400;color:var(--muted)">— alternativo a cliente</small> — busca por NIT o nombre</label>
+      <input type="text" id="oportunidad-lead-search" placeholder="Buscar lead por NIT o nombre..." oninput="filtrarOportunidadLeads(this.value)" autocomplete="off">
+      <select id="oportunidad-lead" style="display:none;margin-top:4px" size="4" onchange="onOportunidadLeadSelect()"></select>
+      <div id="oportunidad-lead-selected" style="display:none;margin-top:4px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:13px"></div>
     </div>
     <p style="font-size:11px;color:var(--muted);margin-top:4px">* Requerido: cliente <strong>o</strong> lead (uno de los dos).</p>
+    <div class="form-group">
+      <label>Lista de precios <small style="font-weight:400;color:var(--muted)">— por defecto del perfil (200)</small></label>
+      <select id="oportunidad-lista-precios"></select>
+    </div>
     <div class="form-row">
       <div class="form-group">
         <label>Monto esperado</label>
@@ -699,12 +1128,42 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Vendedor asignado</label>
-        <select id="oportunidad-vendedor"></select>
+        <label>Fuente</label>
+        <select id="oportunidad-fuente">
+          <option value="web">Web</option>
+          <option value="referido">Referido</option>
+          <option value="llamada">Llamada</option>
+          <option value="feria">Feria / Evento</option>
+          <option value="otro" selected>Otro</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Prioridad</label>
+        <select id="oportunidad-prioridad">
+          <option value="baja">Baja</option>
+          <option value="media" selected>Media</option>
+          <option value="alta">Alta</option>
+          <option value="critica">Crítica</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Vendedor asignado — combobox buscable</label>
+        <input type="text" id="oportunidad-vendedor-search" placeholder="Buscar vendedor por nombre o email..." oninput="filtrarVendedorOportunidad(this.value)" autocomplete="off">
+        <select id="oportunidad-vendedor" style="display:none;margin-top:4px" size="4" onchange="onVendedorOportunidadSelect()"></select>
+        <div id="oportunidad-vendedor-selected" style="display:none;margin-top:4px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:13px"></div>
       </div>
       <div class="form-group" id="grupo-motivo-perdida" style="display:none">
         <label>Motivo de perdida</label>
-        <input type="text" id="oportunidad-motivo-perdida">
+        <select id="oportunidad-motivo-perdida">
+          <option value="">Seleccione motivo</option>
+          <option value="precio">Precio</option>
+          <option value="competencia">Competencia</option>
+          <option value="sin_presupuesto">Sin presupuesto</option>
+          <option value="no_responde">No responde</option>
+          <option value="otro">Otro</option>
+        </select>
       </div>
     </div>
     <!-- Productos posibles (maestro) -->
@@ -754,9 +1213,8 @@
     </div>
     <div class="form-group">
       <label>Cliente * <small style="font-weight:400;color:var(--muted)">— busca por NIT o nombre</small></label>
-      <input type="text" id="act-cliente-search" placeholder="Buscar por NIT o nombre..." autocomplete="off" oninput="filtrarActClientes(this.value)">
+      <input type="text" id="act-cliente-search" placeholder="Buscar por NIT o nombre..." autocomplete="off">
       <select id="act-cliente" size="5" style="width:100%;margin-top:6px;display:none;max-height:140px"></select>
-      <div id="act-cliente-selected" style="margin-top:6px;font-size:13px;color:var(--accent);display:none"></div>
     </div>
     <div class="form-group">
       <label>Lugar</label>
@@ -799,7 +1257,7 @@
       </div>
     </div>
     <div id="act-gps-group" style="display:none">
-      <label style="font-size:12px;font-weight:600;color:var(--muted)">Ubicación <small style="font-weight:400">— auto al pasar a En Proceso / Realizada (solo Reunión)</small></label>
+      <label style="font-size:12px;font-weight:600;color:var(--muted)">Ubicación <small style="font-weight:400">— auto al pasar a En Proceso / Realizada (solo Reunión/Visita)</small></label>
       <div id="act-map" style="height:200px;border-radius:8px;border:1px solid var(--border);margin-top:6px;background:var(--surface2)"></div>
       <div id="act-coords-text" style="font-size:11px;color:var(--muted);margin-top:4px">—</div>
       <input type="hidden" id="act-coords">
@@ -877,46 +1335,36 @@
   <div class="modal" style="max-width:700px">
     <h3 id="modal-lead-title">Nuevo Lead</h3>
     <input type="hidden" id="lead-id">
-    <div class="form-row">
-      <div class="form-group">
-        <label>Razon Social *</label>
-        <input type="text" id="lead-razon-social" required>
-      </div>
-      <div class="form-group">
-        <label>NIT / Identificacion</label>
-        <input type="text" id="lead-nit">
-      </div>
+    <div class="form-group">
+      <label>Razon Social *</label>
+      <input type="text" id="lead-razon-social" required>
+    </div>
+    <div style="display:grid;grid-template-columns:140px 1fr 90px;gap:10px">
+      <div class="form-group"><label>Tipo ID SIESA *</label><select id="lead-siesa-tipo"><option value="31">31 - NIT</option><option value="13">13 - Cédula</option><option value="22">22 - C. extranjería</option><option value="41">41 - Pasaporte</option></select></div>
+      <div class="form-group"><label>NIT / Identificación *</label><input type="text" id="lead-nit" placeholder="800123456 sin puntos"></div>
+      <div class="form-group"><label>DV</label><input type="text" id="lead-siesa-dv" maxlength="1" placeholder="0-9"></div>
+    </div>
+    <div class="form-group">
+      <label>Nombre establecimiento</label>
+      <input type="text" id="lead-nombre-est">
     </div>
     <div class="form-row">
-      <div class="form-group">
-        <label>Nombre establecimiento</label>
-        <input type="text" id="lead-nombre-est">
+      <div class="form-group" style="position:relative">
+        <label>Departamento — DANE (ej. 11 CUNDINAMARCA)</label>
+        <input type="text" id="lead-departamento-search" placeholder="Buscar departamento..." oninput="filtrarLeadDepto(this.value)" onfocus="filtrarLeadDepto('')" autocomplete="off">
+        <select id="lead-departamento" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:180px;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:30" size="5" onchange="onLeadDeptoSelect()"></select>
+        <div id="lead-departamento-selected" style="display:none;margin-top:4px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:12px"></div>
       </div>
-      <div class="form-group">
-        <label>Estado</label>
-        <select id="lead-estado">
-          <option value="nuevo">Nuevo</option>
-          <option value="contactado">Contactado</option>
-          <option value="calificado">Calificado</option>
-          <option value="enviado_erp">Enviado a ERP</option>
-          <option value="convertido">Convertido</option>
-          <option value="perdido">Perdido</option>
-        </select>
-      </div>
-    </div>
-    <div class="form-row">
-      <div class="form-group">
-        <label>Ciudad</label>
-        <input type="text" id="lead-ciudad">
-      </div>
-      <div class="form-group">
-        <label>Departamento</label>
-        <input type="text" id="lead-departamento">
+      <div class="form-group" style="position:relative">
+        <label>Ciudad — DANE (ej. 11001 BOGOTA)</label>
+        <input type="text" id="lead-ciudad-search" placeholder="Buscar ciudad..." oninput="filtrarLeadCiudad(this.value)" onfocus="filtrarLeadCiudad('')" autocomplete="off">
+        <select id="lead-ciudad" style="display:none;position:absolute;top:calc(100% + 4px);left:0;right:0;max-height:180px;overflow:auto;background:var(--surface);border:1px solid var(--border);border-radius:8px;z-index:30" size="5" onchange="onLeadCiudadSelect()"></select>
+        <div id="lead-ciudad-selected" style="display:none;margin-top:4px;padding:6px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;font-size:12px"></div>
       </div>
     </div>
     <div class="form-group">
-      <label>Direccion</label>
-      <input type="text" id="lead-direccion">
+      <label>Dirección <small style="font-weight:400;color:var(--muted)">— busca con Google Maps</small></label>
+      <input type="text" id="lead-direccion" placeholder="Escribe dirección y selecciona sugerencia de Google Maps...">
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -930,17 +1378,80 @@
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>Asesor comercial</label>
-        <input type="text" id="lead-asesor">
+        <label>Asesor comercial <small style="font-weight:400;color:var(--muted)">— auto</small></label>
+        <input type="text" id="lead-asesor" disabled style="background:var(--surface2);cursor:not-allowed">
       </div>
       <div class="form-group">
-        <label>Canal</label>
-        <input type="text" id="lead-canal">
+        <label>Canal / Fuente <small style="font-weight:400;color:var(--muted)">— como Oportunidad</small></label>
+        <select id="lead-canal">
+          <option value="web">Web</option>
+          <option value="referido">Referido</option>
+          <option value="llamada">Llamada</option>
+          <option value="feria">Feria / Evento</option>
+          <option value="otro" selected>Otro</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>Sector / Tipo de negocio <small style="font-weight:400;color:var(--muted)">— del ERP</small></label>
+        <select id="lead-tipo-negocio">
+          <option value="">Seleccione tipo</option>
+          <option value="2001 - ALMACENES DE CADENA">2001 - ALMACENES DE CADENA</option>
+          <option value="2002 - HOTELES">2002 - HOTELES</option>
+          <option value="2003 - RESTAURANTES/CAFETERIAS">2003 - RESTAURANTES/CAFETERIAS</option>
+          <option value="2004 - SERVICIOS DE ALIMENTACION">2004 - SERVICIOS DE ALIMENTACION</option>
+          <option value="2005 - DISTRIBUIDORA">2005 - DISTRIBUIDORA</option>
+          <option value="2006 - SUPERMERCADOS">2006 - SUPERMERCADOS</option>
+          <option value="2007 - TIENDAS DE BARRIO">2007 - TIENDAS DE BARRIO</option>
+          <option value="2099 - OTROS">2099 - OTROS</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Lista de precios <small style="font-weight:400;color:var(--muted)">— sugerida por perfil</small></label>
+        <select id="lead-lista-precios"></select>
       </div>
     </div>
     <div class="form-group">
       <label>Notas</label>
       <textarea id="lead-notas"></textarea>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:4px">
+      <div class="form-group"><label>Régimen DIAN</label><select id="lead-siesa-regimen"><option value="48">48 - No responsable IVA</option><option value="49">49 - Responsable IVA</option></select></div>
+      <div class="form-group"><label>Responsabilidad fiscal</label><input type="text" id="lead-siesa-resp" placeholder="R-99-PN" value="R-99-PN"></div>
+    </div>
+    <div class="form-group"><label>CIIU (4 dígitos)</label><input type="text" id="lead-siesa-ciiu" placeholder="4723" value="4723"></div>
+    <!-- Adjuntos Lead — RUT, cert bancario, cámara, etc. (20MB, max 10) -->
+    <div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:12px;background:var(--surface2)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong style="font-size:13px">📎 Adjuntos <small style="font-weight:400;color:var(--muted)">— RUT, cert. bancario, cámara (20MB, max 10)</small></strong>
+        <span id="lead-adjuntos-count" style="font-size:11px;color:var(--muted)"></span>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;flex-wrap:wrap">
+        <select id="lead-adjunto-tipo" style="padding:7px 10px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text);font-size:12px">
+          <option value="rut">RUT</option>
+          <option value="cert_bancario">Cert. bancario</option>
+          <option value="camara_comercio">Cámara comercio</option>
+          <option value="cedula">Cédula</option>
+          <option value="otro" selected>Otro</option>
+        </select>
+        <input type="file" id="lead-adjunto-input" multiple accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,.xlsx,.xls,.docx,.doc,.csv" style="flex:1;min-width:180px;font-size:12px">
+        <button class="btn btn-sm btn-secondary" onclick="subirLeadAdjuntos()">Subir</button>
+      </div>
+      <div id="lead-adjuntos-drop" style="border:1.5px dashed var(--border);border-radius:8px;padding:16px;text-align:center;color:var(--muted);font-size:12px;margin-bottom:8px;background:var(--surface)" ondragenter="event.preventDefault();this.style.borderColor='var(--accent)'" ondragover="event.preventDefault();this.style.borderColor='var(--accent)'" ondragleave="this.style.borderColor='var(--border)'" ondrop="onLeadAdjuntosDrop(event)">Arrastra archivos aquí o usa el selector</div>
+      <div id="lead-adjuntos-lista" style="max-height:220px;overflow-y:auto"></div>
+    </div>
+    <div style="border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:12px;background:var(--surface2)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <strong style="font-size:13px">Productos de interés</strong>
+        <span id="lead-productos-total" style="font-size:12px;color:var(--muted)"></span>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:8px">
+        <input type="text" id="buscar-lead-producto" placeholder="Buscar por código o nombre..." style="flex:1" oninput="buscarLeadProducto()">
+        <button class="btn btn-sm btn-secondary" onclick="buscarLeadProducto()">Buscar</button>
+      </div>
+      <div id="lead-producto-resultados" style="max-height:160px;overflow-y:auto;margin-bottom:8px"></div>
+      <div id="lead-productos-lista"></div>
     </div>
     <div class="btn-row">
       <button class="btn btn-secondary" onclick="hideModal('modal-lead')">Cancelar</button>
@@ -1030,6 +1541,7 @@
   <div class="modal" style="max-width:900px">
     <h3 id="modal-cotizacion-title">Nueva Cotizacion</h3>
     <input type="hidden" id="cotizacion-id">
+    <div id="cotizacion-numero-preview" style="font-size:12px;color:var(--muted);margin-bottom:12px;display:none"></div>
 
     <!-- Tabs -->
     <div style="display:flex;gap:16px;border-bottom:1px solid var(--border);margin-bottom:16px">
@@ -1042,14 +1554,26 @@
     <div id="tab-cotizacion-datos">
       <div class="form-row">
         <div class="form-group">
-          <label>Cliente * <small style="font-weight:400;color:var(--muted)">— busca por NIT o nombre</small></label>
-          <input type="text" id="cotizacion-cliente-search" placeholder="Buscar por NIT o nombre..." autocomplete="off" oninput="filtrarCotizacionClientes(this.value)">
-          <select id="cotizacion-cliente" required size="5" style="width:100%;margin-top:6px;display:none;max-height:140px"></select>
+          <label>Cliente o Lead * <small style="font-weight:400;color:var(--muted)">— busca por NIT o nombre (incluye potenciales)</small></label>
+          <input type="text" id="cotizacion-cliente-search" placeholder="Buscar cliente o lead por NIT o nombre..." autocomplete="off" oninput="filtrarCotizacionTerceros(this.value)">
+          <select id="cotizacion-cliente" required size="5" style="width:100%;margin-top:6px;display:none;max-height:220px"></select>
           <div id="cotizacion-cliente-selected" style="margin-top:6px;font-size:13px;color:var(--accent);display:none"></div>
+          <div id="cotizacion-lead-aviso" style="display:none;margin-top:8px;padding:10px 12px;border-radius:8px;font-size:12px;background:#fff8e1;border:1px solid #f0c36d;color:#7a5b00">⚠️ <strong>Simulación de venta:</strong> estás cotizando a un <strong>lead</strong> (cliente potencial). Podrás simular la venta completa, pero <strong>no se podrá enviar al ERP</strong> a menos que el lead sea convertido en cliente formal.</div>
+          <div id="cotizacion-vendedor-info" style="margin-top:6px;font-size:11px;color:var(--muted);display:none"></div>
         </div>
         <div class="form-group">
           <label>Contacto</label>
           <select id="cotizacion-contacto"></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Facturar a *</label>
+          <select id="cotizacion-facturar-a" required></select>
+        </div>
+        <div class="form-group">
+          <label>Despachar a *</label>
+          <select id="cotizacion-despachar-a" required></select>
         </div>
       </div>
       <div class="form-row">
@@ -1068,18 +1592,23 @@
           <select id="cotizacion-centro-op" required></select>
         </div>
         <div class="form-group">
-          <label>Bodega</label>
-          <select id="cotizacion-bodega"></select>
+          <label>Fecha de Entrega</label>
+          <input type="date" id="cotizacion-fecha-entrega">
         </div>
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>Condicion de Pago</label>
-          <input type="text" id="cotizacion-condicion-pago">
+          <label>Lista de precios</label>
+          <input type="text" id="cotizacion-lista-precios" readonly style="background:var(--surface2)" placeholder="Asignada al cliente (200 — GENERAL HORECA)">
         </div>
         <div class="form-group">
-          <label>Fecha de Entrega</label>
-          <input type="date" id="cotizacion-fecha-entrega">
+          <label>Condicion de Pago</label>
+          <input type="text" id="cotizacion-condicion-pago" placeholder="Ej: CREDITO 30 DIAS, CONTADO">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" style="grid-column: 1 / -1">
+          <small style="color:var(--muted)">Si el cliente no tiene lista, se sugiere 200 — GENERAL HORECA (configurable por perfil)</small>
         </div>
       </div>
       <div class="form-row">
@@ -1110,6 +1639,16 @@
 
     <!-- Tab Carrito (items) -->
     <div id="tab-cotizacion-carrito" style="display:none">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Bodega <small style="font-weight:400;color:var(--muted)">— donde se despachan los productos</small></label>
+          <select id="cotizacion-bodega"></select>
+        </div>
+        <div class="form-group">
+          <label></label>
+          <small style="color:var(--muted)">Bodega seleccionada para todos los items del carrito</small>
+        </div>
+      </div>
       <div id="cotizacion-items-list"></div>
       <button class="btn btn-sm btn-secondary" onclick="agregarItemCotizacion()" style="margin:8px 0">+ Agregar Item</button>
 
@@ -1159,7 +1698,7 @@
         <option value="pedidos_erp">Pedidos ERP — vincula CPV (CSV)</option>
         <option value="pedidos_items">Pedidos por item ERP — completa items (CSV)</option>
         <option value="items">Items / Productos (XLSX/CSV)</option>
-        <option value="inventario">Inventario por Bodega (XLSX)</option>
+        <option value="inventario">Inventario por Bodega (XLSX/CSV)</option>
         <option value="codigos_barra">Códigos de Barras / EAN (CSV)</option>
         <option value="eans_gs1">Catálogo GS1 — EANGS1.xlsx (XLSX)</option>
         <option value="bodegas">Bodegas (CSV)</option>
@@ -1271,6 +1810,9 @@
         <div class="form-group"><label>Unidades de Negocio</label><div id="perfil-maestro-unidad_negocio"></div></div>
         <div class="form-group"><label>Portafolio / Categorías</label><div id="perfil-maestro-portafolio"><small style="color:var(--muted)">Opcional — categorías de productos</small></div></div>
       </div>
+      <div style="margin-top:16px;border-top:1px solid var(--border);padding-top:12px">
+        <div class="form-group"><label>Lista de Precios por Defecto <small style="font-weight:400;color:var(--muted)">— se sugiere en cotizaciones si el cliente no tiene lista asignada</small></label><select id="perfil-lista-default" style="width:100%;padding:8px;border:1px solid var(--border);border-radius:8px;background:var(--surface);color:var(--text)"><option value="">Sin lista por defecto (usa 200 — GENERAL HORECA)</option></select></div>
+      </div>
     </div>
 
     <!-- Tab Descuentos -->
@@ -1317,11 +1859,11 @@
   </div>
 </div>
 <div class="modal-overlay" id="modal-perfil-venta-usuarios">
-  <div class="modal" style="max-width:520px">
+  <div class="modal" style="max-width:580px">
     <h3 id="modal-perfil-venta-usuarios-title">Asignar usuarios</h3>
     <input type="hidden" id="perfil-venta-usuarios-id">
-    <div style="display:flex;gap:8px;margin-bottom:8px"><input type="text" id="perfil-venta-usuarios-filtro" placeholder="Filtrar por nombre o email..." oninput="filtrarPerfilVentaUsuarios()" style="flex:1;padding:8px;border:1px solid var(--border);border-radius:8px"><button class="btn btn-sm btn-secondary" onclick="perfilVentaSelTodos(true)">Todos</button><button class="btn btn-sm btn-secondary" onclick="perfilVentaSelTodos(false)">Ninguno</button></div>
-    <div id="perfil-venta-usuarios-lista" style="max-height:340px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:8px"></div>
+    <div style="display:flex;gap:8px;margin-bottom:8px;flex-wrap:wrap"><input type="text" id="perfil-venta-usuarios-filtro" placeholder="Filtrar por nombre o email..." oninput="filtrarPerfilVentaUsuarios()" style="flex:1;min-width:180px;padding:8px;border:1px solid var(--border);border-radius:8px"><select id="perfil-venta-usuarios-perfil-filtro" onchange="filtrarPerfilVentaUsuarios()" style="padding:8px;border:1px solid var(--border);border-radius:8px;min-width:170px;background:var(--surface);color:var(--text)"><option value="">Todos los perfiles (Launcher)</option></select><button class="btn btn-sm btn-secondary" onclick="perfilVentaSelTodos(true)">Todos</button><button class="btn btn-sm btn-secondary" onclick="perfilVentaSelTodos(false)">Ninguno</button></div>
+    <div id="perfil-venta-usuarios-lista" style="max-height:380px;overflow:auto;border:1px solid var(--border);border-radius:8px;padding:4px"></div>
     <div class="btn-row"><button class="btn btn-secondary" onclick="hideModal('modal-perfil-venta-usuarios')">Cancelar</button><button class="btn btn-primary" onclick="guardarPerfilVentaUsuarios()">Guardar</button></div>
   </div>
 </div>
@@ -1337,8 +1879,19 @@
   <button class="btn btn-sm btn-secondary" onclick="clearSelection()" aria-label="Cancelar seleccion" title="Cancelar">✕</button>
 </div>
 
+<nav class="mobile-dock" aria-label="Navegación rápida">
+  <button class="dock-item active" data-page="dashboard" onclick="navigate('dashboard')"><span class="icon">📊</span><span class="text">Inicio</span></button>
+  <button class="dock-item" data-page="pipeline" onclick="navigate('pipeline')"><span class="icon">📈</span><span class="text">Ventas</span></button>
+  <button class="dock-item dock-item-main" onclick="accionPrincipalDock()" aria-label="Crear nuevo"><span class="icon">+</span></button>
+  <button class="dock-item" data-page="cotizaciones" onclick="navigate('cotizaciones')"><span class="icon">📄</span><span class="text">Cotizar</span></button>
+  <button class="dock-item" data-page="visitas" onclick="navigate('visitas')"><span class="icon">📋</span><span class="text">Ruta</span></button>
+</nav>
+
+</div><!-- /app-container -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="framework.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+<script src="framework.js?v=20260909a"></script>
 
 <!-- Generic confirm modal (used by framework's confirmar) -->
 <div id="modal-overlay" class="modal-overlay" style="display:none">
@@ -1350,7 +1903,7 @@
   </div>
 </div>
 
-<script src="theme.js"></script>
-<script src="app.js"></script>
+<script src="theme.js?v=20260907g"></script>
+<script src="app.js?v=20260909a"></script>
 </body>
 </html>

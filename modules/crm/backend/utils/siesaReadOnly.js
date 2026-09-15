@@ -4,13 +4,10 @@ import pool from '../config/db.js';
 // Admin y gerente pueden desbloquear; vendedores solo lectura.
 export async function requireClienteEditable(req, res, next) {
   try {
-    if (req.user?.rol === 'admin' || req.user?.rol === 'gerente') return next();
-
     const { id } = req.params;
     if (!id) return next();
-
-    const r = await pool.query(`SELECT origen FROM crm.clientes WHERE id = $1`, [id]);
-    if (r.rows.length && r.rows[0].origen === 'siesa') {
+    const r = await pool.query(`SELECT origen, siesa_id, erp_tercero_id FROM crm.clientes WHERE id = $1`, [id]);
+    if (r.rows.length && (r.rows[0].origen === 'siesa' || r.rows[0].siesa_id || r.rows[0].erp_tercero_id)) {
       return res.status(403).json({ error: 'Cliente gestionado en el ERP SIESA (solo lectura). Los cambios se hacen en el ERP y se sincronizan.' });
     }
     next();

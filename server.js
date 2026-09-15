@@ -86,8 +86,8 @@ async function start() {
 
     // Warmup: pre-load databases and modules to avoid cold start on first request
     console.log('🔥 Calentando servicios...');
+    const Database = require('better-sqlite3');
     try {
-      const Database = require('better-sqlite3');
       const warmupDb = new Database('./launcher/launcher.db', { readonly: true });
       warmupDb.prepare('SELECT COUNT(*) FROM usuarios').get();
       warmupDb.prepare('SELECT COUNT(*) FROM modulos_plataforma').get();

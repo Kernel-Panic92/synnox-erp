@@ -169,8 +169,9 @@ function initFramework(opts = {}) {
   const sidebar = document.getElementById('sidebar');
   if (sidebar && localStorage.getItem('sidebar_collapsed') === 'true') {
     sidebar.classList.add('collapsed');
+    document.getElementById('app-container')?.classList.add('sidebar-collapsed');
     const toggle = sidebar.querySelector('.sidebar-toggle');
-    if (toggle) toggle.textContent = '▶';
+    if (toggle) { toggle.textContent = '❯'; toggle.setAttribute('aria-expanded', 'false'); toggle.setAttribute('aria-label', 'Expandir menú'); }
   }
 
   // Inject Home link into sidebar footer (if not already present)
@@ -265,13 +266,10 @@ async function api(path, opts = {}) {
   return data;
 }
 
-// ── Escaping ──
-function esc(s) {
-  if (!s) return '';
-  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-}
-
 // ── Action buttons (accessible, icon-only) — standard for tables ──
+// Usage: actionBtn({ icon:'✏️', title:'Editar cliente', ariaLabel:'Editar cliente ACME', onclick:"editarCliente('123')", variant:'secondary' })
+// variant: 'secondary' | 'primary' | 'danger' | 'success'  → maps to btn-secondary etc.
+// Returns HTML string for a 32x32 icon-only button with title + aria-label (required for a11y)
 function actionBtn({ icon, title, ariaLabel, onclick, variant = 'secondary', disabled = false }) {
   const v = ['secondary','primary','danger','success','outline'].includes(variant) ? variant : 'secondary';
   const dis = disabled ? ' disabled aria-disabled="true"' : '';
@@ -284,6 +282,12 @@ function actionGroup(buttons) {
   const btns = Array.isArray(buttons) ? buttons.filter(Boolean).join('') : (buttons || '');
   if (!btns) return '';
   return `<div class="tbl-actions">${btns}</div>`;
+}
+
+// ── Escaping ──
+function esc(s) {
+  if (!s) return '';
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 // ── Toast ──
@@ -438,10 +442,17 @@ function closeSidebar() {
 function toggleSidebarCollapse() {
   const sidebar = document.getElementById('sidebar');
   if (!sidebar) return;
+  const container = document.getElementById('app-container');
   sidebar.classList.toggle('collapsed');
+  if (container) container.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
   localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
   const toggle = sidebar.querySelector('.sidebar-toggle');
-  if (toggle) toggle.textContent = sidebar.classList.contains('collapsed') ? '▶' : '◀';
+  if (toggle) {
+    const col = sidebar.classList.contains('collapsed');
+    toggle.textContent = col ? '❯' : '❮';
+    toggle.setAttribute('aria-expanded', String(!col));
+    toggle.setAttribute('aria-label', col ? 'Expandir menú' : 'Contraer menú');
+  }
 }
 
 // ── Navigation ──
@@ -607,7 +618,7 @@ function mostrarNotificacionBrowser(titulo, mensaje, url) {
 
 async function cargarNotificaciones() {
   try {
-    const notifApi = HF.API.replace(/\/proyectos\/api$/, '/api').replace(/\/logistica\/api$/, '/api').replace(/\/nomina\/api$/, '/api').replace(/\/proveedores\/api$/, '/api');
+    const notifApi = HF.API.replace(/\/[^/]+\/api$/, '/api');
     const res = await fetch(notifApi + '/notificaciones/no-leidas', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     if (!res.ok) return;
     const { count } = await res.json();
@@ -636,7 +647,7 @@ async function toggleNotifDropdown() {
   dd.classList.toggle('show');
   if (!isOpen) {
     try {
-      const notifApi = HF.API.replace(/\/proyectos\/api$/, '/api').replace(/\/logistica\/api$/, '/api').replace(/\/nomina\/api$/, '/api').replace(/\/proveedores\/api$/, '/api');
+      const notifApi = HF.API.replace(/\/[^/]+\/api$/, '/api');
       const res = await fetch(notifApi + '/notificaciones', { headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
       if (!res.ok) return;
       const { notificaciones } = await res.json();
@@ -669,7 +680,7 @@ async function marcarNotifLeida(id, url) {
     window.location.href = url;
   }
   try {
-    const notifApi = HF.API.replace(/\/proyectos\/api$/, '/api').replace(/\/logistica\/api$/, '/api').replace(/\/nomina\/api$/, '/api').replace(/\/proveedores\/api$/, '/api');
+    const notifApi = HF.API.replace(/\/[^/]+\/api$/, '/api');
     await fetch(notifApi + '/notificaciones/' + id + '/leer', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     cargarNotificaciones();
   } catch {}
@@ -677,7 +688,7 @@ async function marcarNotifLeida(id, url) {
 
 async function marcarTodasLeidas() {
   try {
-    const notifApi = HF.API.replace(/\/proyectos\/api$/, '/api').replace(/\/logistica\/api$/, '/api').replace(/\/nomina\/api$/, '/api').replace(/\/proveedores\/api$/, '/api');
+    const notifApi = HF.API.replace(/\/[^/]+\/api$/, '/api');
     await fetch(notifApi + '/notificaciones/leer-todas', { method: 'DELETE', headers: HF.TOKEN ? { 'Authorization': 'Bearer ' + HF.TOKEN } : {} });
     cargarNotificaciones();
     toggleNotifDropdown();
@@ -740,3 +751,28 @@ function activarNotificaciones() {
     }
   });
 }
+
+// ── Gestos táctiles: swipe desde borde izquierdo abre el sidebar ──
+function openSidebar() {
+  document.getElementById('sidebar')?.classList.add('open');
+  document.querySelector('.sidebar-overlay')?.classList.add('show');
+}
+(function initSidebarSwipe() {
+  let _sx = null, _sy = null;
+  const EDGE = 40, MIN_DX = 50, MAX_DY = 75;
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) { _sx = null; return; }
+    _sx = e.touches[0].clientX; _sy = e.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (_sx === null) return;
+    const startX = _sx;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - startX, dy = Math.abs(t.clientY - _sy);
+    const sb = document.getElementById('sidebar');
+    _sx = null;
+    if (!sb || dy > MAX_DY || Math.abs(dx) <= dy) return;
+    if (dx > MIN_DX && startX <= EDGE && !sb.classList.contains('open')) openSidebar();
+    else if (dx < -MIN_DX && sb.classList.contains('open') && typeof closeSidebar === 'function') closeSidebar();
+  }, { passive: true });
+})();

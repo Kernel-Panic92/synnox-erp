@@ -1,11 +1,11 @@
 -- Limpieza: perfil de ventas solo con permisos comerciales (sin duplicar launcher)
 -- Launcher ya gestiona ver, crear_contacto, etc. CRM solo necesita 6 comerciales
-DELETE FROM crm.perfil_venta_permisos WHERE permiso NOT IN ('crear_cotizacion','aprobar_descuento','configurar','siesa_sync','ver_pipeline','editar_pipeline');
+DELETE FROM crm.perfil_venta_permisos WHERE permiso NOT IN ('crear_cotizacion','aprobar_descuento','configurar','ver_pipeline','editar_pipeline');
 
 -- Re-asignar 3 perfiles base al nuevo modelo (idempotente)
--- CRM - Gerencia: 6/6
+-- CRM - Gerencia: 5/6 (siesa_sync eliminado FASE 1 permisos)
 INSERT INTO crm.perfil_venta_permisos (perfil_id, permiso)
-SELECT pv.id, perm FROM crm.perfiles_venta pv CROSS JOIN (VALUES ('crear_cotizacion'),('aprobar_descuento'),('configurar'),('siesa_sync'),('ver_pipeline'),('editar_pipeline')) AS p(perm)
+SELECT pv.id, perm FROM crm.perfiles_venta pv CROSS JOIN (VALUES ('crear_cotizacion'),('aprobar_descuento'),('configurar'),('ver_pipeline'),('editar_pipeline')) AS p(perm)
 WHERE pv.nombre = 'CRM - Gerencia'
 ON CONFLICT DO NOTHING;
 

@@ -1,0 +1,4675 @@
+{
+  "departamentos": [
+    {
+      "nombre": "Amazonas",
+      "codigo_dane": "91",
+      "capital": "Leticia",
+      "municipios": [
+        {
+          "nombre": "Leticia",
+          "codigo_dane": "91001"
+        },
+        {
+          "nombre": "Puerto Nariño",
+          "codigo_dane": "91540"
+        },
+        {
+          "nombre": "El Encanto",
+          "codigo_dane": "91263"
+        },
+        {
+          "nombre": "La Chorrera",
+          "codigo_dane": "91405"
+        },
+        {
+          "nombre": "La Pedrera",
+          "codigo_dane": "91407"
+        },
+        {
+          "nombre": "La Victoria",
+          "codigo_dane": "91430"
+        },
+        {
+          "nombre": "Mirití-Paraná",
+          "codigo_dane": "91460"
+        },
+        {
+          "nombre": "Puerto Alegría",
+          "codigo_dane": "91530"
+        },
+        {
+          "nombre": "Puerto Arica",
+          "codigo_dane": "91536"
+        },
+        {
+          "nombre": "Puerto Santander",
+          "codigo_dane": "91669"
+        },
+        {
+          "nombre": "Tarapacá",
+          "codigo_dane": "91798"
+        }
+      ]
+    },
+    {
+      "nombre": "Antioquia",
+      "codigo_dane": "05",
+      "capital": "Medellín",
+      "municipios": [
+        {
+          "nombre": "Medellín",
+          "codigo_dane": "05001"
+        },
+        {
+          "nombre": "Abejorral",
+          "codigo_dane": "05002"
+        },
+        {
+          "nombre": "Abriaquí",
+          "codigo_dane": "05004"
+        },
+        {
+          "nombre": "Alejandría",
+          "codigo_dane": "05021"
+        },
+        {
+          "nombre": "Amagá",
+          "codigo_dane": "05030"
+        },
+        {
+          "nombre": "Amalfi",
+          "codigo_dane": "05031"
+        },
+        {
+          "nombre": "Andes",
+          "codigo_dane": "05034"
+        },
+        {
+          "nombre": "Angelópolis",
+          "codigo_dane": "05036"
+        },
+        {
+          "nombre": "Angostura",
+          "codigo_dane": "05038"
+        },
+        {
+          "nombre": "Anorí",
+          "codigo_dane": "05040"
+        },
+        {
+          "nombre": "Anzá",
+          "codigo_dane": "05044"
+        },
+        {
+          "nombre": "Apartadó",
+          "codigo_dane": "05045"
+        },
+        {
+          "nombre": "Arboletes",
+          "codigo_dane": "05051"
+        },
+        {
+          "nombre": "Argelia",
+          "codigo_dane": "05055"
+        },
+        {
+          "nombre": "Armenia",
+          "codigo_dane": "05059"
+        },
+        {
+          "nombre": "Barbosa",
+          "codigo_dane": "05079"
+        },
+        {
+          "nombre": "Bello",
+          "codigo_dane": "05088"
+        },
+        {
+          "nombre": "Belmira",
+          "codigo_dane": "05086"
+        },
+        {
+          "nombre": "Betania",
+          "codigo_dane": "05091"
+        },
+        {
+          "nombre": "Betulia",
+          "codigo_dane": "05093"
+        },
+        {
+          "nombre": "Briceño",
+          "codigo_dane": "05107"
+        },
+        {
+          "nombre": "Buriticá",
+          "codigo_dane": "05113"
+        },
+        {
+          "nombre": "Cáceres",
+          "codigo_dane": "05120"
+        },
+        {
+          "nombre": "Caicedo",
+          "codigo_dane": "05125"
+        },
+        {
+          "nombre": "Caldas",
+          "codigo_dane": "05129"
+        },
+        {
+          "nombre": "Campamento",
+          "codigo_dane": "05134"
+        },
+        {
+          "nombre": "Cañasgordas",
+          "codigo_dane": "05138"
+        },
+        {
+          "nombre": "Caracolí",
+          "codigo_dane": "05142"
+        },
+        {
+          "nombre": "Caramanta",
+          "codigo_dane": "05145"
+        },
+        {
+          "nombre": "Carepa",
+          "codigo_dane": "05147"
+        },
+        {
+          "nombre": "Carmen de Viboral",
+          "codigo_dane": "05148"
+        },
+        {
+          "nombre": "Carolina del Príncipe",
+          "codigo_dane": "05150"
+        },
+        {
+          "nombre": "Caucasia",
+          "codigo_dane": "05154"
+        },
+        {
+          "nombre": "Chigorodó",
+          "codigo_dane": "05172"
+        },
+        {
+          "nombre": "Cisneros",
+          "codigo_dane": "05190"
+        },
+        {
+          "nombre": "Ciudad Bolívar",
+          "codigo_dane": "05101"
+        },
+        {
+          "nombre": "Cocorná",
+          "codigo_dane": "05197"
+        },
+        {
+          "nombre": "Concepción",
+          "codigo_dane": "05206"
+        },
+        {
+          "nombre": "Concordia",
+          "codigo_dane": "05209"
+        },
+        {
+          "nombre": "Copacabana",
+          "codigo_dane": "05212"
+        },
+        {
+          "nombre": "Dabeiba",
+          "codigo_dane": "05234"
+        },
+        {
+          "nombre": "Donmatías",
+          "codigo_dane": "05237"
+        },
+        {
+          "nombre": "Ebéjico",
+          "codigo_dane": "05240"
+        },
+        {
+          "nombre": "El Bagre",
+          "codigo_dane": "05250"
+        },
+        {
+          "nombre": "El Peñol",
+          "codigo_dane": "05541"
+        },
+        {
+          "nombre": "El Retiro",
+          "codigo_dane": "05607"
+        },
+        {
+          "nombre": "Entrerríos",
+          "codigo_dane": "05264"
+        },
+        {
+          "nombre": "Envigado",
+          "codigo_dane": "05266"
+        },
+        {
+          "nombre": "Fredonia",
+          "codigo_dane": "05282"
+        },
+        {
+          "nombre": "Frontino",
+          "codigo_dane": "05284"
+        },
+        {
+          "nombre": "Giraldo",
+          "codigo_dane": "05306"
+        },
+        {
+          "nombre": "Girardota",
+          "codigo_dane": "05308"
+        },
+        {
+          "nombre": "Gómez Plata",
+          "codigo_dane": "05310"
+        },
+        {
+          "nombre": "Granada",
+          "codigo_dane": "05313"
+        },
+        {
+          "nombre": "Guadalupe",
+          "codigo_dane": "05315"
+        },
+        {
+          "nombre": "Guarne",
+          "codigo_dane": "05318"
+        },
+        {
+          "nombre": "Guatapé",
+          "codigo_dane": "05321"
+        },
+        {
+          "nombre": "Heliconia",
+          "codigo_dane": "05347"
+        },
+        {
+          "nombre": "Hispania",
+          "codigo_dane": "05353"
+        },
+        {
+          "nombre": "Itagüí",
+          "codigo_dane": "05360"
+        },
+        {
+          "nombre": "Ituango",
+          "codigo_dane": "05361"
+        },
+        {
+          "nombre": "Jardín",
+          "codigo_dane": "05364"
+        },
+        {
+          "nombre": "Jericó",
+          "codigo_dane": "05368"
+        },
+        {
+          "nombre": "La Ceja",
+          "codigo_dane": "05376"
+        },
+        {
+          "nombre": "La Estrella",
+          "codigo_dane": "05380"
+        },
+        {
+          "nombre": "La Pintada",
+          "codigo_dane": "05390"
+        },
+        {
+          "nombre": "La Unión",
+          "codigo_dane": "05400"
+        },
+        {
+          "nombre": "Liborina",
+          "codigo_dane": "05411"
+        },
+        {
+          "nombre": "Maceo",
+          "codigo_dane": "05425"
+        },
+        {
+          "nombre": "Marinilla",
+          "codigo_dane": "05440"
+        },
+        {
+          "nombre": "Montebello",
+          "codigo_dane": "05467"
+        },
+        {
+          "nombre": "Murindó",
+          "codigo_dane": "05475"
+        },
+        {
+          "nombre": "Mutatá",
+          "codigo_dane": "05480"
+        },
+        {
+          "nombre": "Nariño",
+          "codigo_dane": "05483"
+        },
+        {
+          "nombre": "Nechí",
+          "codigo_dane": "05495"
+        },
+        {
+          "nombre": "Necoclí",
+          "codigo_dane": "05490"
+        },
+        {
+          "nombre": "Olaya",
+          "codigo_dane": "05501"
+        },
+        {
+          "nombre": "Peque",
+          "codigo_dane": "05543"
+        },
+        {
+          "nombre": "Pueblorrico",
+          "codigo_dane": "05576"
+        },
+        {
+          "nombre": "Puerto Berrío",
+          "codigo_dane": "05579"
+        },
+        {
+          "nombre": "Puerto Nare",
+          "codigo_dane": "05585"
+        },
+        {
+          "nombre": "Puerto Triunfo",
+          "codigo_dane": "05591"
+        },
+        {
+          "nombre": "Remedios",
+          "codigo_dane": "05604"
+        },
+        {
+          "nombre": "Rionegro",
+          "codigo_dane": "05615"
+        },
+        {
+          "nombre": "Sabanalarga",
+          "codigo_dane": "05628"
+        },
+        {
+          "nombre": "Sabaneta",
+          "codigo_dane": "05631"
+        },
+        {
+          "nombre": "Salgar",
+          "codigo_dane": "05642"
+        },
+        {
+          "nombre": "San Andrés de Cuerquia",
+          "codigo_dane": "05647"
+        },
+        {
+          "nombre": "San Carlos",
+          "codigo_dane": "05649"
+        },
+        {
+          "nombre": "San Francisco",
+          "codigo_dane": "05652"
+        },
+        {
+          "nombre": "San Jerónimo",
+          "codigo_dane": "05656"
+        },
+        {
+          "nombre": "San José de la Montaña",
+          "codigo_dane": "05658"
+        },
+        {
+          "nombre": "San Juan de Urabá",
+          "codigo_dane": "05659"
+        },
+        {
+          "nombre": "San Luis",
+          "codigo_dane": "05660"
+        },
+        {
+          "nombre": "San Pedro de los Milagros",
+          "codigo_dane": "05664"
+        },
+        {
+          "nombre": "San Pedro de Urabá",
+          "codigo_dane": "05665"
+        },
+        {
+          "nombre": "San Rafael",
+          "codigo_dane": "05667"
+        },
+        {
+          "nombre": "San Roque",
+          "codigo_dane": "05670"
+        },
+        {
+          "nombre": "San Vicente Ferrer",
+          "codigo_dane": "05674"
+        },
+        {
+          "nombre": "Santa Bárbara",
+          "codigo_dane": "05679"
+        },
+        {
+          "nombre": "Santa Fe de Antioquia",
+          "codigo_dane": "05042"
+        },
+        {
+          "nombre": "Santa Rosa de Osos",
+          "codigo_dane": "05686"
+        },
+        {
+          "nombre": "Santo Domingo",
+          "codigo_dane": "05690"
+        },
+        {
+          "nombre": "Santuario",
+          "codigo_dane": "05697"
+        },
+        {
+          "nombre": "Segovia",
+          "codigo_dane": "05736"
+        },
+        {
+          "nombre": "Sonsón",
+          "codigo_dane": "05756"
+        },
+        {
+          "nombre": "Sopetrán",
+          "codigo_dane": "05761"
+        },
+        {
+          "nombre": "Támesis",
+          "codigo_dane": "05789"
+        },
+        {
+          "nombre": "Tarazá",
+          "codigo_dane": "05790"
+        },
+        {
+          "nombre": "Tarso",
+          "codigo_dane": "05792"
+        },
+        {
+          "nombre": "Titiribí",
+          "codigo_dane": "05809"
+        },
+        {
+          "nombre": "Toledo",
+          "codigo_dane": "05819"
+        },
+        {
+          "nombre": "Turbo",
+          "codigo_dane": "05837"
+        },
+        {
+          "nombre": "Uramita",
+          "codigo_dane": "05842"
+        },
+        {
+          "nombre": "Urrao",
+          "codigo_dane": "05847"
+        },
+        {
+          "nombre": "Valdivia",
+          "codigo_dane": "05854"
+        },
+        {
+          "nombre": "Valparaíso",
+          "codigo_dane": "05856"
+        },
+        {
+          "nombre": "Vegachí",
+          "codigo_dane": "05858"
+        },
+        {
+          "nombre": "Venecia",
+          "codigo_dane": "05861"
+        },
+        {
+          "nombre": "Yalí",
+          "codigo_dane": "05885"
+        },
+        {
+          "nombre": "Yarumal",
+          "codigo_dane": "05887"
+        },
+        {
+          "nombre": "Yolombó",
+          "codigo_dane": "05890"
+        },
+        {
+          "nombre": "Yondó",
+          "codigo_dane": "05893"
+        },
+        {
+          "nombre": "Zaragoza",
+          "codigo_dane": "05895"
+        }
+      ]
+    },
+    {
+      "nombre": "Arauca",
+      "codigo_dane": "81",
+      "capital": "Arauca",
+      "municipios": [
+        {
+          "nombre": "Arauca",
+          "codigo_dane": "81001"
+        },
+        {
+          "nombre": "Arauquita",
+          "codigo_dane": "81065"
+        },
+        {
+          "nombre": "Cravo Norte",
+          "codigo_dane": "81220"
+        },
+        {
+          "nombre": "Fortul",
+          "codigo_dane": "81300"
+        },
+        {
+          "nombre": "Puerto Rondón",
+          "codigo_dane": "81591"
+        },
+        {
+          "nombre": "Saravena",
+          "codigo_dane": "81736"
+        },
+        {
+          "nombre": "Tame",
+          "codigo_dane": "81794"
+        }
+      ]
+    },
+    {
+      "nombre": "Atlántico",
+      "codigo_dane": "08",
+      "capital": "Barranquilla",
+      "municipios": [
+        {
+          "nombre": "Barranquilla",
+          "codigo_dane": "08001"
+        },
+        {
+          "nombre": "Baranoa",
+          "codigo_dane": "08078"
+        },
+        {
+          "nombre": "Campo de la Cruz",
+          "codigo_dane": "08137"
+        },
+        {
+          "nombre": "Candelaria",
+          "codigo_dane": "08141"
+        },
+        {
+          "nombre": "Galapa",
+          "codigo_dane": "08296"
+        },
+        {
+          "nombre": "Juan de Acosta",
+          "codigo_dane": "08372"
+        },
+        {
+          "nombre": "Luruaco",
+          "codigo_dane": "08421"
+        },
+        {
+          "nombre": "Malambo",
+          "codigo_dane": "08433"
+        },
+        {
+          "nombre": "Manatí",
+          "codigo_dane": "08436"
+        },
+        {
+          "nombre": "Palmar de Varela",
+          "codigo_dane": "08520"
+        },
+        {
+          "nombre": "Piojó",
+          "codigo_dane": "08549"
+        },
+        {
+          "nombre": "Polonuevo",
+          "codigo_dane": "08558"
+        },
+        {
+          "nombre": "Ponedera",
+          "codigo_dane": "08560"
+        },
+        {
+          "nombre": "Puerto Colombia",
+          "codigo_dane": "08573"
+        },
+        {
+          "nombre": "Repelón",
+          "codigo_dane": "08606"
+        },
+        {
+          "nombre": "Sabanagrande",
+          "codigo_dane": "08634"
+        },
+        {
+          "nombre": "Sabanalarga",
+          "codigo_dane": "08638"
+        },
+        {
+          "nombre": "Santa Lucía",
+          "codigo_dane": "08675"
+        },
+        {
+          "nombre": "Santo Tomás",
+          "codigo_dane": "08685"
+        },
+        {
+          "nombre": "Soledad",
+          "codigo_dane": "08758"
+        },
+        {
+          "nombre": "Suan",
+          "codigo_dane": "08770"
+        },
+        {
+          "nombre": "Tubará",
+          "codigo_dane": "08832"
+        },
+        {
+          "nombre": "Usiacurí",
+          "codigo_dane": "08849"
+        }
+      ]
+    },
+    {
+      "nombre": "Bogotá D.C.",
+      "codigo_dane": "11",
+      "capital": "Bogotá",
+      "municipios": [
+        {
+          "nombre": "Bogotá",
+          "codigo_dane": "11001"
+        }
+      ]
+    },
+    {
+      "nombre": "Bolívar",
+      "codigo_dane": "13",
+      "capital": "Cartagena",
+      "municipios": [
+        {
+          "nombre": "Cartagena de Indias",
+          "codigo_dane": "13001"
+        },
+        {
+          "nombre": "Achí",
+          "codigo_dane": "13006"
+        },
+        {
+          "nombre": "Altos del Rosario",
+          "codigo_dane": "13030"
+        },
+        {
+          "nombre": "Arenal",
+          "codigo_dane": "13042"
+        },
+        {
+          "nombre": "Arjona",
+          "codigo_dane": "13052"
+        },
+        {
+          "nombre": "Arroyohondo",
+          "codigo_dane": "13062"
+        },
+        {
+          "nombre": "Barranco de Loba",
+          "codigo_dane": "13074"
+        },
+        {
+          "nombre": "Calamar",
+          "codigo_dane": "13140"
+        },
+        {
+          "nombre": "Cantagallo",
+          "codigo_dane": "13160"
+        },
+        {
+          "nombre": "Cicuco",
+          "codigo_dane": "13188"
+        },
+        {
+          "nombre": "Córdoba",
+          "codigo_dane": "13212"
+        },
+        {
+          "nombre": "Clemencia",
+          "codigo_dane": "13222"
+        },
+        {
+          "nombre": "El Carmen de Bolívar",
+          "codigo_dane": "13244"
+        },
+        {
+          "nombre": "El Guamo",
+          "codigo_dane": "13248"
+        },
+        {
+          "nombre": "El Peñón",
+          "codigo_dane": "13268"
+        },
+        {
+          "nombre": "Hatillo de Loba",
+          "codigo_dane": "13300"
+        },
+        {
+          "nombre": "Magangué",
+          "codigo_dane": "13430"
+        },
+        {
+          "nombre": "Mahates",
+          "codigo_dane": "13433"
+        },
+        {
+          "nombre": "Margarita",
+          "codigo_dane": "13440"
+        },
+        {
+          "nombre": "María La Baja",
+          "codigo_dane": "13442"
+        },
+        {
+          "nombre": "Montecristo",
+          "codigo_dane": "13458"
+        },
+        {
+          "nombre": "Mompox",
+          "codigo_dane": "13468"
+        },
+        {
+          "nombre": "Morales",
+          "codigo_dane": "13473"
+        },
+        {
+          "nombre": "Norosí",
+          "codigo_dane": "13490"
+        },
+        {
+          "nombre": "Pinillos",
+          "codigo_dane": "13549"
+        },
+        {
+          "nombre": "Regidor",
+          "codigo_dane": "13580"
+        },
+        {
+          "nombre": "Río Viejo",
+          "codigo_dane": "13600"
+        },
+        {
+          "nombre": "San Cristóbal",
+          "codigo_dane": "13620"
+        },
+        {
+          "nombre": "San Estanislao",
+          "codigo_dane": "13647"
+        },
+        {
+          "nombre": "San Fernando",
+          "codigo_dane": "13650"
+        },
+        {
+          "nombre": "San Jacinto",
+          "codigo_dane": "13654"
+        },
+        {
+          "nombre": "San Jacinto del Cauca",
+          "codigo_dane": "13655"
+        },
+        {
+          "nombre": "San Juan Nepomuceno",
+          "codigo_dane": "13657"
+        },
+        {
+          "nombre": "San Martín de Loba",
+          "codigo_dane": "13667"
+        },
+        {
+          "nombre": "San Pablo",
+          "codigo_dane": "13670"
+        },
+        {
+          "nombre": "Santa Catalina",
+          "codigo_dane": "13673"
+        },
+        {
+          "nombre": "Santa Rosa",
+          "codigo_dane": "13683"
+        },
+        {
+          "nombre": "Santa Rosa del Sur",
+          "codigo_dane": "13688"
+        },
+        {
+          "nombre": "Simití",
+          "codigo_dane": "13744"
+        },
+        {
+          "nombre": "Soplaviento",
+          "codigo_dane": "13760"
+        },
+        {
+          "nombre": "Talaigua Nuevo",
+          "codigo_dane": "13780"
+        },
+        {
+          "nombre": "Tiquisio",
+          "codigo_dane": "13810"
+        },
+        {
+          "nombre": "Turbaco",
+          "codigo_dane": "13836"
+        },
+        {
+          "nombre": "Turbana",
+          "codigo_dane": "13838"
+        },
+        {
+          "nombre": "Villanueva",
+          "codigo_dane": "13873"
+        },
+        {
+          "nombre": "Zambrano",
+          "codigo_dane": "13894"
+        }
+      ]
+    },
+    {
+      "nombre": "Boyacá",
+      "codigo_dane": "15",
+      "capital": "Tunja",
+      "municipios": [
+        {
+          "nombre": "Tunja",
+          "codigo_dane": "15001"
+        },
+        {
+          "nombre": "Almeida",
+          "codigo_dane": "15022"
+        },
+        {
+          "nombre": "Aquitania",
+          "codigo_dane": "15047"
+        },
+        {
+          "nombre": "Arcabuco",
+          "codigo_dane": "15051"
+        },
+        {
+          "nombre": "Belén",
+          "codigo_dane": "15087"
+        },
+        {
+          "nombre": "Berbeo",
+          "codigo_dane": "15090"
+        },
+        {
+          "nombre": "Betéitiva",
+          "codigo_dane": "15092"
+        },
+        {
+          "nombre": "Boavita",
+          "codigo_dane": "15097"
+        },
+        {
+          "nombre": "Boyacá",
+          "codigo_dane": "15104"
+        },
+        {
+          "nombre": "Briceño",
+          "codigo_dane": "15106"
+        },
+        {
+          "nombre": "Buenavista",
+          "codigo_dane": "15109"
+        },
+        {
+          "nombre": "Caldas",
+          "codigo_dane": "15131"
+        },
+        {
+          "nombre": "Campohermoso",
+          "codigo_dane": "15135"
+        },
+        {
+          "nombre": "Cerinza",
+          "codigo_dane": "15162"
+        },
+        {
+          "nombre": "Chinavita",
+          "codigo_dane": "15172"
+        },
+        {
+          "nombre": "Chiquinquirá",
+          "codigo_dane": "15176"
+        },
+        {
+          "nombre": "Chíquiza",
+          "codigo_dane": "15232"
+        },
+        {
+          "nombre": "Chiscas",
+          "codigo_dane": "15180"
+        },
+        {
+          "nombre": "Chita",
+          "codigo_dane": "15183"
+        },
+        {
+          "nombre": "Chitaraque",
+          "codigo_dane": "15185"
+        },
+        {
+          "nombre": "Chivatá",
+          "codigo_dane": "15187"
+        },
+        {
+          "nombre": "Chivor",
+          "codigo_dane": "15236"
+        },
+        {
+          "nombre": "Ciénega",
+          "codigo_dane": "15189"
+        },
+        {
+          "nombre": "Cómbita",
+          "codigo_dane": "15204"
+        },
+        {
+          "nombre": "Coper",
+          "codigo_dane": "15212"
+        },
+        {
+          "nombre": "Corrales",
+          "codigo_dane": "15215"
+        },
+        {
+          "nombre": "Covarachía",
+          "codigo_dane": "15218"
+        },
+        {
+          "nombre": "Cubará",
+          "codigo_dane": "15223"
+        },
+        {
+          "nombre": "Cucaita",
+          "codigo_dane": "15224"
+        },
+        {
+          "nombre": "Cuítiva",
+          "codigo_dane": "15226"
+        },
+        {
+          "nombre": "Duitama",
+          "codigo_dane": "15238"
+        },
+        {
+          "nombre": "El Cocuy",
+          "codigo_dane": "15244"
+        },
+        {
+          "nombre": "El Espino",
+          "codigo_dane": "15248"
+        },
+        {
+          "nombre": "Firavitoba",
+          "codigo_dane": "15272"
+        },
+        {
+          "nombre": "Floresta",
+          "codigo_dane": "15276"
+        },
+        {
+          "nombre": "Gachantivá",
+          "codigo_dane": "15293"
+        },
+        {
+          "nombre": "Gámeza",
+          "codigo_dane": "15296"
+        },
+        {
+          "nombre": "Garagoa",
+          "codigo_dane": "15299"
+        },
+        {
+          "nombre": "Guacamayas",
+          "codigo_dane": "15317"
+        },
+        {
+          "nombre": "Guateque",
+          "codigo_dane": "15322"
+        },
+        {
+          "nombre": "Guayatá",
+          "codigo_dane": "15325"
+        },
+        {
+          "nombre": "Güicán",
+          "codigo_dane": "15332"
+        },
+        {
+          "nombre": "Iza",
+          "codigo_dane": "15362"
+        },
+        {
+          "nombre": "Jenesano",
+          "codigo_dane": "15367"
+        },
+        {
+          "nombre": "Jericó",
+          "codigo_dane": "15368"
+        },
+        {
+          "nombre": "La Capilla",
+          "codigo_dane": "15380"
+        },
+        {
+          "nombre": "La Uvita",
+          "codigo_dane": "15403"
+        },
+        {
+          "nombre": "La Victoria",
+          "codigo_dane": "15401"
+        },
+        {
+          "nombre": "Labranzagrande",
+          "codigo_dane": "15377"
+        },
+        {
+          "nombre": "Macanal",
+          "codigo_dane": "15425"
+        },
+        {
+          "nombre": "Maripí",
+          "codigo_dane": "15442"
+        },
+        {
+          "nombre": "Miraflores",
+          "codigo_dane": "15455"
+        },
+        {
+          "nombre": "Mongua",
+          "codigo_dane": "15464"
+        },
+        {
+          "nombre": "Monguí",
+          "codigo_dane": "15466"
+        },
+        {
+          "nombre": "Moniquirá",
+          "codigo_dane": "15469"
+        },
+        {
+          "nombre": "Motavita",
+          "codigo_dane": "15476"
+        },
+        {
+          "nombre": "Muzo",
+          "codigo_dane": "15480"
+        },
+        {
+          "nombre": "Nobsa",
+          "codigo_dane": "15491"
+        },
+        {
+          "nombre": "Nuevo Colón",
+          "codigo_dane": "15494"
+        },
+        {
+          "nombre": "Oicatá",
+          "codigo_dane": "15500"
+        },
+        {
+          "nombre": "Otanche",
+          "codigo_dane": "15507"
+        },
+        {
+          "nombre": "Pachavita",
+          "codigo_dane": "15511"
+        },
+        {
+          "nombre": "Páez",
+          "codigo_dane": "15514"
+        },
+        {
+          "nombre": "Paipa",
+          "codigo_dane": "15516"
+        },
+        {
+          "nombre": "Pajarito",
+          "codigo_dane": "15518"
+        },
+        {
+          "nombre": "Panqueba",
+          "codigo_dane": "15522"
+        },
+        {
+          "nombre": "Pauna",
+          "codigo_dane": "15531"
+        },
+        {
+          "nombre": "Paya",
+          "codigo_dane": "15533"
+        },
+        {
+          "nombre": "Paz de Río",
+          "codigo_dane": "15537"
+        },
+        {
+          "nombre": "Pesca",
+          "codigo_dane": "15542"
+        },
+        {
+          "nombre": "Pisba",
+          "codigo_dane": "15550"
+        },
+        {
+          "nombre": "Puerto Boyacá",
+          "codigo_dane": "15572"
+        },
+        {
+          "nombre": "Quípama",
+          "codigo_dane": "15580"
+        },
+        {
+          "nombre": "Ramiriquí",
+          "codigo_dane": "15599"
+        },
+        {
+          "nombre": "Ráquira",
+          "codigo_dane": "15600"
+        },
+        {
+          "nombre": "Rondón",
+          "codigo_dane": "15621"
+        },
+        {
+          "nombre": "Saboyá",
+          "codigo_dane": "15632"
+        },
+        {
+          "nombre": "Sáchica",
+          "codigo_dane": "15638"
+        },
+        {
+          "nombre": "Samacá",
+          "codigo_dane": "15646"
+        },
+        {
+          "nombre": "San Eduardo",
+          "codigo_dane": "15660"
+        },
+        {
+          "nombre": "San José de Pare",
+          "codigo_dane": "15664"
+        },
+        {
+          "nombre": "San Luis de Gaceno",
+          "codigo_dane": "15667"
+        },
+        {
+          "nombre": "San Mateo",
+          "codigo_dane": "15673"
+        },
+        {
+          "nombre": "San Miguel de Sema",
+          "codigo_dane": "15676"
+        },
+        {
+          "nombre": "San Pablo de Borbur",
+          "codigo_dane": "15681"
+        },
+        {
+          "nombre": "Santa María",
+          "codigo_dane": "15690"
+        },
+        {
+          "nombre": "Santa Rosa de Viterbo",
+          "codigo_dane": "15693"
+        },
+        {
+          "nombre": "Santa Sofía",
+          "codigo_dane": "15696"
+        },
+        {
+          "nombre": "Santana",
+          "codigo_dane": "15686"
+        },
+        {
+          "nombre": "Sativanorte",
+          "codigo_dane": "15720"
+        },
+        {
+          "nombre": "Sativasur",
+          "codigo_dane": "15723"
+        },
+        {
+          "nombre": "Siachoque",
+          "codigo_dane": "15740"
+        },
+        {
+          "nombre": "Soatá",
+          "codigo_dane": "15753"
+        },
+        {
+          "nombre": "Socha",
+          "codigo_dane": "15757"
+        },
+        {
+          "nombre": "Socotá",
+          "codigo_dane": "15755"
+        },
+        {
+          "nombre": "Sogamoso",
+          "codigo_dane": "15759"
+        },
+        {
+          "nombre": "Somondoco",
+          "codigo_dane": "15761"
+        },
+        {
+          "nombre": "Sora",
+          "codigo_dane": "15762"
+        },
+        {
+          "nombre": "Soracá",
+          "codigo_dane": "15764"
+        },
+        {
+          "nombre": "Sotaquirá",
+          "codigo_dane": "15763"
+        },
+        {
+          "nombre": "Susacón",
+          "codigo_dane": "15774"
+        },
+        {
+          "nombre": "Sutamarchán",
+          "codigo_dane": "15776"
+        },
+        {
+          "nombre": "Sutatenza",
+          "codigo_dane": "15778"
+        },
+        {
+          "nombre": "Tasco",
+          "codigo_dane": "15790"
+        },
+        {
+          "nombre": "Tenza",
+          "codigo_dane": "15798"
+        },
+        {
+          "nombre": "Tibaná",
+          "codigo_dane": "15804"
+        },
+        {
+          "nombre": "Tibasosa",
+          "codigo_dane": "15806"
+        },
+        {
+          "nombre": "Tinjacá",
+          "codigo_dane": "15808"
+        },
+        {
+          "nombre": "Tipacoque",
+          "codigo_dane": "15810"
+        },
+        {
+          "nombre": "Toca",
+          "codigo_dane": "15814"
+        },
+        {
+          "nombre": "Togüí",
+          "codigo_dane": "15816"
+        },
+        {
+          "nombre": "Tópaga",
+          "codigo_dane": "15820"
+        },
+        {
+          "nombre": "Tota",
+          "codigo_dane": "15822"
+        },
+        {
+          "nombre": "Tununguá",
+          "codigo_dane": "15832"
+        },
+        {
+          "nombre": "Turmequé",
+          "codigo_dane": "15835"
+        },
+        {
+          "nombre": "Tuta",
+          "codigo_dane": "15837"
+        },
+        {
+          "nombre": "Tutazá",
+          "codigo_dane": "15839"
+        },
+        {
+          "nombre": "Úmbita",
+          "codigo_dane": "15842"
+        },
+        {
+          "nombre": "Ventaquemada",
+          "codigo_dane": "15861"
+        },
+        {
+          "nombre": "Villa de Leyva",
+          "codigo_dane": "15407"
+        },
+        {
+          "nombre": "Viracachá",
+          "codigo_dane": "15879"
+        },
+        {
+          "nombre": "Zetaquirá",
+          "codigo_dane": "15897"
+        }
+      ]
+    },
+    {
+      "nombre": "Caldas",
+      "codigo_dane": "17",
+      "capital": "Manizales",
+      "municipios": [
+        {
+          "nombre": "Manizales",
+          "codigo_dane": "17001"
+        },
+        {
+          "nombre": "Aguadas",
+          "codigo_dane": "17013"
+        },
+        {
+          "nombre": "Anserma",
+          "codigo_dane": "17042"
+        },
+        {
+          "nombre": "Aranzazu",
+          "codigo_dane": "17050"
+        },
+        {
+          "nombre": "Belalcázar",
+          "codigo_dane": "17088"
+        },
+        {
+          "nombre": "Chinchiná",
+          "codigo_dane": "17174"
+        },
+        {
+          "nombre": "Filadelfia",
+          "codigo_dane": "17272"
+        },
+        {
+          "nombre": "La Dorada",
+          "codigo_dane": "17380"
+        },
+        {
+          "nombre": "La Merced",
+          "codigo_dane": "17388"
+        },
+        {
+          "nombre": "Manzanares",
+          "codigo_dane": "17433"
+        },
+        {
+          "nombre": "Marmato",
+          "codigo_dane": "17442"
+        },
+        {
+          "nombre": "Marquetalia",
+          "codigo_dane": "17444"
+        },
+        {
+          "nombre": "Marulanda",
+          "codigo_dane": "17446"
+        },
+        {
+          "nombre": "Neira",
+          "codigo_dane": "17486"
+        },
+        {
+          "nombre": "Norcasia",
+          "codigo_dane": "17495"
+        },
+        {
+          "nombre": "Pácora",
+          "codigo_dane": "17513"
+        },
+        {
+          "nombre": "Palestina",
+          "codigo_dane": "17524"
+        },
+        {
+          "nombre": "Pensilvania",
+          "codigo_dane": "17541"
+        },
+        {
+          "nombre": "Riosucio",
+          "codigo_dane": "17614"
+        },
+        {
+          "nombre": "Risaralda",
+          "codigo_dane": "17616"
+        },
+        {
+          "nombre": "Salamina",
+          "codigo_dane": "17653"
+        },
+        {
+          "nombre": "Samaná",
+          "codigo_dane": "17662"
+        },
+        {
+          "nombre": "San José",
+          "codigo_dane": "17665"
+        },
+        {
+          "nombre": "Supía",
+          "codigo_dane": "17777"
+        },
+        {
+          "nombre": "Victoria",
+          "codigo_dane": "17867"
+        },
+        {
+          "nombre": "Villamaría",
+          "codigo_dane": "17873"
+        },
+        {
+          "nombre": "Viterbo",
+          "codigo_dane": "17877"
+        }
+      ]
+    },
+    {
+      "nombre": "Caquetá",
+      "codigo_dane": "18",
+      "capital": "Florencia",
+      "municipios": [
+        {
+          "nombre": "Florencia",
+          "codigo_dane": "18001"
+        },
+        {
+          "nombre": "Albania",
+          "codigo_dane": "18029"
+        },
+        {
+          "nombre": "Belén de los Andaquíes",
+          "codigo_dane": "18094"
+        },
+        {
+          "nombre": "Cartagena del Chairá",
+          "codigo_dane": "18150"
+        },
+        {
+          "nombre": "Curillo",
+          "codigo_dane": "18205"
+        },
+        {
+          "nombre": "El Doncello",
+          "codigo_dane": "18247"
+        },
+        {
+          "nombre": "El Paujil",
+          "codigo_dane": "18256"
+        },
+        {
+          "nombre": "La Montañita",
+          "codigo_dane": "18410"
+        },
+        {
+          "nombre": "Milán",
+          "codigo_dane": "18460"
+        },
+        {
+          "nombre": "Morelia",
+          "codigo_dane": "18479"
+        },
+        {
+          "nombre": "Puerto Rico",
+          "codigo_dane": "18592"
+        },
+        {
+          "nombre": "San José del Fragua",
+          "codigo_dane": "18610"
+        },
+        {
+          "nombre": "San Vicente del Caguán",
+          "codigo_dane": "18753"
+        },
+        {
+          "nombre": "Solano",
+          "codigo_dane": "18756"
+        },
+        {
+          "nombre": "Solita",
+          "codigo_dane": "18785"
+        },
+        {
+          "nombre": "Valparaíso",
+          "codigo_dane": "18860"
+        }
+      ]
+    },
+    {
+      "nombre": "Casanare",
+      "codigo_dane": "85",
+      "capital": "Yopal",
+      "municipios": [
+        {
+          "nombre": "Yopal",
+          "codigo_dane": "85001"
+        },
+        {
+          "nombre": "Aguazul",
+          "codigo_dane": "85010"
+        },
+        {
+          "nombre": "Chámeza",
+          "codigo_dane": "85015"
+        },
+        {
+          "nombre": "Hato Corozal",
+          "codigo_dane": "85125"
+        },
+        {
+          "nombre": "La Salina",
+          "codigo_dane": "85136"
+        },
+        {
+          "nombre": "Maní",
+          "codigo_dane": "85139"
+        },
+        {
+          "nombre": "Monterrey",
+          "codigo_dane": "85162"
+        },
+        {
+          "nombre": "Nunchía",
+          "codigo_dane": "85225"
+        },
+        {
+          "nombre": "Orocué",
+          "codigo_dane": "85230"
+        },
+        {
+          "nombre": "Paz de Ariporo",
+          "codigo_dane": "85250"
+        },
+        {
+          "nombre": "Pore",
+          "codigo_dane": "85263"
+        },
+        {
+          "nombre": "Recetor",
+          "codigo_dane": "85279"
+        },
+        {
+          "nombre": "Sabanalarga",
+          "codigo_dane": "85300"
+        },
+        {
+          "nombre": "Sácama",
+          "codigo_dane": "85315"
+        },
+        {
+          "nombre": "San Luis de Palenque",
+          "codigo_dane": "85325"
+        },
+        {
+          "nombre": "Támara",
+          "codigo_dane": "85400"
+        },
+        {
+          "nombre": "Tauramena",
+          "codigo_dane": "85410"
+        },
+        {
+          "nombre": "Trinidad",
+          "codigo_dane": "85430"
+        },
+        {
+          "nombre": "Villanueva",
+          "codigo_dane": "85440"
+        }
+      ]
+    },
+    {
+      "nombre": "Cauca",
+      "codigo_dane": "19",
+      "capital": "Popayán",
+      "municipios": [
+        {
+          "nombre": "Popayán",
+          "codigo_dane": "19001"
+        },
+        {
+          "nombre": "Almaguer",
+          "codigo_dane": "19022"
+        },
+        {
+          "nombre": "Argelia",
+          "codigo_dane": "19050"
+        },
+        {
+          "nombre": "Balboa",
+          "codigo_dane": "19075"
+        },
+        {
+          "nombre": "Bolívar",
+          "codigo_dane": "19100"
+        },
+        {
+          "nombre": "Buenos Aires",
+          "codigo_dane": "19110"
+        },
+        {
+          "nombre": "Cajibío",
+          "codigo_dane": "19130"
+        },
+        {
+          "nombre": "Caldono",
+          "codigo_dane": "19137"
+        },
+        {
+          "nombre": "Caloto",
+          "codigo_dane": "19142"
+        },
+        {
+          "nombre": "Corinto",
+          "codigo_dane": "19212"
+        },
+        {
+          "nombre": "El Tambo",
+          "codigo_dane": "19256"
+        },
+        {
+          "nombre": "Florencia",
+          "codigo_dane": "19290"
+        },
+        {
+          "nombre": "Guachené",
+          "codigo_dane": "19300"
+        },
+        {
+          "nombre": "Guapí",
+          "codigo_dane": "19318"
+        },
+        {
+          "nombre": "Inzá",
+          "codigo_dane": "19355"
+        },
+        {
+          "nombre": "Jambaló",
+          "codigo_dane": "19364"
+        },
+        {
+          "nombre": "La Sierra",
+          "codigo_dane": "19392"
+        },
+        {
+          "nombre": "La Vega",
+          "codigo_dane": "19397"
+        },
+        {
+          "nombre": "López de Micay",
+          "codigo_dane": "19418"
+        },
+        {
+          "nombre": "Mercaderes",
+          "codigo_dane": "19450"
+        },
+        {
+          "nombre": "Miranda",
+          "codigo_dane": "19455"
+        },
+        {
+          "nombre": "Morales",
+          "codigo_dane": "19473"
+        },
+        {
+          "nombre": "Padilla",
+          "codigo_dane": "19513"
+        },
+        {
+          "nombre": "Páez",
+          "codigo_dane": "19517"
+        },
+        {
+          "nombre": "Patía",
+          "codigo_dane": "19532"
+        },
+        {
+          "nombre": "Piamonte",
+          "codigo_dane": "19533"
+        },
+        {
+          "nombre": "Piendamó",
+          "codigo_dane": "19548"
+        },
+        {
+          "nombre": "Puerto Tejada",
+          "codigo_dane": "19573"
+        },
+        {
+          "nombre": "Puracé",
+          "codigo_dane": "19585"
+        },
+        {
+          "nombre": "Rosas",
+          "codigo_dane": "19622"
+        },
+        {
+          "nombre": "San Sebastián",
+          "codigo_dane": "19693"
+        },
+        {
+          "nombre": "Santander de Quilichao",
+          "codigo_dane": "19698"
+        },
+        {
+          "nombre": "Santa Rosa",
+          "codigo_dane": "19701"
+        },
+        {
+          "nombre": "Silvia",
+          "codigo_dane": "19743"
+        },
+        {
+          "nombre": "Sotará",
+          "codigo_dane": "19760"
+        },
+        {
+          "nombre": "Suárez",
+          "codigo_dane": "19780"
+        },
+        {
+          "nombre": "Sucre",
+          "codigo_dane": "19785"
+        },
+        {
+          "nombre": "Timbío",
+          "codigo_dane": "19807"
+        },
+        {
+          "nombre": "Timbiquí",
+          "codigo_dane": "19809"
+        },
+        {
+          "nombre": "Toribío",
+          "codigo_dane": "19821"
+        },
+        {
+          "nombre": "Totoró",
+          "codigo_dane": "19824"
+        },
+        {
+          "nombre": "Villa Rica",
+          "codigo_dane": "19845"
+        }
+      ]
+    },
+    {
+      "nombre": "Cesar",
+      "codigo_dane": "20",
+      "capital": "Valledupar",
+      "municipios": [
+        {
+          "nombre": "Valledupar",
+          "codigo_dane": "20001"
+        },
+        {
+          "nombre": "Aguachica",
+          "codigo_dane": "20011"
+        },
+        {
+          "nombre": "Agustín Codazzi",
+          "codigo_dane": "20013"
+        },
+        {
+          "nombre": "Astrea",
+          "codigo_dane": "20032"
+        },
+        {
+          "nombre": "Becerril",
+          "codigo_dane": "20045"
+        },
+        {
+          "nombre": "Bosconia",
+          "codigo_dane": "20060"
+        },
+        {
+          "nombre": "Chimichagua",
+          "codigo_dane": "20175"
+        },
+        {
+          "nombre": "Chiriguaná",
+          "codigo_dane": "20178"
+        },
+        {
+          "nombre": "Curumaní",
+          "codigo_dane": "20228"
+        },
+        {
+          "nombre": "El Copey",
+          "codigo_dane": "20238"
+        },
+        {
+          "nombre": "El Paso",
+          "codigo_dane": "20250"
+        },
+        {
+          "nombre": "Gamarra",
+          "codigo_dane": "20295"
+        },
+        {
+          "nombre": "González",
+          "codigo_dane": "20310"
+        },
+        {
+          "nombre": "La Gloria",
+          "codigo_dane": "20383"
+        },
+        {
+          "nombre": "La Jagua de Ibirico",
+          "codigo_dane": "20400"
+        },
+        {
+          "nombre": "La Paz",
+          "codigo_dane": "20621"
+        },
+        {
+          "nombre": "Manaure",
+          "codigo_dane": "20443"
+        },
+        {
+          "nombre": "Pailitas",
+          "codigo_dane": "20517"
+        },
+        {
+          "nombre": "Pelaya",
+          "codigo_dane": "20550"
+        },
+        {
+          "nombre": "Pueblo Bello",
+          "codigo_dane": "20570"
+        },
+        {
+          "nombre": "Río de Oro",
+          "codigo_dane": "20614"
+        },
+        {
+          "nombre": "San Alberto",
+          "codigo_dane": "20710"
+        },
+        {
+          "nombre": "San Diego",
+          "codigo_dane": "20750"
+        },
+        {
+          "nombre": "San Martín",
+          "codigo_dane": "20770"
+        },
+        {
+          "nombre": "Tamalameque",
+          "codigo_dane": "20787"
+        }
+      ]
+    },
+    {
+      "nombre": "Chocó",
+      "codigo_dane": "27",
+      "capital": "Quibdó",
+      "municipios": [
+        {
+          "nombre": "Quibdó",
+          "codigo_dane": "27001"
+        },
+        {
+          "nombre": "Acandí",
+          "codigo_dane": "27006"
+        },
+        {
+          "nombre": "Alto Baudó",
+          "codigo_dane": "27025"
+        },
+        {
+          "nombre": "Atrato",
+          "codigo_dane": "27050"
+        },
+        {
+          "nombre": "Bagadó",
+          "codigo_dane": "27073"
+        },
+        {
+          "nombre": "Bahía Solano",
+          "codigo_dane": "27075"
+        },
+        {
+          "nombre": "Bajo Baudó",
+          "codigo_dane": "27077"
+        },
+        {
+          "nombre": "Bojayá",
+          "codigo_dane": "27099"
+        },
+        {
+          "nombre": "Cantón de San Pablo",
+          "codigo_dane": "27135"
+        },
+        {
+          "nombre": "Carmen del Darién",
+          "codigo_dane": "27150"
+        },
+        {
+          "nombre": "Cértegui",
+          "codigo_dane": "27160"
+        },
+        {
+          "nombre": "Condoto",
+          "codigo_dane": "27205"
+        },
+        {
+          "nombre": "El Cantón del San Pablo",
+          "codigo_dane": "27135"
+        },
+        {
+          "nombre": "El Carmen de Atrato",
+          "codigo_dane": "27245"
+        },
+        {
+          "nombre": "El Litoral del San Juan",
+          "codigo_dane": "27250"
+        },
+        {
+          "nombre": "Istmina",
+          "codigo_dane": "27361"
+        },
+        {
+          "nombre": "Juradó",
+          "codigo_dane": "27372"
+        },
+        {
+          "nombre": "Lloró",
+          "codigo_dane": "27413"
+        },
+        {
+          "nombre": "Medio Atrato",
+          "codigo_dane": "27425"
+        },
+        {
+          "nombre": "Medio Baudó",
+          "codigo_dane": "27430"
+        },
+        {
+          "nombre": "Medio San Juan",
+          "codigo_dane": "27450"
+        },
+        {
+          "nombre": "Nóvita",
+          "codigo_dane": "27491"
+        },
+        {
+          "nombre": "Nuquí",
+          "codigo_dane": "27495"
+        },
+        {
+          "nombre": "Río Iró",
+          "codigo_dane": "27580"
+        },
+        {
+          "nombre": "Río Quito",
+          "codigo_dane": "27600"
+        },
+        {
+          "nombre": "Riosucio",
+          "codigo_dane": "27615"
+        },
+        {
+          "nombre": "San José del Palmar",
+          "codigo_dane": "27660"
+        },
+        {
+          "nombre": "San Juan",
+          "codigo_dane": "27250"
+        },
+        {
+          "nombre": "Sipí",
+          "codigo_dane": "27745"
+        },
+        {
+          "nombre": "Tadó",
+          "codigo_dane": "27787"
+        },
+        {
+          "nombre": "Unguía",
+          "codigo_dane": "27800"
+        },
+        {
+          "nombre": "Unión Panamericana",
+          "codigo_dane": "27810"
+        }
+      ]
+    },
+    {
+      "nombre": "Córdoba",
+      "codigo_dane": "23",
+      "capital": "Montería",
+      "municipios": [
+        {
+          "nombre": "Montería",
+          "codigo_dane": "23001"
+        },
+        {
+          "nombre": "Ayapel",
+          "codigo_dane": "23068"
+        },
+        {
+          "nombre": "Buenavista",
+          "codigo_dane": "23079"
+        },
+        {
+          "nombre": "Canalete",
+          "codigo_dane": "23090"
+        },
+        {
+          "nombre": "Cereté",
+          "codigo_dane": "23162"
+        },
+        {
+          "nombre": "Chimá",
+          "codigo_dane": "23168"
+        },
+        {
+          "nombre": "Chinú",
+          "codigo_dane": "23182"
+        },
+        {
+          "nombre": "Ciénaga de Oro",
+          "codigo_dane": "23189"
+        },
+        {
+          "nombre": "Cotorra",
+          "codigo_dane": "23300"
+        },
+        {
+          "nombre": "La Apartada",
+          "codigo_dane": "23350"
+        },
+        {
+          "nombre": "Lorica",
+          "codigo_dane": "23417"
+        },
+        {
+          "nombre": "Los Córdobas",
+          "codigo_dane": "23419"
+        },
+        {
+          "nombre": "Momil",
+          "codigo_dane": "23464"
+        },
+        {
+          "nombre": "Moñitos",
+          "codigo_dane": "23500"
+        },
+        {
+          "nombre": "Montelíbano",
+          "codigo_dane": "23466"
+        },
+        {
+          "nombre": "Morales",
+          "codigo_dane": null
+        },
+        {
+          "nombre": "Planeta Rica",
+          "codigo_dane": "23555"
+        },
+        {
+          "nombre": "Pueblo Nuevo",
+          "codigo_dane": "23570"
+        },
+        {
+          "nombre": "Puerto Escondido",
+          "codigo_dane": "23574"
+        },
+        {
+          "nombre": "Puerto Libertador",
+          "codigo_dane": "23580"
+        },
+        {
+          "nombre": "Purísima",
+          "codigo_dane": "23586"
+        },
+        {
+          "nombre": "Sahagún",
+          "codigo_dane": "23660"
+        },
+        {
+          "nombre": "San Andrés de Sotavento",
+          "codigo_dane": "23670"
+        },
+        {
+          "nombre": "San Antero",
+          "codigo_dane": "23672"
+        },
+        {
+          "nombre": "San Bernardo del Viento",
+          "codigo_dane": "23675"
+        },
+        {
+          "nombre": "San Carlos",
+          "codigo_dane": "23678"
+        },
+        {
+          "nombre": "San José de Uré",
+          "codigo_dane": "23682"
+        },
+        {
+          "nombre": "San Pelayo",
+          "codigo_dane": "23686"
+        },
+        {
+          "nombre": "Tierralta",
+          "codigo_dane": "23807"
+        },
+        {
+          "nombre": "Tuchín",
+          "codigo_dane": "23815"
+        },
+        {
+          "nombre": "Valencia",
+          "codigo_dane": "23855"
+        }
+      ]
+    },
+    {
+      "nombre": "Cundinamarca",
+      "codigo_dane": "25",
+      "capital": "Bogotá",
+      "municipios": [
+        {
+          "nombre": "Soacha",
+          "codigo_dane": "25754"
+        },
+        {
+          "nombre": "Facatativá",
+          "codigo_dane": "25269"
+        },
+        {
+          "nombre": "Zipaquirá",
+          "codigo_dane": "25899"
+        },
+        {
+          "nombre": "Fusagasugá",
+          "codigo_dane": "25290"
+        },
+        {
+          "nombre": "Chía",
+          "codigo_dane": "25175"
+        },
+        {
+          "nombre": "Mosquera",
+          "codigo_dane": "25473"
+        },
+        {
+          "nombre": "Madrid",
+          "codigo_dane": "25430"
+        },
+        {
+          "nombre": "Funza",
+          "codigo_dane": "25286"
+        },
+        {
+          "nombre": "Cajicá",
+          "codigo_dane": "25126"
+        },
+        {
+          "nombre": "Girardot",
+          "codigo_dane": "25307"
+        },
+        {
+          "nombre": "Ubaté",
+          "codigo_dane": "25843"
+        },
+        {
+          "nombre": "Villeta",
+          "codigo_dane": "25875"
+        },
+        {
+          "nombre": "Sibaté",
+          "codigo_dane": "25740"
+        },
+        {
+          "nombre": "Tabio",
+          "codigo_dane": "25785"
+        },
+        {
+          "nombre": "Tenjo",
+          "codigo_dane": "25799"
+        },
+        {
+          "nombre": "Cota",
+          "codigo_dane": "25214"
+        },
+        {
+          "nombre": "La Calera",
+          "codigo_dane": "25377"
+        },
+        {
+          "nombre": "Sopó",
+          "codigo_dane": "25758"
+        },
+        {
+          "nombre": "Tocancipá",
+          "codigo_dane": "25817"
+        },
+        {
+          "nombre": "Gachancipá",
+          "codigo_dane": "25295"
+        },
+        {
+          "nombre": "Sesquilé",
+          "codigo_dane": "25736"
+        },
+        {
+          "nombre": "Guasca",
+          "codigo_dane": "25322"
+        },
+        {
+          "nombre": "Guatavita",
+          "codigo_dane": "25326"
+        },
+        {
+          "nombre": "Nemocón",
+          "codigo_dane": "25486"
+        },
+        {
+          "nombre": "Cogua",
+          "codigo_dane": "25200"
+        },
+        {
+          "nombre": "Villa de San Diego de Ubaté",
+          "codigo_dane": "25843"
+        },
+        {
+          "nombre": "Cucunubá",
+          "codigo_dane": "25224"
+        },
+        {
+          "nombre": "Susa",
+          "codigo_dane": "25779"
+        },
+        {
+          "nombre": "Simijaca",
+          "codigo_dane": "25745"
+        },
+        {
+          "nombre": "Fúquene",
+          "codigo_dane": "25288"
+        },
+        {
+          "nombre": "Tausa",
+          "codigo_dane": "25793"
+        },
+        {
+          "nombre": "Carmen de Carupa",
+          "codigo_dane": "25154"
+        },
+        {
+          "nombre": "Sutatausa",
+          "codigo_dane": "25781"
+        },
+        {
+          "nombre": "Lenguazaque",
+          "codigo_dane": "25407"
+        },
+        {
+          "nombre": "Villapinzón",
+          "codigo_dane": "25873"
+        },
+        {
+          "nombre": "Chocontá",
+          "codigo_dane": "25183"
+        },
+        {
+          "nombre": "Machetá",
+          "codigo_dane": "25426"
+        },
+        {
+          "nombre": "Manta",
+          "codigo_dane": "25436"
+        },
+        {
+          "nombre": "Suesca",
+          "codigo_dane": "25772"
+        },
+        {
+          "nombre": "Tibirita",
+          "codigo_dane": "25807"
+        },
+        {
+          "nombre": "Almeidas",
+          "codigo_dane": "25328"
+        },
+        {
+          "nombre": "Vianí",
+          "codigo_dane": "25867"
+        },
+        {
+          "nombre": "Quipile",
+          "codigo_dane": "25596"
+        },
+        {
+          "nombre": "Anapoima",
+          "codigo_dane": "25035"
+        },
+        {
+          "nombre": "Apulo",
+          "codigo_dane": "25599"
+        },
+        {
+          "nombre": "Agua de Dios",
+          "codigo_dane": "25001"
+        },
+        {
+          "nombre": "Nilo",
+          "codigo_dane": "25488"
+        },
+        {
+          "nombre": "Tocaima",
+          "codigo_dane": "25815"
+        },
+        {
+          "nombre": "Jerusalén",
+          "codigo_dane": "25368"
+        },
+        {
+          "nombre": "Guataquí",
+          "codigo_dane": "25324"
+        },
+        {
+          "nombre": "Beltrán",
+          "codigo_dane": "25086"
+        },
+        {
+          "nombre": "Pulí",
+          "codigo_dane": "25580"
+        },
+        {
+          "nombre": "San Juan de Rioseco",
+          "codigo_dane": "25662"
+        },
+        {
+          "nombre": "Venecia",
+          "codigo_dane": "25506"
+        },
+        {
+          "nombre": "Cabrera",
+          "codigo_dane": "25120"
+        },
+        {
+          "nombre": "San Bernardo",
+          "codigo_dane": "25649"
+        },
+        {
+          "nombre": "Arbeláez",
+          "codigo_dane": "25053"
+        },
+        {
+          "nombre": "Pasca",
+          "codigo_dane": "25535"
+        },
+        {
+          "nombre": "Silvania",
+          "codigo_dane": "25743"
+        },
+        {
+          "nombre": "Granada",
+          "codigo_dane": "25312"
+        },
+        {
+          "nombre": "San Antonio del Tequendama",
+          "codigo_dane": "25645"
+        },
+        {
+          "nombre": "El Colegio",
+          "codigo_dane": "25245"
+        },
+        {
+          "nombre": "La Mesa",
+          "codigo_dane": "25386"
+        },
+        {
+          "nombre": "Tena",
+          "codigo_dane": "25797"
+        },
+        {
+          "nombre": "Bojacá",
+          "codigo_dane": "25099"
+        },
+        {
+          "nombre": "Zipacón",
+          "codigo_dane": "25898"
+        },
+        {
+          "nombre": "El Rosal",
+          "codigo_dane": "25260"
+        },
+        {
+          "nombre": "Subachoque",
+          "codigo_dane": "25769"
+        },
+        {
+          "nombre": "San Francisco",
+          "codigo_dane": "25658"
+        },
+        {
+          "nombre": "Supatá",
+          "codigo_dane": "25777"
+        },
+        {
+          "nombre": "La Vega",
+          "codigo_dane": "25402"
+        },
+        {
+          "nombre": "Nocaíma",
+          "codigo_dane": "25491"
+        },
+        {
+          "nombre": "Vergara",
+          "codigo_dane": "25862"
+        },
+        {
+          "nombre": "El Peñón",
+          "codigo_dane": "25258"
+        },
+        {
+          "nombre": "Yacopí",
+          "codigo_dane": "25885"
+        },
+        {
+          "nombre": "Cachipay",
+          "codigo_dane": "25123"
+        },
+        {
+          "nombre": "Útica",
+          "codigo_dane": "25851"
+        },
+        {
+          "nombre": "Caparrapí",
+          "codigo_dane": "25148"
+        },
+        {
+          "nombre": "Guaduas",
+          "codigo_dane": "25320"
+        },
+        {
+          "nombre": "Puerto Salgar",
+          "codigo_dane": "25572"
+        },
+        {
+          "nombre": "Paime",
+          "codigo_dane": "25518"
+        },
+        {
+          "nombre": "San Cayetano",
+          "codigo_dane": "25653"
+        },
+        {
+          "nombre": "Albán",
+          "codigo_dane": "25019"
+        },
+        {
+          "nombre": "Sasaima",
+          "codigo_dane": "25718"
+        },
+        {
+          "nombre": "Bituima",
+          "codigo_dane": "25095"
+        },
+        {
+          "nombre": "Villeta",
+          "codigo_dane": "25875"
+        },
+        {
+          "nombre": "Chaguaní",
+          "codigo_dane": "25168"
+        },
+        {
+          "nombre": "Guayabal de Síquima",
+          "codigo_dane": "25328"
+        },
+        {
+          "nombre": "Nariño",
+          "codigo_dane": "25483"
+        },
+        {
+          "nombre": "Arbeláez",
+          "codigo_dane": "25053"
+        },
+        {
+          "nombre": "Pandi",
+          "codigo_dane": "25524"
+        },
+        {
+          "nombre": "Une",
+          "codigo_dane": "25845"
+        },
+        {
+          "nombre": "Fómeque",
+          "codigo_dane": "25279"
+        },
+        {
+          "nombre": "Choachí",
+          "codigo_dane": "25181"
+        },
+        {
+          "nombre": "Ubaque",
+          "codigo_dane": "25841"
+        },
+        {
+          "nombre": "Cáqueza",
+          "codigo_dane": "25151"
+        },
+        {
+          "nombre": "Fosca",
+          "codigo_dane": "25281"
+        },
+        {
+          "nombre": "Gutiérrez",
+          "codigo_dane": "25339"
+        },
+        {
+          "nombre": "Quetame",
+          "codigo_dane": "25594"
+        },
+        {
+          "nombre": "Chipaque",
+          "codigo_dane": "25178"
+        },
+        {
+          "nombre": "La Palma",
+          "codigo_dane": "25394"
+        },
+        {
+          "nombre": "La Peña",
+          "codigo_dane": "25398"
+        },
+        {
+          "nombre": "Paratebueno",
+          "codigo_dane": "25530"
+        },
+        {
+          "nombre": "Medina",
+          "codigo_dane": "25438"
+        }
+      ]
+    },
+    {
+      "nombre": "Guainía",
+      "codigo_dane": "94",
+      "capital": "Inírida",
+      "municipios": [
+        {
+          "nombre": "Inírida",
+          "codigo_dane": "94001"
+        },
+        {
+          "nombre": "Barranco Minas",
+          "codigo_dane": "94343"
+        },
+        {
+          "nombre": "Cacahual",
+          "codigo_dane": "94886"
+        },
+        {
+          "nombre": "La Guadalupe",
+          "codigo_dane": "94885"
+        },
+        {
+          "nombre": "Morichal Nuevo",
+          "codigo_dane": "94888"
+        },
+        {
+          "nombre": "Pana Pana",
+          "codigo_dane": "94887"
+        },
+        {
+          "nombre": "Puerto Colombia",
+          "codigo_dane": "94884"
+        },
+        {
+          "nombre": "San Felipe",
+          "codigo_dane": "94883"
+        }
+      ]
+    },
+    {
+      "nombre": "Guaviare",
+      "codigo_dane": "95",
+      "capital": "San José del Guaviare",
+      "municipios": [
+        {
+          "nombre": "San José del Guaviare",
+          "codigo_dane": "95001"
+        },
+        {
+          "nombre": "Calamar",
+          "codigo_dane": "95015"
+        },
+        {
+          "nombre": "El Retorno",
+          "codigo_dane": "95025"
+        },
+        {
+          "nombre": "Miraflores",
+          "codigo_dane": "95200"
+        }
+      ]
+    },
+    {
+      "nombre": "Huila",
+      "codigo_dane": "41",
+      "capital": "Neiva",
+      "municipios": [
+        {
+          "nombre": "Neiva",
+          "codigo_dane": "41001"
+        },
+        {
+          "nombre": "Acevedo",
+          "codigo_dane": "41006"
+        },
+        {
+          "nombre": "Agrado",
+          "codigo_dane": "41013"
+        },
+        {
+          "nombre": "Aipe",
+          "codigo_dane": "41016"
+        },
+        {
+          "nombre": "Algeciras",
+          "codigo_dane": "41020"
+        },
+        {
+          "nombre": "Altamira",
+          "codigo_dane": "41026"
+        },
+        {
+          "nombre": "Baraya",
+          "codigo_dane": "41078"
+        },
+        {
+          "nombre": "Campoalegre",
+          "codigo_dane": "41132"
+        },
+        {
+          "nombre": "Colombia",
+          "codigo_dane": "41206"
+        },
+        {
+          "nombre": "Elías",
+          "codigo_dane": "41244"
+        },
+        {
+          "nombre": "Garzón",
+          "codigo_dane": "41298"
+        },
+        {
+          "nombre": "Gigante",
+          "codigo_dane": "41306"
+        },
+        {
+          "nombre": "Guadalupe",
+          "codigo_dane": "41319"
+        },
+        {
+          "nombre": "Hobo",
+          "codigo_dane": "41349"
+        },
+        {
+          "nombre": "Íquira",
+          "codigo_dane": "41357"
+        },
+        {
+          "nombre": "Isnos",
+          "codigo_dane": "41359"
+        },
+        {
+          "nombre": "La Argentina",
+          "codigo_dane": "41378"
+        },
+        {
+          "nombre": "La Plata",
+          "codigo_dane": "41396"
+        },
+        {
+          "nombre": "Nátaga",
+          "codigo_dane": "41483"
+        },
+        {
+          "nombre": "Oporapa",
+          "codigo_dane": "41503"
+        },
+        {
+          "nombre": "Paicol",
+          "codigo_dane": "41518"
+        },
+        {
+          "nombre": "Palermo",
+          "codigo_dane": "41524"
+        },
+        {
+          "nombre": "Palestina",
+          "codigo_dane": "41530"
+        },
+        {
+          "nombre": "Pital",
+          "codigo_dane": "41548"
+        },
+        {
+          "nombre": "Pitalito",
+          "codigo_dane": "41551"
+        },
+        {
+          "nombre": "Rivera",
+          "codigo_dane": "41615"
+        },
+        {
+          "nombre": "Saladoblanco",
+          "codigo_dane": "41660"
+        },
+        {
+          "nombre": "San Agustín",
+          "codigo_dane": "41668"
+        },
+        {
+          "nombre": "Santa María",
+          "codigo_dane": "41676"
+        },
+        {
+          "nombre": "Suaza",
+          "codigo_dane": "41770"
+        },
+        {
+          "nombre": "Tarqui",
+          "codigo_dane": "41791"
+        },
+        {
+          "nombre": "Tello",
+          "codigo_dane": "41799"
+        },
+        {
+          "nombre": "Teruel",
+          "codigo_dane": "41801"
+        },
+        {
+          "nombre": "Tesalia",
+          "codigo_dane": "41797"
+        },
+        {
+          "nombre": "Timaná",
+          "codigo_dane": "41807"
+        },
+        {
+          "nombre": "Villavieja",
+          "codigo_dane": "41872"
+        },
+        {
+          "nombre": "Yaguará",
+          "codigo_dane": "41885"
+        }
+      ]
+    },
+    {
+      "nombre": "La Guajira",
+      "codigo_dane": "44",
+      "capital": "Riohacha",
+      "municipios": [
+        {
+          "nombre": "Riohacha",
+          "codigo_dane": "44001"
+        },
+        {
+          "nombre": "Albania",
+          "codigo_dane": "44035"
+        },
+        {
+          "nombre": "Barrancas",
+          "codigo_dane": "44078"
+        },
+        {
+          "nombre": "Dibulla",
+          "codigo_dane": "44090"
+        },
+        {
+          "nombre": "Distracción",
+          "codigo_dane": "44098"
+        },
+        {
+          "nombre": "El Molino",
+          "codigo_dane": "44110"
+        },
+        {
+          "nombre": "Fonseca",
+          "codigo_dane": "44279"
+        },
+        {
+          "nombre": "Hatonuevo",
+          "codigo_dane": "44378"
+        },
+        {
+          "nombre": "La Jagua del Pilar",
+          "codigo_dane": "44420"
+        },
+        {
+          "nombre": "Maicao",
+          "codigo_dane": "44430"
+        },
+        {
+          "nombre": "Manaure",
+          "codigo_dane": "44560"
+        },
+        {
+          "nombre": "San Juan del Cesar",
+          "codigo_dane": "44650"
+        },
+        {
+          "nombre": "Uribia",
+          "codigo_dane": "44847"
+        },
+        {
+          "nombre": "Urumita",
+          "codigo_dane": "44855"
+        },
+        {
+          "nombre": "Villanueva",
+          "codigo_dane": "44874"
+        }
+      ]
+    },
+    {
+      "nombre": "Magdalena",
+      "codigo_dane": "47",
+      "capital": "Santa Marta",
+      "municipios": [
+        {
+          "nombre": "Santa Marta",
+          "codigo_dane": "47001"
+        },
+        {
+          "nombre": "Algarrobo",
+          "codigo_dane": "47030"
+        },
+        {
+          "nombre": "Aracataca",
+          "codigo_dane": "47053"
+        },
+        {
+          "nombre": "Ariguaní",
+          "codigo_dane": "47058"
+        },
+        {
+          "nombre": "Cerro de San Antonio",
+          "codigo_dane": "47161"
+        },
+        {
+          "nombre": "Chivolo",
+          "codigo_dane": "47170"
+        },
+        {
+          "nombre": "Ciénaga",
+          "codigo_dane": "47189"
+        },
+        {
+          "nombre": "Concordia",
+          "codigo_dane": "47205"
+        },
+        {
+          "nombre": "El Banco",
+          "codigo_dane": "47245"
+        },
+        {
+          "nombre": "El Piñón",
+          "codigo_dane": "47258"
+        },
+        {
+          "nombre": "El Retén",
+          "codigo_dane": "47268"
+        },
+        {
+          "nombre": "Fundación",
+          "codigo_dane": "47288"
+        },
+        {
+          "nombre": "Guamal",
+          "codigo_dane": "47318"
+        },
+        {
+          "nombre": "Nueva Granada",
+          "codigo_dane": "47460"
+        },
+        {
+          "nombre": "Pedraza",
+          "codigo_dane": "47541"
+        },
+        {
+          "nombre": "Pijiño del Carmen",
+          "codigo_dane": "47545"
+        },
+        {
+          "nombre": "Pivijay",
+          "codigo_dane": "47551"
+        },
+        {
+          "nombre": "Plato",
+          "codigo_dane": "47555"
+        },
+        {
+          "nombre": "Puebloviejo",
+          "codigo_dane": "47570"
+        },
+        {
+          "nombre": "Remolino",
+          "codigo_dane": "47605"
+        },
+        {
+          "nombre": "Sabanas de San Ángel",
+          "codigo_dane": "47660"
+        },
+        {
+          "nombre": "Salamina",
+          "codigo_dane": "47675"
+        },
+        {
+          "nombre": "San Sebastián de Buenavista",
+          "codigo_dane": "47692"
+        },
+        {
+          "nombre": "San Zenón",
+          "codigo_dane": "47703"
+        },
+        {
+          "nombre": "Santa Ana",
+          "codigo_dane": "47707"
+        },
+        {
+          "nombre": "Santa Bárbara de Pinto",
+          "codigo_dane": "47720"
+        },
+        {
+          "nombre": "Sitionuevo",
+          "codigo_dane": "47745"
+        },
+        {
+          "nombre": "Tenerife",
+          "codigo_dane": "47798"
+        },
+        {
+          "nombre": "Zapayán",
+          "codigo_dane": "47960"
+        },
+        {
+          "nombre": "Zona Bananera",
+          "codigo_dane": "47980"
+        }
+      ]
+    },
+    {
+      "nombre": "Meta",
+      "codigo_dane": "50",
+      "capital": "Villavicencio",
+      "municipios": [
+        {
+          "nombre": "Villavicencio",
+          "codigo_dane": "50001"
+        },
+        {
+          "nombre": "Acacías",
+          "codigo_dane": "50006"
+        },
+        {
+          "nombre": "Barranca de Upía",
+          "codigo_dane": "50110"
+        },
+        {
+          "nombre": "Cabuyaro",
+          "codigo_dane": "50124"
+        },
+        {
+          "nombre": "Castilla la Nueva",
+          "codigo_dane": "50150"
+        },
+        {
+          "nombre": "Cubarral",
+          "codigo_dane": "50223"
+        },
+        {
+          "nombre": "Cumaral",
+          "codigo_dane": "50226"
+        },
+        {
+          "nombre": "El Calvario",
+          "codigo_dane": "50245"
+        },
+        {
+          "nombre": "El Castillo",
+          "codigo_dane": "50251"
+        },
+        {
+          "nombre": "El Dorado",
+          "codigo_dane": "50270"
+        },
+        {
+          "nombre": "Fuente de Oro",
+          "codigo_dane": "50287"
+        },
+        {
+          "nombre": "Granada",
+          "codigo_dane": "50313"
+        },
+        {
+          "nombre": "Guamal",
+          "codigo_dane": "50318"
+        },
+        {
+          "nombre": "La Macarena",
+          "codigo_dane": "50350"
+        },
+        {
+          "nombre": "La Uribe",
+          "codigo_dane": "50370"
+        },
+        {
+          "nombre": "Lejanías",
+          "codigo_dane": "50400"
+        },
+        {
+          "nombre": "Mapiripán",
+          "codigo_dane": "50325"
+        },
+        {
+          "nombre": "Mesetas",
+          "codigo_dane": "50330"
+        },
+        {
+          "nombre": "Puerto Concordia",
+          "codigo_dane": "50450"
+        },
+        {
+          "nombre": "Puerto Gaitán",
+          "codigo_dane": "50568"
+        },
+        {
+          "nombre": "Puerto Lleras",
+          "codigo_dane": "50577"
+        },
+        {
+          "nombre": "Puerto López",
+          "codigo_dane": "50573"
+        },
+        {
+          "nombre": "Puerto Rico",
+          "codigo_dane": "50590"
+        },
+        {
+          "nombre": "Restrepo",
+          "codigo_dane": "50606"
+        },
+        {
+          "nombre": "San Carlos de Guaroa",
+          "codigo_dane": "50680"
+        },
+        {
+          "nombre": "San Juan de Arama",
+          "codigo_dane": "50683"
+        },
+        {
+          "nombre": "San Juanito",
+          "codigo_dane": "50686"
+        },
+        {
+          "nombre": "San Martín",
+          "codigo_dane": "50689"
+        },
+        {
+          "nombre": "Vista Hermosa",
+          "codigo_dane": "50711"
+        }
+      ]
+    },
+    {
+      "nombre": "Nariño",
+      "codigo_dane": "52",
+      "capital": "Pasto",
+      "municipios": [
+        {
+          "nombre": "Pasto",
+          "codigo_dane": "52001"
+        },
+        {
+          "nombre": "Albán",
+          "codigo_dane": "52019"
+        },
+        {
+          "nombre": "Aldana",
+          "codigo_dane": "52022"
+        },
+        {
+          "nombre": "Ancuya",
+          "codigo_dane": "52036"
+        },
+        {
+          "nombre": "Arboleda",
+          "codigo_dane": "52051"
+        },
+        {
+          "nombre": "Barbacoas",
+          "codigo_dane": "52079"
+        },
+        {
+          "nombre": "Belén",
+          "codigo_dane": "52083"
+        },
+        {
+          "nombre": "Buesaco",
+          "codigo_dane": "52110"
+        },
+        {
+          "nombre": "Chachagüí",
+          "codigo_dane": "52240"
+        },
+        {
+          "nombre": "Colón",
+          "codigo_dane": "52203"
+        },
+        {
+          "nombre": "Consacá",
+          "codigo_dane": "52207"
+        },
+        {
+          "nombre": "Contadero",
+          "codigo_dane": "52210"
+        },
+        {
+          "nombre": "Córdoba",
+          "codigo_dane": "52215"
+        },
+        {
+          "nombre": "Cuaspud",
+          "codigo_dane": "52224"
+        },
+        {
+          "nombre": "Cumbal",
+          "codigo_dane": "52227"
+        },
+        {
+          "nombre": "Cumbitara",
+          "codigo_dane": "52233"
+        },
+        {
+          "nombre": "El Charco",
+          "codigo_dane": "52250"
+        },
+        {
+          "nombre": "El Peñol",
+          "codigo_dane": "52254"
+        },
+        {
+          "nombre": "El Rosario",
+          "codigo_dane": "52256"
+        },
+        {
+          "nombre": "El Tablón de Gómez",
+          "codigo_dane": "52258"
+        },
+        {
+          "nombre": "El Tambo",
+          "codigo_dane": "52260"
+        },
+        {
+          "nombre": "Francisco Pizarro",
+          "codigo_dane": "52520"
+        },
+        {
+          "nombre": "Funes",
+          "codigo_dane": "52287"
+        },
+        {
+          "nombre": "Guachucal",
+          "codigo_dane": "52317"
+        },
+        {
+          "nombre": "Guaitarilla",
+          "codigo_dane": "52320"
+        },
+        {
+          "nombre": "Gualmatán",
+          "codigo_dane": "52323"
+        },
+        {
+          "nombre": "Iles",
+          "codigo_dane": "52352"
+        },
+        {
+          "nombre": "Imués",
+          "codigo_dane": "52354"
+        },
+        {
+          "nombre": "Ipiales",
+          "codigo_dane": "52356"
+        },
+        {
+          "nombre": "La Cruz",
+          "codigo_dane": "52378"
+        },
+        {
+          "nombre": "La Florida",
+          "codigo_dane": "52381"
+        },
+        {
+          "nombre": "La Llanada",
+          "codigo_dane": "52385"
+        },
+        {
+          "nombre": "La Tola",
+          "codigo_dane": "52390"
+        },
+        {
+          "nombre": "La Unión",
+          "codigo_dane": "52399"
+        },
+        {
+          "nombre": "Leiva",
+          "codigo_dane": "52405"
+        },
+        {
+          "nombre": "Linares",
+          "codigo_dane": "52411"
+        },
+        {
+          "nombre": "Los Andes",
+          "codigo_dane": "52418"
+        },
+        {
+          "nombre": "Magüí Payán",
+          "codigo_dane": "52427"
+        },
+        {
+          "nombre": "Mallama",
+          "codigo_dane": "52435"
+        },
+        {
+          "nombre": "Mosquera",
+          "codigo_dane": "52473"
+        },
+        {
+          "nombre": "Nariño",
+          "codigo_dane": "52480"
+        },
+        {
+          "nombre": "Olaya Herrera",
+          "codigo_dane": "52490"
+        },
+        {
+          "nombre": "Ospina",
+          "codigo_dane": "52506"
+        },
+        {
+          "nombre": "Policarpa",
+          "codigo_dane": "52540"
+        },
+        {
+          "nombre": "Potosí",
+          "codigo_dane": "52560"
+        },
+        {
+          "nombre": "Providencia",
+          "codigo_dane": "52565"
+        },
+        {
+          "nombre": "Puerres",
+          "codigo_dane": "52573"
+        },
+        {
+          "nombre": "Pupiales",
+          "codigo_dane": "52585"
+        },
+        {
+          "nombre": "Ricaurte",
+          "codigo_dane": "52612"
+        },
+        {
+          "nombre": "Roberto Payán",
+          "codigo_dane": "52621"
+        },
+        {
+          "nombre": "Samaniego",
+          "codigo_dane": "52678"
+        },
+        {
+          "nombre": "San Bernardo",
+          "codigo_dane": "52685"
+        },
+        {
+          "nombre": "San Juan de Pasto",
+          "codigo_dane": "52001"
+        },
+        {
+          "nombre": "San Lorenzo",
+          "codigo_dane": "52687"
+        },
+        {
+          "nombre": "San Pablo",
+          "codigo_dane": "52693"
+        },
+        {
+          "nombre": "San Pedro de Cartago",
+          "codigo_dane": "52694"
+        },
+        {
+          "nombre": "Sandona",
+          "codigo_dane": "52683"
+        },
+        {
+          "nombre": "Santa Bárbara",
+          "codigo_dane": "52696"
+        },
+        {
+          "nombre": "Santacruz",
+          "codigo_dane": "52699"
+        },
+        {
+          "nombre": "Sapuyes",
+          "codigo_dane": "52720"
+        },
+        {
+          "nombre": "Taminango",
+          "codigo_dane": "52786"
+        },
+        {
+          "nombre": "Tangua",
+          "codigo_dane": "52788"
+        },
+        {
+          "nombre": "Tumaco",
+          "codigo_dane": "52835"
+        },
+        {
+          "nombre": "Túquerres",
+          "codigo_dane": "52838"
+        },
+        {
+          "nombre": "Yacuanquer",
+          "codigo_dane": "52885"
+        }
+      ]
+    },
+    {
+      "nombre": "Norte de Santander",
+      "codigo_dane": "54",
+      "capital": "Cúcuta",
+      "municipios": [
+        {
+          "nombre": "Cúcuta",
+          "codigo_dane": "54001"
+        },
+        {
+          "nombre": "Ábrego",
+          "codigo_dane": "54003"
+        },
+        {
+          "nombre": "Arboledas",
+          "codigo_dane": "54051"
+        },
+        {
+          "nombre": "Bochalema",
+          "codigo_dane": "54099"
+        },
+        {
+          "nombre": "Bucarasica",
+          "codigo_dane": "54109"
+        },
+        {
+          "nombre": "Cáchira",
+          "codigo_dane": "54128"
+        },
+        {
+          "nombre": "Cácota",
+          "codigo_dane": "54125"
+        },
+        {
+          "nombre": "Chinácota",
+          "codigo_dane": "54172"
+        },
+        {
+          "nombre": "Chitagá",
+          "codigo_dane": "54174"
+        },
+        {
+          "nombre": "Convención",
+          "codigo_dane": "54206"
+        },
+        {
+          "nombre": "Cucutilla",
+          "codigo_dane": "54223"
+        },
+        {
+          "nombre": "Durania",
+          "codigo_dane": "54239"
+        },
+        {
+          "nombre": "El Carmen",
+          "codigo_dane": "54245"
+        },
+        {
+          "nombre": "El Tarra",
+          "codigo_dane": "54250"
+        },
+        {
+          "nombre": "El Zulia",
+          "codigo_dane": "54261"
+        },
+        {
+          "nombre": "Gramalote",
+          "codigo_dane": "54313"
+        },
+        {
+          "nombre": "Hacarí",
+          "codigo_dane": "54344"
+        },
+        {
+          "nombre": "Herrán",
+          "codigo_dane": "54347"
+        },
+        {
+          "nombre": "La Esperanza",
+          "codigo_dane": "54385"
+        },
+        {
+          "nombre": "La Playa de Belén",
+          "codigo_dane": "54398"
+        },
+        {
+          "nombre": "Labateca",
+          "codigo_dane": "54377"
+        },
+        {
+          "nombre": "Lourdes",
+          "codigo_dane": "54418"
+        },
+        {
+          "nombre": "Mutiscua",
+          "codigo_dane": "54480"
+        },
+        {
+          "nombre": "Ocaña",
+          "codigo_dane": "54498"
+        },
+        {
+          "nombre": "Pamplona",
+          "codigo_dane": "54518"
+        },
+        {
+          "nombre": "Pamplonita",
+          "codigo_dane": "54520"
+        },
+        {
+          "nombre": "Puerto Santander",
+          "codigo_dane": "54553"
+        },
+        {
+          "nombre": "Ragonvalia",
+          "codigo_dane": "54599"
+        },
+        {
+          "nombre": "Salazar de Las Palmas",
+          "codigo_dane": "54660"
+        },
+        {
+          "nombre": "San Calixto",
+          "codigo_dane": "54670"
+        },
+        {
+          "nombre": "San Cayetano",
+          "codigo_dane": "54673"
+        },
+        {
+          "nombre": "Santiago",
+          "codigo_dane": "54680"
+        },
+        {
+          "nombre": "Sardinata",
+          "codigo_dane": "54720"
+        },
+        {
+          "nombre": "Silos",
+          "codigo_dane": "54743"
+        },
+        {
+          "nombre": "Teorama",
+          "codigo_dane": "54800"
+        },
+        {
+          "nombre": "Tibú",
+          "codigo_dane": "54810"
+        },
+        {
+          "nombre": "Toledo",
+          "codigo_dane": "54820"
+        },
+        {
+          "nombre": "Villa Caro",
+          "codigo_dane": "54871"
+        },
+        {
+          "nombre": "Villa del Rosario",
+          "codigo_dane": "54874"
+        }
+      ]
+    },
+    {
+      "nombre": "Putumayo",
+      "codigo_dane": "86",
+      "capital": "Mocoa",
+      "municipios": [
+        {
+          "nombre": "Mocoa",
+          "codigo_dane": "86001"
+        },
+        {
+          "nombre": "Colón",
+          "codigo_dane": "86219"
+        },
+        {
+          "nombre": "Mocoa",
+          "codigo_dane": "86001"
+        },
+        {
+          "nombre": "Orito",
+          "codigo_dane": "86320"
+        },
+        {
+          "nombre": "Puerto Asís",
+          "codigo_dane": "86568"
+        },
+        {
+          "nombre": "Puerto Caicedo",
+          "codigo_dane": "86569"
+        },
+        {
+          "nombre": "Puerto Guzmán",
+          "codigo_dane": "86571"
+        },
+        {
+          "nombre": "Puerto Leguízamo",
+          "codigo_dane": "86573"
+        },
+        {
+          "nombre": "San Francisco",
+          "codigo_dane": "86755"
+        },
+        {
+          "nombre": "San Miguel",
+          "codigo_dane": "86757"
+        },
+        {
+          "nombre": "Santiago",
+          "codigo_dane": "86760"
+        },
+        {
+          "nombre": "Sibundoy",
+          "codigo_dane": "86749"
+        },
+        {
+          "nombre": "Valle del Guamuez",
+          "codigo_dane": "86865"
+        },
+        {
+          "nombre": "Villagarzón",
+          "codigo_dane": "86885"
+        }
+      ]
+    },
+    {
+      "nombre": "Quindío",
+      "codigo_dane": "63",
+      "capital": "Armenia",
+      "municipios": [
+        {
+          "nombre": "Armenia",
+          "codigo_dane": "63001"
+        },
+        {
+          "nombre": "Buenavista",
+          "codigo_dane": "63111"
+        },
+        {
+          "nombre": "Calarcá",
+          "codigo_dane": "63130"
+        },
+        {
+          "nombre": "Circasia",
+          "codigo_dane": "63190"
+        },
+        {
+          "nombre": "Córdoba",
+          "codigo_dane": "63212"
+        },
+        {
+          "nombre": "Filandia",
+          "codigo_dane": "63272"
+        },
+        {
+          "nombre": "Génova",
+          "codigo_dane": "63302"
+        },
+        {
+          "nombre": "La Tebaida",
+          "codigo_dane": "63401"
+        },
+        {
+          "nombre": "Montenegro",
+          "codigo_dane": "63470"
+        },
+        {
+          "nombre": "Pijao",
+          "codigo_dane": "63548"
+        },
+        {
+          "nombre": "Quimbaya",
+          "codigo_dane": "63594"
+        },
+        {
+          "nombre": "Salento",
+          "codigo_dane": "63690"
+        }
+      ]
+    },
+    {
+      "nombre": "Risaralda",
+      "codigo_dane": "66",
+      "capital": "Pereira",
+      "municipios": [
+        {
+          "nombre": "Pereira",
+          "codigo_dane": "66001"
+        },
+        {
+          "nombre": "Apía",
+          "codigo_dane": "66045"
+        },
+        {
+          "nombre": "Balboa",
+          "codigo_dane": "66075"
+        },
+        {
+          "nombre": "Belén de Umbría",
+          "codigo_dane": "66088"
+        },
+        {
+          "nombre": "Dosquebradas",
+          "codigo_dane": "66170"
+        },
+        {
+          "nombre": "Guática",
+          "codigo_dane": "66318"
+        },
+        {
+          "nombre": "La Celia",
+          "codigo_dane": "66383"
+        },
+        {
+          "nombre": "La Virginia",
+          "codigo_dane": "66400"
+        },
+        {
+          "nombre": "Marsella",
+          "codigo_dane": "66440"
+        },
+        {
+          "nombre": "Mistrató",
+          "codigo_dane": "66456"
+        },
+        {
+          "nombre": "Pueblo Rico",
+          "codigo_dane": "66572"
+        },
+        {
+          "nombre": "Quinchía",
+          "codigo_dane": "66594"
+        },
+        {
+          "nombre": "Santa Rosa de Cabal",
+          "codigo_dane": "66682"
+        },
+        {
+          "nombre": "Santuario",
+          "codigo_dane": "66687"
+        }
+      ]
+    },
+    {
+      "nombre": "San Andrés y Providencia",
+      "codigo_dane": "88",
+      "capital": "San Andrés",
+      "municipios": [
+        {
+          "nombre": "San Andrés",
+          "codigo_dane": "88001"
+        },
+        {
+          "nombre": "Providencia y Santa Catalina Islas",
+          "codigo_dane": "88564"
+        }
+      ]
+    },
+    {
+      "nombre": "Santander",
+      "codigo_dane": "68",
+      "capital": "Bucaramanga",
+      "municipios": [
+        {
+          "nombre": "Bucaramanga",
+          "codigo_dane": "68001"
+        },
+        {
+          "nombre": "Aguada",
+          "codigo_dane": "68013"
+        },
+        {
+          "nombre": "Albania",
+          "codigo_dane": "68020"
+        },
+        {
+          "nombre": "Aratoca",
+          "codigo_dane": "68051"
+        },
+        {
+          "nombre": "Barbosa",
+          "codigo_dane": "68077"
+        },
+        {
+          "nombre": "Barichara",
+          "codigo_dane": "68079"
+        },
+        {
+          "nombre": "Barrancabermeja",
+          "codigo_dane": "68081"
+        },
+        {
+          "nombre": "Betulia",
+          "codigo_dane": "68092"
+        },
+        {
+          "nombre": "Bolívar",
+          "codigo_dane": "68101"
+        },
+        {
+          "nombre": "Cabrera",
+          "codigo_dane": "68121"
+        },
+        {
+          "nombre": "California",
+          "codigo_dane": "68132"
+        },
+        {
+          "nombre": "Capitanejo",
+          "codigo_dane": "68147"
+        },
+        {
+          "nombre": "Carcasí",
+          "codigo_dane": "68152"
+        },
+        {
+          "nombre": "Cepitá",
+          "codigo_dane": "68160"
+        },
+        {
+          "nombre": "Cerrito",
+          "codigo_dane": "68162"
+        },
+        {
+          "nombre": "Charalá",
+          "codigo_dane": "68167"
+        },
+        {
+          "nombre": "Charta",
+          "codigo_dane": "68169"
+        },
+        {
+          "nombre": "Chima",
+          "codigo_dane": "68176"
+        },
+        {
+          "nombre": "Chipatá",
+          "codigo_dane": "68179"
+        },
+        {
+          "nombre": "Cimitarra",
+          "codigo_dane": "68190"
+        },
+        {
+          "nombre": "Concepción",
+          "codigo_dane": "68207"
+        },
+        {
+          "nombre": "Confines",
+          "codigo_dane": "68209"
+        },
+        {
+          "nombre": "Contratación",
+          "codigo_dane": "68211"
+        },
+        {
+          "nombre": "Coromoro",
+          "codigo_dane": "68217"
+        },
+        {
+          "nombre": "Curití",
+          "codigo_dane": "68229"
+        },
+        {
+          "nombre": "El Carmen de Chucurí",
+          "codigo_dane": "68235"
+        },
+        {
+          "nombre": "El Guacamayo",
+          "codigo_dane": "68245"
+        },
+        {
+          "nombre": "El Peñón",
+          "codigo_dane": "68250"
+        },
+        {
+          "nombre": "El Playón",
+          "codigo_dane": "68255"
+        },
+        {
+          "nombre": "Encino",
+          "codigo_dane": "68264"
+        },
+        {
+          "nombre": "Enciso",
+          "codigo_dane": "68266"
+        },
+        {
+          "nombre": "Florián",
+          "codigo_dane": "68271"
+        },
+        {
+          "nombre": "Floridablanca",
+          "codigo_dane": "68276"
+        },
+        {
+          "nombre": "Galán",
+          "codigo_dane": "68296"
+        },
+        {
+          "nombre": "Gámbita",
+          "codigo_dane": "68298"
+        },
+        {
+          "nombre": "Girón",
+          "codigo_dane": "68307"
+        },
+        {
+          "nombre": "Guaca",
+          "codigo_dane": "68318"
+        },
+        {
+          "nombre": "Guadalupe",
+          "codigo_dane": "68320"
+        },
+        {
+          "nombre": "Guapotá",
+          "codigo_dane": "68322"
+        },
+        {
+          "nombre": "Guavatá",
+          "codigo_dane": "68324"
+        },
+        {
+          "nombre": "Güepsa",
+          "codigo_dane": "68327"
+        },
+        {
+          "nombre": "Hato",
+          "codigo_dane": "68344"
+        },
+        {
+          "nombre": "Jesús María",
+          "codigo_dane": "68368"
+        },
+        {
+          "nombre": "Jordán",
+          "codigo_dane": "68370"
+        },
+        {
+          "nombre": "La Belleza",
+          "codigo_dane": "68377"
+        },
+        {
+          "nombre": "La Paz",
+          "codigo_dane": "68397"
+        },
+        {
+          "nombre": "Landázuri",
+          "codigo_dane": "68385"
+        },
+        {
+          "nombre": "Lebrija",
+          "codigo_dane": "68406"
+        },
+        {
+          "nombre": "Los Santos",
+          "codigo_dane": "68418"
+        },
+        {
+          "nombre": "Macaravita",
+          "codigo_dane": "68425"
+        },
+        {
+          "nombre": "Málaga",
+          "codigo_dane": "68432"
+        },
+        {
+          "nombre": "Matanza",
+          "codigo_dane": "68444"
+        },
+        {
+          "nombre": "Mogotes",
+          "codigo_dane": "68464"
+        },
+        {
+          "nombre": "Molagavita",
+          "codigo_dane": "68468"
+        },
+        {
+          "nombre": "Ocamonte",
+          "codigo_dane": "68498"
+        },
+        {
+          "nombre": "Oiba",
+          "codigo_dane": "68500"
+        },
+        {
+          "nombre": "Onzaga",
+          "codigo_dane": "68502"
+        },
+        {
+          "nombre": "Palmar",
+          "codigo_dane": "68522"
+        },
+        {
+          "nombre": "Palmas del Socorro",
+          "codigo_dane": "68524"
+        },
+        {
+          "nombre": "Páramo",
+          "codigo_dane": "68533"
+        },
+        {
+          "nombre": "Piedecuesta",
+          "codigo_dane": "68547"
+        },
+        {
+          "nombre": "Pinchote",
+          "codigo_dane": "68549"
+        },
+        {
+          "nombre": "Puente Nacional",
+          "codigo_dane": "68572"
+        },
+        {
+          "nombre": "Puerto Parra",
+          "codigo_dane": "68573"
+        },
+        {
+          "nombre": "Puerto Wilches",
+          "codigo_dane": "68575"
+        },
+        {
+          "nombre": "Rionegro",
+          "codigo_dane": "68615"
+        },
+        {
+          "nombre": "Sabana de Torres",
+          "codigo_dane": "68655"
+        },
+        {
+          "nombre": "San Andrés",
+          "codigo_dane": "68669"
+        },
+        {
+          "nombre": "San Benito",
+          "codigo_dane": "68673"
+        },
+        {
+          "nombre": "San Gil",
+          "codigo_dane": "68679"
+        },
+        {
+          "nombre": "San Joaquín",
+          "codigo_dane": "68682"
+        },
+        {
+          "nombre": "San José de Miranda",
+          "codigo_dane": "68684"
+        },
+        {
+          "nombre": "San Miguel",
+          "codigo_dane": "68686"
+        },
+        {
+          "nombre": "San Vicente de Chucurí",
+          "codigo_dane": "68689"
+        },
+        {
+          "nombre": "Santa Bárbara",
+          "codigo_dane": "68705"
+        },
+        {
+          "nombre": "Santa Helena del Opón",
+          "codigo_dane": "68720"
+        },
+        {
+          "nombre": "Simacota",
+          "codigo_dane": "68745"
+        },
+        {
+          "nombre": "Socorro",
+          "codigo_dane": "68755"
+        },
+        {
+          "nombre": "Suaita",
+          "codigo_dane": "68770"
+        },
+        {
+          "nombre": "Sucre",
+          "codigo_dane": "68773"
+        },
+        {
+          "nombre": "Suratá",
+          "codigo_dane": "68780"
+        },
+        {
+          "nombre": "Tona",
+          "codigo_dane": "68820"
+        },
+        {
+          "nombre": "Valle de San José",
+          "codigo_dane": "68855"
+        },
+        {
+          "nombre": "Vélez",
+          "codigo_dane": "68861"
+        },
+        {
+          "nombre": "Vetas",
+          "codigo_dane": "68867"
+        },
+        {
+          "nombre": "Villanueva",
+          "codigo_dane": "68872"
+        },
+        {
+          "nombre": "Zapatoca",
+          "codigo_dane": "68895"
+        }
+      ]
+    },
+    {
+      "nombre": "Sucre",
+      "codigo_dane": "70",
+      "capital": "Sincelejo",
+      "municipios": [
+        {
+          "nombre": "Sincelejo",
+          "codigo_dane": "70001"
+        },
+        {
+          "nombre": "Buenavista",
+          "codigo_dane": "70110"
+        },
+        {
+          "nombre": "Caimito",
+          "codigo_dane": "70124"
+        },
+        {
+          "nombre": "Chalán",
+          "codigo_dane": "70230"
+        },
+        {
+          "nombre": "Colosó",
+          "codigo_dane": "70204"
+        },
+        {
+          "nombre": "Corozal",
+          "codigo_dane": "70215"
+        },
+        {
+          "nombre": "Coveñas",
+          "codigo_dane": "70221"
+        },
+        {
+          "nombre": "El Roble",
+          "codigo_dane": "70233"
+        },
+        {
+          "nombre": "Galeras",
+          "codigo_dane": "70235"
+        },
+        {
+          "nombre": "Guaranda",
+          "codigo_dane": "70265"
+        },
+        {
+          "nombre": "La Unión",
+          "codigo_dane": "70400"
+        },
+        {
+          "nombre": "Los Palmitos",
+          "codigo_dane": "70418"
+        },
+        {
+          "nombre": "Majagual",
+          "codigo_dane": "70429"
+        },
+        {
+          "nombre": "Morroa",
+          "codigo_dane": "70473"
+        },
+        {
+          "nombre": "Ovejas",
+          "codigo_dane": "70508"
+        },
+        {
+          "nombre": "Palmito",
+          "codigo_dane": "70523"
+        },
+        {
+          "nombre": "Sampués",
+          "codigo_dane": "70670"
+        },
+        {
+          "nombre": "San Benito Abad",
+          "codigo_dane": "70678"
+        },
+        {
+          "nombre": "San Juan de Betulia",
+          "codigo_dane": "70702"
+        },
+        {
+          "nombre": "San Marcos",
+          "codigo_dane": "70708"
+        },
+        {
+          "nombre": "San Onofre",
+          "codigo_dane": "70713"
+        },
+        {
+          "nombre": "San Pedro",
+          "codigo_dane": "70717"
+        },
+        {
+          "nombre": "Santiago de Tolú",
+          "codigo_dane": "70820"
+        },
+        {
+          "nombre": "Sucre",
+          "codigo_dane": "70771"
+        },
+        {
+          "nombre": "Tolú Viejo",
+          "codigo_dane": "70823"
+        }
+      ]
+    },
+    {
+      "nombre": "Tolima",
+      "codigo_dane": "73",
+      "capital": "Ibagué",
+      "municipios": [
+        {
+          "nombre": "Ibagué",
+          "codigo_dane": "73001"
+        },
+        {
+          "nombre": "Alpujarra",
+          "codigo_dane": "73024"
+        },
+        {
+          "nombre": "Alvarado",
+          "codigo_dane": "73026"
+        },
+        {
+          "nombre": "Ambalema",
+          "codigo_dane": "73030"
+        },
+        {
+          "nombre": "Anzoátegui",
+          "codigo_dane": "73043"
+        },
+        {
+          "nombre": "Armero",
+          "codigo_dane": "73055"
+        },
+        {
+          "nombre": "Ataco",
+          "codigo_dane": "73067"
+        },
+        {
+          "nombre": "Cajamarca",
+          "codigo_dane": "73124"
+        },
+        {
+          "nombre": "Carmen de Apicalá",
+          "codigo_dane": "73148"
+        },
+        {
+          "nombre": "Casabianca",
+          "codigo_dane": "73152"
+        },
+        {
+          "nombre": "Chaparral",
+          "codigo_dane": "73168"
+        },
+        {
+          "nombre": "Coello",
+          "codigo_dane": "73200"
+        },
+        {
+          "nombre": "Coyaima",
+          "codigo_dane": "73217"
+        },
+        {
+          "nombre": "Cunday",
+          "codigo_dane": "73226"
+        },
+        {
+          "nombre": "Dolores",
+          "codigo_dane": "73236"
+        },
+        {
+          "nombre": "El Espinal",
+          "codigo_dane": "73268"
+        },
+        {
+          "nombre": "Falan",
+          "codigo_dane": "73270"
+        },
+        {
+          "nombre": "Flandes",
+          "codigo_dane": "73275"
+        },
+        {
+          "nombre": "Fresno",
+          "codigo_dane": "73283"
+        },
+        {
+          "nombre": "Guamo",
+          "codigo_dane": "73319"
+        },
+        {
+          "nombre": "Herveo",
+          "codigo_dane": "73347"
+        },
+        {
+          "nombre": "Honda",
+          "codigo_dane": "73349"
+        },
+        {
+          "nombre": "Icononzo",
+          "codigo_dane": "73352"
+        },
+        {
+          "nombre": "Lérida",
+          "codigo_dane": "73408"
+        },
+        {
+          "nombre": "Líbano",
+          "codigo_dane": "73411"
+        },
+        {
+          "nombre": "Mariquita",
+          "codigo_dane": "73443"
+        },
+        {
+          "nombre": "Melgar",
+          "codigo_dane": "73449"
+        },
+        {
+          "nombre": "Murillo",
+          "codigo_dane": "73461"
+        },
+        {
+          "nombre": "Natagaima",
+          "codigo_dane": "73483"
+        },
+        {
+          "nombre": "Ortega",
+          "codigo_dane": "73504"
+        },
+        {
+          "nombre": "Palocabildo",
+          "codigo_dane": "73520"
+        },
+        {
+          "nombre": "Piedras",
+          "codigo_dane": "73547"
+        },
+        {
+          "nombre": "Planadas",
+          "codigo_dane": "73555"
+        },
+        {
+          "nombre": "Prado",
+          "codigo_dane": "73563"
+        },
+        {
+          "nombre": "Purificación",
+          "codigo_dane": "73585"
+        },
+        {
+          "nombre": "Rioblanco",
+          "codigo_dane": "73616"
+        },
+        {
+          "nombre": "Roncesvalles",
+          "codigo_dane": "73622"
+        },
+        {
+          "nombre": "Rovira",
+          "codigo_dane": "73624"
+        },
+        {
+          "nombre": "Saldaña",
+          "codigo_dane": "73671"
+        },
+        {
+          "nombre": "San Antonio",
+          "codigo_dane": "73675"
+        },
+        {
+          "nombre": "San Luis",
+          "codigo_dane": "73678"
+        },
+        {
+          "nombre": "Santa Isabel",
+          "codigo_dane": "73686"
+        },
+        {
+          "nombre": "Suárez",
+          "codigo_dane": "73770"
+        },
+        {
+          "nombre": "Valle de San Juan",
+          "codigo_dane": "73854"
+        },
+        {
+          "nombre": "Venadillo",
+          "codigo_dane": "73861"
+        },
+        {
+          "nombre": "Villahermosa",
+          "codigo_dane": "73870"
+        },
+        {
+          "nombre": "Villarrica",
+          "codigo_dane": "73873"
+        }
+      ]
+    },
+    {
+      "nombre": "Valle del Cauca",
+      "codigo_dane": "76",
+      "capital": "Cali",
+      "municipios": [
+        {
+          "nombre": "Cali",
+          "codigo_dane": "76001"
+        },
+        {
+          "nombre": "Alcalá",
+          "codigo_dane": "76020"
+        },
+        {
+          "nombre": "Andalucía",
+          "codigo_dane": "76036"
+        },
+        {
+          "nombre": "Ansermanuevo",
+          "codigo_dane": "76041"
+        },
+        {
+          "nombre": "Argelia",
+          "codigo_dane": "76054"
+        },
+        {
+          "nombre": "Bolívar",
+          "codigo_dane": "76100"
+        },
+        {
+          "nombre": "Buenaventura",
+          "codigo_dane": "76109"
+        },
+        {
+          "nombre": "Buga",
+          "codigo_dane": "76111"
+        },
+        {
+          "nombre": "Bugalagrande",
+          "codigo_dane": "76113"
+        },
+        {
+          "nombre": "Caicedonia",
+          "codigo_dane": "76122"
+        },
+        {
+          "nombre": "Calima",
+          "codigo_dane": "76126"
+        },
+        {
+          "nombre": "Candelaria",
+          "codigo_dane": "76130"
+        },
+        {
+          "nombre": "Cartago",
+          "codigo_dane": "76147"
+        },
+        {
+          "nombre": "Dagua",
+          "codigo_dane": "76233"
+        },
+        {
+          "nombre": "El Águila",
+          "codigo_dane": "76243"
+        },
+        {
+          "nombre": "El Cairo",
+          "codigo_dane": "76246"
+        },
+        {
+          "nombre": "El Cerrito",
+          "codigo_dane": "76248"
+        },
+        {
+          "nombre": "El Dovio",
+          "codigo_dane": "76250"
+        },
+        {
+          "nombre": "Florida",
+          "codigo_dane": "76275"
+        },
+        {
+          "nombre": "Ginebra",
+          "codigo_dane": "76306"
+        },
+        {
+          "nombre": "Guacarí",
+          "codigo_dane": "76318"
+        },
+        {
+          "nombre": "Jamundí",
+          "codigo_dane": "76364"
+        },
+        {
+          "nombre": "La Cumbre",
+          "codigo_dane": "76377"
+        },
+        {
+          "nombre": "La Unión",
+          "codigo_dane": "76400"
+        },
+        {
+          "nombre": "La Victoria",
+          "codigo_dane": "76403"
+        },
+        {
+          "nombre": "Obando",
+          "codigo_dane": "76497"
+        },
+        {
+          "nombre": "Palmira",
+          "codigo_dane": "76520"
+        },
+        {
+          "nombre": "Pradera",
+          "codigo_dane": "76563"
+        },
+        {
+          "nombre": "Restrepo",
+          "codigo_dane": "76606"
+        },
+        {
+          "nombre": "Riofrío",
+          "codigo_dane": "76616"
+        },
+        {
+          "nombre": "Roldanillo",
+          "codigo_dane": "76622"
+        },
+        {
+          "nombre": "San Pedro",
+          "codigo_dane": "76670"
+        },
+        {
+          "nombre": "Sevilla",
+          "codigo_dane": "76736"
+        },
+        {
+          "nombre": "Toro",
+          "codigo_dane": "76823"
+        },
+        {
+          "nombre": "Trujillo",
+          "codigo_dane": "76828"
+        },
+        {
+          "nombre": "Tuluá",
+          "codigo_dane": "76834"
+        },
+        {
+          "nombre": "Ulloa",
+          "codigo_dane": "76845"
+        },
+        {
+          "nombre": "Versalles",
+          "codigo_dane": "76863"
+        },
+        {
+          "nombre": "Vijes",
+          "codigo_dane": "76869"
+        },
+        {
+          "nombre": "Yotoco",
+          "codigo_dane": "76890"
+        },
+        {
+          "nombre": "Yumbo",
+          "codigo_dane": "76892"
+        },
+        {
+          "nombre": "Zarzal",
+          "codigo_dane": "76895"
+        }
+      ]
+    },
+    {
+      "nombre": "Vaupés",
+      "codigo_dane": "97",
+      "capital": "Mitú",
+      "municipios": [
+        {
+          "nombre": "Mitú",
+          "codigo_dane": "97001"
+        },
+        {
+          "nombre": "Carurú",
+          "codigo_dane": "97161"
+        },
+        {
+          "nombre": "Pacoa",
+          "codigo_dane": "97511"
+        },
+        {
+          "nombre": "Papunaua",
+          "codigo_dane": "97777"
+        },
+        {
+          "nombre": "Taraira",
+          "codigo_dane": "97666"
+        },
+        {
+          "nombre": "Yavaraté",
+          "codigo_dane": "97889"
+        }
+      ]
+    },
+    {
+      "nombre": "Vichada",
+      "codigo_dane": "99",
+      "capital": "Puerto Carreño",
+      "municipios": [
+        {
+          "nombre": "Puerto Carreño",
+          "codigo_dane": "99001"
+        },
+        {
+          "nombre": "Cumaribo",
+          "codigo_dane": "99773"
+        },
+        {
+          "nombre": "La Primavera",
+          "codigo_dane": "99524"
+        },
+        {
+          "nombre": "Santa Rosalía",
+          "codigo_dane": "99624"
+        }
+      ]
+    }
+  ]
+}

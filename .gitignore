@@ -36,3 +36,6 @@ modules/proveedores/backups/
 logs/
 uploads/
 modules/proyectos/uploads/
+
+# Payloads sintéticos de prueba (scripts/genera_cotizaciones.js) — no commitear
+scripts/payloads/

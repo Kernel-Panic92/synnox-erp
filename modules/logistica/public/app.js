@@ -127,9 +127,10 @@ function navigate(page) {
 
   if (_dashRefreshInterval) { clearInterval(_dashRefreshInterval); _dashRefreshInterval = null; }
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => { n.classList.remove('active'); n.removeAttribute('aria-current'); });
   document.getElementById('page-' + page).classList.add('active');
-  document.querySelector(`.nav-item[data-page="${page}"]`).classList.add('active');
+  const _navEl = document.querySelector(`.nav-item[data-page="${page}"]`);
+  if (_navEl) { _navEl.classList.add('active'); _navEl.setAttribute('aria-current', 'page'); }
   document.getElementById('page-title').textContent = document.querySelector(`.nav-item[data-page="${page}"]`)?.textContent.trim() || page;
   closeSidebar();
   // Cargar datos según página
@@ -164,26 +165,33 @@ function renderSidebar(usuario) {
   const isAdmin = window._devIsAdmin;
   const modPermisos = usuario.modulos_permisos?.logistica || [];
   const items = [
+    { sec: 'Operación' },
     { page: 'dashboard', icon: '📊', label: 'Dashboard', show: true },
-    { page: 'vehiculos', icon: '🚛', label: 'Vehículos', show: true },
     { page: 'pedidos', icon: '📦', label: 'Pedidos', show: true },
+    { page: 'rutas', icon: '🗺️', label: 'Rutas', show: true },
+    { page: 'mapa', icon: '🧭', label: 'Mapa', show: true },
+    { page: 'devoluciones', icon: '↩️', label: 'Devoluciones', show: true },
+    { sec: 'Recursos' },
+    { page: 'vehiculos', icon: '🚛', label: 'Vehículos', show: true },
     { page: 'clientes', icon: '👤', label: 'Clientes', show: true },
     { page: 'sedes', icon: '🏢', label: 'Centros de operación', show: true },
-    { page: 'rutas', icon: '🗺️', label: 'Rutas', show: true },
-    { page: 'reportes', icon: '📈', label: 'Reportes', show: true },
-    { page: 'mapa', icon: '🗺️', label: 'Mapa', show: true },
     { page: 'geocercas', icon: '📍', label: 'Geocercas', show: true },
-    { page: 'devoluciones', icon: '↩️', label: 'Devoluciones', show: true },
+    { sec: 'Análisis' },
+    { page: 'reportes', icon: '📈', label: 'Reportes', show: true },
+    { sec: 'Sistema' },
     { page: 'widetech', icon: '🛰️', label: 'Widetech', show: isAdmin || modPermisos.includes('configurar') },
     { page: 'config', icon: '⚙️', label: 'Configuración', show: isAdmin || modPermisos.includes('configurar') },
   ];
   const nav = document.getElementById('sidebar-nav');
   if (!nav) return;
-  nav.innerHTML = items.filter(i => i.show).map((i, idx) =>
-    `<button class="nav-item${idx === 0 ? ' active' : ''}" data-page="${i.page}" onclick="navigate('${i.page}')" aria-label="${i.label}">
-      <span class="icon">${i.icon}</span> ${i.label}
-    </button>`
-  ).join('');
+  const visible = items.filter(i => i.sec || i.show);
+  let first = true;
+  nav.innerHTML = visible.map((i) => {
+    if (i.sec) return `<div class="sidebar-section-title">${i.sec}</div>`;
+    const html = `<button class="nav-item${first ? ' active' : ''}" data-page="${i.page}" onclick="navigate('${i.page}')" title="${i.label}" data-tooltip="${i.label}" aria-label="${i.label}"${first ? ' aria-current="page"' : ''}><span class="icon">${i.icon}</span> <span class="nav-text">${i.label}</span></button>`;
+    first = false;
+    return html;
+  }).join('');
 }
 
 function injectSidebarHome(){
@@ -191,11 +199,35 @@ function injectSidebarHome(){
   if(!footer||footer.querySelector('.sidebar-home'))return;
   const a=document.createElement('a');
   a.href='/';a.className='sidebar-home';
-  a.innerHTML='<span class="icon">🏠</span> <span>Home</span>';
+  a.title='Home';a.setAttribute('data-tooltip','Home');
+  a.innerHTML='<span class="icon">🏠</span> <span class="nav-text">Home</span>';
   const btn=footer.querySelector('.btn-logout');
   if(btn){footer.insertBefore(a,btn);const s=document.createElement('div');s.className='sidebar-separator';footer.insertBefore(s,btn);}
   else footer.prepend(a);
 }
+
+function toggleSidebarCollapse() {
+  const sidebar = document.getElementById('sidebar');
+  if (!sidebar) return;
+  const container = document.getElementById('app-container');
+  sidebar.classList.toggle('collapsed');
+  if (container) container.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+  localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
+  const toggle = sidebar.querySelector('.sidebar-toggle');
+  if (toggle) {
+    const col = sidebar.classList.contains('collapsed');
+    toggle.textContent = col ? '❯' : '❮';
+    toggle.setAttribute('aria-expanded', col ? 'false' : 'true');
+    toggle.setAttribute('aria-label', col ? 'Expandir menú' : 'Contraer menú');
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('sidebar_collapsed') === 'true') {
+    document.getElementById('sidebar')?.classList.add('collapsed');
+    document.getElementById('app-container')?.classList.add('sidebar-collapsed');
+    const t = document.querySelector('.sidebar-toggle'); if (t) { t.textContent = '❯'; t.setAttribute('aria-expanded','false'); t.setAttribute('aria-label','Expandir menú'); }
+  }
+});
 
 async function init() {
   if (localStorage.getItem('synnox_theme') !== 'dark') document.body.classList.add('light');

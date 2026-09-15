@@ -5,4 +5,5 @@ packages:
   - 'modules/nomina'
   - 'modules/logistica'
   - 'modules/proyectos'
+  - 'modules/crm'
   - 'wordpress-mcp'

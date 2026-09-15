@@ -69,7 +69,7 @@ if [ ! -f "$DEST/index.html" ]; then
     </div>
     <nav id="sidebar-nav"><!-- nav-items here --></nav>
     <div class="sidebar-footer">
-      <a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a>
+      <a class="sidebar-home" href="/" title="Home" data-tooltip="Home"><span class="icon">🏠</span> <span class="nav-text">Home</span></a>
       <div class="user-name" id="sidebar-user-name"></div>
       <div class="user-role" id="sidebar-user-role"></div>
       <div class="version">

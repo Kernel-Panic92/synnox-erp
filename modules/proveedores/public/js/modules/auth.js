@@ -51,8 +51,9 @@ function showApp(){
 
   if(localStorage.getItem('sidebar_collapsed')==='true'){
     $('sidebar').classList.add('collapsed');
+    document.getElementById('app-container')?.classList.add('sidebar-collapsed');
     const t=$('sidebar').querySelector('.sidebar-toggle');
-    if(t)t.textContent='▶';
+    if(t){t.textContent='❯';t.setAttribute('aria-expanded','false');t.setAttribute('aria-label','Expandir menú');}
   }
   
   const v=getPageFromHash();
@@ -68,11 +69,16 @@ function tienePermisoProveedor(perm) {
 
 function buildNav(){
   let h='';
+  let firstItem = true;
   for(const sec of SECS){
     const items=NAV.filter(n=>n.s===sec.id&&(!n.perm||tienePermisoProveedor(n.perm)));
     if(!items.length)continue;
-    h+=`<div style="font-size:9px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;padding:10px 24px 4px;margin-top:4px">${sec.l}</div>`;
-    for(const n of items)h+=`<button class="nav-item" id="nv-${n.id}" onclick="goNav('${n.id}')" aria-label="${n.l}">${n.i}<span style="flex:1">${n.l}</span>${n.badge?`<span class="badge" style="font-size:10px;padding:2px 6px;background:${n.w?'rgba(251,191,36,.15)':'rgba(79,142,247,.15)'};color:${n.w?'var(--warning)':'var(--accent)'}" id="nb-${n.badge}">0</span>`:''}</button>`;
+    if(sec.id==='c' && h) h+=`<div class="sidebar-divider"></div>`;
+    h+=`<div class="sidebar-section-title">${sec.l}</div>`;
+    for(const n of items){
+      h+=`<button class="nav-item${firstItem?' active':''}" id="nv-${n.id}" data-page="${n.id}" onclick="goNav('${n.id}')" title="${n.l}" data-tooltip="${n.l}" aria-label="${n.l}"${firstItem?' aria-current="page"':''}><span class="icon">${n.i}</span> <span class="nav-text">${n.l}</span>${n.badge?`<span class="badge" style="font-size:10px;padding:2px 6px;background:${n.w?'rgba(251,191,36,.15)':'rgba(79,142,247,.15)'};color:${n.w?'var(--warning)':'var(--accent)'}" id="nb-${n.badge}">0</span>`:''}</button>`;
+      firstItem = false;
+    }
   }
   $('sidebar-nav').innerHTML=h;
 }
