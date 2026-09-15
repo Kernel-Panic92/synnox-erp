@@ -4105,10 +4105,7 @@ async function cargarProductos() {
         <td>${p.tasa_impuesto || 0}%</td>
         <td>${esc(p.categoria || '—')}</td>
         <td>${esc(p.bodega || '—')}</td>
-        <td>
-          <button class="btn btn-sm btn-secondary" onclick="editarProducto('${p.id}')" title="Editar producto" aria-label="Editar producto ${esc(p.nombre)}">✏️</button>
-          <button class="btn btn-sm btn-danger" onclick="eliminarProducto('${p.id}')" title="Eliminar producto" aria-label="Eliminar producto ${esc(p.nombre)}">🗑️</button>
-        </td>
+        <td><span style="color:var(--muted);font-size:11px" title="Producto gestionado en el ERP">Solo lectura</span></td>
       </tr>
     `).join('');
 
@@ -4169,30 +4166,10 @@ async function editarProducto(id) {
   abrirModalProducto(r.data.data);
 }
 
+// Solo lectura SIESA: crear/editar/eliminar bloqueados en backend (403).
+// Se conserva la firma para no romper llamadas existentes.
 async function guardarProducto() {
-  const id = document.getElementById('producto-id').value;
-  const body = {
-    codigo: document.getElementById('producto-codigo').value,
-    nombre: document.getElementById('producto-nombre').value,
-    descripcion: document.getElementById('producto-descripcion').value,
-    unidad_medida: document.getElementById('producto-unidad').value,
-    precio_unitario: parseFloat(document.getElementById('producto-precio').value) || 0,
-    tasa_impuesto: parseFloat(document.getElementById('producto-tasa').value) || 0,
-    categoria: document.getElementById('producto-categoria').value,
-    bodega: document.getElementById('producto-bodega').value
-  };
-
-  if (!body.codigo || !body.nombre) return toast('Codigo y nombre son obligatorios', 'error');
-
-  const url = id ? '/productos/' + id : '/productos';
-  const method = id ? 'PUT' : 'POST';
-  // codigo es identificador interno, no se envia en edicion
-  const payload = id ? (({ codigo, ...rest }) => rest)(body) : body;
-  const r = await apiFetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-  if (!r.ok) return toast(r.data?.error || 'Error al guardar', 'error');
-  toast(id ? 'Producto actualizado' : 'Producto creado', 'success');
-  hideModal('modal-producto');
-  cargarProductos();
+  return toast('Los productos se gestionan en el ERP SIESA', 'warning');
 }
 
 async function eliminarProducto(id) {
