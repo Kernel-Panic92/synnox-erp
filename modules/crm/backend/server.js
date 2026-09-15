@@ -11,7 +11,7 @@ dotenv.config({ path: path.join(__dirname, '..', '..', '.env') });
 dotenv.config({ path: path.join(__dirname, '..', '..', '..', '..', '.env') });
 dotenv.config();
 
-const { createProtect } = await import('../../../framework/auth.mjs');
+const { createProtect, requirePermiso } = await import('../../../framework/auth.mjs');
 const app = express();
 const PORT = process.env.PORT || 3008;
 const MODULE_ID = process.env.MODULE_ID || 'crm';
@@ -42,7 +42,11 @@ import eanRoutes from './routes/ean.js';
 import inventarioRoutes from './routes/inventario.js';
 import leadsRoutes from './routes/leads.js';
 import perfilesVentaRoutes from './routes/perfilesVenta.js';
+import presupuestosRoutes from './routes/presupuestos.js';
 import maestrosRoutes from './routes/maestros.js';
+import hubRoutes from './routes/hub.js';
+import placesRoutes from './routes/places.js';
+import reportesRoutes from './routes/reportes.js';
 
 const protect = createProtect(MODULE_ID);
 
@@ -60,7 +64,11 @@ app.use('/api/productos', protect, eanRoutes);
 app.use('/api/inventario', protect, inventarioRoutes);
 app.use('/api/leads', protect, leadsRoutes);
 app.use('/api/perfiles-venta', protect, perfilesVentaRoutes);
+app.use('/api/presupuestos', protect, presupuestosRoutes);
 app.use('/api/maestros', protect, maestrosRoutes);
+app.use('/api/hub', protect, hubRoutes);
+app.use('/api/places', protect, placesRoutes);
+app.use('/api/reportes', protect, reportesRoutes);
 
 // Public endpoint for centros
 app.get('/api/centros', (req, res) => {
@@ -92,35 +100,149 @@ app.get('/api/auth/me', protect, async (req, res) => {
   }
 });
 
-app.get('/api/dashboard', protect, async (req, res) => {
+app.get('/api/dashboard', protect, requirePermiso('ver', 'crm'), async (req, res) => {
   try {
     const pool = (await import('./config/db.js')).default;
+    const { desde, hasta } = req.query;
+    const opFiltro = [];
+    const cliFiltro = [];
+    const params = [];
+    const cliParams = [];
+    let pi = 1, ci = 1;
+    if (desde) { opFiltro.push(`o.creado_en >= $${pi}::date`); params.push(desde); pi++; cliFiltro.push(`creado_en >= $${ci}::date`); cliParams.push(desde); ci++; }
+    if (hasta) { opFiltro.push(`o.creado_en < $${pi}::date + INTERVAL '1 day'`); params.push(hasta); pi++; cliFiltro.push(`creado_en < $${ci}::date + INTERVAL '1 day'`); cliParams.push(hasta); ci++; }
+    // FASE 1 permisos: no-gerente ve solo sus oportunidades (clientes y ciudades son maestros compartidos)
+    const soloMioDash = !['admin', 'gerente'].includes(req.user?.rol);
+    if (soloMioDash) { opFiltro.push(`o.vendedor_id = $${pi++}`); params.push(req.user.id); }
+    const opWhere = opFiltro.length ? `WHERE ${opFiltro.join(' AND ')}` : '';
+    const cliWhere = cliFiltro.length ? `WHERE ${cliFiltro.join(' AND ')} AND activo = TRUE` : 'WHERE activo = TRUE';
+    const opWhereVendedor = opFiltro.length ? `WHERE ${opFiltro.join(' AND ')} AND o.vendedor_id IS NOT NULL` : 'WHERE o.vendedor_id IS NOT NULL';
 
-    const [totalClientes, porTipo, contactosRecientes, clientesRecientes, totalOportunidades, oportunidadesAbiertas, montoPipeline, cotizacionesPendientes, descuentosPendientes] = await Promise.all([
-      pool.query(`SELECT COUNT(*) FROM crm.clientes WHERE activo = TRUE`),
-      pool.query(`SELECT tipo, COUNT(*) AS total FROM crm.clientes WHERE activo = TRUE GROUP BY tipo ORDER BY total DESC`),
-      pool.query(`SELECT COUNT(*) FROM crm.contactos WHERE activo = TRUE`),
-      pool.query(`SELECT id, nombre, tipo, ciudad, creado_en FROM crm.clientes WHERE activo = TRUE ORDER BY creado_en DESC LIMIT 10`),
-      pool.query(`SELECT COUNT(*) FROM crm.oportunidades`),
-      pool.query(`SELECT COUNT(*) FROM crm.oportunidades WHERE etapa NOT IN ('ganada', 'perdida')`),
-      pool.query(`SELECT COALESCE(SUM(monto_esperado), 0) AS total FROM crm.oportunidades WHERE etapa NOT IN ('ganada', 'perdida')`),
-      pool.query(`SELECT COUNT(*) FROM crm.cotizaciones WHERE estado IN ('borrador','enviada')`),
-      pool.query(`SELECT COUNT(*) FROM crm.descuentos_solicitud WHERE estado = 'pendiente'`)
+    const tendDesde = desde || `TO_CHAR(NOW() - INTERVAL '5 months','YYYY-MM-01')`;
+    const tendHasta = hasta || `TO_CHAR(NOW(),'YYYY-MM-01')`;
+
+    const [funnelEtapas, rankingVendedores, tendenciaMensual, distribucionCiudades, ultimosMovs] = await Promise.all([
+      pool.query(`SELECT etapa, COUNT(*) as cantidad, COALESCE(SUM(monto_esperado),0) as monto FROM crm.oportunidades o ${opWhere} GROUP BY etapa ORDER BY CASE etapa WHEN 'lead' THEN 1 WHEN 'calificado' THEN 2 WHEN 'propuesta' THEN 3 WHEN 'negociacion' THEN 4 WHEN 'ganada' THEN 5 WHEN 'perdida' THEN 6 END`, params),
+      pool.query(`SELECT o.vendedor_id, COUNT(*) FILTER (WHERE o.etapa NOT IN ('ganada','perdida')) as ops_abiertas, COUNT(*) FILTER (WHERE o.etapa='ganada') as ops_ganadas, COALESCE(SUM(o.monto_esperado) FILTER (WHERE o.etapa='ganada'),0) as monto_ganado FROM crm.oportunidades o ${opWhereVendedor} GROUP BY o.vendedor_id HAVING COUNT(*) > 0 ORDER BY monto_ganado DESC, ops_abiertas DESC LIMIT 10`, params),
+      pool.query(`SELECT TO_CHAR(mes,'YYYY-MM') as mes, COUNT(o.id) as cantidad, COALESCE(SUM(o.monto_esperado),0) as monto
+        FROM generate_series(${tendDesde}::date, ${tendHasta}::date, INTERVAL '1 month') mes
+        LEFT JOIN crm.oportunidades o ON DATE_TRUNC('month', o.creado_en) = DATE_TRUNC('month', mes)${soloMioDash ? ` AND o.vendedor_id = ${parseInt(req.user.id)}` : ''}
+        GROUP BY mes ORDER BY mes`),
+      pool.query(`SELECT COALESCE(ciudad,'Sin ciudad') as ciudad, COUNT(*) as cantidad FROM crm.clientes ${cliWhere} GROUP BY ciudad ORDER BY cantidad DESC LIMIT 8`, cliParams),
+      pool.query(`SELECT o.id, o.nombre as oportunidad, COALESCE(c.nombre, l.raison_social, '—') as cliente, o.monto_esperado as valor, o.etapa, COALESCE(c.ciudad,'—') as ciudad, o.creado_en as fecha, o.vendedor_id
+        FROM crm.oportunidades o LEFT JOIN crm.clientes c ON c.id=o.cliente_id LEFT JOIN crm.leads l ON l.id=o.lead_id
+        ${opWhere} ORDER BY o.creado_en DESC LIMIT 8`, params)
     ]);
 
     res.json({
       ok: true,
-      clientes_total: parseInt(totalClientes.rows[0].count),
-      clientes_por_tipo: porTipo.rows,
-      contactos_total: parseInt(contactosRecientes.rows[0].count),
-      clientes_recientes: clientesRecientes.rows,
-      oportunidades_total: parseInt(totalOportunidades.rows[0].count),
-      oportunidades_abiertas: parseInt(oportunidadesAbiertas.rows[0].count),
-      monto_pipeline: parseFloat(montoPipeline.rows[0].total),
-      cotizaciones_pendientes: parseInt(cotizacionesPendientes.rows[0].count),
-      descuentos_pendientes: parseInt(descuentosPendientes.rows[0].count)
+      funnel: funnelEtapas.rows,
+      ultimos_movimientos: ultimosMovs.rows,
+      ranking_vendedores: rankingVendedores.rows,
+      tendencia_mensual: tendenciaMensual.rows,
+      distribucion_ciudades: distribucionCiudades.rows,
+      desde: desde || null,
+      hasta: hasta || null
     });
   } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /api/dashboard/analytics — Indicadores gerenciales avanzados
+app.get('/api/dashboard/analytics', protect, requirePermiso('ver', 'crm'), async (req, res) => {
+  try {
+    const pool = (await import('./config/db.js')).default;
+    const { desde, hasta } = req.query;
+    const conds = [];
+    const params = [];
+    let pi = 1;
+    if (desde) { conds.push(`o.creado_en >= $${pi}::date`); params.push(desde); pi++; }
+    if (hasta) { conds.push(`o.creado_en < $${pi}::date + INTERVAL '1 day'`); params.push(hasta); pi++; }
+    // FASE 1 permisos: no-gerente ve solo sus oportunidades (leads: bolsa compartida, sin scope)
+    const soloMio = !['admin', 'gerente'].includes(req.user?.rol);
+    if (soloMio) { conds.push(`o.vendedor_id = $${pi++}`); params.push(req.user.id); }
+    const where = conds.length ? `WHERE ${conds.join(' AND ')}` : '';
+    const addCond = (sql) => conds.length ? `${conds.join(' AND ')} AND ${sql}` : `WHERE ${sql}`;
+
+    // Lead → Cliente real requiere tabla leads (params separados por ::date con alias l.)
+    const leadConds = [];
+    const leadParams = [];
+    let lpi = 1;
+    if (desde) { leadConds.push(`l.creado_en >= $${lpi}::date`); leadParams.push(desde); lpi++; }
+    if (hasta) { leadConds.push(`l.creado_en < $${lpi}::date + INTERVAL '1 day'`); leadParams.push(hasta); lpi++; }
+    const leadWhere = leadConds.length ? `WHERE ${leadConds.join(' AND ')}` : '';
+
+    const [acv, lossReason, repeatPurchase, velocity, pipelineTotal, slippage, ticketFuente, forecastPonderado, convAsesor, leadConv, leadConvAsesor] = await Promise.all([
+      // ACV: monto promedio por negocio ganado
+      pool.query(`SELECT COUNT(*) as n, COALESCE(AVG(monto_esperado),0) as acv, COALESCE(SUM(monto_esperado),0) as total FROM crm.oportunidades o ${addCond(`o.etapa='ganada'`)}`, params),
+      // Pérdida por causal (% de cada motivo dentro de PERDIDA)
+      pool.query(`SELECT COALESCE(NULLIF(motivo_perdida,''),'sin_motivo') as motivo, COUNT(*) as total, 100.0*COUNT(*)/NULLIF(SUM(COUNT(*)) OVER (),0) as pct FROM crm.oportunidades o ${addCond(`o.etapa='perdida'`)} GROUP BY motivo ORDER BY total DESC`, params),
+      // Repeat purchase: ganadas de clientes con >1 oportunidad ganada vs clientes nuevos
+      pool.query(`SELECT
+        COUNT(*) FILTER (WHERE o.cliente_id IS NOT NULL AND (SELECT COUNT(*) FROM crm.oportunidades o2 WHERE o2.cliente_id=o.cliente_id AND o2.etapa='ganada' AND o2.id < o.id)=0) as nuevos,
+        COUNT(*) FILTER (WHERE o.cliente_id IS NOT NULL AND (SELECT COUNT(*) FROM crm.oportunidades o2 WHERE o2.cliente_id=o.cliente_id AND o2.etapa='ganada' AND o2.id < o.id)>0) as recurrentes
+        FROM crm.oportunidades o ${addCond(`o.etapa='ganada' AND o.cliente_id IS NOT NULL`)}`, params),
+      // Stage velocity: días promedio entre cambios de etapa del historial (orden cronológico del pipeline)
+      pool.query(`SELECT h.etapa_nueva, ROUND(AVG(EXTRACT(EPOCH FROM (h.fecha - lag.fecha))/86400.0),1) as dias_promedio, COUNT(*) as muestras
+        FROM crm.oportunidad_historial h
+        JOIN LATERAL (SELECT MAX(fecha) as fecha FROM crm.oportunidad_historial h2 WHERE h2.oportunidad_id=h.oportunidad_id AND h2.fecha < h.fecha) lag ON true
+        ${soloMio ? `JOIN crm.oportunidades o ON o.id = h.oportunidad_id AND o.vendedor_id = ${parseInt(req.user.id)}` : ''}
+        WHERE lag.fecha IS NOT NULL
+        GROUP BY h.etapa_nueva
+        ORDER BY CASE h.etapa_nueva WHEN 'lead' THEN 1 WHEN 'calificado' THEN 2 WHEN 'propuesta' THEN 3 WHEN 'negociacion' THEN 4 WHEN 'ganada' THEN 5 WHEN 'perdida' THEN 6 ELSE 7 END`),
+      // Pipeline abierto total (para cobertura vs meta)
+      pool.query(`SELECT COALESCE(SUM(monto_esperado),0) as pipeline_abierto FROM crm.oportunidades o ${addCond(`o.etapa NOT IN ('ganada','perdida')`)}`, params),
+      // Slippage: % de oportunidades abiertas con fecha de cierre ya pasada (vencidas / abiertas)
+      pool.query(`SELECT
+        COUNT(*) FILTER (WHERE o.fecha_cierre_estimada IS NOT NULL AND o.fecha_cierre_estimada < CURRENT_DATE) as vencidas,
+        COUNT(*) as abiertas
+        FROM crm.oportunidades o ${addCond(`o.etapa NOT IN ('ganada','perdida')`)}`, params),
+      // Ticket promedio por fuente/canal (ganadas)
+      pool.query(`SELECT COALESCE(NULLIF(o.fuente,''),'otro') as fuente, COUNT(*) as n, ROUND(COALESCE(AVG(o.monto_esperado),0),0) as ticket FROM crm.oportunidades o ${addCond(`o.etapa='ganada'`)} GROUP BY fuente ORDER BY ticket DESC`, params),
+      // Forecast ponderado: SUM(monto × probabilidad) en etapas abiertas
+      pool.query(`SELECT COALESCE(SUM(o.monto_esperado * COALESCE(o.probabilidad,0) / 100.0),0) as ponderado FROM crm.oportunidades o ${addCond(`o.etapa NOT IN ('ganada','perdida')`)}`, params),
+      // Conversión por asesor: ganadas / total por vendedor
+      pool.query(`SELECT o.vendedor_id, COUNT(*) as total, COUNT(*) FILTER (WHERE o.etapa='ganada') as ganadas,
+        ROUND(100.0*COUNT(*) FILTER (WHERE o.etapa='ganada')/NULLIF(COUNT(*),0),1) as conv_pct
+        FROM crm.oportunidades o ${conds.length ? `WHERE ${conds.join(' AND ')} AND o.vendedor_id IS NOT NULL` : `WHERE o.vendedor_id IS NOT NULL`}
+        GROUP BY o.vendedor_id HAVING COUNT(*)>=1 ORDER BY conv_pct DESC, ganadas DESC LIMIT 10`, params),
+      // Lead → Cliente real: prospectos convertidos
+      pool.query(`SELECT COUNT(*) as total, COUNT(*) FILTER (WHERE l.estado='convertido' OR l.cliente_convertido=TRUE) as convertidos,
+        ROUND(100.0*COUNT(*) FILTER (WHERE l.estado='convertido' OR l.cliente_convertido=TRUE)/NULLIF(COUNT(*),0),1) as conv_pct
+        FROM crm.leads l ${leadWhere}`, leadParams),
+      // Lead conversión por asesor — normaliza para evitar duplicados por typo/espacios
+      pool.query(`SELECT MIN(TRIM(l.asesor_comercial)) as asesor, COUNT(*) as total,
+        COUNT(*) FILTER (WHERE l.estado='convertido' OR l.cliente_convertido=TRUE) as convertidos,
+        ROUND(100.0*COUNT(*) FILTER (WHERE l.estado='convertido' OR l.cliente_convertido=TRUE)/NULLIF(COUNT(*),0),1) as conv_pct
+        FROM crm.leads l ${leadWhere} GROUP BY COALESCE(NULLIF(TRIM(UPPER(l.asesor_comercial)),''),'SIN ASESOR') HAVING COUNT(*)>=3 ORDER BY conv_pct DESC, convertidos DESC LIMIT 8`, leadParams)
+    ]);
+
+    res.json({
+      ok: true,
+      acv: { n: parseInt(acv.rows[0].n), promedio: parseFloat(acv.rows[0].acv), total: parseFloat(acv.rows[0].total) },
+      loss_reason: lossReason.rows,
+      repeat_purchase: {
+        nuevos: parseInt(repeatPurchase.rows[0].nuevos) || 0,
+        recurrentes: parseInt(repeatPurchase.rows[0].recurrentes) || 0
+      },
+      stage_velocity: velocity.rows,
+      pipeline_abierto: parseFloat(pipelineTotal.rows[0].pipeline_abierto),
+      slippage_rate: {
+        vencidas: parseInt(slippage.rows[0].vencidas) || 0,
+        abiertas: parseInt(slippage.rows[0].abiertas) || 0,
+        pct: (slippage.rows[0].abiertas > 0 ? Math.round(parseInt(slippage.rows[0].vencidas) / parseInt(slippage.rows[0].abiertas) * 100) : 0)
+      },
+      ticket_por_fuente: ticketFuente.rows,
+      forecast_ponderado: parseFloat(forecastPonderado.rows[0].ponderado),
+      conversion_asesor: convAsesor.rows,
+      lead_conversion: { total: parseInt(leadConv.rows[0].total)||0, convertidos: parseInt(leadConv.rows[0].convertidos)||0, pct: parseFloat(leadConv.rows[0].conv_pct)||0 },
+      lead_conversion_asesor: leadConvAsesor.rows,
+      desde: desde || null,
+      hasta: hasta || null
+    });
+  } catch (err) {
+    console.error('[CRM] Error dashboard analytics:', err);
     res.status(500).json({ error: err.message });
   }
 });

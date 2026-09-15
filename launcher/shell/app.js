@@ -2131,7 +2131,8 @@ async function toggleModuloEmailNotif(modulo, habilitado) {
 
 // ── Admin tab router ──
 function showAdminTab(tab) {
-  document.querySelectorAll('#admin-sidebar .nav-item').forEach(n => n.classList.toggle('active', n.dataset.page === tab));
+  document.querySelectorAll('#admin-sidebar .nav-item').forEach(n => { n.classList.toggle('active', n.dataset.page === tab); n.removeAttribute('aria-current'); });
+  document.querySelector('#admin-sidebar .nav-item[data-page="' + tab + '"]')?.setAttribute('aria-current', 'page');
   document.querySelectorAll('#admin-screen .tab-content').forEach(t => t.classList.toggle('active', t.id === 'tab-' + tab));
   if (tab === 'usuarios') loadUsers();
   else if (tab === 'perfiles') loadPerfiles();
@@ -2156,6 +2157,29 @@ function showAdminTab(tab) {
   else if (tab === 'acerca-de') loadAcercaDe();
 
 }
+
+function toggleSidebarCollapse() {
+  const sidebar = document.getElementById('admin-sidebar');
+  const container = document.getElementById('app-container');
+  if (!sidebar) return;
+  sidebar.classList.toggle('collapsed');
+  if (container) container.classList.toggle('sidebar-collapsed', sidebar.classList.contains('collapsed'));
+  localStorage.setItem('sidebar_collapsed', sidebar.classList.contains('collapsed'));
+  const toggle = document.querySelector('.sidebar-toggle');
+  if (toggle) {
+    const col = sidebar.classList.contains('collapsed');
+    toggle.textContent = col ? '❯' : '❮';
+    toggle.setAttribute('aria-expanded', String(!col));
+    toggle.setAttribute('aria-label', col ? 'Expandir menú' : 'Contraer menú');
+  }
+}
+document.addEventListener('DOMContentLoaded', () => {
+  if (localStorage.getItem('sidebar_collapsed') === 'true') {
+    document.getElementById('admin-sidebar')?.classList.add('collapsed');
+    document.getElementById('app-container')?.classList.add('sidebar-collapsed');
+    const t = document.querySelector('.sidebar-toggle'); if (t) { t.textContent = '❯'; t.setAttribute('aria-expanded', 'false'); t.setAttribute('aria-label', 'Expandir menú'); }
+  }
+});
 
 async function loadAcercaDe() {
   const el = document.getElementById('acerca-de-content');
@@ -4338,3 +4362,38 @@ function clearTableFilters(containerId) {
   const inputs = root.querySelectorAll('.table-filters .filter-input, .table-filters .filter-select');
   inputs.forEach(el => { el.value = ''; el.dispatchEvent(new Event(el.tagName === 'SELECT' ? 'change' : 'input')); });
 }
+
+// ── Sidebar móvil admin: drawer + gestos táctiles ──
+function openAdminSidebar() {
+  document.getElementById('admin-sidebar')?.classList.add('open');
+  document.getElementById('admin-overlay')?.classList.add('show');
+}
+function closeAdminSidebar() {
+  document.getElementById('admin-sidebar')?.classList.remove('open');
+  document.getElementById('admin-overlay')?.classList.remove('show');
+}
+function toggleAdminSidebar() {
+  const sb = document.getElementById('admin-sidebar');
+  if (!sb) return;
+  sb.classList.contains('open') ? closeAdminSidebar() : openAdminSidebar();
+}
+(function initAdminSidebarSwipe() {
+  let _sx = null, _sy = null;
+  const EDGE = 40, MIN_DX = 50, MAX_DY = 75;
+  document.addEventListener('touchstart', (e) => {
+    if (e.touches.length !== 1) { _sx = null; return; }
+    _sx = e.touches[0].clientX; _sy = e.touches[0].clientY;
+  }, { passive: true });
+  document.addEventListener('touchend', (e) => {
+    if (_sx === null) return;
+    const startX = _sx;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - startX, dy = Math.abs(t.clientY - _sy);
+    const sb = document.getElementById('admin-sidebar');
+    _sx = null;
+    if (!sb || dy > MAX_DY || Math.abs(dx) <= dy) return;
+    if (document.getElementById('admin-screen')?.style.display === 'none') return;
+    if (dx > MIN_DX && startX <= EDGE && !sb.classList.contains('open')) openAdminSidebar();
+    else if (dx < -MIN_DX && sb.classList.contains('open')) closeAdminSidebar();
+  }, { passive: true });
+})();

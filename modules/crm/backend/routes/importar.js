@@ -106,7 +106,7 @@ const REQUIRED_COLUMNS = {
   pedidos_erp: [['nro_documento'], ['c_o']],
   pedidos_items: [['nro_documento'], ['item_resumen']],
   items: [['referencia'], ['item'], ['descripcion', 'desc_item', 'desc__item']],
-  inventario: [['codigo', 'c_digo'], ['referencia'], ['bodega']],
+  inventario: [['codigo', 'c_digo', 'referencia'], ['referencia', 'bodega'], ['bodega']],
   codigos_barra: [['codigo', 'c_digo'], ['referencia']],
   bodegas: [['codigo', 'c_digo'], ['descripcion']],
   precios: [['referencia'], ['lista']],
@@ -437,6 +437,19 @@ async function importarCotizaciones(rows) {
       const consecutivo = (r.consecutivo_interno || '').trim();
       if (!nombre && !consecutivo) { fallidos++; errores.push(`Fila ${i+1}: sin nombre ni consecutivo`); continue; }
 
+      // Fechas: Fecha de creación -> vencimiento = +30 días; Fecha de Entrega -> fecha_entrega
+      let vencimiento = null;
+      let fechaEntrega = (r.fecha_de_entrega || '').trim();
+      if (fechaEntrega && fechaEntrega.includes('/')) { const [d,m,y] = fechaEntrega.split('/'); if(d&&m&&y) fechaEntrega = `${y.padStart(4,'0')}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`; }
+      if (!fechaEntrega) fechaEntrega = null;
+      if (!vencimiento && r.fecha_de_creacion) {
+        let fc = String(r.fecha_de_creacion).trim().split(' ')[0];
+        if (fc && fc.includes('/')) {
+          const [d,m,y] = fc.split('/');
+          if(d&&m&&y) { const dt = new Date(`${y}-${m.padStart(2,'0')}-${d.padStart(2,'0')}`); if(!isNaN(dt)) { dt.setDate(dt.getDate()+30); vencimiento = dt.toISOString().split('T')[0]; } }
+        }
+      }
+
       // Buscar cliente por nombre (quita sufijo de sucursal "/XXX")
       let clienteId = null;
       const clienteNombre = (r.facturar_a || r.despachar_a || '').trim();
@@ -514,28 +527,30 @@ async function importarCotizaciones(rows) {
           unidad_negocio = COALESCE(NULLIF($15,''), unidad_negocio),
           aprobado = COALESCE($16, aprobado),
           estado = COALESCE(NULLIF($17,''), estado),
+          vencimiento = COALESCE($18::date, vencimiento),
+          fecha_entrega = COALESCE($19::date, fecha_entrega),
           actualizado_en = NOW()
-          WHERE id = $18`,
+          WHERE id = $20`,
           [clienteId, valorTotal || null, valorSubtotal || null, valorBruto || null,
            impuestos || null, descuentos || null, notas,
            centroCodigo || '', bodegaCodigo || '', r.condicion_de_pago || r.condici_n_de_pago || '',
            listaCodigo || '', r.orden_de_compra || '', vendedor,
            r.motivo || '', r.unidad_de_negocio || '',
-           r.aprobado === 'True' || r.aprobado === true, estado, existing.rows[0].id]);
+           r.aprobado === 'True' || r.aprobado === true, estado, vencimiento, fechaEntrega, existing.rows[0].id]);
         actualizados++;
       } else {
         await pool.query(`INSERT INTO crm.cotizaciones (numero, cliente_id, estado, valor_total, valor_subtotal,
           valor_bruto, valor_iva, valor_descuento, notas, centro_operacion, bodega, condicion_pago,
           lista_precios, orden_compra, vendedor_nombre, motivo,
-          unidad_negocio, aprobado, enviado_erp, consecutive_siesa, creado_por)
-          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20, NULL)`,
+          unidad_negocio, aprobado, enviado_erp, consecutive_siesa, vencimiento, fecha_entrega, creado_por)
+          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22, NULL)`,
           [numero, clienteId, estado, valorTotal, valorSubtotal,
            valorBruto, impuestos, descuentos, notas,
            centroCodigo || '', bodegaCodigo || '', r.condicion_de_pago || r.condici_n_de_pago || '',
            listaCodigo || '', r.orden_de_compra || '', vendedor,
            r.motivo || '', r.unidad_de_negocio || '',
            r.aprobado === 'True' || r.aprobado === true, false,
-           consecutivo || null]);
+           consecutivo || null, vencimiento, fechaEntrega]);
         insertados++;
       }
     } catch (e) { fallidos++; errores.push(`Fila ${i+1}: ${e.message}`); }
@@ -1015,18 +1030,23 @@ async function importarVendedores(rows, onProgress) {
       const codigo = (r.codigo || r.c_digo || '').trim();
       const nombre = (r.nombre || '').trim();
       if (!codigo || !nombre) { fallidos++; errores.push(`Fila ${i+1}: sin código o nombre`); continue; }
-
-      // Guardar en configuracion como JSON
-      const key = `vendedor_${codigo}`;
-      const existing = await pool.query(`SELECT clave FROM crm.configuracion WHERE clave = $1`, [key]);
-      const data = JSON.stringify({ codigo, nombre, cobrador: r.cobrador === 'Si', vendedor: r.vendedor === 'Si' });
+      const cobrador = r.cobrador === 'Si';
+      const esVendedor = r.vendedor === 'Si' || r.vendedor === undefined || r.vendedor === '';
+      // Upsert en tabla dedicada (Hub-ready) + mantener espejo en configuracion para compatibilidad
+      const existing = await pool.query(`SELECT codigo FROM crm.vendedores WHERE codigo = $1`, [codigo]);
       if (existing.rows.length) {
-        await pool.query(`UPDATE crm.configuracion SET valor = $1 WHERE clave = $2`, [data, key]);
+        await pool.query(`UPDATE crm.vendedores SET nombre = $1, cobrador = $2, es_vendedor = $3 WHERE codigo = $4`, [nombre, cobrador, esVendedor, codigo]);
         actualizados++;
       } else {
-        await pool.query(`INSERT INTO crm.configuracion (clave, valor, descripcion) VALUES ($1, $2, $3)`, [key, data, `Vendedor: ${nombre}`]);
+        await pool.query(`INSERT INTO crm.vendedores (codigo, nombre, cobrador, es_vendedor) VALUES ($1,$2,$3,$4)`, [codigo, nombre, cobrador, esVendedor]);
         insertados++;
       }
+      // Espejo legacy en configuracion
+      const key = `vendedor_${codigo}`;
+      const data = JSON.stringify({ codigo, nombre, cobrador, vendedor: esVendedor });
+      const cfgExisting = await pool.query(`SELECT clave FROM crm.configuracion WHERE clave = $1`, [key]);
+      if (cfgExisting.rows.length) await pool.query(`UPDATE crm.configuracion SET valor = $1 WHERE clave = $2`, [data, key]);
+      else await pool.query(`INSERT INTO crm.configuracion (clave, valor, descripcion) VALUES ($1,$2,$3)`, [key, data, `Vendedor: ${nombre}`]);
       if (onProgress && i % 10 === 0) onProgress(i + 1, rows.length);
     } catch (e) { fallidos++; errores.push(`Fila ${i+1}: ${e.message}`); }
   }
@@ -1177,7 +1197,7 @@ router.get('/tipos', requirePermiso('crear_contacto', 'crm'), (req, res) => {
       { id: 'pedidos_erp', nombre: 'Pedidos ERP (vincula CPV a cotizaciones)', extensiones: 'csv', descripcion: 'Pedidos mes corriente del ERP: asigna documento_erp (CPV) a las cotizaciones por su número COT' },
       { id: 'pedidos_items', nombre: 'Pedidos por item ERP (completa items)', extensiones: 'csv', descripcion: 'Líneas de cada CPV: agrega los productos (items) a las cotizaciones ya vinculadas' },
       { id: 'items', nombre: 'Items / Productos', extensiones: 'xlsx,csv', descripcion: 'Productos con referencia, precio, impuesto, categoría' },
-      { id: 'inventario', nombre: 'Inventario por Bodega', extensiones: 'xlsx', descripcion: 'Stock por bodega con precio, disponibilidad, existencia' },
+      { id: 'inventario', nombre: 'Inventario por Bodega', extensiones: 'xlsx,csv', descripcion: 'Stock por bodega con precio, disponibilidad, existencia (SIESA entrega CSV)' },
       { id: 'codigos_barra', nombre: 'Códigos de Barras (EAN)', extensiones: 'csv', descripcion: 'Códigos GS1 vinculados a productos por referencia' },
       { id: 'eans_gs1', nombre: 'Catálogo GS1 (EANGS1.xlsx)', extensiones: 'xlsx', descripcion: 'Reporte GS1 de la compañía: GTIN, descripción, marca, foto. Vincula por GTIN o código en la descripción' },
       { id: 'bodegas', nombre: 'Bodegas', extensiones: 'csv', descripcion: 'Almacenes con código, nombre y ubicación' },

@@ -1,6 +1,7 @@
 import express from 'express';
 import pool from '../config/db.js';
 import { requirePermiso } from '../../../../framework/auth.mjs';
+import { requireVentasPerfil } from './perfilesVenta.js';
 import { auditarEvento } from '../../../../framework/audit.js';
 import Database from 'better-sqlite3';
 import path from 'path';
@@ -89,7 +90,7 @@ router.get('/pendientes', requirePermiso('aprobar_descuento', 'crm'), async (req
 });
 
 // PUT /api/descuentos/:id/aprobar — Aprobar descuento
-router.put('/:id/aprobar', requirePermiso('aprobar_descuento', 'crm'), async (req, res) => {
+router.put('/:id/aprobar', requirePermiso('aprobar_descuento', 'crm'), requireVentasPerfil('aprobar_descuento'), async (req, res) => {
   const client = await pool.connect();
   try {
     await client.query('BEGIN');
@@ -146,7 +147,7 @@ router.put('/:id/aprobar', requirePermiso('aprobar_descuento', 'crm'), async (re
 });
 
 // PUT /api/descuentos/:id/rechazar — Rechazar descuento
-router.put('/:id/rechazar', requirePermiso('aprobar_descuento', 'crm'), async (req, res) => {
+router.put('/:id/rechazar', requirePermiso('aprobar_descuento', 'crm'), requireVentasPerfil('aprobar_descuento'), async (req, res) => {
   try {
     const { id } = req.params;
     const { motivo } = req.body;

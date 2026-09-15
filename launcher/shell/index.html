@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d0f14">
 <title>SynnoxERP</title>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -171,7 +172,12 @@
   .dash-logout:hover{color:var(--danger);border-color:var(--danger);}
   .dash-back{font-size:var(--fs);color:var(--muted);cursor:pointer;transition:color 0.2s;}
   .dash-back:hover{color:var(--text);}
-  .dash-body{padding:32px;max-width:1200px;margin:0 auto;}
+  #launcher-screen{width:100% !important;max-width:100% !important;box-sizing:border-box !important}
+  .dash-body{width:100% !important;max-width:100% !important;padding:32px 48px !important;box-sizing:border-box !important}
+  .grid{display:grid !important;grid-template-columns:repeat(auto-fill,minmax(200px,1fr)) !important;gap:20px !important;width:100% !important;margin-top:24px !important}
+  .card{width:100% !important;box-sizing:border-box !important;padding:28px 16px 20px !important;transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease !important}
+  .card-title{font-size:var(--fs,15px) !important;font-weight:700 !important;white-space:nowrap !important;overflow:hidden !important;text-overflow:ellipsis !important}
+  .card-desc{font-size:12px !important;line-height:1.4 !important}
   .dash-body h2{font-size:22px;font-weight:700;margin-bottom:4px;}
   .dash-body p{font-size:var(--fs);color:var(--muted);margin-bottom:8px;}
 
@@ -189,10 +195,10 @@
     transition:width 0.2s;
   }
   #admin-screen .sidebar .logo{
-    padding:20px;border-bottom:1px solid var(--border);
-    display:flex;align-items:center;gap:10px;
+    padding:16px 20px 14px;border-bottom:1px solid var(--border);
+    display:flex;flex-direction:column;align-items:center;gap:6px;text-align:center;
   }
-  #admin-screen .sidebar .logo img{height:24px;}
+  #admin-screen .sidebar .logo img{height:28px;}
   #admin-screen .sidebar .logo span{font-size:18px;font-weight:800;}
   #admin-screen .sidebar .logo span b{color:var(--accent);}
   #admin-screen .sidebar nav{flex:1;overflow-y:auto;}
@@ -235,13 +241,77 @@
   #admin-screen .sidebar .sidebar-footer .btn-logout:hover{color:var(--danger);}
   #admin-screen .sidebar .sidebar-footer .version{font-size:11px;color:var(--muted);margin-top:8px;}
   .admin-main{margin-left:230px;flex:1;min-width:0;}
+  /* ── Enterprise sidebar (CRM parity) ── */
+  #admin-screen .app-container{display:grid;grid-template-columns:220px 1fr;min-height:100vh;transition:grid-template-columns .3s cubic-bezier(.4,0,.2,1)}
+  #admin-screen .app-container:has(.sidebar.collapsed){grid-template-columns:64px 1fr}
+  #admin-screen .app-container.sidebar-collapsed{grid-template-columns:64px 1fr}
+  #admin-screen .sidebar{width:100% !important;min-width:0 !important;height:100vh;position:sticky !important;top:0;display:flex;flex-direction:column;overflow:hidden;box-sizing:border-box}
+  #admin-screen #sidebar-nav{flex:1;overflow-y:auto;overflow-x:hidden}
+  #admin-screen #sidebar-nav::-webkit-scrollbar{width:4px}
+  #admin-screen #sidebar-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.1);border-radius:2px}
+  #admin-screen .nav-text{font-size:13px;font-weight:500;white-space:nowrap}
+  #admin-screen .sidebar.collapsed .nav-text{display:none !important}
+  #admin-screen .sidebar.collapsed .sidebar-section-title,
+  #admin-screen .sidebar.collapsed .user-name,
+  #admin-screen .sidebar.collapsed .user-role,
+  #admin-screen .sidebar.collapsed .version,
+  #admin-screen .sidebar.collapsed .logo span{display:none !important}
+  #admin-screen .sidebar.collapsed .logo{justify-content:center;padding:20px 0}
+  #admin-screen .sidebar.collapsed .nav-item{position:relative}
+  #admin-screen .sidebar.collapsed .nav-item::after, #admin-screen .sidebar.collapsed .btn-logout::after, #admin-screen .sidebar.collapsed .sidebar-home::after{content:attr(data-tooltip);position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%) translateX(-8px);background:#1e293b;color:#f8fafc;padding:5px 10px;border-radius:6px;font-size:12px;font-weight:500;white-space:nowrap;border:1px solid #334155;box-shadow:0 4px 12px rgba(0,0,0,0.3);opacity:0;pointer-events:none;transition:all .2s ease;z-index:100}
+  #admin-screen .sidebar.collapsed .nav-item:hover::after, #admin-screen .sidebar.collapsed .btn-logout:hover::after, #admin-screen .sidebar.collapsed .sidebar-home:hover::after{opacity:1;transform:translateY(-50%) translateX(0)}
+  #admin-screen .sidebar.collapsed .btn-logout, #admin-screen .sidebar.collapsed .sidebar-home{position:relative}
+  #admin-screen .sidebar .nav-item .icon{transition:transform .2s ease, filter .2s ease}
+  #admin-screen .sidebar.collapsed .nav-item:not(.active):hover .icon{transform:scale(1.12);filter:brightness(1.2)}
+  #admin-screen .sidebar-divider{height:1px;background:var(--border);margin:12px 14px;opacity:0.6}
+  #admin-screen .sidebar.collapsed .sidebar-divider{margin:12px 10px}
+  #admin-screen .sidebar-header{flex-shrink:0;display:flex;justify-content:flex-end;align-items:center;padding:10px 12px 4px;min-height:0;box-sizing:border-box}
+  #admin-screen .sidebar.collapsed .sidebar-header{justify-content:center;padding:10px 0 4px}
+  /* Toggle fantasma dentro del riel (gold standard): sin óvalo, chevrón ❮/❯ */
+  #admin-screen .sidebar-toggle{width:26px !important;height:26px !important;border-radius:50%;background:transparent;border:none !important;box-shadow:none !important;color:var(--muted);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:all .2s ease;flex-shrink:0;font-size:12px;z-index:auto}
+  #admin-screen .sidebar-toggle:hover{background:var(--surface2);color:var(--text)}
+  #admin-screen .sidebar nav .nav-item:focus-visible,
+  #admin-screen .sidebar-footer .btn-logout:focus-visible,
+  #admin-screen .sidebar-footer .sidebar-home:focus-visible,
+  #admin-screen .sidebar-header .sidebar-toggle:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+  #admin-screen .sidebar.collapsed .nav-item{width:100%;display:flex;justify-content:center;align-items:center;padding:8px 0 !important;margin:4px 0;gap:0 !important}
+  #admin-screen .sidebar.collapsed .nav-item .icon{margin:0 !important;padding:0 !important;display:block}
+  #admin-screen .sidebar.collapsed .nav-item.active{width:42px;height:42px;margin:4px auto;border-radius:8px;background:rgba(16,185,129,0.15) !important;border:1px solid #10b981 !important}
+  #admin-screen .sidebar-footer{margin-top:auto;padding-bottom:12px;display:flex;flex-direction:column;gap:6px}
+  /* Footer colapsado: MISMA geometría que los nav-items (gold standard) */
+  #admin-screen .sidebar.collapsed .sidebar-footer{padding:12px 0}
+  #admin-screen .sidebar.collapsed .btn-logout{justify-content:center;position:relative;width:100%;margin:4px 0;padding:8px 0;gap:0;border-radius:0;border:none}
+  #admin-screen .sidebar.collapsed .btn-logout .nav-text{display:none !important}
+  #admin-screen .sidebar.collapsed .btn-logout .icon{font-size:20px;width:auto;margin:0;text-align:center;line-height:1}
+  #admin-screen .admin-main{margin-left:0 !important;width:100% !important;min-width:0;overflow-x:hidden}
+  #admin-screen .sidebar.collapsed .sidebar-home{justify-content:center;position:relative;width:100%;margin:4px 0;padding:8px 0;gap:0;border-radius:0;border:none;display:flex;align-items:center}
+  #admin-screen .sidebar.collapsed .sidebar-home .nav-text{display:none !important}
+  #admin-screen .sidebar.collapsed .sidebar-home .icon{font-size:20px;width:auto;margin:0;text-align:center;line-height:1}
+  #admin-screen .sidebar.collapsed .sidebar-home:hover,#admin-screen .sidebar.collapsed .btn-logout:hover{background:var(--surface2)}
+  .header-actions{display:flex;align-items:center;justify-content:center;padding-right:16px;height:100%}
+  html,body{overflow-x:clip}
+  #admin-screen .admin-topbar{display:none;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--surface)}
+  #admin-screen .admin-topbar .hamburger{display:none;background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;padding:4px;line-height:1}
+  #admin-screen #admin-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:99}
+  #admin-screen #admin-overlay.show{display:block}
   @media(max-width:768px){
-    #admin-screen .sidebar{transform:translateX(-100%);transition:transform 0.25s;}
+    #admin-screen .admin-topbar{display:flex}
+    #admin-screen .admin-topbar .hamburger{display:inline-flex}
+    #admin-screen .app-container{grid-template-columns:1fr !important}
+    #admin-screen .sidebar{transform:translateX(-100%);transition:transform 0.25s;position:fixed !important;top:0;left:0;bottom:0;height:100vh;z-index:100}
     #admin-screen .sidebar.open{transform:translateX(0);}
+    #admin-screen .sidebar,#admin-screen .sidebar.collapsed{max-width:80vw !important}
+    #admin-screen .sidebar-toggle{display:none !important}
+    #admin-screen .sidebar.collapsed .nav-text,#admin-screen .sidebar.collapsed .logo span{display:inline-block !important}
+    #admin-screen .sidebar.collapsed .nav-item,#admin-screen .sidebar.collapsed .btn-logout,#admin-screen .sidebar.collapsed .sidebar-home{width:100% !important;justify-content:flex-start !important;padding:8px 16px !important;border-radius:0 !important;background:transparent !important;border:none !important}
+    #admin-screen .sidebar.collapsed .nav-item .icon,#admin-screen .sidebar.collapsed .btn-logout .icon,#admin-screen .sidebar.collapsed .sidebar-home .icon{margin-right:12px !important;font-size:inherit !important}
     .admin-main{margin-left:0;}
     .admin-main .hamburger{display:flex;}
     table{min-width:600px}
     .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  }
+  @media(max-width:480px){
+    .modal{width:100% !important;max-width:100% !important;max-height:100dvh !important;height:100dvh !important;margin:0 !important;border-radius:0 !important;padding:16px !important}
   }
 
   .perm-grupo{margin-bottom:20px;}
@@ -458,47 +528,57 @@
 </div>
 
 <div id="admin-screen">
+  <div class="app-container" id="app-container">
   <aside class="sidebar" id="admin-sidebar">
-    <div class="logo"><img src="/media/LogoERP.png" style="height:24px" alt="Logo"> <span><b>Admin</b></span></div>
-    <nav style="flex:1;overflow-y:auto;">
+    <div class="sidebar-header">
+      <button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Contraer menú" aria-expanded="true">❮</button>
+    </div>
+    <div class="logo"><img src="/media/LogoERP.png" alt="Logo"> <span><b>Admin</b></span></div>
+    <nav id="sidebar-nav">
       <div class="sidebar-section">
         <div class="sidebar-section-title">Gestión</div>
-        <div class="nav-item active" data-page="usuarios" onclick="showAdminTab('usuarios')"><span class="icon">👥</span> Usuarios</div>
-        <div class="nav-item" data-page="perfiles" onclick="showAdminTab('perfiles')"><span class="icon">🔐</span> Perfiles</div>
-        <div class="nav-item" data-page="centros" onclick="showAdminTab('centros')"><span class="icon">🏢</span> Centros de operación</div>
+        <div class="nav-item active" data-page="usuarios" onclick="showAdminTab('usuarios')" title="Usuarios" data-tooltip="Usuarios" aria-current="page"><span class="icon">👥</span> <span class="nav-text">Usuarios</span></div>
+        <div class="nav-item" data-page="perfiles" onclick="showAdminTab('perfiles')" title="Perfiles" data-tooltip="Perfiles"><span class="icon">🔐</span> <span class="nav-text">Perfiles</span></div>
+        <div class="nav-item" data-page="centros" onclick="showAdminTab('centros')" title="Centros de operación" data-tooltip="Centros de operación"><span class="icon">🏢</span> <span class="nav-text">Centros de operación</span></div>
       </div>
       <div class="sidebar-section">
         <div class="sidebar-section-title">Sistema</div>
-        <div class="nav-item" data-page="modulos" onclick="showAdminTab('modulos')"><span class="icon">📦</span> Módulos</div>
-        <div class="nav-item" data-page="mcp" onclick="showAdminTab('mcp')"><span class="icon">🤖</span> MCP</div>
-        <div class="nav-item" data-page="mcp-modules" onclick="showAdminTab('mcp-modules')"><span class="icon">🔌</span> Servicios MCP</div>
-        <div class="nav-item" data-page="mcp-logs" onclick="showAdminTab('mcp-logs')"><span class="icon">📋</span> Logs MCP</div>
-        <div class="nav-item" data-page="mcp-oauth" onclick="showAdminTab('mcp-oauth')"><span class="icon">🔐</span> OAuth MCP</div>
-        <div class="nav-item" data-page="smtp" onclick="showAdminTab('smtp')"><span class="icon">📧</span> SMTP</div>
-        <div class="nav-item" data-page="oauth" onclick="showAdminTab('oauth')"><span class="icon">🔑</span> OAuth</div>
-        <div class="nav-item" data-page="oauth-accounts" onclick="showAdminTab('oauth-accounts')"><span class="icon">🔗</span> Cuentas OAuth</div>
-        <div class="nav-item" data-page="blacklist" onclick="showAdminTab('blacklist')"><span class="icon">🚫</span> Lista negra</div>
-        <div class="nav-item" data-page="email-notif" onclick="showAdminTab('email-notif')"><span class="icon">🔔</span> Notificaciones</div>
-        <div class="nav-item" data-page="mapas" onclick="showAdminTab('mapas')"><span class="icon">🗺️</span> Mapas</div>
-        <div class="nav-item" data-page="acerca-de" onclick="showAdminTab('acerca-de')"><span class="icon">ℹ️</span> Acerca de</div>
+        <div class="nav-item" data-page="modulos" onclick="showAdminTab('modulos')" title="Módulos" data-tooltip="Módulos"><span class="icon">📦</span> <span class="nav-text">Módulos</span></div>
+        <div class="nav-item" data-page="mcp" onclick="showAdminTab('mcp')" title="MCP" data-tooltip="MCP"><span class="icon">🤖</span> <span class="nav-text">MCP</span></div>
+        <div class="nav-item" data-page="mcp-modules" onclick="showAdminTab('mcp-modules')" title="Servicios MCP" data-tooltip="Servicios MCP"><span class="icon">🔌</span> <span class="nav-text">Servicios MCP</span></div>
+        <div class="nav-item" data-page="mcp-logs" onclick="showAdminTab('mcp-logs')" title="Logs MCP" data-tooltip="Logs MCP"><span class="icon">📋</span> <span class="nav-text">Logs MCP</span></div>
+        <div class="nav-item" data-page="mcp-oauth" onclick="showAdminTab('mcp-oauth')" title="OAuth MCP" data-tooltip="OAuth MCP"><span class="icon">🔐</span> <span class="nav-text">OAuth MCP</span></div>
+        <div class="nav-item" data-page="smtp" onclick="showAdminTab('smtp')" title="SMTP" data-tooltip="SMTP"><span class="icon">📧</span> <span class="nav-text">SMTP</span></div>
+        <div class="nav-item" data-page="oauth" onclick="showAdminTab('oauth')" title="OAuth" data-tooltip="OAuth"><span class="icon">🔑</span> <span class="nav-text">OAuth</span></div>
+        <div class="nav-item" data-page="oauth-accounts" onclick="showAdminTab('oauth-accounts')" title="Cuentas OAuth" data-tooltip="Cuentas OAuth"><span class="icon">🔗</span> <span class="nav-text">Cuentas OAuth</span></div>
+        <div class="nav-item" data-page="blacklist" onclick="showAdminTab('blacklist')" title="Lista negra" data-tooltip="Lista negra"><span class="icon">🚫</span> <span class="nav-text">Lista negra</span></div>
+        <div class="nav-item" data-page="email-notif" onclick="showAdminTab('email-notif')" title="Notificaciones" data-tooltip="Notificaciones"><span class="icon">🔔</span> <span class="nav-text">Notificaciones</span></div>
+        <div class="nav-item" data-page="mapas" onclick="showAdminTab('mapas')" title="Mapas" data-tooltip="Mapas"><span class="icon">🗺️</span> <span class="nav-text">Mapas</span></div>
+        <div class="nav-item" data-page="acerca-de" onclick="showAdminTab('acerca-de')" title="Acerca de" data-tooltip="Acerca de"><span class="icon">ℹ️</span> <span class="nav-text">Acerca de</span></div>
       </div>
+      <div class="sidebar-divider"></div>
       <div class="sidebar-section">
         <div class="sidebar-section-title">Operaciones</div>
-        <div class="nav-item" data-page="seguridad" onclick="showAdminTab('seguridad')"><span class="icon">🛡️</span> Seguridad</div>
-        <div class="nav-item" data-page="auditoria" onclick="showAdminTab('auditoria')"><span class="icon">📋</span> Auditoría</div>
-        <div class="nav-item" data-page="actualizar" onclick="showAdminTab('actualizar')"><span class="icon">🔄</span> Actualizar</div>
-        <div class="nav-item" data-page="respaldo" onclick="showAdminTab('respaldo')"><span class="icon">💾</span> Respaldo</div>
+        <div class="nav-item" data-page="seguridad" onclick="showAdminTab('seguridad')" title="Seguridad" data-tooltip="Seguridad"><span class="icon">🛡️</span> <span class="nav-text">Seguridad</span></div>
+        <div class="nav-item" data-page="auditoria" onclick="showAdminTab('auditoria')" title="Auditoría" data-tooltip="Auditoría"><span class="icon">📋</span> <span class="nav-text">Auditoría</span></div>
+        <div class="nav-item" data-page="actualizar" onclick="showAdminTab('actualizar')" title="Actualizar" data-tooltip="Actualizar"><span class="icon">🔄</span> <span class="nav-text">Actualizar</span></div>
+        <div class="nav-item" data-page="respaldo" onclick="showAdminTab('respaldo')" title="Respaldo" data-tooltip="Respaldo"><span class="icon">💾</span> <span class="nav-text">Respaldo</span></div>
       </div>
     </nav>
     <div class="sidebar-footer">
-      <a class="sidebar-home" onclick="showLauncher()"><span class="icon">🏠</span> <span>Home</span></a>
+      <a class="sidebar-home" onclick="showLauncher()" title="Home" data-tooltip="Home"><span class="icon">🏠</span> <span class="nav-text">Home</span></a>
       <div class="user-name" id="admin-sidebar-user"></div>
       <div class="user-role" id="admin-sidebar-role"></div>
       <div class="version" id="admin-sidebar-version"></div>
-      <button class="btn-logout" onclick="logout()"><span>⏻</span> Cerrar sesión</button>
+      <button class="btn-logout" onclick="logout()" title="Cerrar sesión" data-tooltip="Cerrar sesión"><span class="icon" style="font-size:18px">⏻</span> <span class="nav-text">Cerrar sesión</span></button>
     </div>
   </aside>
   <div class="admin-main">
+    <div class="admin-topbar">
+      <button class="hamburger" onclick="toggleAdminSidebar()" aria-label="Abrir menú">☰</button>
+      <strong>Administración</strong>
+    </div>
+    <div class="sidebar-overlay" id="admin-overlay" onclick="closeAdminSidebar()"></div>
     <div class="dash-body">
   <div class="tab-content active" id="tab-usuarios">
     <div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0;">
@@ -556,7 +636,7 @@
       <input type="hidden" id="centro-form-id">
       <input type="hidden" id="centro-form-lat">
       <input type="hidden" id="centro-form-lng">
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(340px,1fr));gap:12px;width:100%">
         <div style="grid-column:1/-1">
           <label>Nombre *</label>
           <input type="text" id="centro-form-nombre" placeholder="Ej: BOGOTA, MEDELLIN...">
@@ -1140,6 +1220,8 @@
     </div>
   </div>
 </div>
+  </div>
+</div>
 
 <div class="modal-overlay" id="admin-form-overlay">
   <div class="modal" id="admin-form-screen">
@@ -1314,7 +1396,7 @@ fetch('/api/config/gmaps/key')
   }).catch(function(){});
 </script>
 <script src="config.js?v=20260630"></script>
-  <script src="app.js?v=20260821nas1"></script>
+  <script src="app.js?v=20260910gold"></script>
 <!-- Prefetch module assets for faster navigation -->
 <link rel="prefetch" href="/proveedores/js/app.js" as="script">
 <link rel="prefetch" href="/proveedores/js/config.js" as="script">

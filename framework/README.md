@@ -33,30 +33,28 @@ Todos los módulos usan el mismo sidebar. Copiar `base.css` y `framework.js` del
 <div class="sidebar-overlay" onclick="closeSidebar()"></div>
 
 <aside class="sidebar" id="sidebar">
-  <div class="sidebar-toggle" onclick="toggleSidebarCollapse()">◀</div>
-  <div class="logo">📦 <span>Mi Módulo</span></div>
-  <div class="user-info">
-    <div class="name" id="user-name"></div>
-    <div class="role" id="user-role"></div>
-    <span class="badge" id="user-badge"></span>
+  <div class="sidebar-header">
+    <button class="sidebar-toggle" onclick="toggleSidebarCollapse()" aria-label="Contraer menú" aria-expanded="true">❮</button>
   </div>
-  <nav id="sidebar-nav">
-    <div class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')">
-      <span class="icon">📊</span> Dashboard
-    </div>
-    <div class="nav-item" data-page="items" onclick="navigate('items')">
-      <span class="icon">📋</span> Items
-    </div>
+  <div class="logo">📦 <span>Mi Módulo</span></div>
+  <nav id="sidebar-nav" aria-label="Navegación Mi Módulo">
+    <div class="sidebar-section-title">Sección</div>
+    <button class="nav-item active" data-page="dashboard" onclick="navigate('dashboard')" title="Dashboard" data-tooltip="Dashboard" aria-current="page">
+      <span class="icon">📊</span> <span class="nav-text">Dashboard</span>
+    </button>
+    <button class="nav-item" data-page="items" onclick="navigate('items')" title="Items" data-tooltip="Items">
+      <span class="icon">📋</span> <span class="nav-text">Items</span>
+    </button>
   </nav>
   <div class="sidebar-footer">
-    <a class="sidebar-home" href="/"><span class="icon">🏠</span> <span>Home</span></a>
+    <a class="sidebar-home" href="/" title="Home" data-tooltip="Home"><span class="icon">🏠</span> <span class="nav-text">Home</span></a>
     <div class="user-name" id="sidebar-user-name"></div>
     <div class="user-role" id="sidebar-user-role"></div>
     <div class="version">
       <div id="app-version">v—</div>
     </div>
-    <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesion">
-      <span style="font-size:18px">&#x23FB;</span> Cerrar sesion
+    <button class="btn-logout" onclick="mostrarLogoutConfirm()" title="Cerrar sesión" data-tooltip="Cerrar sesión">
+      <span class="icon">⏻</span> <span class="nav-text">Cerrar sesión</span>
     </button>
   </div>
 </aside>

@@ -9,7 +9,8 @@ const THEME_DEFAULTS = {
 
 async function fetchTheme(launcherUrl) {
   try {
-    const url = (launcherUrl || 'http://localhost:3002').replace(/\/+$/, '') + '/api/shell/config';
+    const base = launcherUrl || window.location.origin;
+    const url = base.replace(/\/+$/, '') + '/api/shell/config';
     const res = await fetch(url, { signal: AbortSignal.timeout(3000) });
     if (!res.ok) return THEME_DEFAULTS;
     return await res.json();

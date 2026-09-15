@@ -32,10 +32,17 @@ function closeSidebar(){$('sidebar').classList.remove('open');document.querySele
 
 function toggleSidebarCollapse(){
   const s=$('sidebar');
+  const container=document.getElementById('app-container');
   s.classList.toggle('collapsed');
+  if(container) container.classList.toggle('sidebar-collapsed', s.classList.contains('collapsed'));
   localStorage.setItem('sidebar_collapsed', s.classList.contains('collapsed'));
   const btn = s.querySelector('.sidebar-toggle');
-  if(btn) btn.textContent = s.classList.contains('collapsed') ? '▶' : '◀';
+  if(btn){
+    const col = s.classList.contains('collapsed');
+    btn.textContent = col ? '❯' : '❮';
+    btn.setAttribute('aria-expanded', String(!col));
+    btn.setAttribute('aria-label', col ? 'Expandir menú' : 'Contraer menú');
+  }
 }
 
 function formatBytes(b){

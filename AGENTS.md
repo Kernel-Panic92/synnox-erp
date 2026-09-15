@@ -1,5 +1,282 @@
 # SynnoxERP — Contexto del proyecto
 
+## Estado (14 Sep 2026 — sesión 57 — build mode)
+
+### Cambios Sesión 57 — PWA móvil del CRM + presupuestos por asesor + sidebar launcher
+
+Sesión larga en `feat/crm-module` (build). Tres frentes: sidebar launcher al
+gold standard, presupuestos por asesor F1→F3, y conversión PWA del CRM con
+feedback iterativo de Gemini (layout, drawer, dock, tablas-tarjeta, agenda).
+
+#### Sidebar launcher + logo módulos
+- Launcher quedó fuera del gold `bb55cf6`; sincronizado en `76db3c3`
+  (toggle fantasma ❮/❯, footer full-width, aria, `?v=` bump) + `050a6f1`
+  (oculta secciones/usuario/logo-texto al colapsar).
+- Logo SynnoxERP (`/media/LogoERP.png`) en los 5 sidebars como en admin
+  (`82cf902`), apilado encima del nombre al expandir (`f8575a4`), 28px vía
+  CSS sin inline (`0f94b51`). El nombre sigue dinámico (`data-module-name`).
+
+#### Actividades 404 + CORS (`5233122`)
+- `POST /crm/api/actividades` → 404: el router vive en `/api/visitas` y el
+  endpoint real es `/api/visitas/actividades`; corregido `guardarActividad`.
+- CORS `http://localhost:3002/api/shell/config`: `theme.js` del CRM tenía el
+  fallback hardcodeado (roto en prod además); ahora `window.location.origin`
+  como en proyectos.
+
+#### Donas SVG nativas (`96ffcef`, `6be8973`, `1cee952`)
+- Helper `renderDonutChart()` reutilizable (dasharray, centro total, leyenda,
+  tooltips). Convertidos: Pérdida por causal, Recurrencia (analítica) y Por
+  tipo + Top ciudades (clientes). Tamaño 132px. Sin backend nuevo.
+
+#### Presupuestos por asesor F1→F3 (`6217979`, `72377da`, `ba1bbe4`)
+- **F1**: mig `038_crm_presupuestos.sql` (`usuario_id, periodo YYYY-MM,
+  presupuesto, centro`, unique), CRUD `/api/presupuestos` (configurar+ventas,
+  upsert), Admin → Presupuestos con month picker. Excel de gerencia quedó
+  como **referencia estructural** (sin importar ni mapear nombres).
+- **F2**: `GET /cumplimiento` (join ganado CRM, scope por rol), banner Mi
+  cumplimiento para asesor, barras por fila en Admin.
+- **F3**: motor de reglas local (proyección lineal, ritmo necesario/día,
+  tendencia vs mes anterior, consejos) en widget solo-asesor. Sin LLM.
+
+#### PWA móvil (30+ commits, feedback Gemini por captura)
+- **F1 quick wins** (`205b2b4`): theme-color, touch 40px `pointer:coarse`,
+  modal full-screen, tbl 640px, `lsGet/lsSet/lsDel`. **OJO**: el `cp` de
+  `components.css` pisó estilos propios → restaurados como override
+  (`56e5e56`). Lección: sync solo si idéntico, si no merge por bloques.
+- **Layout**: `bfd42ab` grid 1fr + sidebar fixed ≤768px (el sticky ocupaba la
+  pista 220px invisible); `8939d4a`/`03b36c6` kpi minmax + svg auto + filtros
+  chips; `f39d8d1` carrusel estricto; `4a7fd46` respiro widgets.
+- **Drawer**: `863da25` overlay `.show` (el JS usaba `.open` inexistente) +
+  botón ✕; luego solo-chevron que cierra en móvil (`9e982c8`, `210577b`);
+  tras debate se ocultó en móvil (`1cf6c78`). Swipe abrir/cerrar
+  (`e89a00c`, `2d7acd0`, umbrales 50/75, predominio horizontal).
+- **Dock iOS26** (`0a8a0ef`→`481ef25`): solo-móvil, Inicio/Ventas/+/
+  Clientes/Ruta, `+` central a cotización, flotante glassmorphism con tinte
+  acento (refuerzo en oscuro), `navigate()` sincroniza active.
+- **Header**: sticky→fixed (`92c6c5a`, el sticky moría por overflow-x hidden),
+  breadcrumb CRM + campana notif (`a2a2fa0`, incluye fix `notifApi` sin `/crm`),
+  theme al sidebar (`ab57b82`).
+- **Tablas-tarjeta** (`5217619`+`91abe4a`+`51ecac2`): thead oculto, filas como
+  cards con `data-label` (inyectado en 8 renders), título destacado, apilado
+  etiqueta-arriba/valor-abajo. Scopado con `:has(checkbox)` para no romper
+  tablas de widgets.
+- **Kanban carrusel** (`40b743b`): 85vw snap centrado, scroll interno 60vh.
+- **Bottom-sheet** (`1833f5f`+`71ca35b`): radius 24px + grabber + slideUp;
+  btn-row sticky al fondo (sin colchón 80px que la dejaba flotando).
+- **Agenda Actividades** (`eb755f7`+`a868e24`+`59577d8`+`6317c9c`): weekly
+  strip −15/+30 con picker 📅 nativo (label+z-index para iOS), timeline con
+  **datos reales** del caché, haptic 40ms, stats como chips, fechas sin desfase
+  TZ (constructor local, no toISOString).
+- **Persistencia** (`fbe435c`): `synnox_ultima_pagina` en `navigate()` +
+  restore post-auth en `init()` (con los helpers seguros).
+- **Replicado** a nómina/logística/proyectos/proveedores/launcher (`57af9f6`).
+
+#### Cotización leads (`8273a7b`)
+- Los leads SÍ llegaban (10/10, 200 OK) pero quedaban enterrados tras 9
+  clientes en un select de 140px. Ahora leads primero con separadores
+  `── LEADS/CLINTES ──`, max-height 220px. Diagnosticado vía Network tab.
+
+#### Pendiente próxima sesión
+- Probar PWA en dispositivo real (iPhone 402px + Android).
+- Permisos y privilegios de usuarios (pospuesto explícitamente).
+- `pm2 restart` en servidor tras `git pull` (PM2 corre como root).
+
+## Estado (09 Sep 2026 — sesión 56 — build mode)
+
+### Cambios Sesión 56 — Cotización a lead (simulación) + payloads SIESA para Gemini
+
+Sesión en `feat/crm-module` (build). Flujo completo oportunidad → cotización
+sintética con validaciones de perfil, y cotización a lead con envío bloqueado.
+
+#### Cotizaciones sintéticas fieles (`scripts/genera_cotizaciones.js`)
+- Réplica del POST real: permiso `crear_cotizacion`, centro/bodega/lista/motivo
+  contra config del perfil, precio desde `lista_precio_items` (sin fallback
+  inventado), totales como `recalcularTotales`, numero secuencial `COT-xxxxx`.
+- Solo crea las 100% limpias: omite oportunidades sin precio en lista.
+- Exporta payload dual a `scripts/payloads/` (ignorado en git) con flags
+  `missing`, `warnings` y `envio422` para validar con Gemini (f350/f351).
+- Hallazgos: 2/4 iniciales en $0 (sin precio en lista ni base); bodegas de
+  5 dígitos sin mapeo `bodega_co` → 422 (solo 4 mapeos a nivel CO); ruta
+  enviable hoy = bodega vacía + fallback por CO.
+- Limpieza: `DELETE items + cotizaciones WHERE notas LIKE 'Sintética de OPORT-%'`.
+
+#### Cotización a lead — Migración 037 + backend + UI
+- `037_crm_cotizacion_lead.sql`: `lead_id` en `cotizaciones` + índice.
+- `POST /cotizaciones`: `cliente_id` **o** `lead_id`; con lead usa asesor/lista
+  del lead y omite validación de sucursales. `PUT`/list/detail/stats con
+  `lead_nombre`.
+- Envío bloqueado con 422 claro en ruta y `enviarPedidoAlHub` (convertir lead
+  a cliente formal). Preview arma tercero desde el lead.
+- UI sin toggle (confundía): búsqueda unificada clientes+leads, aviso ámbar
+  de simulación al elegir lead, prefill desde oportunidad con lead, badge
+  `lead` en tabla y detalle.
+
+#### Próxima sesión
+- Verificar flujo lead end-to-end en UI (requiere `pm2 restart` por migración 037).
+- Completar mapeos `bodega_co` (24 bodegas) con códigos SIESA.
+- Completar `Precios por item` (SKUs en $0).
+- Validar payloads con Gemini contra spec f350/f351 del Hub.
+
+## Estado (09 Sep 2026 — sesión 55 — build mode)
+
+### Cambios Sesión 55 — Installer hardening, sidebar gold standard y saldos iniciales
+
+Sesión en `feat/crm-module` (build). Instalación limpia en dev, restore de backup
+prod, importación de saldos iniciales SIESA y unificación del sidebar de los 5
+módulos con el CRM como referencia gold.
+
+#### Installer — Instalación limpia + restore prod
+- `install.sh`: converge password PG (`ALTER USER` contra `.env`, evita 28P01),
+  genera `INTERNAL_API_TOKEN`, git no-interactivo + `SKIP_GIT`, schema/extensiones/
+  migraciones CRM, log de migraciones con resumen (`ON_ERROR_STOP=1` en
+  `.install-migrations.log`), smoke test post-PM2 (health de los 5 módulos) y
+  bloque nginx `/api/admin/backup/restore` sin límite (evita 413).
+- Migración `030` reescrita idempotente (bloque `DO`: solo altera si la columna
+  aún es UUID, vía `::text`, no-nulos no numéricos → NULL). El 030 original
+  abortaba el auto-migrate y dejaba 031–036 sin aplicar en limpio.
+- `pnpm-workspace.yaml` + lockfile incluyen `modules/crm` (`csv-parse`/`xlsx`;
+  sin esto el CRM no montaba → 404 en `/crm/api/*`).
+- Restore de backup prod a dev verificado (10GB, multer a disco, PM2 restart).
+
+#### CRM — Importación saldos iniciales + auth FormData
+- `importar.js`: inventario acepta `xlsx,csv` (el backend ya parseaba CSV latin-1;
+  solo la etiqueta `extensiones` lo bloqueaba) y el validador acepta `referencia`
+  como clave de producto.
+- Saldos: `inventario.csv` (1035 filas) → 769 registros iniciales; 266 filas
+  (128 SKUs en bodegas x15/x90, 826.445 unds) sin maestro → se generó
+  `items_faltantes_saldos.csv` desde el propio inventario y se importó (1065
+  productos). Reimportar inventario rescata el resto (upsert idempotente).
+- `app.js`: los 5 POST FormData (importar, actividades, checkin/checkout,
+  adjuntos ×2) ahora mandan `Bearer` además de cookie (solo-cookie daba 401
+  'Token requerido' tras el restore) + manejo de errores HTTP sin colgar el
+  spinner SSE.
+
+#### Sidebar — CRM como gold standard del framework
+- Estándar: secciones `.sidebar-section-title`, tooltips `data-tooltip`, toggle
+  fantasma ❮/❯ (26px, sin óvalo), `aria-current`/`aria-expanded`/labels,
+  `focus-visible`, footer colapsado con geometría de nav-item, iconos 20px,
+  `Cerrar sesión` con tilde, `?v=` bump en scripts.
+- Aplicado a `framework/` (canon: `framework.js`, `base.css`, `init.sh`,
+  `README.md`) y replicado en logística (12 items → 4 secciones, mapa 🗺️→🧭),
+  proyectos (7 items → 3 secciones), nómina (fix `data-page nominas→nomina`) y
+  proveedores (secciones al canon 11px, badges intactos).
+- `scripts/genera_oportunidades.js`: modo `--dias N` (mes simulado: 50
+  `OPORT-*` 10-ago→9-sep, etapas coherentes con antigüedad, historial fechado,
+  `motivo_perdida` en perdidas). Limpieza: 3 DELETEs por `nombre LIKE 'OPORT-%'`.
+
+#### Commits sesión 55 (desde `471658e`)
+- `0f6746d` — `fix(installer): instalación limpia compatible con CRM y restore sin 413`
+
+## Estado (07 Sep 2026 — sesión 54 — build mode)
+
+### Cambios Sesión 54 — CRM: Places por proxy, Dashboard gerencial y Analítica Avanzada
+
+Sesión en `feat/crm-module` (build). Se arregló Google Places en leads, se unificó el combobox en actividades, se aplicó GPS a visitas y se construyó un Dashboard con widgets y pestaña de Analítica Avanzada.
+
+#### Google Places en Lead — Proxy backend (fix definitivo)
+- **Problema**: cargar `maps.googleapis.com/maps/api/js` en frontend causaba `gmp-internal-* already defined` + `Module common has been provided more than once` y no desplegaba opciones.
+- **Fix** (`6d15074`→`5239080`→`2fa5302`→`4d860f8`): ya NO se carga el JS de Google Maps. Backend proxy `routes/places.js` (`GET /api/places/autocomplete?input=&components=country:co` + `GET /api/places/details?place_id=` usando `google_maps_key` del Launcher). Frontend `_initLeadPlacesAutocomplete` con dropdown propio `position:fixed z-index:300` append a `document.body` (evita clipping por `overflow-y:auto` del `.modal`), posicionado con `getBoundingClientRect()`, DANE auto + lat/lng + place_id. **IMPORTANTE**: las llamadas estaban comentadas en `abrirModalLead` — descomentadas.
+- `places.js` montado en `server.js` como `/api/places` con `protect`.
+
+#### Combobox unificado y GPS en Actividades
+- **Nueva Actividad** (`9df7ae3`): cliente combobox pasa de `✓ ... ✕` debajo a selección **dentro del input** (`readOnly` + clic para cambiar), con `filtrarActClientes` usando debounce API (300ms) en vez de cache local. `guardarActividad` sigue leyendo del `<select>` hidden.
+- **GPS en visitas** (`5100387`): condición `tipo === 'reunion'` → `['reunion','visita'].includes(tipo)` en `actualizarActGPSGroup` y `guardarActividad`. Mapa + captura GPS auto para Visita en Proceso/Realizada igual que Reunión. `llamada/nota` siguen sin GPS.
+
+#### Pipeline — KPIs con feedback de Gemini
+- **3 KPIs nuevos** (`1eb839d`): Vencidas clicable (toggle resalta tarjetas `data-vencida`, badge `⏰ VENCIDA fecha` + borde rojo), Conversión por etapa (funnel `L→C·C→P·P→N`), Pérdida por causal (mini-barras por `motivo_perdida`). Backend `/oportunidades/stats` agrega `perdida_por_motivo`.
+- **Pulido visual** (`87820c9`→`cf3a511`→`7924715`): `#stats-pipeline` flex con `overflow-x:auto` + scroll suave; funnel vertical con `funnel-row` (texto izq, % der) y badges dinámicos (verde ≥50%, naranja 30-49%, rojo <30%, `—` sin base); `kpi-chips` para fuente/prioridad/etapa; títulos arriba (`stat-label-top`); tooltips `title` con fórmula; `formatMoneyShort` montos compactos en headers Kanban (`$152,3 M`).
+
+#### Dashboard — Widgets y filtros de periodo
+- **4 widgets** (`2b3adce`→`bbe8f44`): Embudo de ventas (barras por etapa, Perdida gris), Rendimiento de asesores (top 10 por monto ganado), Tendencia mensual (SVG nativo con `generate_series` rellenando meses vacíos + `<title>` tooltip), Distribución geográfica (top 8 ciudades, scroll 220px). Sin `better-sqlite3` en backend (fix `dd57117` ERR_DLOPEN_FAILED ABI 115 vs 127 → nombres de asesores resueltos en frontend vía `_pipelineVendedorCache`).
+- **Filtros de periodo** (`3705a80`): barra `Periodo` con `desde/hasta` + botones `Mes actual`, `Mes anterior`, `Trimestre`, `✕ Limpiar`. Backend `/api/dashboard` respeta `desde/hasta` en funnel/ranking/tendencia/ciudades con casting `::date + INTERVAL '1 day'`. Se eliminó la tabla de Clientes Recientes.
+
+#### Analítica Avanzada — pestaña 3×2 (9 widgets)
+- **Tabs** `Resumen`/`Analítica Avanzada` en dashboard (`d91c0f8`→`072e96f`), comparten filtros de periodo.
+- **Endpoint** `GET /api/dashboard/analytics` con 9 métricas:
+  - **ACV** (promedio ganadas), **Pipeline coverage** (pipeline÷meta editable `window._metaMensual`; rojo <1x, naranja 1-3x, verde 3-4x), **Forecast ponderado** (Σ monto×prob ÷ meta, `window._forecastActual`), **Velocidad por etapa** (días entre cambios de `oportunidad_historial`, orden cronológico), **Pérdida por causal** (%), **Slippage** (vencidas/abiertas, rojo ≥40%), **Recurrencia de clientes** (ganadas recurrentes vs nuevos), **Ticket promedio por canal** (AVG ganadas por fuente), **LTV estimado** (ACV × recurrencia).
+- **Drag & drop a PERDIDA** (`072e96f`): si la oportunidad no tiene `motivo_perdida`, `prompt` obligatorio con 5 opciones (Precio, Competencia, Sin presupuesto, No responde, Otro) — alimenta Pérdida por causal.
+- **Descartado** (sin datos): CAC, Deal Slippage (historial de fechas), quota real por vendedor (no existe `crm.metas`).
+
+#### Nota técnica
+- El server corre como root en PM2 (`/root/.pm2`). El binario `better-sqlite3@11.10.0` está compilado para Node ABI 115 pero el runtime pide 127 → `ERR_DLOPEN_FAILED`. Evitar `import('better-sqlite3')` en rutas del CRM; resolver nombres de usuarios en frontend o vía endpoint `/perfiles-venta/*`.
+
+#### Commits sesión 54 (desde `ace122b`)
+- `4d860f8` — `fix(crm): lead Places proxy estaba comentado — descomenta _initLeadPlacesAutocomplete`
+- `2fa5302` — `fix(crm): lead direccion dropdown via fixed positioning (overflow modal clipping)`
+- `5239080` — `fix(crm): SyntaxError expected expression got ')' (app.js:1389)`
+- `6d15074` — `feat(crm): lead direccion via proxy Places (no gmaps js multiple)`
+- `9df7ae3` — `feat(crm): actividades cliente combobox con seleccion dentro del input`
+- `5100387` — `feat(crm): GPS auto tambien para visitas en proceso/realizada`
+- `1eb839d` — `feat(crm): pipeline KPIs — vencidas clicable, funnel conversion, perdida por causal`
+- `87820c9`/`cf3a511`/`7924715` — `style(crm): pipeline KPIs legibles/perfect/scroll + montos compactos`
+- `2b3adce` — `feat(crm): dashboard widgets — embudo, ranking asesores, tendencia SVG, geografica`
+- `dd57117` — `fix(crm): dashboard 500 — quita import better-sqlite3 (ERR_DLOPEN_FAILED)`
+- `fc1cd4f` — `fix(crm): dashboard asesores — espera cache vendedores para nombre`
+- `3705a80` — `feat(crm): dashboard filtro fechas (mes actual/anterior/trimestre)`
+- `bbe8f44` — `style(crm): dashboard — perdida gris, tendencia meses completos, ciudades scroll, sin clientes recientes`
+- `d91c0f8` — `feat(crm): dashboard Analitica Avanzada — ACV, coverage, velocity, loss, recurrencia, LTV`
+- `072e96f` — `feat(crm): analitica 3x2 — slippage, ticket por canal, forecast ponderado, motivo obligatorio`
+
+## Estado (04 Sep 2026 — sesión 53 — build mode)
+
+### Cambios Sesión 52-53 — CRM: Hub SIESA mock, payload f350/f351 y Pipeline pulido
+
+Sesión en `feat/crm-module` (build). Se dejó el CRM listo para SIESA Hub sin docs oficiales, se corrigieron precios/condición de pago y se pulió Pipeline/Oportunidades con combobox buscables.
+
+#### Hub SIESA — Mock y payload dual
+- Migraciones `025` `crm.vendedores` + `usuario_perfil_venta.codigo_vendedor`, `026` `crm.hub_config` + `crm.hub_envios` (UUID fix `a67ef8b`), `027` `crm.siesa_mapeos` (cond_pago, unidad_negocio, centro_costo, bodega_co), `028/029` campos SIESA en clientes/productos, `030` `creado_por INTEGER` fix `500` en crear cotización (`5262821`), `031` `bodega_co`, `032/033` `oportunidades.fuente/prioridad/lista_precios`.
+- `utils/hubClient.js` (`2ba454e`): `buildHubPayload` (payload limpio) + `toSiesaPayload` (mapea vía `siesa_mapeos` a `Encabezado{f350_id_co,f350_id_tipo_docto,f350_id_tercero,f350_id_sucursal_fact/desp,f430_id_vendedor,f430_id_cond_pago,f430_id_lista_precios,f430_id_bodega,f350_id_unidad_negocio}` + `Movimientos[{f351_consecutivo,f351_id_item,f351_cant_pedida,f351_precio_unitario,f351_porc_descuento,f351_porc_iva,f351_subtotal}]` con liquidación por línea). `totales {bruto,descuento,subtotal,iva,total}` coherente (ej. `COT-134311` 430k→46k→384k→34.960→418.960) y `iva` sumado por renglón (`5cb9e67` fix exento 0 vs 19).
+- `routes/hub.js` (`2ef2714`): `GET/PUT /hub/config`, `POST /hub/sync`, `POST /hub/enviar/:id`, `GET /hub/payload/:id` dual (`payload_crm + payload_siesa`), `GET /hub/envios`. `POST /cotizaciones/:id/enviar-erp` ahora genera `CPV-MOCK-xxxxx` y actualiza `documento_erp`.
+- Validación por perfil en `POST /cotizaciones` (`centro/bodega/lista/motivo` vs `getPerfilConfigForUser`) y `requireVentasPerfil` extendido a `PUT/DELETE/items/estado/enviar-erp` (`4c9fc97`).
+- UI `Admin → SIESA Hub` con toggle mock, base_url/client_id/secret y lista de envíos.
+
+#### Cotizaciones — Precios y condición
+- `GET /productos/buscar?lista=200` hace `COALESCE(lista_precio_items.precio, cualquier lista, base)` (`2b87c6a`) + frontend envía `lista` actual — fix `0303 Kg $10.000` que salía `$0`. `0303` insertado a `200` para demo.
+- `Vendedor` ahora resuelve nombre vía `GET /perfiles-venta/vendedores` (`0c98cee`) y `Condición de pago` autocompleta desde `medio_pago_desc` (`eaaeb1e` → `EFECTIVO`).
+
+#### Oportunidades / Pipeline — Combobox y negocio
+- Mig `032/033` añade `fuente/prioridad/lista_precios` a `crm.oportunidades`; backend `POST/PUT` y precio por lista al agregar producto (`efd82c7`).
+- Modal `Nueva Oportunidad`: `Cliente/Lead` buscables con debounce (`filtrarOportunidadClientes/Leads` + `✓ seleccionado ✕`), `Contacto` con filtro, `Fuente`/`Prioridad`/`Motivo pérdida` selects, `Lista de precios` combobox por defecto del perfil (`2af4b05`, `5866072` quita filtro contacto sobrante, `f300741` no pisa monto si producto sin precio).
+- `Vendedor` en combobox buscable solo con perfil ventas (`79910cc` backend 403 si no admin, frontend disabled; `120e83b` combobox con `✓`, `5131c47` solo nombre, `32e0c7f` solo asesores via `GET /perfiles-venta/asesores`).
+- Widgets Pipeline ampliados a 8 (`6e347c1`): `Vencidas`, `Ticket promedio`, `Ciclo promedio`, `por etapa/fuente/prioridad`, `Top vendedor` (fix path 4 niveles `09c1655`, solo asesores `d2d74cf`, solo nombre `a27e10c`).
+- Filtro global pipeline poblado (`1b09ed7`): `Buscar`, `Etapa`, `Fuente`, `Prioridad`, `Desde/Hasta` + `Vendedor` combobox buscable (solo asesores) con estilo Nómina (`8ae621d` absolute dropdown, tiempo real).
+- Drag & drop `PUT /oportunidades/:id/mover` fix `inconsistent types $1` con `::varchar/::uuid` (`ccc5735`, `db79ef6`).
+- Framework `components.css` Widgets estilo Nómina (`dee271b` + `6f3b091` pipeline con colores `blue/orange/purple/green`).
+
+#### Sintéticas y datos
+- `scripts/genera_oportunidades.js` (`5c89e41` 50/50 aleatorio cliente/lead): 42 oportunidades sintéticas para un mes, vendedor aleatorio entre 10 asesores 2440, 1-2 productos con precio de lista (`072ab0d` real-time + `261533a` fix `030 USING ::integer` que había borrado `vendedor_id`).
+
+#### Commits clave sesión 52-53 (desde `2af4b05`)
+- `4c9fc97` — `feat(crm): perfiles venta listos para SIESA Hub (vendedores + enforcement)`
+- `2ef2714` — `feat(crm): SIESA Hub mock adapter listo sin docs`
+- `a67ef8b` — `fix(crm): hub UUID fix`
+- `2ba454e` — `fix(crm): hub payload sucursales tabla correcta + fallback`
+- `eaaeb1e` — `fix(crm): cotizacion trae condicion pago + precios catalogo fallback`
+- `0c98cee` — `fix(crm): muestra vendedor con nombre SIESA y precio 0303 demo`
+- `d6b5110` — `feat(crm): adaptador SIESA Hub f350/f351 dual payload + mapeos`
+- `5262821` — `fix(crm): creado_por integer (500 crear cotizacion)`
+- `820f51f` — `fix(crm): payload siesa coherente (totales descuento, iva por linea)`
+- `11a0bd4` — `fix(crm): totales con bruto + iva por linea`
+- `5cb9e67` — `fix(crm): iva totales = sum linea (0 si exento)`
+- `416bdab` — `feat(crm): hub final listo — fechas YYYYMMDD, bodega por CO`
+- `2af4b05` — `feat(crm): pipeline interno pulido con combobox buscables`
+- `f300741` — `fix(crm): oportunidad no pisa monto con producto sin precio`
+- `efd82c7` — `feat(crm): oportunidad con lista precios por defecto del perfil`
+- `6e347c1` — `feat(crm): widgets pipeline completos (8/8)`
+- `6f3b091` — `style(crm): pipeline widgets con estilo Nomina`
+- `dee271b` — `style(framework): widgets Nómina-style en framework`
+- `79910cc` — `feat(crm): pipeline usuarios con perfil ventas`
+- `120e83b` — `feat(crm): vendedor oportunidad en combobox buscable`
+- `1b09ed7` — `feat(crm): filtro global pipeline poblado`
+- `d2d74cf` — `fix(crm): pipeline vendedor solo asesores comerciales`
+- `e167d47` — `fix(crm): pipeline vendedor combobox sin desborde`
+- `a27e10c` — `fix(crm): pipeline vendedor solo nombre`
+- `5131c47` — `fix(crm): modal vendedor solo nombre`
+- `32e0c7f` — `fix(crm): modal vendedor solo usuarios con perfil ventas`
+- `261533a` — `fix(crm): pipeline vendedor filtro y 030 USING cast correcto`
+- `09c1655` — `fix(crm): top vendedor nombre (path 4 niveles)`
+- `804f2a7` — `fix(crm): combobox cierra al clic fuera`
+
 ## Estado (31 Ago 2026 — sesión 51)
 
 ### Cambios Sesión 51 — CRM: Maestros SIESA, Pipeline con productos y pulido masivo del flujo comercial
