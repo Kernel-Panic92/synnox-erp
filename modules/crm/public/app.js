@@ -5289,3 +5289,43 @@ window.addEventListener('resize', () => {
 document.addEventListener('DOMContentLoaded', () => {
   if (document.getElementById('page-visitas')?.classList.contains('active')) renderCalendarStrip();
 });
+
+// Bandeja colapsable de filtros en móvil (listados; #dash-filtros conserva su carrusel)
+function simplificarFiltrosMovil() {
+  const esMovil = window.innerWidth <= 768;
+  document.querySelectorAll('.filters:not(#dash-filtros)').forEach(cont => {
+    const btn = cont.querySelector(':scope > .btn-filtros-toggle');
+    const tray = cont.querySelector(':scope > .filtros-avanzados-movil');
+    if (!esMovil) { // restore desktop: devolver hijos y limpiar
+      if (tray) { while (tray.firstChild) cont.insertBefore(tray.firstChild, btn || tray); tray.remove(); }
+      if (btn) btn.remove();
+      delete cont.dataset.optimizado;
+      cont.style.justifyContent = '';
+      const busc = cont.querySelector('input[type="text"]');
+      if (busc) { busc.style.flex = ''; busc.style.minWidth = ''; }
+      return;
+    }
+    if (cont.dataset.optimizado) return;
+    cont.dataset.optimizado = 'true';
+    const buscador = cont.querySelector('input[type="text"]');
+    const bandeja = document.createElement('div');
+    bandeja.className = 'filtros-avanzados-movil';
+    const toggle = document.createElement('button');
+    toggle.className = 'btn btn-sm btn-secondary btn-filtros-toggle';
+    toggle.innerHTML = '🎛️ Filtros';
+    toggle.style.flexShrink = '0';
+    toggle.style.height = '44px';
+    Array.from(cont.children).forEach(h => { if (h !== buscador) bandeja.appendChild(h); });
+    toggle.onclick = () => {
+      const abierto = bandeja.style.display === 'flex';
+      bandeja.style.display = abierto ? 'none' : 'flex';
+      toggle.style.background = abierto ? '' : 'var(--border)';
+    };
+    if (buscador) { buscador.style.flex = '1'; buscador.style.minWidth = '150px'; }
+    else cont.style.justifyContent = 'flex-end';
+    cont.appendChild(toggle);
+    cont.appendChild(bandeja);
+  });
+}
+window.addEventListener('resize', simplificarFiltrosMovil);
+document.addEventListener('DOMContentLoaded', simplificarFiltrosMovil);
