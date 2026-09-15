@@ -107,9 +107,10 @@ app.get('/api/dashboard', protect, requirePermiso('ver', 'crm'), async (req, res
     const opFiltro = [];
     const cliFiltro = [];
     const params = [];
-    let pi = 1;
-    if (desde) { opFiltro.push(`o.creado_en >= $${pi}::date`); cliFiltro.push(`creado_en >= $${pi}::date`); params.push(desde); pi++; }
-    if (hasta) { opFiltro.push(`o.creado_en < $${pi}::date + INTERVAL '1 day'`); cliFiltro.push(`creado_en < $${pi}::date + INTERVAL '1 day'`); params.push(hasta); pi++; }
+    const cliParams = [];
+    let pi = 1, ci = 1;
+    if (desde) { opFiltro.push(`o.creado_en >= $${pi}::date`); params.push(desde); pi++; cliFiltro.push(`creado_en >= $${ci}::date`); cliParams.push(desde); ci++; }
+    if (hasta) { opFiltro.push(`o.creado_en < $${pi}::date + INTERVAL '1 day'`); params.push(hasta); pi++; cliFiltro.push(`creado_en < $${ci}::date + INTERVAL '1 day'`); cliParams.push(hasta); ci++; }
     // FASE 1 permisos: no-gerente ve solo sus oportunidades (clientes y ciudades son maestros compartidos)
     const soloMioDash = !['admin', 'gerente'].includes(req.user?.rol);
     if (soloMioDash) { opFiltro.push(`o.vendedor_id = $${pi++}`); params.push(req.user.id); }
@@ -127,7 +128,7 @@ app.get('/api/dashboard', protect, requirePermiso('ver', 'crm'), async (req, res
         FROM generate_series(${tendDesde}::date, ${tendHasta}::date, INTERVAL '1 month') mes
         LEFT JOIN crm.oportunidades o ON DATE_TRUNC('month', o.creado_en) = DATE_TRUNC('month', mes)${soloMioDash ? ` AND o.vendedor_id = ${parseInt(req.user.id)}` : ''}
         GROUP BY mes ORDER BY mes`),
-      pool.query(`SELECT COALESCE(ciudad,'Sin ciudad') as ciudad, COUNT(*) as cantidad FROM crm.clientes ${cliWhere} GROUP BY ciudad ORDER BY cantidad DESC LIMIT 8`, params),
+      pool.query(`SELECT COALESCE(ciudad,'Sin ciudad') as ciudad, COUNT(*) as cantidad FROM crm.clientes ${cliWhere} GROUP BY ciudad ORDER BY cantidad DESC LIMIT 8`, cliParams),
       pool.query(`SELECT o.id, o.nombre as oportunidad, COALESCE(c.nombre, l.raison_social, '—') as cliente, o.monto_esperado as valor, o.etapa, COALESCE(c.ciudad,'—') as ciudad, o.creado_en as fecha, o.vendedor_id
         FROM crm.oportunidades o LEFT JOIN crm.clientes c ON c.id=o.cliente_id LEFT JOIN crm.leads l ON l.id=o.lead_id
         ${opWhere} ORDER BY o.creado_en DESC LIMIT 8`, params)
