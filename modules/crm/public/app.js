@@ -5417,28 +5417,21 @@ function cargarColumnasReporte() {
   const columnas = definicionColumnasReportes[modulo] || [];
   container.innerHTML = columnas.map(col => `
     <label class="chip-columna">
-      <input type="checkbox" class="chk-columna-reporte" value="${col.id}" checked>
+      <input type="checkbox" class="chk-columna-reporte" value="${col.id}" checked onchange="actualizarVistaPreviaReporte()">
       <span>${col.label}</span>
     </label>`).join('');
+  actualizarVistaPreviaReporte();
 }
 
 function marcarTodasColumnasReporte(marcar) {
   document.querySelectorAll('.chk-columna-reporte').forEach(chk => chk.checked = marcar);
 }
 
-async function generarExcelCustom() {
-  const modulo = document.getElementById('reporte-modulo').value;
+async function obtenerDatosReporte(modulo) {
   const fechaDesde = document.getElementById('reporte-desde').value;
   const fechaHasta = document.getElementById('reporte-hasta').value;
-  if (!modulo) return toast('Selecciona un módulo para exportar', 'warning');
-  const checkboxes = document.querySelectorAll('.chk-columna-reporte:checked');
-  if (!checkboxes.length) return toast('Selecciona al menos una columna', 'warning');
-  if (typeof XLSX === 'undefined') return toast('Librería Excel no cargada (revisa tu conexión)', 'error');
-  const defs = definicionColumnasReportes[modulo] || [];
-  const cols = Array.from(checkboxes).map(chk => defs.find(d => d.id === chk.value)).filter(Boolean);
-  toast('Descargando datos...', 'info');
   const r = await apiFetch(reporteEndpoints[modulo]);
-  if (!r.ok) return toast('Error al obtener datos', 'error');
+  if (!r.ok) return null;
   let datos = r.data.data || r.data || [];
   if (!Array.isArray(datos)) datos = [];
   if (fechaDesde || fechaHasta) {
@@ -5451,6 +5444,20 @@ async function generarExcelCustom() {
       return true;
     });
   }
+  return datos;
+}
+
+async function generarExcelCustom() {
+  const modulo = document.getElementById('reporte-modulo').value;
+  if (!modulo) return toast('Selecciona un módulo para exportar', 'warning');
+  const checkboxes = document.querySelectorAll('.chk-columna-reporte:checked');
+  if (!checkboxes.length) return toast('Selecciona al menos una columna', 'warning');
+  if (typeof XLSX === 'undefined') return toast('Librería Excel no cargada (revisa tu conexión)', 'error');
+  const defs = definicionColumnasReportes[modulo] || [];
+  const cols = Array.from(checkboxes).map(chk => defs.find(d => d.id === chk.value)).filter(Boolean);
+  toast('Descargando datos...', 'info');
+  const datos = await obtenerDatosReporte(modulo);
+  if (datos === null) return toast('Error al obtener datos', 'error');
   if (!datos.length) return toast('No hay registros para esas fechas', 'warning');
   const filas = datos.map(item => {
     const fila = {};
@@ -5473,3 +5480,66 @@ async function generarExcelCustom() {
     toast('Error al generar el Excel', 'error');
   }
 }
+
+let chartPreviewActual = null;
+
+async function actualizarVistaPreviaReporte() {
+  const modulo = document.getElementById('reporte-modulo').value;
+  const panel = document.getElementById('panel-vista-previa');
+  if (!modulo) { panel.style.display = 'none'; return; }
+  panel.style.display = 'block';
+  const datos = await obtenerDatosReporte(modulo);
+  if (datos === null) return toast('Error al obtener datos', 'error');
+  const defs = definicionColumnasReportes[modulo] || [];
+  const colsSel = Array.from(document.querySelectorAll('.chk-columna-reporte:checked'))
+    .map(c => defs.find(d => d.id === c.value)).filter(Boolean);
+  const cols = colsSel.length ? colsSel : defs;
+  if (!datos.length) {
+    document.getElementById('tabla-preview-head').innerHTML = '';
+    document.getElementById('tabla-preview-body').innerHTML = '';
+    document.getElementById('mensaje-preview-vacio').style.display = 'block';
+    document.getElementById('chart-reporte-preview').innerHTML = '<span style="color:var(--muted);font-size:12px">Sin datos para graficar</span>';
+    return;
+  }
+  document.getElementById('mensaje-preview-vacio').style.display = 'none';
+  document.getElementById('tabla-preview-head').innerHTML = '<tr>' + cols.map(d => `<th style="padding:8px 4px">${d.label}</th>`).join('') + '</tr>';
+  document.getElementById('tabla-preview-body').innerHTML = datos.slice(0, 5).map(item => {
+    return '<tr style="border-bottom:1px solid var(--border)">' + cols.map(d => {
+      let v = null;
+      try { v = d.get(item); } catch {}
+      if (d.id === 'total' && v !== null && v !== '' && !isNaN(v)) v = '$' + Number(v).toLocaleString('es-CO');
+      return `<td style="padding:8px 4px">${v === undefined || v === null || v === '' ? '—' : v}</td>`;
+    }).join('') + '</tr>';
+  }).join('');
+  document.getElementById('chart-reporte-preview').innerHTML = '';
+  if (chartPreviewActual) { chartPreviewActual.destroy(); chartPreviewActual = null; }
+  if (typeof ApexCharts === 'undefined') {
+    document.getElementById('chart-reporte-preview').innerHTML = '<span style="color:var(--muted);font-size:12px">Gráficos no disponibles (sin conexión)</span>';
+    return;
+  }
+  const dark = !document.body.classList.contains('light');
+  let opts = null;
+  if (modulo === 'cotizaciones') {
+    document.getElementById('titulo-grafico-reporte').innerText = 'Cotizaciones por Estado';
+    const agg = {};
+    datos.forEach(x => { const k = x.estado || 'Desconocido'; agg[k] = (agg[k] || 0) + 1; });
+    opts = { series: Object.values(agg), labels: Object.keys(agg), chart: { type: 'donut', height: 280, background: 'transparent' }, theme: { mode: dark ? 'dark' : 'light' }, colors: ['#10b981', '#f59e0b', '#3b82f6', '#ef4444', '#a06af7'] };
+  } else if (modulo === 'leads') {
+    document.getElementById('titulo-grafico-reporte').innerText = 'Origen de Leads (Canal)';
+    const agg = {};
+    datos.forEach(x => { const k = x.canal || 'Sin asignar'; agg[k] = (agg[k] || 0) + 1; });
+    opts = { series: [{ name: 'Leads', data: Object.values(agg) }], xaxis: { categories: Object.keys(agg) }, chart: { type: 'bar', height: 280, toolbar: { show: false }, background: 'transparent' }, theme: { mode: dark ? 'dark' : 'light' }, colors: ['#f59e0b'] };
+  } else if (modulo === 'visitas') {
+    document.getElementById('titulo-grafico-reporte').innerText = 'Actividades por Estado';
+    const agg = {};
+    datos.forEach(x => { const k = x.estado || (x.checkout ? 'realizada' : 'Sin estado'); agg[k] = (agg[k] || 0) + 1; });
+    opts = { series: Object.values(agg), labels: Object.keys(agg), chart: { type: 'pie', height: 280, background: 'transparent' }, theme: { mode: dark ? 'dark' : 'light' }, colors: ['#3b82f6', '#10b981', '#ef4444', '#f59e0b'] };
+  } else {
+    document.getElementById('chart-reporte-preview').innerHTML = '<span style="color:var(--muted);font-size:12px">Gráfico no disponible para este módulo</span>';
+    return;
+  }
+  chartPreviewActual = new ApexCharts(document.querySelector('#chart-reporte-preview'), opts);
+  chartPreviewActual.render();
+}
+document.getElementById('reporte-desde')?.addEventListener('change', actualizarVistaPreviaReporte);
+document.getElementById('reporte-hasta')?.addEventListener('change', actualizarVistaPreviaReporte);

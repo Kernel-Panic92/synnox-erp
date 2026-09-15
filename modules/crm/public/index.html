@@ -879,6 +879,25 @@ html,body{overflow-x:clip}
             <div style="color:var(--muted);font-size:13px;width:100%;text-align:center;padding:10px 0">Selecciona un módulo primero 👆</div>
           </div>
         </div>
+        <div id="panel-vista-previa" style="display:none;margin-top:24px;padding-top:24px;border-top:1px solid var(--border)">
+          <h4 style="margin:0 0 16px 0;color:var(--accent);font-size:14px">4. Vista Previa de Datos</h4>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px">
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;box-shadow:0 4px 12px rgba(0,0,0,0.02)">
+              <h5 id="titulo-grafico-reporte" style="margin:0 0 12px 0;font-size:13px;color:var(--muted);text-transform:uppercase">Resumen</h5>
+              <div id="chart-reporte-preview" style="min-height:250px;display:flex;align-items:center;justify-content:center">
+                <span style="color:var(--muted);font-size:12px">Cargando gráfico...</span>
+              </div>
+            </div>
+            <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:16px;overflow-x:auto;box-shadow:0 4px 12px rgba(0,0,0,0.02)">
+              <h5 style="margin:0 0 12px 0;font-size:13px;color:var(--muted);text-transform:uppercase">Muestra (Top 5 Registros)</h5>
+              <table style="width:100%;border-collapse:collapse;font-size:12px;text-align:left">
+                <thead id="tabla-preview-head" style="border-bottom:2px solid var(--border);color:var(--muted)"></thead>
+                <tbody id="tabla-preview-body"></tbody>
+              </table>
+              <div id="mensaje-preview-vacio" style="display:none;padding:20px;text-align:center;color:var(--muted);font-size:12px">No hay datos para esta selección.</div>
+            </div>
+          </div>
+        </div>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="generarExcelCustom()">📥 Exportar Excel</button>
         </div>
@@ -1853,6 +1872,7 @@ html,body{overflow-x:clip}
 </div><!-- /app-container -->
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
 <script src="framework.js?v=20260909a"></script>
 
 <!-- Generic confirm modal (used by framework's confirmar) -->
