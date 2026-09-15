@@ -5412,7 +5412,7 @@ function accionPrincipalDock() {
       if (typeof abrirModalCotizacion === 'function') abrirModalCotizacion();
       break;
     case 'page-productos':
-      if (typeof abrirModalProducto === 'function') abrirModalProducto();
+      toast('Los productos se gestionan en el ERP SIESA', 'info');
       break;
     default:
       if (typeof abrirModalCotizacion === 'function') abrirModalCotizacion();
