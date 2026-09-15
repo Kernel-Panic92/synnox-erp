@@ -309,7 +309,8 @@ html,body{overflow-x:clip}
   @keyframes slideDownFade{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
   .page:not(#page-dashboard) .stats-row{display:flex !important;flex-wrap:nowrap !important;overflow-x:auto !important;gap:12px !important;padding-bottom:8px !important;margin-bottom:8px !important;-webkit-overflow-scrolling:touch;scrollbar-width:none}
   .page:not(#page-dashboard) .stats-row::-webkit-scrollbar{display:none}
-  .page:not(#page-dashboard) .stat-card{flex:0 0 auto !important;min-width:150px !important;height:64px !important;padding:10px 14px !important;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;border-radius:12px !important}
+  .page:not(#page-dashboard) .stat-card{flex:0 0 auto !important;min-width:150px !important;height:auto !important;min-height:64px !important;padding:10px 14px !important;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;border-radius:12px !important}
+  .page:not(#page-dashboard) .stat-card .kpi-chips{justify-content:flex-start !important;margin-top:8px !important;width:100%}
   .page:not(#page-dashboard) .stat-card .stat-value{font-size:20px !important;margin-bottom:2px}
   .page:not(#page-dashboard) .stat-card .stat-label{font-size:9px !important;text-align:left !important}
   .page:not(#page-dashboard) .stat-card::before{top:-10px;right:-10px;width:60px;height:60px}
