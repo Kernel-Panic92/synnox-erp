@@ -5387,13 +5387,48 @@ const definicionColumnasReportes = {
     { id: 'fecha', label: 'Fecha Creación', get: l => (l.creado_en || '').slice(0, 10) }
   ],
   visitas: [
-    { id: 'asunto', label: 'Asunto / Actividad', get: v => v.asunto || v.cliente_nombre },
+    { id: 'asunto', label: 'Asunto', get: v => v.asunto || v.cliente_nombre },
     { id: 'tipo', label: 'Tipo', get: v => v.tipo_actividad || v.tipo },
     { id: 'cliente', label: 'Cliente', get: v => v.cliente_nombre },
     { id: 'estado', label: 'Estado', get: v => v.estado || (v.checkout ? 'realizada' : 'en_proceso') },
     { id: 'fecha_inicio', label: 'Fecha Inicio', get: v => (v.fecha || '').slice(0, 10) },
     { id: 'vendedor', label: 'Asesor', get: v => v.vendedor_nombre || v.propietario_nombre },
     { id: 'lugar', label: 'Lugar', get: v => v.lugar }
+  ],
+  oportunidades: [
+    { id: 'nombre', label: 'Oportunidad', get: o => o.nombre },
+    { id: 'cliente', label: 'Prospecto', get: o => o.cliente_nombre || o.lead_nombre },
+    { id: 'etapa', label: 'Etapa del Embudo', get: o => o.etapa },
+    { id: 'monto', label: 'Valor Esperado', get: o => Number(o.monto_esperado || 0) },
+    { id: 'probabilidad', label: 'Probabilidad (%)', get: o => o.probabilidad },
+    { id: 'vendedor', label: 'Asesor', get: o => nombreVendedorReporte(o.vendedor_id) }
+  ],
+  perdidas: [
+    { id: 'oportunidad', label: 'Negocio Perdido', get: o => o.nombre },
+    { id: 'cliente', label: 'Cliente', get: o => o.cliente_nombre || o.lead_nombre },
+    { id: 'monto', label: 'Plata Perdida', get: o => Number(o.monto_esperado || 0) },
+    { id: 'motivo', label: 'Motivo de Pérdida', get: o => o.motivo_perdida },
+    { id: 'vendedor', label: 'Asesor', get: o => nombreVendedorReporte(o.vendedor_id) }
+  ],
+  productos: [
+    { id: 'codigo', label: 'Referencia', get: p => p.codigo },
+    { id: 'nombre', label: 'Producto', get: p => p.nombre },
+    { id: 'categoria', label: 'Categoría', get: p => p.categoria },
+    { id: 'veces', label: 'Cant. Cotizado', get: p => Number(p.veces || 0) },
+    { id: 'total_dinero', label: 'Total Dinero Cotizado', get: p => Number(p.total_dinero || 0) }
+  ],
+  descuentos: [
+    { id: 'cotizacion', label: 'Cotización', get: d => d.cotizacion_numero },
+    { id: 'cliente', label: 'Cliente', get: d => d.cliente_nombre },
+    { id: 'descuento_pct', label: '% / Valor', get: d => d.tipo === 'porcentaje' ? d.valor_descuento + '%' : d.valor_descuento },
+    { id: 'estado', label: 'Estado Autorización', get: d => d.estado },
+    { id: 'vendedor', label: 'Solicitante', get: d => d.solicitado_por_nombre }
+  ],
+  checkins: [
+    { id: 'vendedor', label: 'Asesor', get: v => v.vendedor_nombre || v.propietario_nombre || nombreVendedorReporte(v.vendedor_id) },
+    { id: 'cliente', label: 'Cliente Visitado', get: v => v.cliente_nombre },
+    { id: 'coordenadas', label: 'Coordenadas GPS (Lat, Lng)', get: v => (v.latitud && v.longitud) ? v.latitud + ', ' + v.longitud : null },
+    { id: 'fecha', label: 'Fecha y Hora Real', get: v => (v.fecha || '').slice(0, 16).replace('T', ' ') }
   ],
   clientes: [
     { id: 'nombre', label: 'Razón Social', get: c => c.nombre },
@@ -5405,7 +5440,11 @@ const definicionColumnasReportes = {
     { id: 'email', label: 'Correo Electrónico', get: c => c.email }
   ]
 };
-const reporteEndpoints = { cotizaciones: '/cotizaciones?limit=1000', leads: '/leads?limit=1000', visitas: '/visitas?limit=1000', clientes: '/clientes?limit=1000' };
+const reporteEndpoints = { cotizaciones: '/cotizaciones?limit=1000', leads: '/leads?limit=1000', visitas: '/visitas?limit=1000', clientes: '/clientes?limit=1000', oportunidades: '/oportunidades?limit=1000', perdidas: '/oportunidades?limit=1000', productos: '/reportes/productos-rendimiento', descuentos: '/descuentos?limit=1000', checkins: '/visitas?limit=1000' };
+function nombreVendedorReporte(id) {
+  const f = (_pipelineVendedorCache || []).find(u => String(u.id) === String(id));
+  return f ? f.nombre : (id ? 'ID ' + id : '—');
+}
 
 function cargarColumnasReporte() {
   const modulo = document.getElementById('reporte-modulo').value;
@@ -5425,15 +5464,25 @@ function cargarColumnasReporte() {
 
 function marcarTodasColumnasReporte(marcar) {
   document.querySelectorAll('.chk-columna-reporte').forEach(chk => chk.checked = marcar);
+  actualizarVistaPreviaReporte();
 }
 
 async function obtenerDatosReporte(modulo) {
   const fechaDesde = document.getElementById('reporte-desde').value;
   const fechaHasta = document.getElementById('reporte-hasta').value;
-  const r = await apiFetch(reporteEndpoints[modulo]);
+  let url = reporteEndpoints[modulo];
+  if (modulo === 'productos') {
+    const qs = new URLSearchParams();
+    if (fechaDesde) qs.set('desde', fechaDesde);
+    if (fechaHasta) qs.set('hasta', fechaHasta);
+    if (qs.toString()) url += '?' + qs.toString();
+  }
+  const r = await apiFetch(url);
   if (!r.ok) return null;
   let datos = r.data.data || r.data || [];
   if (!Array.isArray(datos)) datos = [];
+  if (modulo === 'perdidas') datos = datos.filter(o => o.etapa === 'perdida');
+  if (modulo === 'checkins') datos = datos.filter(v => v.latitud && v.longitud);
   if (fechaDesde || fechaHasta) {
     datos = datos.filter(item => {
       const f = item.fecha || item.fecha_inicio || item.creado_en;
@@ -5507,7 +5556,7 @@ async function actualizarVistaPreviaReporte() {
     return '<tr style="border-bottom:1px solid var(--border)">' + cols.map(d => {
       let v = null;
       try { v = d.get(item); } catch {}
-      if (d.id === 'total' && v !== null && v !== '' && !isNaN(v)) v = '$' + Number(v).toLocaleString('es-CO');
+      if (['total', 'monto', 'total_dinero'].includes(d.id) && v !== null && v !== '' && !isNaN(v)) v = '$' + Number(v).toLocaleString('es-CO');
       return `<td style="padding:8px 4px">${v === undefined || v === null || v === '' ? '—' : v}</td>`;
     }).join('') + '</tr>';
   }).join('');
@@ -5539,6 +5588,25 @@ async function actualizarVistaPreviaReporte() {
     const agg = {};
     datos.forEach(x => { const k = x.tipo || 'Sin tipo'; agg[k] = (agg[k] || 0) + 1; });
     opts = { series: Object.values(agg), labels: Object.keys(agg), chart: { type: 'donut', height: 280, background: 'transparent' }, theme: { mode: dark ? 'dark' : 'light' }, colors: ['#10b981', '#3b82f6', '#f59e0b', '#ef4444', '#a06af7'] };
+  } else if (modulo === 'oportunidades') {
+    document.getElementById('titulo-grafico-reporte').innerText = 'Valor por Etapa';
+    const agg = {};
+    datos.forEach(x => { const k = x.etapa || 'Sin etapa'; agg[k] = (agg[k] || 0) + Number(x.monto_esperado || 0); });
+    opts = { series: [{ name: 'Valor', data: Object.values(agg) }], xaxis: { categories: Object.keys(agg) }, chart: { type: 'bar', height: 280, toolbar: { show: false }, background: 'transparent' }, plotOptions: { bar: { horizontal: true, borderRadius: 4 } }, theme: { mode: dark ? 'dark' : 'light' }, colors: ['#a06af7'] };
+  } else if (modulo === 'perdidas') {
+    document.getElementById('titulo-grafico-reporte').innerText = 'Motivos de Pérdida';
+    const agg = {};
+    datos.forEach(x => { const k = x.motivo_perdida || 'Sin motivo'; agg[k] = (agg[k] || 0) + 1; });
+    opts = { series: Object.values(agg), labels: Object.keys(agg), chart: { type: 'pie', height: 280, background: 'transparent' }, theme: { mode: dark ? 'dark' : 'light' }, colors: ['#ef4444', '#f59e0b', '#3b82f6', '#10b981', '#a06af7'] };
+  } else if (modulo === 'productos') {
+    document.getElementById('titulo-grafico-reporte').innerText = 'Top Productos (Veces Cotizados)';
+    const top = datos.slice(0, 8);
+    opts = { series: [{ name: 'Veces', data: top.map(p => Number(p.veces || 0)) }], xaxis: { categories: top.map(p => p.codigo || p.nombre) }, chart: { type: 'bar', height: 280, toolbar: { show: false }, background: 'transparent' }, plotOptions: { bar: { horizontal: true, borderRadius: 4 } }, theme: { mode: dark ? 'dark' : 'light' }, colors: ['#3b82f6'] };
+  } else if (modulo === 'descuentos') {
+    document.getElementById('titulo-grafico-reporte').innerText = 'Descuentos por Estado';
+    const agg = {};
+    datos.forEach(x => { const k = x.estado || 'Sin estado'; agg[k] = (agg[k] || 0) + 1; });
+    opts = { series: Object.values(agg), labels: Object.keys(agg), chart: { type: 'donut', height: 280, background: 'transparent' }, theme: { mode: dark ? 'dark' : 'light' }, colors: ['#f59e0b', '#10b981', '#ef4444', '#3b82f6'] };
   } else {
     document.getElementById('chart-reporte-preview').innerHTML = '<span style="color:var(--muted);font-size:12px">Gráfico no disponible para este módulo</span>';
     return;

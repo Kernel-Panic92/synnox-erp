@@ -46,6 +46,7 @@ import presupuestosRoutes from './routes/presupuestos.js';
 import maestrosRoutes from './routes/maestros.js';
 import hubRoutes from './routes/hub.js';
 import placesRoutes from './routes/places.js';
+import reportesRoutes from './routes/reportes.js';
 
 const protect = createProtect(MODULE_ID);
 
@@ -67,6 +68,7 @@ app.use('/api/presupuestos', protect, presupuestosRoutes);
 app.use('/api/maestros', protect, maestrosRoutes);
 app.use('/api/hub', protect, hubRoutes);
 app.use('/api/places', protect, placesRoutes);
+app.use('/api/reportes', protect, reportesRoutes);
 
 // Public endpoint for centros
 app.get('/api/centros', (req, res) => {
