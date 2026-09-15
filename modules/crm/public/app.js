@@ -35,6 +35,53 @@ document.addEventListener('DOMContentLoaded', () => {
   init();
 });
 
+let _misPermisosCache = null;
+async function cargarMisPermisos(force = false) {
+  if (_misPermisosCache && !force) return _misPermisosCache;
+  try {
+    const r = await apiFetch('/perfiles-venta/me/mis-permisos');
+    _misPermisosCache = {
+      perms: new Set((r.ok && r.data?.permisos) || []),
+      esAdmin: usuario?.rol === 'admin',
+    };
+  } catch { _misPermisosCache = { perms: new Set(), esAdmin: false }; }
+  return _misPermisosCache;
+}
+function puedeConfigurarUI() {
+  const { perms, esAdmin } = _misPermisosCache || { perms: new Set(), esAdmin: false };
+  return esAdmin || perms.has('configurar');
+}
+
+// ==========================================
+// 🔒 GATES DE SEGURIDAD UI (Frontend)
+// ==========================================
+async function aplicarGatesDeSeguridadUI() {
+  try {
+    await cargarMisPermisos();
+    const puedeVerAdmin = puedeConfigurarUI() || (_misPermisosCache.esAdmin) ||
+      _misPermisosCache.perms.has('aprobar_descuento');
+    const navAdmin = document.querySelector('.nav-item[data-page="admin"]');
+    if (navAdmin) navAdmin.style.display = (puedeConfigurarUI() || _misPermisosCache.perms.has('aprobar_descuento')) ? '' : 'none';
+    // GATE: Exportar Excel solo gerencia/admin
+    const btnExportar = document.querySelector('button[onclick="generarExcelCustom()"]');
+    if (btnExportar) {
+      if (!puedeConfigurarUI()) {
+        btnExportar.style.display = 'none';
+        if (!document.getElementById('export-lock-msg')) {
+          const msg = document.createElement('span');
+          msg.id = 'export-lock-msg';
+          msg.style.cssText = 'color:var(--muted);font-size:12px;display:flex;align-items:center;gap:6px';
+          msg.textContent = '🔒 Exportación reservada para Gerencia';
+          btnExportar.parentElement?.appendChild(msg);
+        }
+      } else {
+        btnExportar.style.display = '';
+        document.getElementById('export-lock-msg')?.remove();
+      }
+    }
+  } catch (e) { console.error('Error al aplicar los Gates de UI:', e); }
+}
+
 async function init() {
   try {
     const r = await apiFetch('/auth/me');
@@ -51,6 +98,7 @@ async function init() {
       document.getElementById('app-version').textContent = 'v' + (vd.version || '?');
     } catch {}
     const ultima = lsGet('synnox_ultima_pagina');
+    await aplicarGatesDeSeguridadUI();
     navigate(pages.includes(ultima) ? ultima : 'dashboard');
   } catch { mostrarLogin(); }
 }
@@ -4618,9 +4666,7 @@ let _perfilesVentaCache=[];
 
 async function cargarAdmin(){
   document.getElementById('btn-volver-admin').style.display='none';
-  const misPermisos = await apiFetch('/perfiles-venta/me/mis-permisos');
-  const perms = new Set((misPermisos.ok && misPermisos.data?.permisos) || []);
-  const esAdmin = usuario?.rol==='admin';
+  const { perms, esAdmin } = await cargarMisPermisos();
   const puedeConfigurar = esAdmin || perms.has('configurar');
   const puedeAprobar = esAdmin || perms.has('aprobar_descuento');
   const puedeVerAdmin = esAdmin || puedeConfigurar || puedeAprobar;
