@@ -5367,7 +5367,11 @@ document.addEventListener('DOMContentLoaded', simplificarFiltrosMovil);
 // Botón central del Dock: abre el modal según la página activa
 function accionPrincipalDock() {
   const paginaActiva = document.querySelector('.page.active');
-  if (!paginaActiva) return;
+  if (!paginaActiva) {
+    if (typeof abrirModalCotizacion === 'function') abrirModalCotizacion();
+    if (navigator.vibrate) navigator.vibrate(50);
+    return;
+  }
   const idPagina = paginaActiva.id;
   switch (idPagina) {
     case 'page-leads':
